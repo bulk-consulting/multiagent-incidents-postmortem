@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]><html class="no-js lt-ie9 lt-ie8 lt-ie7"><![endif]-->
+<!--[if IE 7]><html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]><html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+
+<head><script type="text/javascript" src="https://web-static.archive.org/_static/js/bundle-playback.js?v=3grhEDQT" charset="utf-8"></script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/wombat.js?v=o9P2E1FK" charset="utf-8"></script>
+<script>window.RufflePlayer=window.RufflePlayer||{};window.RufflePlayer.config={"autoplay":"on","unmuteOverlay":"hidden","showSwfDownload":true};</script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/ruffle/ruffle.js"></script>
+<script type="text/javascript">
+    __wm.init("https://web.archive.org/web");
+  __wm.wombat("https://www.joyent.com/blog/postmortem-for-outage-of-us-east-1-may-27-2014","20220406095752","https://web.archive.org/","web","https://web-static.archive.org/_static/",
+	      "1649239072");
+</script>
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/banner-styles.css?v=1utQkbB3" />
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/iconochive.css?v=3PDvdIFv" />
+<!-- End Wayback Rewrite JS Include -->
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Postmortem for outage of us-east-1 | Joyent</title>
+<meta name="description" content="We would like to share the details on what occurred during the outage on 5/27/2014 in our us-east-1 data center, what we have learned, and what actions we are taking to prevent this from happening again."/>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="Postmortem for outage of us-east-1"/>
+<meta property="og:description" content="We would like to share the details on what occurred during the outage on 5/27/2014 in our us-east-1 data center, what we have learned, and what actions we are taking to prevent this from happening again."/>
+<meta property="og:url" content="https://web.archive.org/web/20220406095752/https://www.joyent.com/blog/postmortem-for-outage-of-us-east-1-may-27-2014"/>
+<meta property="og:site_name" content="Joyent"/>
+<meta property="og:locale" content="en"/>
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:site" content="@joyent"/>
+<meta name="twitter:title" content="Postmortem for outage of us-east-1"/>
+<meta name="twitter:description" content="We would like to share the details on what occurred during the outage on 5/27/2014 in our us-east-1 data center, what we have learned, and what actions we are taking to prevent this from happening again."/>
+
+<link href="https://www.joyent.com/" rel="home"/>
+<link href="https://web.archive.org/web/20220406095752/https://www.joyent.com/blog/postmortem-for-outage-of-us-east-1-may-27-2014" rel="canonical"/>
+<link type="text/plain" rel="author" href="https://www.joyent.com/humans.txt"/>
+
+    <script src="//web.archive.org/web/20220406095752js_/https://code.jquery.com/jquery-3.5.1.min.js" integrity="" crossorigin="anonymous"></script>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+    <title>Postmortem for outage of us-east-1 | Joyent</title>
+    <script src="https://web.archive.org/web/20220406095752js_/https://www.joyent.com/site/themes/joyent/js/prism.js" type="text/javascript"></script>
+    <link rel="stylesheet" href="https://web.archive.org/web/20220406095752cs_/https://www.joyent.com/site/themes/joyent/css/joyent.css?v=1609821926">
+    <script type="text/javascript" src="//web.archive.org/web/20220406095752js_/https://app-sjf.marketo.com/js/forms2/js/forms2.min.js" class="optanon-category-3"></script>
+    <script async type="text/javascript" src="https://web.archive.org/web/20220406095752js_/https://static.edgeme.sh/client.js" onload="window.edgemesh = new Edgemesh()"></script>
+</head>
+
+<body class="article postmortem-for-outage-of-us-east-1-may-27-2014 ">
+
+    <div id="menu">
+    <nav>
+        <div class="row">
+            <div class="col-xs-12">
+                <div class="logo"><a href="/web/20220406095752/https://www.joyent.com/" class="logo"></a><a href="" class="x"><svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:a="http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/" x="0px" y="0px" width="27.7px" height="27.7px" viewbox="0 0 27.7 27.7" style="enable-background:new 0 0 27.7 27.7;" xml:space="preserve"><style type="text/css">.st10{fill:none;stroke:#bbbbbb;stroke-width:3.6776;stroke-linecap:round;stroke-miterlimit:10;}</style><defs></defs><g><line class="st10" x1="1.8" y1="25.8" x2="25.8" y2="1.8"/><line class="st10" x1="1.8" y1="1.8" x2="25.8" y2="25.8"/></g></svg></a></div>
+                <hr>
+                <ul class="main-nav hidden-print">
+                    <li class="top subs"><a id="products-mobile" href="/web/20220406095752/https://www.joyent.com/triton">Products &amp; Services</a>
+                        <ul class="nav-drop products-mobile">
+                        <li><a href="/web/20220406095752/https://www.joyent.com/triton/managed-private-cloud">Managed Private Cloud</a></li>
+                        <li><a href="/web/20220406095752/https://www.joyent.com/triton/managed-hardware-cloud">Managed Hardware Cloud</a></li>
+                        <li><a href="/web/20220406095752/https://www.joyent.com/triton/on-premise">On Premise Private Cloud</a></li>
+                        <li><a href="/web/20220406095752/https://www.joyent.com/node-js/support">Node.js Support</a></li>
+                        <li><a href="/web/20220406095752/https://www.joyent.com/triton/compute">Triton Compute</a></li>
+                        <li><a href="/web/20220406095752/https://www.joyent.com/triton/object-storage">Triton Object Storage</a></li>
+                        </ul>
+                    </li>
+                    <li class="top subs"><a id="developers-mobile" class="" href="/web/20220406095752/https://www.joyent.com/getting-started">Developer Support</a>
+                        <ul class="nav-drop developers-mobile">
+                            <li><a id="getstarted-mobile" class="" href="/web/20220406095752/https://www.joyent.com/getting-started">Getting Started</a></li>
+                            <li><a id="node-practices-mobile" class="" href="/web/20220406095752/https://www.joyent.com/node-js/production">Node.js Best Practices</a></li>
+                            <li><a id="downloads-mobile" class="" href="/web/20220406095752/https://www.joyent.com/downloads">Downloads</a></li>
+                            <li><a id="documentation-mobile" class="" href="/web/20220406095752/https://www.joyent.com/documentation">Documentation</a></li>
+                            <li><a id="tech-videos-mobile" class="" href="/web/20220406095752/https://www.joyent.com/tech-videos">Tech Videos</a></li>
+                            <li class="why-joyent"><a href="/web/20220406095752/https://www.joyent.com/why" id="mobile-menu-why">Why Triton</a></li>
+                        </ul>
+                    </li>
+                    <li class="top subs"><a id="pricing-mobile" class="" href="/web/20220406095752/https://www.joyent.com/pricing">Pricing &amp; Support</a>
+                        <ul class="nav-drop pricing-mobile">
+                            <li><a id="pricing-overview-mobile" class="" href="/web/20220406095752/https://www.joyent.com/pricing">Private Cloud Pricing</a></li>
+                            <li><a id="node-support-pricing-mobile" href="/web/20220406095752/https://www.joyent.com/node-js/support" class="">Node.js Support</a></li>
+                        </ul>
+                    </li>
+                    <li class="top subs"><a id="events-mobile" href="/web/20220406095752/https://www.joyent.com/events">Events</a>
+                        <ul class="nav-drop events-mobile">
+                            <li><a id="events-main-mobile" class="" href="/web/20220406095752/https://www.joyent.com/events">Upcoming</a></li>
+                            <li><a id="events-on-demand-mobile" class="" href="/web/20220406095752/https://www.joyent.com/events/on-demand">On-Demand</a></li>
+                        </ul>
+                    </li>
+                    <li class="top subs"><a id="about-mobile" href="/web/20220406095752/https://www.joyent.com/about">About</a>
+                        <ul class="nav-drop about-mobile">
+                            <li><a id="about-overview-mobile" href="/web/20220406095752/https://www.joyent.com/about">Company Overview</a></li>
+                            <li><a id="management-mobile" href="/web/20220406095752/https://www.joyent.com/about#management">Leadership Team</a></li>
+                                                        <li><a id="case-studies-mobile" class="" href="/web/20220406095752/https://www.joyent.com/about/case-studies">Use Cases</a></li>
+                                                        <li><a id="careers-mobile" class="" href="/web/20220406095752/https://www.joyent.com/about/careers">Careers</a></li>
+                                                        <li><a id="management-mobile" class="" href="/web/20220406095752/https://www.joyent.com/about/management">Management</a></li>
+                                                        <li><a id="press-mobile" class="" href="/web/20220406095752/https://www.joyent.com/about/press">Press Room</a></li>
+                                                        <li><a id="policies-mobile" class="" href="/web/20220406095752/https://www.joyent.com/about/policies">Policies</a></li>
+                            
+                            <li><a id="contact-mobile" href="/web/20220406095752/https://www.joyent.com/contact">Contact Us</a></li>
+                        </ul>
+                    </li>
+                    <li class="top"><a id="blog-mobile" href="/web/20220406095752/https://www.joyent.com/blog" class="active">Blog</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+        <a href="/web/20220406095752/https://www.joyent.com/contact" class="free-trial" id="mobile-menu-getstarted">Contact Us</a>
+    </div><!-- #menu -->
+    <div id="page">
+        <div class="wrap top">
+    <header class="header cf" role="banner">
+        <nav class="navbar-fixed-top main navbar navbar-default" role="navigation">
+            <div class="container-fluid">
+                <div class="row main">
+                    <div class="col-sm-12">
+                        <a href="#" class="menu-toggle btn navbar-toggle visible-xs" data-segment="hamburger-menu" id="toggle-menu"><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></a>
+                        <div class="logo"><a href="/web/20220406095752/https://www.joyent.com/"></a></div>
+                        <ul class="menu main hidden-xs">
+                            <li class="products subs"><a href="/web/20220406095752/https://www.joyent.com/triton" id="header-products">Products<span class="hidden-sm"> &amp; Services</span></a>
+                                <nav class="product-nav">
+                                    <div class="container-fluid">
+                                        <div class="row products">
+                                            <div class="col-sm-2 primary private">
+                                                <a href="/web/20220406095752/https://www.joyent.com/triton/managed-private-cloud"><span></span><h4>Managed<br>Private Cloud</h4>
+                                                    <p>Fully Isolated &amp; Managed Single-Tenant Cloud; Customized and Optimized for your Enterprise</p></a>
+                                            </div>
+                                            <div class="col-sm-2 primary hardware">
+                                                <a href="/web/20220406095752/https://www.joyent.com/triton/managed-hardware-cloud"><span></span><h4>Managed<br>Hardware Cloud</h4>
+                                                    <p>Managed Hosting or Managed Bare Metal Ready Private Cloud Support and Installation</p></a>
+                                            </div>
+                                            <div class="col-sm-2 primary onprem">
+                                                <a href="/web/20220406095752/https://www.joyent.com/triton/on-premise"><span></span><h4>On Premise<br>Private Cloud</h4>
+                                                    <p>Open Source or Commercial Support &amp; Services for On-Premises, User Operated &amp; Owned Cloud</p></a>
+                                            </div>
+                                            <div class="col-sm-2 primary node">
+                                                <a href="/web/20220406095752/https://www.joyent.com/node-js/support"><span></span><h4>Node.js Support</h4>
+                                                    <p>Comprehensive Enterprise Support Services for Node.js Applications and Microservices</p></a>
+                                            </div>
+                                            <div class="col-sm-2 primary compute">
+                                                <a href="/web/20220406095752/https://www.joyent.com/triton"><span></span><h4>Compute</h4>
+                                                    <p>Easy to Manage Cloud Orchestration Service with Triton DataCenter delivering End User Self Service Cloud UI &amp; APIs</p></a>
+                                            </div>
+                                            <div class="col-sm-2 primary storage">
+                                                <a href="/web/20220406095752/https://www.joyent.com/triton/object-storage"><span></span><h4>Storage</h4>
+                                                    <p>Simple and Highly Scalable Object Storage with Triton Object Storage with converged Compute</p></a>
+                                            </div>
+                                        </div>
+                                </div>
+                                </nav>
+                            </li>
+                            <li class="developers subs"><a href="/web/20220406095752/https://www.joyent.com/getting-started" id="header-developers">Developers</a>
+                                <ul>
+                                    <li><a href="/web/20220406095752/https://www.joyent.com/getting-started">Getting Started</a></li>
+                                    <li><a href="/web/20220406095752/https://www.joyent.com/node-js/production">Node.js Best Practices</a></li>
+                                    <li><a href="/web/20220406095752/https://www.joyent.com/downloads">Downloads</a></li>
+                                    <li><a href="/web/20220406095752/https://www.joyent.com/documentation">Documentation</a></li>
+                                    <li><a href="/web/20220406095752/https://www.joyent.com/tech-videos">Tech Videos</a></li>
+                                    <li class="why-joyent"><a href="/web/20220406095752/https://www.joyent.com/why" id="header-why">Why Triton</a></li>
+                                </ul>
+                            </li>
+                            <li class="pricing subs"><a href="/web/20220406095752/https://www.joyent.com/pricing" id="header-pricing">Pricing</a>
+                                <!-- <ul>
+                                    <li><a href="/pricing">Private Cloud Pricing</a></li>
+                                    <li><a href="/node-js/support">Node.js Support</a></li>
+                                </ul> -->
+                            </li>
+                            <li class="events subs"><a href="/web/20220406095752/https://www.joyent.com/events">Events</a>
+                                <ul>
+                                    <li><a href="/web/20220406095752/https://www.joyent.com/events">Upcoming</a></li>
+                                    <li><a href="/web/20220406095752/https://www.joyent.com/events/on-demand">On Demand</a></li>
+                                </ul>
+                            </li>
+                            <li class="about subs"><a href="/web/20220406095752/https://www.joyent.com/about" id="header-about">About<span class="hidden-sm hidden-md"> Us</span></a>
+                                <ul>
+                                    <li><a id="about-overview-main" href="/web/20220406095752/https://www.joyent.com/about">Company Overview</a></li>
+                                    <li><a href="/web/20220406095752/https://www.joyent.com/about#management">Leadership Team</a></li>
+                                    <li><a href="/web/20220406095752/https://www.joyent.com/about/case-studies">Use Cases</a></li>
+                                    <li><a href="/web/20220406095752/https://www.joyent.com/about/careers">Careers</a></li>
+                                    <li><a href="/web/20220406095752/https://www.joyent.com/about/press">Press Room</a></li>
+                                    <li><a href="/web/20220406095752/https://www.joyent.com/contact">Contact Us</a></li>
+                                    <li><a href="/web/20220406095752/https://www.joyent.com/blog">Blog</a></li>
+                                </ul>
+                            </li>
+                            <!--<li class="visible-sm-inline-block visible-md-inline-block"><a href="/blog" id="header-blog" class="active">Blog</a></li>-->
+                            <!--<li class="visible-sm-inline-block visible-md-inline-block"><a href="https://my.joyent.com" id="header-signin">Sign In</a></li>-->
+                            <li class="events subs"><a href="/web/20220406095752/https://www.joyent.com/blog">Blog</a>
+                        </ul>
+                        <ul class="menu actions">
+                            <li class="hidden-xs hidden-sm hidden-md"><a href="/web/20220406095752/https://www.joyent.com/search" id="header-search"><img src="/web/20220406095752im_/https://www.joyent.com/assets/img/search-icon.170828.svg"></a></li>
+                            <!--<li class="hidden-xs hidden-sm hidden-md"><a href="/blog" id="header-blog" class="active">Blog</a></li>-->
+                            <!--<li class="hidden-xs hidden-sm hidden-md"><a href="https://my.joyent.com" id="header-signin">Sign In</a></li>-->
+                            <!--<li class="free-trial"><a href="/contact" id="main-nav-free-trial">Contact Us</a></li>-->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+    <script type="application/ld+json">
+    {
+        "@context" : "https://web.archive.org/web/20220406095752/http://schema.org",
+        "@type" : "BlogPosting",
+        "headline" : "Postmortem for outage of us-east-1",
+        "datePublished" : "2014-05-28T00:00",
+        "author" : "The Joyent Team",
+        "publisher" : {
+            "name" : "Joyent",
+            "@type" : "Organization",
+            "logo" : "https://web.archive.org/web/20220406095752/https://www.joyent.com/assets/img/logo-bug.svg"
+        },
+        "description" : "We would like to share the details on what occurred during the outage on 5/27/2014 in our us-east-1 data center, what we have learned, and what actions we are taking to prevent this from happening again.
+"
+            }
+</script>
+
+<div class="container">
+    <div class="row top single">
+        <div class="col-sm-8">
+            <h2 id="b" itemscope itemtype="http://data-vocabulary.org/Breadcrumb" itemprop="child"><a href="<?= $page->url() ?>" itemprop="url"></a><span itemprop="title">Postmortem for outage of us-east-1</span></h2>
+            <div class="thankyou alert-success" style="display: none; margin-bottom: 20px;">
+                <h4>Thank You</h4>
+                <p>Thank you for contacting us. We will get back to you shortly.</p>
+            </div>
+            <div class="article">
+            <p class="date">May 28, 2014 - by <strong>The Joyent Team</strong></p>
+                <p class="share top"><span>Share: </span> <a href="https://web.archive.org/web/20220406095752/https://twitter.com/intent/tweet?source=Joyent%20Blog&amp;text=Postmortem+for+outage+of+us-east-1&amp;url=https%3A%2F%2Fwww.joyent.com/blog/postmortem-for-outage-of-us-east-1-may-27-2014&amp;via=joyent" class="twitter"></a><a href="https://web.archive.org/web/20220406095752/http://www.facebook.com/share.php?u=https%3A%2F%2Fwww.joyent.com/blog/postmortem-for-outage-of-us-east-1-may-27-2014" class="facebook"></a><a href="https://web.archive.org/web/20220406095752/http://www.linkedin.com/shareArticle?url=https%3A%2F%2Fwww.joyent.com/blog/postmortem-for-outage-of-us-east-1-may-27-2014&amp;title=Postmortem+for+outage+of+us-east-1&amp;summary=We+would+like+to+share+the+details+on+what+occurred+during+the+outage+on+5/27/2014+in+our+us-east-1+data+center%2C+what+we+have+learned%2C+and+what+actions+we+are+taking+to+prevent+this+from+happening+again." class="linkedin"></a><a href="https://web.archive.org/web/20220406095752/mailto:/?subject=Postmortem for outage of us-east-1&amp;body=We would like to share the details on what occurred during the outage on 5/27/2014 in our us-east-1 data center, what we have learned, and what actions we are taking to prevent this from happening again.%0D%0A%0D%0Ahttps%3A%2F%2Fwww.joyent.com/blog/postmortem-for-outage-of-us-east-1-may-27-2014" class="mail"></a></p>
+                <div class="clearfix"></div>
+                                <p>We would like to share the details on what occurred during the
+outage on 5/27/2014 in our us-east-1 data center, what we have learned, and what actions we are taking to prevent this from happening again. On behalf of all of Joyent, we are extremely sorry for this outage, and the severe inconvenience it may have caused to you, and your
+customers.</p>
+<h2 id="background">Background</h2>
+<p>In order to understand the event, first we need to explain a few basics about the architecture of our data centers. All of Joyent's data centers run our SmartDataCenter product, which provides centralized management of all administrative services, and compute nodes (servers) used to host customer instances. The architecture of the system is built such that the control plane, which includes both the API and boot sequences, is highly-available within a single data center and survives any two failures. In addition to this control plane stack, every server in the data center has a daemon on it that responds to normal, machine generated requests for things like provisioning, upgrades, and changes related to maintenance.</p>
+<p>In order for the system to be aware of all servers in the data center and their current instances (VMs), software levels, and relevant information., we have our own DHCP/TFTP system that responds to PXE boot requests from servers in the data center. The DHCP/TFTP system caches the state required to service these requests, ordinarily accessed via the control plane.</p>
+<p>Because of this, existing capacity that is already a part of the SDC architecture is able to boot, even when the control plane is not fully available such as during this event.</p>
+<p>Given this architecture, and the need to support automated upgrades, provisioning requests and many innocuous tasks across all data centers in the fleet, there exists tooling that can be remotely executed on one or more compute nodes. This tooling is primarily used by automated processes, but as part of specific operator needs it may be used by human operations as
+well.</p>
+<h2 id="what-happened">What Happened?</h2>
+<p>Due to an operator error, all us-east-1 API systems and customer instances were simultaneously rebooted at 2014-05-27T20:13Z (13:13PDT). Rounded to minutes, the minimum downtime for customer instances was 20 minutes, and the maximum was 149 minutes (2.5 hours). 80 percent of customer instances were back within 32 minutes, and over 90 percent were back within 59 minutes. The instances that took longer than others were due to a few independent isolated problems which are described below.</p>
+<p>The us-east-1 API was available and the service was fully restored by 2014-05-27T21:30Z (1 hour and 17 minutes of downtime). Explanation of the extended API outage is also covered below.</p>
+<p>Root cause of this incident was the result of an operator performing upgrades of some new capacity in our fleet, and they were using the tooling that allows for remote updates of software. The command to reboot the select set of new systems that needed to be updated was mis-typed, and instead specified all servers in the data center. Unfortunately the tool in question does not have enough input validation to prevent this from happening without extra steps/confirmation, and went ahead and issued a reboot command to every server in us-east-1 availability zone without delay.</p>
+<p>Once systems rebooted, they by design looked for a boot server to respond to PXE boot requests. Because there was a simultaneous reboot of every system in the data center, there was extremely high contention on the TFTP boot infrastructure, which like all of our infrastructure, normally has throttles in place to ensure that it cannot run away with a machine. We removed the throttles when we identified this was causing the compute nodes to boot more slowly. This enabled most customer instances to come online over the following 20-30 minutes.</p>
+<p>The small number of machines that lagged for the remaining time were subject to a known, transient bug in a network card driver on legacy hardware platforms whereby obtaining a DHCP lease upon boot occasionally fails. In our experience, platforms with this network device will encounter this boot-time issue about 10% of the time. The mitigation for this is for an operator to simply initiate another reboot, which we performed on those afflicted nodes as soon as we identified them. Our newer equipment uses different network cards which is why the impact was limited to a smaller number of compute nodes.</p>
+<p>The extended API outage time was due to the need for manual recovery of stateful components in the control plane. While the system is designed to handle 2F+1 failures of any stateful system, rebooting the data center resulted in complete failure of all these components, and
+they did not maintain enough history to bring themselves online. This is partially by design, as we would rather systems be unavailable than come up &quot;split brain&quot; and suffer data loss as a result. That said, we have identified several ways we can make this recovery much faster.</p>
+<h2 id="next-steps">Next Steps</h2>
+<p>We will be taking several steps to prevent this failure mode from happening again, and ensuring that other business disaster scenarios are able to recover more quickly.</p>
+<p>First, we will be dramatically improving the tooling that humans (and systems) interact with such that input validation is much more strict and will not allow for all servers, and control plane servers to be rebooted simultaneously. We have already begun putting in place a number of immediate fixes to tools that operators use to mitigate this, and we will be rethinking what tools are necessary over the coming days and weeks so that &quot;full power&quot; tools are not the only means by which to accomplish routine tasks.</p>
+<p>Secondly, we are determining what extra steps in the control plane recovery can be done such that we can safely reboot all nodes simultaneously without waiting for operator intervention. We will not be able to serve requests during a complete outage, but we will ensure that we can record state in each node such that we can recover without human intervention.</p>
+<p>Lastly, we will be assessing migrating customer instances off our older legacy hardware platforms more aggressively. We will be doing this on a case by case basis, as there will be impact to instances as we do this, which will require us to work with each customer to do so.</p>
+<h2 id="closing">Closing</h2>
+<p>We want to reiterate our apology for the magnitude of this issue and the impact it caused our customers and their customers. We will be working as diligently as we can, and as expediently as we can, to prevent an issue like this from happening again.</p>
+<p>Sincerely,<br>
+The Joyent Team</p>
+
+                                
+                <div class="clearfix"></div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="sidebar first imgad">
+    <a href="/web/20220406095752/https://www.joyent.com/node-js/support"><img src="/web/20220406095752im_/https://www.joyent.com/assets/img/ads/more-time.190726.png" class="img-responsive"></a>
+</div>
+
+            <div class="sidebar second hidden-xs">
+                <ul class="social clearfix">
+  <li><a href="https://web.archive.org/web/20220406095752/http://www.linkedin.com/company/joyent" class="linkedin" target="_blank"></a></li>
+  <li><a href="https://web.archive.org/web/20220406095752/https://www.facebook.com/joyentcloud" class="facebook" target="_blank"></a></li>
+  <li><a href="https://web.archive.org/web/20220406095752/http://twitter.com/joyent" class="twitter" target="_blank"></a></li>
+  <li><a href="https://web.archive.org/web/20220406095752/https://www.instagram.com/joyenttriton/" class="instagram" target="_blank"></a></li>
+  <li><a href="/web/20220406095752/https://www.joyent.com/blog/feed" class="rss"></a></li>
+</ul>
+
+                <h4>More From Operations</h4>
+                <ul class="events">
+                                        <li><a href="/web/20220406095752/https://www.joyent.com/blog/broadening-node-js-contributions">Broadening Node.js Contributions</a></li>
+                    
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+  $(document).ready(function() {
+    $('table').each(function() {
+        $(this).addClass('table').addClass('table-bordered').addClass('table-striped');
+    });
+   });
+</script>
+</div>
+
+
+
+    <link href="https://web.archive.org/web/20220406095752cs_/https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700|Inconsolata" rel="stylesheet">
+<script type="text/javascript" src="https://web.archive.org/web/20220406095752js_/https://www.joyent.com/site/themes/joyent/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="https://web.archive.org/web/20220406095752js_/https://www.joyent.com/site/themes/joyent/js/combined.js"></script>
+
+<div class="offerings-cta wrap footer">
+    <div class="container">
+        <div class="row">
+            <div class="col-xs-12">
+                <p>Want to learn more about our cloud offerings? <a href="https://web.archive.org/web/20220406095752/https://lpage.joyent.com/Contact-Us-Form-Featured-Homepage.html" title="" class="getstarted">Request a Cloud Specialist</a></p>
+
+            </div>
+        </div>
+    </div>
+</div>
+<footer class="footer" id="footer">
+<div class="container hidden-print">
+		<div class="foot-logo row">
+				<div class="col-sm-12">
+						<p><img src="/web/20220406095752im_/https://www.joyent.com/assets/img/triton-logo.svg" alt="Triton Logo" class="footer-logo"></p>
+				</div>
+				<div class="col-sm-8">
+						<p class="foot-tag">Hybrid, Modern and Open, Triton is engineered to run the world’s largest cloud native applications</p>
+				</div>
+				<div class="col-sm-3 col-sm-offset-1">
+						<p>Connect with Joyent</p>
+						<ul class="social clearfix">
+  <li><a href="https://web.archive.org/web/20220406095752/http://www.linkedin.com/company/joyent" class="linkedin" target="_blank"></a></li>
+  <li><a href="https://web.archive.org/web/20220406095752/https://www.facebook.com/joyentcloud" class="facebook" target="_blank"></a></li>
+  <li><a href="https://web.archive.org/web/20220406095752/http://twitter.com/joyent" class="twitter" target="_blank"></a></li>
+  <li><a href="https://web.archive.org/web/20220406095752/https://www.instagram.com/joyenttriton/" class="instagram" target="_blank"></a></li>
+  <li><a href="/web/20220406095752/https://www.joyent.com/blog/feed" class="rss"></a></li>
+</ul>
+
+				</div>
+		</div>
+</div>
+<div class="container hidden-xs" id="footer">
+		<div class="row hidden-xs hidden-print">
+				<div class="col-sm-3 col-md-2 column">
+						<h4>Open Source</h4>
+						<ul>
+								<li><a href="https://web.archive.org/web/20220406095752/http://github.com/joyent" id="foot-github">Github/joyent</a></li>
+								<li><a href="/web/20220406095752/https://www.joyent.com/triton/compute" id="foot-triton-open-source">Triton Compute Service</a></li>
+								<li><a href="/web/20220406095752/https://www.joyent.com/smartos" id="foot-smartos-open-source">SmartOS</a></li>
+								<li><a href="/web/20220406095752/https://www.joyent.com/triton/object-storage" id="foot-triton-object-storage">Object Storage</a></li>
+								<!--<li><a href="http://github.com/autopilotpattern" id="foot-github-autopilotpattern">Github/autopilotpattern</a></li>
+								<li><a href="/containerpilot" id="foot-containerpilot-open-source">ContainerPilot</a></li>
+								<li><a href="/node-js" id="foot-node-open-source">Node.js</a></li>-->
+						</ul>
+				</div>
+				<div class="col-sm-2 col-md-2 column">
+						<h4>Documentation</h4>
+						<ul>
+								<li><a href="/web/20220406095752/https://www.joyent.com/blog" id="foot-blog">Joyent Blog</a></li>
+								<li><a href="/web/20220406095752/https://www.joyent.com/getting-started" id="foot-triton-getting-started">Triton Getting Started</a></li>
+								<li><a href="https://web.archive.org/web/20220406095752/https://docs.joyent.com/public-cloud" id="foot-triton-compute-docs">Triton Compute</a></li>
+								<li><a href="https://web.archive.org/web/20220406095752/https://wiki.smartos.org/" id="foot-triton-smartos-docs">Triton SmartOS</a></li>
+								<li><a href="https://web.archive.org/web/20220406095752/https://apidocs.joyent.com/manta/index.html" id="foot-object-storage-docs">Object Storage</a></li>
+								<!--<li><a href="https://docs.joyent.com/public-cloud/instances/docker/containerpilot" id="foot-containerpilot-docs">ContainerPilot</a></li>-->
+								<!--<li><a href="/node-js/production" id="foot-node-docs">Node.js Production Practices</a></li>-->
+						</ul>
+				</div>
+				<div class="col-sm-2 col-md-2 column">
+						<h4>About</h4>
+						<ul>
+								<li><a href="/web/20220406095752/https://www.joyent.com/about/press" id="foot-press">Press Room</a></li>
+								<li><a href="/web/20220406095752/https://www.joyent.com/about/events" id="foot-events">Events</a></li>
+								<li><a href="/web/20220406095752/https://www.joyent.com/about/management" id="foot-management">Management</a></li>
+								<li><a href="/web/20220406095752/https://www.joyent.com/about/careers" id="foot-careers">Careers</a></li>
+								<li><a href="/web/20220406095752/https://www.joyent.com/contact" id="foot-contact">Contact Us</a></li>
+						</ul>
+				</div>
+				<div class="col-sm-2 column">
+						<h4>Support</h4>
+						<ul>
+								<li><a href="https://web.archive.org/web/20220406095752/https://help.joyent.com/home" id="footer-help-desk">Support Center</a></li>
+								<!--<li><a href="https://status.joyent.com" id="footer-system-status">System Status</a></li>-->
+								<li><a href="#" id="footer-feedback" data-toggle="modal" data-target="#feedback">Site Feedback</a></li>
+								<li><a href="/web/20220406095752/https://www.joyent.com/search" id="footer-search">Site Search</a></li>
+						</ul>
+				</div>
+		</div>
+		<div class="row copyright">
+				<div class="col-sm-6 logorow">
+					<p>© 2022 Joyent, Inc. | <a href="/web/20220406095752/https://www.joyent.com/about/policies">Policies</a></p>
+
+				</div>
+		</div>
+</div>
+
+<!-- Marketo Munchkin -->
+<script type="text/plain" src="//web.archive.org/web/20220406095752js_/https://munchkin.marketo.net/munchkin.js" class="optanon-category-2"></script>
+<script type="text/plain" class="optanon-category-2">try { mktoMunchkin("993-RJQ-253"); } catch(err) { }</script>
+<!-- End Marketo Munchkin -->
+<link rel="stylesheet" href="https://web.archive.org/web/20220406095752cs_/https://www.joyent.com/site/themes/joyent/css/MyFontsWebfontsKit.css">
+</footer>
+</div>
+<div class="modal" id="feedback">
+<div class="modal-dialog">
+		<div class="modal-content">
+				<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+						<h2>Joyent.com Feedback</h2>
+				</div>
+				<div class="modal-body">
+					<div class="thankyou alert-success" style="display: none;">
+							<h4>Thank You</h4>
+							<p>Thank you for helping us improve joyent.com.</p>
+					</div>
+						<div class="alert-danger feedback" style="display: none;">
+								<h4>Forms are blocked</h4>
+								<p>It appears you have an ad or script blocker that won't allow us to load our feedback form from <code>app-sjf.marketo.com</code>. To submit feedback, you can either temporarily unblock that domain, or email <a href="https://web.archive.org/web/20220406095752/mailto:marketing@joyent.com">marketing@joyent.com</a>. Email may take longer to get to the relevant people.</p>
+						</div>
+					<form id="mktoForm_1244"></form>
+					<script>
+						try {
+						MktoForms2.loadForm("//web.archive.org/web/20220406095752/https://app-sjf.marketo.com", "993-RJQ-253", 1244, function(form){
+								form.onSuccess(function(values, followUpUrl){
+									//get the form's jQuery element and hide it
+									form.getFormElem().hide();
+									//return false to prevent the submission handler from taking the lead to the follow up url.
+									$('.thankyou').show();
+									return false;
+								});
+							});
+						} catch(err) {
+								$('.alert-danger.feedback').show();
+						}
+					</script>
+				</div>
+		</div>
+</div>
+</div>
+
+
+
+    <!-- OneTrust Cookies Consent Notice start -->
+    <script src="https://web.archive.org/web/20220406095752js_/https://cdn.cookielaw.org/consent/9802b854-894a-4fdc-a636-c078e2129a19.js" type="text/javascript" charset="UTF-8"></script>
+    <script type="text/javascript">
+        function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end -->
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            $('#toggle-menu').on('touchstart click',menu);
+            $('.x').on('touchstart click',menu);
+            $('#page').on('touchstart click',function(e) {
+                var $bod = $('body');
+                if ($bod.hasClass('menu-visible')) {
+                    menu(e);
+                }
+            });
+            $('#menu .main-nav li.top.subs > a').on('touchstart click', function() {
+                var theClass = $(this).attr('id');
+                if($(this).parent().hasClass('dropped')) {
+                    $('li.top').removeClass('dropped');
+                    $('ul.nav-drop').hide(300);
+                } else {
+                    $('li.top').removeClass('dropped');
+                    $('ul.nav-drop').hide(300);
+                    $(this).parent().addClass('dropped');
+                    $('ul.nav-drop.' + theClass).show(300);
+                }
+                return false;
+            });
+        });
+        function menu(e) {
+            e.preventDefault();
+
+            var $body = $( 'body' ),
+                $page = $( '#page' ),
+                $menu = $( '#menu' ),
+                transitionEnd = 'transitionend webkitTransitionEnd otransitionend MSTransitionEnd';
+
+            $body.addClass( 'animating' );
+
+            if ( $body.hasClass( 'menu-visible' ) ) {
+                $body.addClass( 'right' );
+            } else {
+                $body.addClass( 'left' );
+            }
+
+            $page.on( transitionEnd, function() {
+                $body.removeClass( 'animating right left' ).toggleClass( 'menu-visible' );
+                $page.off( transitionEnd );
+            });
+            e.stopPropagation();
+        };
+    </script>
+
+    
+    
+
+</body>
+</html>
+<!--
+     FILE ARCHIVED ON 09:57:52 Apr 06, 2022 AND RETRIEVED FROM THE
+     INTERNET ARCHIVE ON 22:15:17 Oct 27, 2026.
+     JAVASCRIPT APPENDED BY WAYBACK MACHINE, COPYRIGHT INTERNET ARCHIVE.
+
+     ALL OTHER CONTENT MAY ALSO BE PROTECTED BY COPYRIGHT (17 U.S.C.
+     SECTION 108(a)(3)).
+-->
+<!--
+playback timings (ms):
+  captures_list: 0.435
+  exclusion.robots: 0.061
+  exclusion.robots.policy: 0.053
+  esindex: 0.004
+  cdx.remote: 15.731
+  LoadShardBlock: 114.49 (3)
+  PetaboxLoader3.datanode: 124.642 (4)
+  PetaboxLoader3.resolve: 69.092 (2)
+  load_resource: 95.279
+-->

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+  <head>
+
+  <meta charset="utf-8">
+
+
+  <link rel="dns-prefetch" href="use.typekit.net" />
+  <link rel="dns-prefetch" href="p.typekit.net" />
+  <link rel="dns-prefetch" href="s3.amazonaws.com" />
+  <link rel="preconnect" href="https://p.typekit.net" />
+
+
+  <link href="/assets/application.css" media="screen" rel="stylesheet" type="text/css" />
+
+
+
+
+  <script src="/assets/application.js" type="text/javascript"></script>
+  <script type="text/javascript" src="//use.typekit.net/kxs4ufr.js" onload="try{Typekit.load({async:false});}catch(e){}"></script>
+  <![if !IE]>
+  <script async type="text/javascript" src="/assets/svn2/highlight.pack.js" onload="hljs.initHighlightingOnLoad();"></script>
+  <![endif]>
+
+
+
+
+
+  <meta name="viewport" id="viewport" content="width=device-width,minimum-scale=1.0,maximum-scale=10.0,initial-scale=1.0" />
+  <meta property="og:site_name" content="Signal v. Noise by Basecamp" />
+  <meta property="twitter:site" content="@basecamp" />
+
+    <title>Basecamp network attack postmortem – Signal v. Noise</title>
+    <meta property="twitter:card" content="summary" />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://signalvnoise.com/posts/3729-basecamp-network-attack-postmortem" />
+    <meta property="og:title" content="Basecamp network attack postmortem" />
+    <meta property="og:description" content="As we detailed in Basecamp was under network attack, criminals assaulted our network with a DDoS attack on March 24. This is the technical postmortem that we promised.
+
+
+	The main attack lasted a total of an hour and 40 minutes starting at 8:32 central time and ending around 10:12. During that wind…" />
+    <meta property="og:image" content="https://37assets.37signals.com/svn/1053-DHH.jpg" />
+
+      <meta property="twitter:creator" content="@dhh" />
+
+
+  <meta property="fb:admins" content="555561089" />
+  <link rel="publisher" href="https://plus.google.com/+basecamp" />
+  <link rel="alternate" type="application/rss+xml" title="RSS" href="https://signalvnoise.com/posts.rss" />
+  <script defer data-domain="signalvnoise.com" src="https://plausible.io/js/script.js"></script>
+</head>
+
+  <body class="perma">
+
+    <header class="masthead">
+  <p>
+    <span class="visible-desktop">You&rsquo;re reading</span>
+    <a href="/">Signal v. Noise</a><span class="visible-tablet">, a publication <a href="/writers/">about</a> the web</span>
+    by <a href="https://basecamp.com/?source=SvN">Basecamp</a>
+    <span class="visible-tablet"> since 1999.</span>
+    <span class="happyday visible-desktop">Happy <span class="happyday--dayofweek"></span>!</span>
+  </p>
+
+
+</header>
+
+
+    <div class="container">
+      <div class="content">
+
+
+<article class="post instapaper_body"  id="article_3729">
+
+    <header class="post-header" id="article_3729">
+  <h1 class="waveform Sysadmin">
+
+    Basecamp network attack postmortem
+  </h1>
+
+  <div class="post-header-info">
+
+      <figure class="post-header-info-avatar">
+        <a href="/writers/dhh"><img alt="David" height="30" src="https://37assets.37signals.com/svn/1053-DHH.jpg" width="30" /></a>
+      </figure>
+
+      <a href="/writers/dhh" id="David">David</a> <em>wrote this on</em> <span class="post-date">Mar 26 2014</span>
+
+
+    <span class="post-header-info-discuss"><a href="/posts/3729-basecamp-network-attack-postmortem?13#comments">13 comments</a></span>
+
+
+  </div>
+</header>
+
+<div class="post-content">
+  <p>As we detailed in <a href="/posts/3728-basecamp-was-under-network-attack-this-morning">Basecamp was under network attack</a>, criminals assaulted our network with a DDoS attack on March 24. This is the technical postmortem that we promised.</p>
+
+
+	<p>The main attack lasted a total of an hour and 40 minutes starting at 8:32 central time and ending around 10:12. During that window, Basecamp and the other services were completely unavailable for 45 minutes, and intermittently up and down or slow for the rest. In addition to the attack itself, Basecamp got put in network quarantine by other providers, so it wasn&#8217;t until 11:08 that access was restored for everyone, everywhere.</p>
+
+
+	<p>The attack was a combination of <span class="caps">SYN</span> flood, <span class="caps">DNS</span> reflection, <span class="caps">ICMP</span> flooding, and <span class="caps">NTP</span> amplification. The combined flow was in excess of 20Gbps. Our mitigation strategy included filtering through a single provider and working with them to remove bogus traffic.</p>
+
+
+	<p>To reiterate, no data was compromised in this attack. This was solely an attack on our customers&#8217; ability to access Basecamp and the other services.</p>
+
+
+	<p>There are two main areas we will improve upon following this event. Regarding our shield against future network attacks:</p>
+
+
+	<ol>
+	<li>We&#8217;ve formed a DDoS Survivors group to collaborate with other sites who&#8217;ve been subject to the same or similar attacks. That&#8217;s been enormously helpful already.</li>
+		<li>We&#8217;re exploring all sorts of vendor shields to be able to mitigate future attacks even faster. While it&#8217;s tough to completely prevent any interruption in the face of a massive attack, there are options to minimize the disturbance.</li>
+		<li>Law enforcement has been contacted, we&#8217;ve added our statement to their case file, and we&#8217;ll continue to assist them in catching the criminals behind this attack.</li>
+	</ol>
+
+
+	<p>Regarding the communication:</p>
+
+
+	<ol>
+	<li>There was a 20-minute delay between our first learning of the attack and reporting it to our customers via Twitter and status. That&#8217;s unacceptable. We&#8217;ll make changes to ensure that it doesn&#8217;t take more than a maximum of 5 minutes to report something like this again.</li>
+		<li>Although we were successful at posting information to our status site (which is hosted off site), the site received more traffic than ever in the past, and it too had availability problems. We&#8217;ve already upgraded the servers that power the site and we&#8217;ll be conducting additional load and availability testing in the coming days.</li>
+	</ol>
+
+
+	<p>We will continue to be on high alert in case there is another attack. We have discussed plans with our providers, and we&#8217;re initiating new conversations with some of the top security vendors.</p>
+
+
+	<p>Monday was a rough day and we&#8217;re incredibly sorry we weren&#8217;t more effective at minimizing this interruption. We continue to sincerely appreciate your patience and support. Thank you.</p>
+
+      <div class="post-content-extended" id="extended">
+
+      </div>
+    </div>
+
+</article>
+
+<section class="post-comments">
+  <div class="post-comments-info">
+
+
+
+
+      <a href="/writers/dhh">David</a> wrote <em>this on</em> Mar 26 2014
+      <em>There are</em> <span class="post-comments-info-expandable">13 comments</span>.
+
+  </div>
+
+  <div class="post-comments-all" data-comments id="comments">
+  <div class="post-comment" id="comment_81834">
+  <div class="post-comment-header">
+
+          <h3 class="post-comment-header-author">Jan</h3>
+      <span class="post-comment-header-date">on 26 Mar 14</span>
+      </div>
+
+  <div class="post-comment-body">
+    <p>s/with some the top security vendors/with some <strong>of</strong> the top security vendors</p>
+  </div>
+</div>
+<div class="post-comment" id="comment_81835">
+  <div class="post-comment-header">
+
+          <h3 class="post-comment-header-author">Bernd Goldschmidt</h3>
+      <span class="post-comment-header-date">on 26 Mar 14</span>
+      </div>
+
+  <div class="post-comment-body">
+    <p>Can you share any details on the attackers and what they requested?</p>
+  </div>
+</div>
+<div class="post-comment" id="comment_81836">
+  <div class="post-comment-header">
+
+          <h3 class="post-comment-header-author">Sebastian</h3>
+      <span class="post-comment-header-date">on 26 Mar 14</span>
+      </div>
+
+  <div class="post-comment-body">
+    <p>Great communication during the attack, great post mortem. These things happen and you handled it very well!
+Also very nice to see you are striving to be even better prepared in the future!</p>
+  </div>
+</div>
+<div class="post-comment" id="comment_81837">
+  <div class="post-comment-header">
+
+          <h3 class="post-comment-header-author">Miha Rekar</h3>
+      <span class="post-comment-header-date">on 26 Mar 14</span>
+      </div>
+
+  <div class="post-comment-body">
+    <p>You have nothing to apologize for! You communicated great via Twitter and Gist and this I think is much more than anyone else would under similar circumstances.</p>
+  </div>
+</div>
+<div class="post-comment" id="comment_81839">
+  <div class="post-comment-header">
+
+          <h3 class="post-comment-header-author">GaryB</h3>
+      <span class="post-comment-header-date">on 26 Mar 14</span>
+      </div>
+
+  <div class="post-comment-body">
+    <p>Well, you have truly arrived.</p>
+
+
+	<p>As the ex-CTO of a Bank, and a ‘C’ level for organisations based in ‘offshore’ islands financial institutions, I am more familiar that I want to be with DDoS attacks, and the ‘all hands to the pump’ emergency response that is required. It means you have been noticed as a successful organisation worth blackmailing.</p>
+
+
+	<p>Congratulations.</p>
+
+
+	<p>And the way you have handled it on your blog – brilliant.</p>
+  </div>
+</div>
+<div class="post-comment" id="comment_81840">
+  <div class="post-comment-header">
+
+          <h3 class="post-comment-header-author">Shane</h3>
+      <span class="post-comment-header-date">on 26 Mar 14</span>
+      </div>
+
+  <div class="post-comment-body">
+    <p>As a very satisfied Basecamp customer I can only speak for myself, that being said… You guys rock!</p>
+  </div>
+</div>
+<div class="post-comment" id="comment_81841">
+  <div class="post-comment-header">
+
+          <h3 class="post-comment-header-author">Susan Fennema</h3>
+      <span class="post-comment-header-date">on 26 Mar 14</span>
+      </div>
+
+  <div class="post-comment-body">
+    <p>You guys rocked it Monday. These things cannot be helped, but your reaction to the situation was truly appreciated. Nice job.</p>
+  </div>
+</div>
+<div class="post-comment" id="comment_81842">
+  <div class="post-comment-header">
+
+          <h3 class="post-comment-header-author">Douglas III</h3>
+      <span class="post-comment-header-date">on 27 Mar 14</span>
+      </div>
+
+  <div class="post-comment-body">
+    <p>This is why I love Basecamp and 37Signals. It’s not that problems don’t happen, they do. Rather, I love the transparency of the team, the responsiveness of the actions, and plans as to how to minimize it in the future.</p>
+
+
+	<p>Keep up the great work guys !</p>
+
+
+	<p>- D3</p>
+  </div>
+</div>
+<div class="post-comment" id="comment_81843">
+  <div class="post-comment-header">
+
+          <h3 class="post-comment-header-author">Marko</h3>
+      <span class="post-comment-header-date">on 27 Mar 14</span>
+      </div>
+
+  <div class="post-comment-body">
+    <p>I didn’t even noticed it happened, and we use Basecamp pretty heavily at work…</p>
+
+
+	<p>This kind of communication with customers is very nice and respectful.</p>
+
+
+	<p>Keep up the good work!</p>
+  </div>
+</div>
+<div class="post-comment" id="comment_81844">
+  <div class="post-comment-header">
+
+          <h3 class="post-comment-header-author">Todd T.</h3>
+      <span class="post-comment-header-date">on 28 Mar 14</span>
+      </div>
+
+  <div class="post-comment-body">
+    <p>Bummer you had to go through the outage, but there’s also good coming from it- your infrastructure is improving, you’ve had to work together in adversity to bond as an organization, people saw the need and value your service provides and you’re working to make it all better.</p>
+
+
+	<p>Kudos to you and your staff like always, David. Appreciated the Twitter updates in the midst as well as blog posting to keep us informed. Hope they catch the culprits!</p>
+  </div>
+</div>
+<div class="post-comment" id="comment_81846">
+  <div class="post-comment-header">
+
+          <h3 class="post-comment-header-author">Ned</h3>
+      <span class="post-comment-header-date">on 31 Mar 14</span>
+      </div>
+
+  <div class="post-comment-body">
+    <p>I’d be interested in hearing what Basecamp’s (or reader’s) workflow through large production issues.</p>
+
+
+	<p>I work for large  technology company we have many ‘all hands on deck’ problems.  Currently our solution is send a mass email and have everyone (sometimes 50+) join a conference call and trying talking the issue out.  Often the issue will run several hours so we different people join/leave the call so there are constant interruption of catching people up of the status and what troubleshoot already been done.</p>
+
+
+	<p>I have to believe there is a better tool/method for working out these large issues.</p>
+  </div>
+</div>
+<div class="post-comment" id="comment_81847">
+  <div class="post-comment-header">
+
+          <h3 class="post-comment-header-author">Michael</h3>
+      <span class="post-comment-header-date">on 31 Mar 14</span>
+      </div>
+
+  <div class="post-comment-body">
+    <p>Ned, maybe Basecamp? ;(</p>
+  </div>
+</div>
+<div class="post-comment" id="comment_81848">
+  <div class="post-comment-header">
+
+          <h3 class="post-comment-header-author">Alex Jones</h3>
+      <span class="post-comment-header-date">on 01 Apr 14</span>
+      </div>
+
+  <div class="post-comment-body">
+    <p>The best to save yourself from DDoS attacks to have in place an all time single filter, any bogus traffic or an unprecedented rise in traffic raises the alarm bells.
+My own website <a href="http://www.tutorialspark.com/">Tutorialspark</a> was subject to that kind of attack.</p>
+  </div>
+</div>
+
+</div>
+
+
+      <div class="post-comments-form" data-comments-form>
+      <h2>This discussion <em>is</em> closed.</h2>
+    </div>
+
+  <script type="text/javascript">
+    $(document).ready(function(){
+
+      var all_comments = $('[data-comments]');
+      var comment_form = $('[data-comments-form]');
+      var expandable = $('.post-comments-info-expandable');
+
+      function expand_comments() {
+        all_comments.fadeIn();
+        comment_form.fadeIn();
+      }
+
+      expandable.click(function(){
+        expand_comments();
+        $(this).removeClass('post-comments-info-expandable').addClass('expanded');
+        window.location.hash = "#comments"
+      });
+
+      $('[data-elastic]').elastic();
+    });
+  </script>
+</section>
+
+<section class="post-author">
+  <figure class="post-author-avatar">
+    <a href="/writers/dhh"><img alt="David" height="100" src="https://37assets.37signals.com/svn/1053-DHH.jpg" width="100" /></a>
+  </figure>
+
+  <div class="post-author-bio">
+    <h2>About David</h2>
+    <p>Creator of Ruby on Rails, partner at 37signals, best-selling author, public speaker, race-car driver, hobbyist photographer, and family man.</p>
+    <p>Read all of <a href="/writers/dhh">David&rsquo;s posts</a>, and <a href="https://twitter.com/dhh">follow David on Twitter</a>.</p>
+  </div>
+</section>
+
+<section class="post-similar-articles">
+
+    If you liked this <a href="/Sysadmin">Sysadmin</a> post by David, you&rsquo;ll probably like reading
+    <a href='/posts/3067-lets-get-honest-about-uptime'>Let's get honest about uptime</a>, <a href='/posts/3090-basecamp-nexts-caching-hardware'>Basecamp Next's caching hardware</a>, and <a href='/posts/3728-basecamp-was-under-network-attack-this-morning'>Basecamp was under network attack this morning</a>
+</section>
+
+      </div>
+
+      <footer class="footer">
+  <section class="footer-browse">
+    <div class="footer-browse-best">
+      <h3><strong>New here?</strong> Start with our <span class="visible-desktop">best</span> hits:</h3>
+      <ul>
+        <li><a href='/posts/2794-how-to-get-good-at-making-money'>How to get good at making money</a></li><li><a href='/posts/2746-all-the-wrong-things-we-did-with-rework'>All the &ldquo;wrong&rdquo; things we did with REWORK</a></li><li><a href='/archives2/it_just_doesnt_matter.php'>It just doesn’t matter</a></li><li><a href='/posts/3014-four-tips-for-learning-how-to-program'>Four tips for learning how to Program</a></li><li><a href='/posts/3124-give-it-five-minutes'>Give it five minutes</a></li>
+        <li><a href="/popular">&hellip; all of &ldquo;The Best of Signal v. Noise&rdquo;</a></li>
+      </ul>
+    </div>
+
+    <div class="footer-browse-latest">
+      <h3><strong>Back again?</strong> Catch <span class="visible-desktop">up on</span> our latest<span class="visible-desktop"> posts</span>:</h3>
+      <ul>
+
+          <li><a href="/posts/3980-basecamp-hq-mural">Basecamp HQ Mural</a></li>
+
+          <li><a href="/posts/3979-chocoholic-anonymous">Chocoholic Anonymous</a></li>
+
+          <li><a href="/posts/3978-building-basecamp-3-mobile-prototypes">Building Basecamp 3: Mobile Prototypes</a></li>
+
+          <li><a href="/posts/3977-i-dont-want-to-be-a-winner">I don’t want to be a winner</a></li>
+
+          <li><a href="/posts/3973-natasha-the-robot-murashev-joins-basecamp">Natasha “The Robot” Murashev joins Basecamp</a></li>
+
+        <li><a href="/archives">&hellip; all posts on Signal v. Noise</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="footer-search">
+    <h2>Search<span class="visible-desktop"> for articles or writers</span></h2>
+    <form method="get" action="https://www.google.com/search">
+      <input type="hidden" name="sitesearch" value="signalvnoise.com" />
+      <input name="q" placeholder="Search Signal v. Noise&hellip;" type="text" />
+    </form>
+  </section>
+
+  <section class="footer-categories">
+    <ul>
+      <h2>Explore<span class="visible-desktop"> 15 years of</span> Signal v. Noise</h2>
+
+
+        <li><a href="/business">Business</a></li>
+
+        <li><a href="/design">Design</a></li>
+
+        <li><a href="/programming">Programming</a></li>
+
+        <li><a href="/support">Support</a></li>
+
+        <li><a href="/sysadmin">Sysadmin</a></li>
+
+        <li><a href="/writing">Writing</a></li>
+
+
+      <li><a href="/popular">Best of</a></li>
+      <li><a href="/archives">Everything</a></li>
+    </ul>
+  </section>
+
+  <section class="footer-copyright">
+    <p>
+      Meet <a href="/writers/">the writers</a> of <a href="/">Signal v. Noise</a>.
+      If you like what you&rsquo;re reading, check out <a href="https://basecamp.com/books?source=SvN">our best-selling books REWORK and REMOTE</a>.
+    </p>
+    <p>
+      Content copyright &copy;1999-2022 <a href="https://basecamp.com/?source=SvN">Basecamp</a>.
+      Subscribe to our <a href="/posts.rss">RSS</a>.
+    </p>
+    <p>Enjoy your <span class="happyday--dayofweek"></span>.</p>
+  </section>
+</footer>
+
+    </div>
+
+  </body>
+</html>

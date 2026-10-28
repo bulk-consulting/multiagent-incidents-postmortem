@@ -1,0 +1,32 @@
+{
+  "catalog_id": "DAN-051",
+  "category": "Config Errors",
+  "company": "Stack Overflow",
+  "completeness": {
+    "impact": false,
+    "mitigation_recovery": true,
+    "prevention": true,
+    "root_cause": false,
+    "summary_context": false,
+    "symptoms": false,
+    "timeline": true
+  },
+  "content_hash": "0e91b6e25b090b9c32985ddabf6ba2eb40a324194154ce95fa31af511ae0f029",
+  "content_type": "text/html",
+  "domain": "web.archive.org",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "On August 25, 2014 there was an outage of all Stack Exchange sites (Q&A sites as well as Careers) from 7:26 pm to 7:32 pm UTC (approximately 6 minutes). The cause was an incorrect change to network firewall configuration - specifically, iptables running on our HAProxy load balancers.\n\nWhile attempting to make a change enabling streamlined access for our web servers to internal API endpoints (connecting directly instead of traversing our ASA firewalls), a misleading comment in the iptables configuration led us to make a harmful change. The change had the effect of preventing the HAProxy systems from being able to complete a connection to our IIS web servers - the response traffic for those connections (the SYN/ACK packet) was suddenly being blocked.\n\nThe iptables configuration is managed by Puppet and stored in Git. After the change was pushed to Git, the load balancers applied the change on their next Puppet run. As soon as the active load balancer in our New York data center applied the change (about 25 minutes after the change was pushed) the outage began, and came to our attention immediately.\n\nWithin 2 minutes of the start of the outage, the change had been reverted and pushed to Git. The process of TeamCity pushing the change to the Puppet masters takes about 30 seconds, then Puppet was run to apply the change, first on the inactive load balancer, then on the active one. Once this change was applied by Puppet, the outage was resolved.\n\nWe’ve already taken corrective action to prevent this kind of outage in the future (cleaning up the misleading comments!), and we have more planned;\n\n- We need a mechanism to access our sites on the secondary/inactive load balancers, so that we can apply these changes there first. This was already planned, but this outage has highlighted the need for it.\n- Our current mechanism for managing these iptables rules is not as clear and understandable as it could be. We’ve been using the Puppet Labs firewall module for new applications which need to interact with iptables; we are planning to convert these configs (currently a static file managed by Puppet getting placed at /etc/sysconfig/iptables) to the module and doing a full audit for readability/cleanup of the rules while we’re at it, hopefully ending up with something much simpler to understand and modify.\n\nOutage Schedule of Events\n\n- 2014-08-25 19:01 Change pushed to Git (da2d38d6a1)\n- 2014-08-25 19:26 Puppet runs on primary load balancer (pushed bad change / outage BEGINS)\n- 2014-08-25 19:27 On-call pager rings and staff notice problem\n- 2014-08-25 19:27 Revert pushed to Git (b55e654d9f)\n- 2014-08-25 19:30 Puppet updates secondary load balancer (pushed revert)\n- 2014-08-25 19:32 Puppet updates primary load balancer (outage RESOLVED)",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:08:49.053877+00:00",
+  "final_url": "https://web.archive.org/web/20201020103424/https://stackstatus.net/post/96025967369/outage-post-mortem-august-25th-2014",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-051.html",
+  "redirect_history": [],
+  "redirects": [],
+  "review_reason": [],
+  "source_url": "https://web.archive.org/web/20201020103424/https://stackstatus.net/post/96025967369/outage-post-mortem-august-25th-2014",
+  "status": "extracted",
+  "title": "Stack Exchange Network Status — Outage Post-Mortem: August 25th, 2014",
+  "word_count": 455
+}

@@ -1,0 +1,32 @@
+{
+  "catalog_id": "DAN-102",
+  "category": "Database",
+  "company": "incident.io",
+  "completeness": {
+    "impact": true,
+    "mitigation_recovery": true,
+    "prevention": true,
+    "root_cause": false,
+    "summary_context": true,
+    "symptoms": true,
+    "timeline": true
+  },
+  "content_hash": "86f10a19a3d7590cd9ccce6bf05f49c37d7557fadc9aadd48143a1b074846f22",
+  "content_type": "text/html",
+  "domain": "status.incident.io",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "On Wednesday, April 9, 2025, between 14:16 and 14:27 UTC, our systems experienced intermittent availability issues. The incident culminated in a 2-minute database outage from 14:25 to 14:27 UTC across our product, though on-call alerts and escalations remained operational.\n\nLast weekend, we upgraded our database to Postgres 17. As part of this upgrade, we temporarily disabled PGAudit — an extension that provides detailed logging of database activities and changes to database structures and user permissions beyond standard Postgres logging.\n\nOnce the upgrade was complete, and after successful testing in our staging environment, we then re-enabled the extension in production and confirmed everything was working as expected.\n\nOn Wednesday afternoon at 14:16 UTC, a routine database migration (to create an empty table and add an index) triggered an unexpected interaction with PGAudit causing the extension to become unresponsive while holding critical database locks.\n\nOur monitoring quickly alerted us to the issue and we initially attempted to resolve it by killing the offending PGAudit processes, but they wouldn't respond to timeout signals, preventing the locks from being released.\n\nThis created a cascading effect where the locked resources blocked other database operations, ultimately causing intermittent slowness across our dashboard, mobile app, Slack app, and API.\n\nWhen these timeouts continued climbing and further attempts to kill the PGAudit process also failed, we decided to restart the database. This would forcibly end the stuck process, but also result in hard downtime of the database for a short period.\n\nWe decided to take this action swiftly and pre-emptively, rather than risk continued disruption. This resulted in our primary database being unavailable for just under 2 minutes, between 14:25 UTC and 14:27 UTC.\n\nKey elements of our infrastructure are designed to handle this scenario, and so, importantly, no on-call alerts or escalations were dropped during this period.\n\nAfter restoring service, we temporarily disabled and then completely removed the PGAudit extension, to eliminate any risk of accidental reactivation until we can guarantee its safety.\n\nFrom here, we will continue to investigate the issue, conduct an internal debrief and also in parallel, work to enhance our processes and monitoring capabilities to better detect, prevent and respond to similar situations in the future.",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:11:06.512945+00:00",
+  "final_url": "https://status.incident.io/incidents/01JRDFKAGE07YYDY0KZR137BX3/write-up",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-102.html",
+  "redirect_history": [],
+  "redirects": [],
+  "review_reason": [],
+  "source_url": "https://status.incident.io/incidents/01JRDFKAGE07YYDY0KZR137BX3/write-up",
+  "status": "extracted",
+  "title": "Intermittent failures - incident.io Status",
+  "word_count": 363
+}

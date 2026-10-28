@@ -1,0 +1,48 @@
+{
+  "catalog_id": "DAN-129",
+  "category": "Uncategorized",
+  "company": "Chef.io",
+  "completeness": {
+    "impact": true,
+    "mitigation_recovery": false,
+    "prevention": true,
+    "root_cause": true,
+    "summary_context": true,
+    "symptoms": true,
+    "timeline": true
+  },
+  "content_hash": "1e004787865ee2615b84447b00bfbfc2bf23bca0a601468070b3ffe0e5e06518",
+  "content_type": "text/html",
+  "domain": "www.chef.io",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "Approximately two hours after Supermarket became the official community site it started to experience increased latency and intermittent unresponsiveness. This made downloading cookbooks problematic and effected various sites including supermarket.getchef.com, community.opscode.com, cookbooks.opscode.com, and api.berkshelf.com. We are sorry for the problems this caused.\n\nIn this post, I will explain what happened and what we are doing to make sure this doesn’t happen in the future.\n\nThis unresponsiveness caused a number of issues including:\n\n- Berkshelf v3.x was unable to connect to api.berkshelf.com to get a list of cookbooks and versions needed for depsolving\n- An inability to browse cookbooks\n- Uploading and downloading of cookbooks either broken or extremely latent\n- The Supermarket API was inaccessible\n\n## Background\n\nAt Chef, we perform a postmortem for any significant production environment outage or incident that results in an engineer being paged. We have a postmortem writeup, with the timeline, root cause, and corrective actions published in a private repository. Then, we schedule an internal postmortem meeting, where the incident leader for the problem discusses with others who were involved what happened, why, and how to prevent the same thing from happening. This is a learning experience for everyone, and these meetings are conducted in a blameless manner. We also often make a public blog post when the outage had external customer impact.\n\nThe writeup and meeting are normally done internally. However, Supermarket is the community site, it serves the community. The application repository and supporting cookbook are open source, and issues that affect “supermarket.getchef.com” may affect anyone who also runs the application on their internal infrastructure. So for this incident, we conducted the postmortem meeting in the open so the community has a chance to participate as equally as anyone else at Chef.\n\n- Postmortem write-up – Contents from our internal repository where we store postmortem write-ups.\n- Postmortem meeting – Video of the postmortem meeting.\n\n## Contributing Factors\n\nThe supermarket application runs in an AWS account. At launch, it was hosted on three m3.medium instances, with an RDS database, ElasticCache Redis cache, with an Elastic Load Balancer (ELB) in front of the instances. Supermarket is a Rails app run under the unicorn http server, which listens on a unix domain socket on each of the instances. Nginx is used as a local reverse proxy for each of the application servers.\n\nWe determined a number of contributing factors that led to this outage.\n\n### Load Planning\n\nWe realized at the time of soft launch that we couldn’t cut-over to the new site without supporting the /universe endpoint. As such we held off on cutting over to get that implemented but still wanted to launch as soon as possible and skipped over the load planning step in our haste.\n\n### Health Check Timeouts\n\nThe health check timeouts were set too low to be effective. We ended up in a state where nodes were being taken out of the pool causing a domino effect. As one node would be pulled out, the other nodes would see a significant increase in traffic, causing them to time out and fall out of the pool.\n\n### App Servers Undersized\n\nThe application servers were woefully undersized for the traffic we needed to be able to handle. The single CPU core of an m3.medium was just not enough CPU to keep up with demand.\n\n## Stabilization Steps\n\nWe added new instances and changed the instance type we were using in production. We now have five m3.xlarge instances serving traffic.\n\n## Corrective Actions\n\n1. Change the behavior of the Berkshelf API Servers, to use the new `/universe` endpoint. (Berkshelf Core Team)\n2. Adjust the number of unicorn workers on each node as necessary. (Joshua Timberman)\n3. Improve performance with the way downloads are handled. This will include ensure that the metrics collection is non-blocking. (Christopher Webber and Full Stack)\n4. Get updates from http://status.getchef.com into #chef on irc.freenode.net. (Christopher Webber)\n5. Add additional alerting around nodes falling out of the ELB. (Chef Operations)\n\n## Conclusion\n\nWe are sorry about the issues with Supermarket, especially so soon after launch. We know that the community depends on these services to be reliable and will work hard to prevent these issues in the future.\n\nThank you!",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:12:48.617787+00:00",
+  "final_url": "https://www.chef.io/blog/supermarket-intermittent-unresponsiveness-postmortem",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-129.html",
+  "redirect_history": [
+    {
+      "destination_url": "https://www.chef.io/blog/2014/07/10/supermarket-intermittent-unresponsiveness-postmortem",
+      "result": "followed",
+      "source_url": "https://www.chef.io/blog/2014/07/10/supermarket-intermittent-unresponsiveness-postmortem/",
+      "type": "http"
+    },
+    {
+      "destination_url": "https://www.chef.io/blog/supermarket-intermittent-unresponsiveness-postmortem",
+      "result": "followed",
+      "source_url": "https://www.chef.io/blog/2014/07/10/supermarket-intermittent-unresponsiveness-postmortem",
+      "type": "http"
+    }
+  ],
+  "redirects": [
+    "https://www.chef.io/blog/2014/07/10/supermarket-intermittent-unresponsiveness-postmortem",
+    "https://www.chef.io/blog/supermarket-intermittent-unresponsiveness-postmortem"
+  ],
+  "review_reason": [],
+  "source_url": "https://www.chef.io/blog/2014/07/10/supermarket-intermittent-unresponsiveness-postmortem/",
+  "status": "extracted",
+  "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef",
+  "word_count": 702
+}

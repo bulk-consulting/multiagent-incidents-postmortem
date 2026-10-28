@@ -1,0 +1,48 @@
+{
+  "catalog_id": "DAN-096",
+  "category": "Database",
+  "company": "GitHub",
+  "completeness": {
+    "impact": true,
+    "mitigation_recovery": true,
+    "prevention": true,
+    "root_cause": false,
+    "summary_context": true,
+    "symptoms": false,
+    "timeline": false
+  },
+  "content_hash": "3464af67f10cf96b1b20cd376cf68d9a5cea58f4fe883cf0cdff6a3f4be57e0d",
+  "content_type": "text/html",
+  "domain": "github.blog",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "Over the past few weeks, we have experienced multiple incidents due to the health of our database, which resulted in degraded service of our platform. We know this impacts many of our customers’ productivity and we take that very seriously. We wanted to share with you what we know about these incidents while our team continues to address these issues.\n\nThe underlying theme of our issues over the past few weeks has been due to resource contention in our `mysql1` cluster, which impacted the performance of a large number of our services and features during periods of peak load. Over the past several years, we’ve shared how we’ve been partitioning our main database in addition to adding clusters to support our growth, but we are still actively working on this problem today. We will share more in our next Availability Report, but I’d like to be transparent and share what we know now.\n\nAt this time, GitHub saw an increased load during peak hours on our `mysql1` database, causing our database proxying technology to reach its maximum number of connections. This particular database is shared by multiple services and receives heavy read/write traffic. All write operations were unable to function during this outage, including git operations, webhooks, pull requests, API requests, issues, GitHub Packages, GitHub Codespaces, GitHub Actions, and GitHub Pages services.\n\nThe incident appeared to be related to peak load combined with poor query performance for specific sets of circumstances. Our MySQL clusters use a classic primary-replica set up for high-availability where a single node primary is able to accept writes, while the rest of the cluster consists of replica nodes that serve read traffic. We were able to recover by failing over to a healthy replica and started investigations into traffic patterns at peak load related to query performance during these times.\n\nThe following day, we saw the same peak traffic pattern and load on `mysql1`. We were not able to pinpoint and address the query performance issues before this peak, and we decided to proactively failover before the issue escalated. Unfortunately, this caused a new load pattern that introduced connectivity issues on the new failed-over primary, and applications were once again unable to connect to `mysql1` while we worked to reset these connections. We were able to identify the load pattern during this incident and subsequently implemented an index to fix the main performance problem.\n\nWhile we had reduced load seen in the previous incidents, we were not fully confident in the mitigations. We wanted to do more to analyze performance on this database to prevent future load patterns or performance issues. In this third incident, we enabled memory profiling on our database proxy in order to look more closely at the performance characteristics during peak load. At the same time, client connections to `mysql1` started to fail, and we needed to again perform a primary failover in order to recover.\n\nWe again saw a recurrence of load characteristics that caused client connections to fail and again performed a primary failover in order to recover. In order to reduce load, we throttled webhook traffic and will continue to use that as a mitigation to prevent future recurrence during peak load times as we continue to investigate further mitigations.\n\nIn order to prevent these types of incidents from occurring in the future, we have started an audit of load patterns for this particular database during peak hours and a series of performance fixes based on these audits. As part of this, we are moving traffic to other databases in order to reduce load and speed up failover time, as well as reviewing our change management procedures, particularly as it relates to monitoring and changes during high load in production. As the platform continues to grow, we have been working to scale up our infrastructure including sharding our databases and scaling hardware.\n\nWe sincerely apologize for the negative impacts these disruptions have caused. We understand the impact these types of outages have on customers who rely on us to get their work done every day and are committed to efforts ensuring we can gracefully handle disruption and minimize downtime. We look forward to sharing additional information as part of our March Availability Report in the next few weeks.\n\n## Written by\n\n## Related posts\n\nAI, agents, voice, and physical controls are shifting software development from operating tools to expressing intent—and helping developers stay focused on building.",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:10:52.649418+00:00",
+  "final_url": "https://github.blog/news-insights/company-news/an-update-on-recent-service-disruptions/",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-096.html",
+  "redirect_history": [
+    {
+      "destination_url": "https://github.blog/engineering/an-update-on-recent-service-disruptions/",
+      "result": "followed",
+      "source_url": "https://github.blog/2022-03-23-an-update-on-recent-service-disruptions/",
+      "type": "http"
+    },
+    {
+      "destination_url": "https://github.blog/news-insights/company-news/an-update-on-recent-service-disruptions/",
+      "result": "followed",
+      "source_url": "https://github.blog/engineering/an-update-on-recent-service-disruptions/",
+      "type": "http"
+    }
+  ],
+  "redirects": [
+    "https://github.blog/engineering/an-update-on-recent-service-disruptions/",
+    "https://github.blog/news-insights/company-news/an-update-on-recent-service-disruptions/"
+  ],
+  "review_reason": [],
+  "source_url": "https://github.blog/2022-03-23-an-update-on-recent-service-disruptions/",
+  "status": "extracted",
+  "title": "An update on recent service disruptions - The GitHub Blog",
+  "word_count": 737
+}

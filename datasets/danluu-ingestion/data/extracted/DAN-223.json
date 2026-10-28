@@ -1,0 +1,32 @@
+{
+  "catalog_id": "DAN-223",
+  "category": "Uncategorized",
+  "company": "Stack Exchange",
+  "completeness": {
+    "impact": true,
+    "mitigation_recovery": false,
+    "prevention": true,
+    "root_cause": false,
+    "summary_context": false,
+    "symptoms": false,
+    "timeline": true
+  },
+  "content_hash": "1905439bef349253acced9f6c36a3be568030191009dac372887a6af36884019",
+  "content_type": "text/html",
+  "domain": "web.archive.org",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "On 2015-03-31 at 10:00:00 UTC, it was Midnight, April 1st in Samoa (GMT+14). At 10:23:14 UTC, we enabled StackEgg for all logged-in users across all sites the Stack Exchange network. This resulted in a heavily increased load to our primary load balancers as a result of the additional AJAX hits to get game state. In the initial deploy, there was an additional request per page load. Though this was asynchronous and didn’t affect page load time for clients, it caused a significant concurrent session increase on our load balancers. This resulted in a 6 minute public outage on Stack Overflow.\n\nThree main factors went into this concurrent session build-up:\n\nThe additional HTTP requests themselves were instantaneous and transient, meaning open/closed and done. The amount of requests was non-trivial, peaking out at 3,444 requests/sec at peak before reduction measures took effect. This was additional load, the combined traffic peaked at 6,608 requests/sec.\n\nIn order to increase performance in the rare (before today) cases we load more than 1 resource directly from our load balancers, we employ HTTP Keep-Alive. This instructs the browser to hold open the connection. In our case, we had this tuned to 15 seconds. With 3,444 requests/second and a 15s keep-alive, we were attempting to sustain an additional 51,660 concurrent sessions at the peak of the issue.\n\nIn order to maintain sanity and prevent CPU overload, we cap our concurrent sessions at 40,000 in HAProxy on the frontend affected by the issue.\n\nOnce we reached the 40,000 session capacity on the frontend, subsequent sessions are queued and waiting to finish their TCP connect. In the short-term where a batch of requests finishing results in going under the threshold, sporadic load durations result - depending on where in the oscillation cycle you hit. If left unaddressed long-term, concurrent sessions would stay above the bar and result in TCP connection timeouts for users.\n\nUpon identifying the bottleneck, we raised the concurrent sessions limit to relieve immediate pressure and began working to reduce the number of HTTP requests from StackEgg. Raising our limit on the frontend was a simple HAProxy change via Puppet. Reducing StackEgg requests had 2 pieces:\n\nEliminating the initial AJAX request by embedding the needed data directly in the page\n\nReducing the occurrences we called for fresh data and increase dependence on websockets to feed game data.\n\nThese simultaneous adjustments greatly reduced load on the load balancers but still kept us around 60,000 sessions at times of peak traffic. However, this was enough to address the issue on 2015-03-31 (UTC). The load from the StackEgg data route is now stable at 1,000 - 1,400 req/s.\n\nOn the morning of 2015-04-01 we again saw a traffic increase approaching approximately 60,000 simultaneous sessions again. The decision was made to temporarily lower HTTP Keep-Alive for the duration of StackEgg from 15s to 5s. This lowers the initial concurrent session load we began with as well as StackEgg - possibly with consequences of reduced performance (which we will be measuring and testing). This dropped our sessions from about 59,500 down to \\~19,000 where we remain stable.\n\nTimeline of events (UTC)\n\nTimeline for March 31st:\n\n10:23:14 StackEgg enabled on all sites for everyone\n\n13:42:19 StackEgg disabled on Stack Overflow externally due to load\n\n13:44:30 Flipping StackEgg into Employee overloads the web tier\n\n13:46:13 StackEgg is turned fully off manually in database\n\n13:47:00 Pingdom reports Stack Overflow online\n\n14:07:31 More code optimizations built-out\n\n14:30:25 Old JavaScript route is hard-killed in HAProxy\n\n14:38:54 StackEgg data route shifted to differentiate traffic\n\n14:50:32 StackEgg rollout to Stack Overflow begins\n\n14:56:29 StackEgg re-enabled on all sites\n\n15:02:39 All systems green - high but stable request load\n\nTimeline for April 1st:\n\n10:19:00 Sessions at approximately 60,000 concurrent\n\n10:30:00 Decision: lower HTTP Keep-Alive from 15 to 5seconds\n\n10:31:47 Swapped load balancers to prep for changes\n\n10:37:22 Keep-Alive duration change applied via HAProxy reload\n\n10:38:31 Concurrent sessions drop to \\~28,000\n\n11:23:13 Concurrent sessions down to 23,047\n\n15:37:38 Concurrent sessions down to 19,689\n\nFor a graphical view of some of the traffic issues…\n\nHere is what traffic bouncing against the 40,000 limit appeared as:\n\nA view of sessions for the previous 2 weeks:\n\nWeb tier CPU over the same 2 weeks:\n\nWe will be keeping an eye on performance in our data center as well as measure the effect of Keep-Alive duration via client timings now that StackEgg has passed. As a matter of practice, we have an open internal discussion about any user-facing outages and will be doing the same here.",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:17:02.135495+00:00",
+  "final_url": "http://web.archive.org/web/20150404235419/https://stackstatus.net/post/115305251014/outage-postmortem-march-31-2015",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-223.html",
+  "redirect_history": [],
+  "redirects": [],
+  "review_reason": [],
+  "source_url": "http://web.archive.org/web/20150404235419/https://stackstatus.net/post/115305251014/outage-postmortem-march-31-2015",
+  "status": "extracted",
+  "title": "Stack Exchange Network Status — Outage Postmortem: March 31, 2015",
+  "word_count": 750
+}

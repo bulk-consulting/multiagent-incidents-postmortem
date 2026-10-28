@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head class="sans-serif"><script type="text/javascript" src="https://web-static.archive.org/_static/js/bundle-playback.js?v=3grhEDQT" charset="utf-8"></script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/wombat.js?v=o9P2E1FK" charset="utf-8"></script>
+<script>window.RufflePlayer=window.RufflePlayer||{};window.RufflePlayer.config={"autoplay":"on","unmuteOverlay":"hidden","showSwfDownload":true};</script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/ruffle/ruffle.js"></script>
+<script type="text/javascript">
+    __wm.init("https://web.archive.org/web");
+  __wm.wombat("https://blog.cloudflare.com/a-byzantine-failure-in-the-real-world/","20211015231917","https://web.archive.org/","web","https://web-static.archive.org/_static/",
+	      "1634339957");
+</script>
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/banner-styles.css?v=1utQkbB3" />
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/iconochive.css?v=3PDvdIFv" />
+<!-- End Wayback Rewrite JS Include -->
+
+
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="baidu-site-verification" content="KeThzeyMOr"/>
+    <meta name="baidu-site-verification" content="code-NIlrS7gNhx"/>
+
+    <title>A Byzantine failure in the real world</title>
+    <meta name="HandheldFriendly" content="True"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+    <link rel="stylesheet" type="text/css" href="https://web.archive.org/web/20211015231917cs_/https://cdnjs.cloudflare.com/ajax/libs/tippy.js/3.4.1/themes/light.css"/>
+    <link rel="stylesheet" type="text/css" href="/web/20211015231917cs_/https://blog.cloudflare.com/assets/built/index.css?v=6e624d9476"/>
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/web/20211015231917im_/https://blog.cloudflare.com/favicon_package_v0.16/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/web/20211015231917im_/https://blog.cloudflare.com/favicon_package_v0.16/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/web/20211015231917im_/https://blog.cloudflare.com/favicon_package_v0.16/favicon-16x16.png">
+    <link rel="mask-icon" href="/web/20211015231917im_/https://blog.cloudflare.com/favicon_package_v0.16/safari-pinned-tab.svg" color="#f78100">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="theme-color" content="#ffffff">
+
+    <script type="text/javascript" src="/web/20211015231917js_/https://blog.cloudflare.com/assets/built/index.js?v=6e624d9476"></script>
+    <script src="/web/20211015231917js_/https://blog.cloudflare.com/assets/js/check-for-tex.js" defer></script>
+
+    <meta name="description" content="When we review design documents at Cloudflare, we are always on the lookout for Single Points of Failure (SPOFs). But is redundancy enough? In this post we present a timeline of a real world incident, and how an interesting failure mode known as a Byzantine fault played a role in a cascading series of events."/>
+    <link rel="shortcut icon" href="/web/20211015231917im_/https://blog.cloudflare.com/favicon.png" type="image/png"/>
+    <link rel="canonical" href="https://web.archive.org/web/20211015231917/https://blog.cloudflare.com/a-byzantine-failure-in-the-real-world/"/>
+    <meta name="referrer" content="no-referrer-when-downgrade"/>
+    
+    <meta property="og:site_name" content="The Cloudflare Blog"/>
+    <meta property="og:type" content="article"/>
+    <meta property="og:title" content="A Byzantine failure in the real world"/>
+    <meta property="og:description" content="When we review design documents at Cloudflare, we are always on the lookout for Single Points of Failure (SPOFs). In this post, we present a timeline of a real-world incident, and how an interesting failure mode known as a Byzantine fault played a role in a cascading series of events."/>
+    <meta property="og:url" content="https://web.archive.org/web/20211015231917/https://blog.cloudflare.com/a-byzantine-failure-in-the-real-world/"/>
+    <meta property="og:image" content="https://web.archive.org/web/20211015231917im_/https://blog.cloudflare.com/content/images/2020/11/byzantine-fault-blog-post-diagram-1.png"/>
+    <meta property="article:published_time" content="2020-11-27T12:00:00.000Z"/>
+    <meta property="article:modified_time" content="2020-11-30T17:20:31.000Z"/>
+    <meta property="article:tag" content="Post Mortem"/>
+    <meta property="article:tag" content="API"/>
+    <meta property="article:tag" content="Postgres"/>
+    <meta property="article:tag" content="Outage"/>
+    <meta property="article:tag" content="Engineering"/>
+    
+    <meta property="article:publisher" content="https://www.facebook.com/cloudflare"/>
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:title" content="A Byzantine failure in the real world"/>
+    <meta name="twitter:description" content="When we review design documents at Cloudflare, we are always on the lookout for Single Points of Failure (SPOFs). In this post, we present a timeline of a real-world incident, and how an interesting failure mode known as a Byzantine fault played a role in a cascading series of events."/>
+    <meta name="twitter:url" content="https://web.archive.org/web/20211015231917im_/https://blog.cloudflare.com/a-byzantine-failure-in-the-real-world/"/>
+    <meta name="twitter:image" content="https://web.archive.org/web/20211015231917im_/https://blog.cloudflare.com/content/images/2020/11/byzantine-fault-blog-post-diagram.png"/>
+    <meta name="twitter:label1" content="Written by"/>
+    <meta name="twitter:data1" content="Tom Lianza"/>
+    <meta name="twitter:label2" content="Filed under"/>
+    <meta name="twitter:data2" content="Post Mortem, API, Postgres, Outage, Engineering"/>
+    <meta name="twitter:site" content="@cloudflare"/>
+    <meta name="twitter:creator" content="@tlianza"/>
+    
+    <script type="application/ld+json">
+{
+    "@context": "https://web.archive.org/web/20211015231917/https://schema.org",
+    "@type": "Article",
+    "publisher": {
+        "@type": "Organization",
+        "name": "The Cloudflare Blog",
+        "logo": {
+            "@type": "ImageObject",
+            "url": "https://web.archive.org/web/20211015231917/https://blog-cloudflare-com-assets.storage.googleapis.com/2019/06/logo-cloudflare-dark-1.svg",
+            "width": 109,
+            "height": 40.5
+        }
+    },
+    "author": {
+        "@type": "Person",
+        "name": "Tom Lianza",
+        "image": {
+            "@type": "ImageObject",
+            "url": "https://web.archive.org/web/20211015231917/https://blog-cloudflare-com-assets.storage.googleapis.com/2020/04/tom.jpg",
+            "width": 600,
+            "height": 600
+        },
+        "url": "https://web.archive.org/web/20211015231917/https://blog.cloudflare.com/author/tom-lianza/",
+        "sameAs": [
+            "https://web.archive.org/web/20211015231917/https://twitter.com/tlianza"
+        ]
+    },
+    "headline": "A Byzantine failure in the real world",
+    "url": "https://web.archive.org/web/20211015231917/https://blog.cloudflare.com/a-byzantine-failure-in-the-real-world/",
+    "datePublished": "2020-11-27T12:00:00.000Z",
+    "dateModified": "2020-11-30T17:20:31.000Z",
+    "image": "https://web.archive.org/web/20211015231917/https://blog.cloudflare.com/content/images/2020/11/image1-21.png",
+    "keywords": "Post Mortem, API, Postgres, Outage, Engineering",
+    "description": "When we review design documents at Cloudflare, we are always on the lookout for Single Points of Failure (SPOFs). In this post, we present a timeline of a real-world incident, and how an interesting failure mode known as a Byzantine fault played a role in a cascading series of events.",
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "https://web.archive.org/web/20211015231917/https://blog.cloudflare.com/"
+    }
+}
+    </script>
+
+    <meta name="generator" content="Ghost 3.5"/>
+    <link rel="alternate" type="application/rss+xml" title="The Cloudflare Blog" href="https://web.archive.org/web/20211015231917/https://blog.cloudflare.com/rss/"/>
+    <!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://web.archive.org/web/20211015231917/https://tr.www.cloudflare.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','cfDataLayer','GTM-PKQFGQB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Optimize -->
+<script src="https://web.archive.org/web/20211015231917js_/https://www.googleoptimize.com/optimize.js?id=GTM-N4JSZJ8"></script>
+
+<meta name="msvalidate.01" content="CF295E1604697F9CAD18B5A232E871F6"/>
+<meta class="swiftype" name="language" data-type="string" content="en"/>
+<!--<script src="/assets/js/index.js"></script>-->
+<script type="text/javascript" src="//web.archive.org/web/20211015231917js_/https://cdn.bizible.com/scripts/bizible.js" async=""></script>
+<script>
+var trackRecruitingLink = function(role, url) {
+   ga('send', 'event', 'recruiting', 'jobscore-click', role, {
+     'transport': 'beacon',
+     'hitCallback': function(){document.location = url;}
+   });
+}
+</script> 
+<script type="text/javascript">
+	(function() {
+		var didInit = false;
+		function initMunchkin() {
+			if(didInit === false) {
+				didInit = true;
+				Munchkin.init('713-XSC-918');
+			}
+		}
+		var s = document.createElement('script');
+		s.type = 'text/javascript';
+		s.async = true;
+		s.src = '//web.archive.org/web/20211015231917/https://munchkin.marketo.net/munchkin.js';
+		s.onreadystatechange = function() {
+			if (this.readyState == 'complete' || this.readyState == 'loaded') {
+				initMunchkin();
+			}
+		};
+		s.onload = initMunchkin;
+		document.getElementsByTagName('head')[0].appendChild(s);
+		})();
+</script>
+<script>
+var HTMLAttrToAdd = document.querySelector("html");
+HTMLAttrToAdd.setAttribute("lang", "en");
+</script>
+<style>
+    table {
+        background-color: transparent;
+    }
+    td {
+		padding: 5px 1em;
+    }
+    pre {
+        max-height: 500px;
+        overflow-y: scroll;
+    }
+</style>
+<!-- Cloudflare Web Analytics -->
+<script defer src="https://web.archive.org/web/20211015231917js_/https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;token&quot;: &quot;f446eacb44504e50864bad7c47ffa9e8&quot;}"></script>
+<!-- End Cloudflare Web Analytics -->
+
+<script defer src="https://web.archive.org/web/20211015231917js_/https://api.radar.cloudflare.com/beacon.js"></script>
+
+</head>
+
+<body id="main-body" class="post-template tag-postmortem tag-api tag-postgres tag-outage tag-engineering sans-serif">
+
+    <div class="site-wrapper">
+
+        <header class="flex flex-row flex-wrap justify-between items-end mw8 center mv3 pl3 pr2">
+    <div class="w-100 flex items-end justify-between justify-start-l">
+        <div class="w-100 tr">
+            <span class="dn di-l">
+                <a href="https://web.archive.org/web/20211015231917/https://www.cloudflare.com/plans/enterprise/contact/" class="f1 gray4 no-underline underline-hover">Contact Sales:
+                </a>
+                <a href="https://web.archive.org/web/20211015231917/tel:+18889935273" class="f1 gray4 no-underline underline-hover">+1 (888) 274-3482</a>
+            </span>
+        </div>
+    </div>
+    <div class="w-100 w-50-l flex items-end justify-between justify-start-l">
+        <a href="https://web.archive.org/web/20211015231917/https://blog.cloudflare.com/" class="header-logo mr4">
+            <img src="https://web.archive.org/web/20211015231917im_/https://blog-cloudflare-com-assets.storage.googleapis.com/2019/06/logo-cloudflare-dark-1.svg" alt="The Cloudflare Blog" class="header-logo"/>
+        </a>
+        <h2 class="mt0 mb1">
+            <a href="/web/20211015231917/https://blog.cloudflare.com/" class="fw5 f5 gray3 no-underline">
+                <span class="dn di-l">The Cloudflare Blog</span>
+            </a>
+        </h2>
+    </div>
+    <div class="w-100 w-50-l dn db-l">
+        <div class="w-100 tr mkto-sub-message">
+            <p class="f2">Thanks for being here, come back soon. Get notified of new posts:</p>
+        </div>
+        <div class="w-100 tr">
+            <script src="//web.archive.org/web/20211015231917js_/https://app-ab13.marketo.com/js/forms2/js/forms2.min.js"></script>
+            <div class="marketo-form-container">
+                <form id="mktoForm_1653"></form>
+            </div>
+            <script>
+                MktoForms2.loadForm("//web.archive.org/web/20211015231917/https://app-ab13.marketo.com", "713-XSC-918", 1653, function(form) {
+                    document.querySelectorAll('#mktoForm_1653 .mktoEmailField')[0].placeholder = "Email Address";
+
+                    form.onSuccess(function(vals, thanksURL){
+                        // Hide form and show success msg
+                        document.getElementById("mktoForm_1653").style.display = "none";
+                        document.getElementsByClassName("mkto-sub-message")[0].style.display = "none";
+
+                        document.getElementsByClassName("js-form-success-msg")[0].style.display = "block";
+                        return false;
+                    });
+                });
+            </script>
+        </div>
+        <div class="w-100 tr dn js-form-success-msg">
+            <p class="f2">Subscription confirmed. Thank you for subscribing!</p>
+        </div>
+    </div>
+</header>
+
+<nav id="nav" class="w-100 bb b--black-10 z-1">
+    <div id="desktop-nav-items-container" class="flex flex-row flex-wrap justify-between items-center mw8 center mv3 mv0-l">
+        <div class="nav-item nav-item-desktop ml3 mr2 dn db-l pv3" data-tag="product-news">
+            <a href="/web/20211015231917/https://blog.cloudflare.com/tag/product-news/" class="no-underline gray1 f2 fw5 pv3">Product News</a>
+        </div>
+        <div class="nav-item nav-item-desktop mh2 dn db-l pv3" data-tag="speed-and-reliability">
+            <a href="/web/20211015231917/https://blog.cloudflare.com/tag/speed-and-reliability/" class="no-underline gray1 f2 fw5 pv3">Speed &amp; Reliability</a>
+        </div>
+        <div class="nav-item nav-item-desktop mh2 dn db-l pv3" data-tag="security">
+            <a href="/web/20211015231917/https://blog.cloudflare.com/tag/security/" class="no-underline gray1 f2 fw5 pv3">Security</a>
+        </div>
+        <div class="nav-item nav-item-desktop mh2 dn db-l pv3" data-tag="serverless">
+            <a href="/web/20211015231917/https://blog.cloudflare.com/tag/serverless/" class="no-underline gray1 f2 fw5 pv3">Serverless</a>
+        </div>
+        <div class="nav-item nav-item-desktop mh2 dn db-l pv3" data-tag="zero-trust">
+            <a href="/web/20211015231917/https://blog.cloudflare.com/tag/zero-trust/" class="no-underline gray1 f2 fw5 pv3">Zero Trust</a>
+        </div>
+        <div class="nav-item nav-item-desktop mh2 dn db-l pv3" data-tag="developers">
+            <a href="/web/20211015231917/https://blog.cloudflare.com/tag/developers/" class="no-underline gray1 f2 fw5 pv3">Developers</a>
+        </div>
+        <div class="nav-item nav-item-desktop mh2 dn db-l pv3" data-tag="deep-dive">
+            <a href="/web/20211015231917/https://blog.cloudflare.com/tag/deep-dive/" class="no-underline gray1 f2 fw5 pv3">Deep Dive</a>
+        </div>
+        <div class="nav-item nav-item-desktop ml2 mr3 dn db-l pv3" data-tag="life-at-cloudflare">
+            <a href="/web/20211015231917/https://blog.cloudflare.com/tag/life-at-cloudflare/" class="no-underline gray1 f2 fw5 pv3">Life @Cloudflare</a>
+        </div>
+        <a href="/web/20211015231917/https://blog.cloudflare.com/search/"><img src="/web/20211015231917im_/https://blog.cloudflare.com/assets/images/magnifier.svg?v=6e624d9476" class="js-search-box-trigger mw2 pointer ph3 ph2-l"/>
+        </a>
+        <img src="/web/20211015231917im_/https://blog.cloudflare.com/assets/images/hamburger.svg?v=6e624d9476" class="w2 pointer js-mobile-nav-trigger ph3 db dn-l"/>
+    </div>
+
+    <div class="js-mobile-nav-container dn">
+        <div class="flex flex-column flex-wrap bg-gray9 o-95 absolute w-100 ph3 z-1">
+            <div class="pv3 ph2">
+                <a href="/web/20211015231917/https://blog.cloudflare.com/tag/product-news/" class="no-underline gray1 f4 fw7">Product News</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211015231917/https://blog.cloudflare.com/tag/speed-and-reliability/" class="no-underline gray1 f4 fw7">Speed &amp; Reliability</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211015231917/https://blog.cloudflare.com/tag/security/" class="no-underline gray1 f4 fw7">Security</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211015231917/https://blog.cloudflare.com/tag/serverless/" class="no-underline gray1 f4 fw7">Serverless</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211015231917/https://blog.cloudflare.com/tag/zero-trust/" class="no-underline gray1 f4 fw7">Zero Trust</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211015231917/https://blog.cloudflare.com/tag/developers/" class="no-underline gray1 f4 fw7">Developers</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211015231917/https://blog.cloudflare.com/tag/deep-dive/" class="no-underline gray1 f4 fw7">Deep Dive</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211015231917/https://blog.cloudflare.com/tag/life-at-cloudflare/" class="no-underline gray1 f4 fw7">Life @Cloudflare</a>
+            </div>
+        </div>
+    </div>
+</nav>
+        
+
+<main id="post" class="flex flex-row flex-wrap items-center justify-center pt2 pt4-l">
+    <article class="post-full mw-100 ph3 ph0-l fs-20px post tag-postmortem tag-api tag-postgres tag-outage tag-engineering ">
+        <h1 class="f6 f7-l fw4 gray1 pt1 pt3-l mb1">A Byzantine failure in the real world</h1>
+
+
+        <p class="f3 fw5 gray5 db di-l mt2" localize datetime="2020-11-27T12:00:00Z">Loading...</p>
+        <noscript>
+            <p class="f3 fw5 gray5 db di-l mt2">November 27, 2020 12:00PM</p>
+        </noscript>
+
+        <ul class="flex flex-wrap pl0 mt4">
+            <li class="list flex items-center ml0 pl0 pb1">
+                <a href="/web/20211015231917/https://blog.cloudflare.com/author/tom-lianza/" class="static-avatar pr1">
+                    <img class="author-profile-image h2 w2 br-100 mr2" src="https://web.archive.org/web/20211015231917im_/https://blog-cloudflare-com-assets.storage.googleapis.com/2020/04/tom.jpg" alt="Tom Lianza"/>
+                </a>
+                <div class="author-name-tooltip">
+                    <a href="/web/20211015231917/https://blog.cloudflare.com/author/tom-lianza" class="fw5 f3 no-underline black mr3">Tom Lianza</a>
+                </div>
+            </li>
+            <li class="list flex items-center ml0 pl0 pb1">
+                <a href="/web/20211015231917/https://blog.cloudflare.com/author/chris-snook/" class="static-avatar pr1">
+                    <img class="author-profile-image h2 w2 br-100 mr2" src="/web/20211015231917im_/https://blog.cloudflare.com/content/images/2020/11/csnook.jpg" alt="Chris Snook"/>
+                </a>
+                <div class="author-name-tooltip">
+                    <a href="/web/20211015231917/https://blog.cloudflare.com/author/chris-snook" class="fw5 f3 no-underline black mr3">Chris Snook</a>
+                </div>
+            </li>
+        </ul>
+
+        <section class="post-full-content">
+            <div class="post-content lh-copy gray1">
+                <p><em>An analysis of the Cloudflare API availability incident on 2020-11-02</em></p><p>When we review design documents at Cloudflare, we are always on the lookout for Single Points of Failure (SPOFs). Eliminating these is a necessary step in architecting a system you can be confident in. Ironically, when you’re designing a system with built-in redundancy, you spend most of your time thinking about how well it functions when that redundancy is lost.</p><p>On November 2, 2020, Cloudflare had an <a href="https://web.archive.org/web/20211015231917/https://www.cloudflarestatus.com/incidents/9ggr0k6dwzwg">incident</a> that impacted the availability of the API and dashboard for six hours and 33 minutes. During this incident, the success rate for queries to our API periodically dipped as low as 75%, and the dashboard experience was as much as 80 times slower than normal. While Cloudflare’s edge is massively distributed across the world (and kept working without a hitch), Cloudflare’s control plane (API &amp; dashboard) is made up of a large number of microservices that are redundant across two regions. For most services, the databases backing those microservices are only writable in one region at a time.</p><p>Each of Cloudflare’s control plane data centers has multiple racks of servers. Each of those racks has two switches that operate as a pair—both are normally active, but either can handle the load if the other fails. Cloudflare survives rack-level failures by spreading the most critical services across racks. Every piece of hardware has two or more power supplies with different power feeds. Every server that stores critical data uses RAID 10 redundant disks or storage systems that replicate data across at least three machines in different racks, or both. Redundancy at each layer is something we review and require. So—how could things go wrong?</p><p>In this post we present a timeline of what happened, and how a difficult failure mode known as a Byzantine fault played a role in a cascading series of events.</p><h3 id="2020-11-02-14-43-utc-partial-switch-failure">2020-11-02 14:43 UTC: Partial Switch Failure</h3><p>At 14:43, a network switch started misbehaving. Alerts began firing about the switch being unreachable to pings. The device was in a partially operating state: network control plane protocols such as <a href="https://web.archive.org/web/20211015231917/https://en.wikipedia.org/wiki/Link_aggregation#Link_Aggregation_Control_Protocol">LACP</a> and <a href="https://web.archive.org/web/20211015231917/https://www.cloudflare.com/learning/security/glossary/what-is-bgp/">BGP</a> remained operational, while others, such as vPC, were not. The vPC link is used to synchronize ports across multiple switches, so that they appear as one large, aggregated switch to servers connected to them. At the same time, the data plane (or forwarding plane) was not processing and forwarding all the packets received from connected devices.</p><p>This failure scenario is completely invisible to the connected nodes, as each server only sees an issue for some of its traffic due to the load-balancing nature of LACP. Had the switch failed fully, all traffic would have failed over to the peer switch, as the connected links would've simply gone down, and the ports would've dropped out of the forwarding LACP bundles.</p><p>Six minutes later, the switch recovered without human intervention. But this odd failure mode led to further problems that lasted long after the switch had returned to normal operation.</p><h3 id="2020-11-02-14-44-utc-etcd-errors-begin">2020-11-02 14:44 UTC: etcd Errors begin</h3><p>The rack with the misbehaving switch included one server in our etcd cluster. We use <a href="https://web.archive.org/web/20211015231917/https://etcd.io/">etcd</a> heavily in our core data centers whenever we need strongly consistent data storage that’s reliable across multiple nodes.</p><p>In the event that the cluster leader fails, etcd uses the <a href="https://web.archive.org/web/20211015231917/https://raft.github.io/">RAFT</a> protocol to maintain consistency and establish consensus to promote a new leader. In the RAFT protocol, cluster members are assumed to be either available or unavailable, and to provide accurate information or none at all. This works fine when a machine crashes, but is not always able to handle situations where different members of the cluster have conflicting information.</p><p>In this particular situation:</p><ul><li>Network traffic between node 1 (in the affected rack) and node 3 (the leader) was being sent through the switch in the degraded state,</li><li>Network traffic between node 1 and node 2 were going through its working peer, and</li><li>Network traffic between node 2 and node 3 was unaffected.</li></ul><p>This caused cluster members to have conflicting views of reality, known in distributed systems theory as a <a href="https://web.archive.org/web/20211015231917/https://en.wikipedia.org/wiki/Byzantine_fault">Byzantine fault</a>. As a consequence of this conflicting information, node 1 repeatedly initiated leader elections, voting for itself, while node 2 repeatedly voted for node 3, which it could still connect to. This resulted in ties that did not promote a leader node 1 could reach. RAFT leader elections are disruptive, blocking all writes until they're resolved, so this made the cluster read-only until the faulty switch recovered and node 1 could once again reach node 3.</p><figure class="kg-card kg-image-card"><img src="https://web.archive.org/web/20211015231917im_/https://blog.cloudflare.com/content/images/2020/11/image1-20.png" class="kg-image"></figure><h3 id="2020-11-02-14-45-utc-database-system-promotes-a-new-primary-database">2020-11-02 14:45 UTC: Database system promotes a new primary database</h3><p>Cloudflare’s control plane services use relational databases hosted across multiple clusters within a data center. Each cluster is configured for high availability. The cluster setup includes a primary database, a synchronous replica, and one or more asynchronous replicas. This setup allows redundancy within a data center. For cross-datacenter redundancy, a similar high availability secondary cluster is set up and replicated in a geographically dispersed data center for disaster recovery. The cluster management system leverages etcd for cluster member discovery and coordination.</p><p>When etcd became read-only, two clusters were unable to communicate that they had a healthy primary database. This triggered the automatic promotion of a synchronous database replica to become the new primary. This process happened automatically and without error or data loss.</p><p>There was a defect in our cluster management system that requires a rebuild of all database replicas when a new primary database is promoted. So, although the new primary database was available instantly, the replicas would take considerable time to become available, depending on the size of the database. For one of the clusters, service was restored quickly. Synchronous and asynchronous database replicas were rebuilt and started replicating successfully from primary, and the impact was minimal.</p><p>For the other cluster, however, performant operation of that database <em>required</em> a replica to be online. Because this database handles authentication for API calls and dashboard activities, it takes a lot of reads, and one replica was heavily utilized to spare the primary the load. When this failover happened and no replicas were available, the primary was overloaded, as it had to take all of the load. This is when the main impact started.</p><h3 id="reduce-load-leverage-redundancy">Reduce Load, Leverage Redundancy</h3><p>At this point we saw that our primary authentication database was overwhelmed and began shedding load from it. We dialed back the rate at which we push SSL certificates to the edge, send emails, and other features, to give it space to handle the additional load. Unfortunately, because of its size, we knew it would take several hours for a replica to be fully rebuilt.</p><p>A silver lining here is that every database cluster in our primary data center also has online replicas in our secondary data center. Those replicas are not part of the local failover process, and were online and available throughout the incident. The process of steering read-queries to those replicas was not yet automated, so we manually diverted API traffic that could leverage those read replicas to the secondary data center. This substantially improved our API availability.</p><h3 id="the-dashboard">The Dashboard</h3><p>The Cloudflare dashboard, like most web applications, has the notion of a user session. When user sessions are created (each time a user logs in) we perform some database operations and keep data in a Redis cluster for the duration of that user’s session. Unlike our API calls, our user sessions cannot currently be moved across the ocean without disruption. As we took actions to improve the availability of our API calls, we were unfortunately making the user experience on the dashboard worse.</p><p>This is an area of the system that is currently designed to be able to fail over across data centers in the event of a disaster, but has not yet been designed to work in both data centers at the same time. After a first period in which users on the dashboard became increasingly frustrated, we failed the authentication calls fully back to our primary data center, and kept working on our primary database to ensure we could provide the best service levels possible in that degraded state.</p><h3 id="2020-11-02-21-20-utc-database-replica-rebuilt">2020-11-02 21:20 UTC Database Replica Rebuilt</h3><p>The instant the first database replica rebuilt, it put itself back into service, and performance resumed to normal levels. We re-ramped all of the services that had been turned down, so all asynchronous processing could catch up, and after a period of monitoring marked the end of the incident.</p><h3 id="redundant-points-of-failure">Redundant Points of Failure</h3><p>The cascade of failures in this incident was interesting because each system, on its face, had redundancy. Moreover, no system fully failed—each entered a degraded state. That combination meant the chain of events that transpired was considerably harder to model and anticipate. It was frustrating yet reassuring that some of the possible failure modes were already being addressed.</p><p>A team was already working on fixing the limitation that requires a database replica rebuild upon promotion. Our user sessions system was inflexible in scenarios where we’d like to steer traffic around, and redesigning that was already in progress.</p><p>This incident also led us to revisit the configuration parameters we put in place for things that auto-remediate. In previous years, promoting a database replica to primary took far longer than we liked, so getting that process automated and able to trigger on a minute’s notice was a point of pride. At the same time, for at least one of our databases, the cure may be worse than the disease, and in fact we may not want to invoke the promotion process so quickly. Immediately after this incident we adjusted that configuration accordingly.</p><p>Byzantine Fault Tolerance (BFT) is a hot research topic. Solutions have been known since 1982, but have had to choose between a variety of engineering tradeoffs, including security, performance, and algorithmic simplicity. Most general-purpose cluster management systems choose to forgo BFT entirely and use protocols based on PAXOS, or simplifications of PAXOS such as RAFT, that perform better and are easier to understand than BFT consensus protocols. In many cases, a simple protocol that is known to be vulnerable to a rare failure mode is safer than a complex protocol that is difficult to implement correctly or debug.</p><p>The first uses of BFT consensus were in safety-critical systems such as aircraft and spacecraft controls. These systems typically have hard real time latency constraints that require tightly coupling consensus with application logic in ways that make these implementations unsuitable for general-purpose services like etcd. Contemporary research on BFT consensus is mostly focused on applications that cross trust boundaries, which need to protect against malicious cluster members as well as malfunctioning cluster members. These designs are more suitable for implementing general-purpose services such as etcd, and we look forward to collaborating with researchers and the open source community to make them suitable for production cluster management.</p><p>We are very sorry for the difficulty the outage caused, and are continuing to improve as our systems grow. We’ve since fixed the bug in our cluster management system, and are continuing to tune each of the systems involved in this incident to be more resilient to failures of their dependencies.  If you’re interested in helping solve these problems at scale, please visit <a href="https://web.archive.org/web/20211015231917/https://www.cloudflare.com/careers/">cloudflare.com/careers</a>.</p><h3 id="postscript">Postscript</h3><p>The distributed systems community has pointed out that the failure we've encountered would be better characterized as an omission fault rather than a Byzantine fault. Omission faults are much more specific and can be tolerated without BFT protocols.</p><p>We’re grateful to all those who read and critiqued this post and will be following up with a detailed post about different fault types in distributed systems soon. Stay tuned.</p>
+            </div>
+        </section>
+        <div class="pv2 ph0-l mw7 center" id="social-buttons">
+            <div class="mt5-l mt2 mb4 f2 flex flex-row-ns flex-column flex-wrap">
+                <a id="social-button-twitter" title="Discuss on Twitter" href="https://web.archive.org/web/20211015231917/https://twitter.com/Cloudflare" target="_blank" class="mr2-ns mb0-l white link b pv3 ph3 mb3 dn" style="background-color:#0055DC;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 32 32"><path d="M30.063 7.313c-.813 1.125-1.75 2.125-2.875 2.938v.75c0 1.563-.188 3.125-.688 4.625a15.088 15.088 0 0 1-2.063 4.438c-.875 1.438-2 2.688-3.25 3.813a15.015 15.015 0 0 1-4.625 2.563c-1.813.688-3.75 1-5.75 1-3.25 0-6.188-.875-8.875-2.625.438.063.875.125 1.375.125 2.688 0 5.063-.875 7.188-2.5-1.25 0-2.375-.375-3.375-1.125s-1.688-1.688-2.063-2.875c.438.063.813.125 1.125.125.5 0 1-.063 1.5-.25-1.313-.25-2.438-.938-3.313-1.938a5.673 5.673 0 0 1-1.313-3.688v-.063c.813.438 1.688.688 2.625.688a5.228 5.228 0 0 1-1.875-2c-.5-.875-.688-1.813-.688-2.75 0-1.063.25-2.063.75-2.938 1.438 1.75 3.188 3.188 5.25 4.25s4.313 1.688 6.688 1.813a5.579 5.579 0 0 1 1.5-5.438c1.125-1.125 2.5-1.688 4.125-1.688s3.063.625 4.188 1.813a11.48 11.48 0 0 0 3.688-1.375c-.438 1.375-1.313 2.438-2.563 3.188 1.125-.125 2.188-.438 3.313-.875z"/></svg>
+                    <span class="v-mid">Discuss on Twitter</span>
+                </a>
+                <a id="social-button-hn" title="Discuss on Hacker News" href="https://web.archive.org/web/20211015231917/https://hn.algolia.com/?dateRange=all&amp;page=0&amp;prefix=false&amp;query=blog.cloudflare.com&amp;sort=byDate&amp;type=story" target="_blank" class="mr2-ns mb0-l white link b pv3 ph3 mb3 dn" style="background-color:#0055DC;">
+                    <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewbox="0 0 512 512" xml:space="preserve">
+	<g>
+		<path d="M31,31v450h450V31H31z M270.1,287.6v94.9h-28.1v-94.9L165,143.5h31.9L256,254.3l59.1-110.8H347
+		C347,143.5,270.1,287.6,270.1,287.6z">
+		</path>
+	</g>
+</svg>                    <span class="v-mid">Discuss on Hacker News</span>
+                </a>
+                <a id="social-button-reddit" title="Discuss on Reddit" href="https://web.archive.org/web/20211015231917/https://www.reddit.com/r/CloudFlare/" target="_blank" class="mr2-ns mb0-l white link b pv3 ph3 mb3 dn" style="background-color:#0055DC;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 24 24">
+    <path d="M24 11.779c0-1.459-1.192-2.645-2.657-2.645-.715 0-1.363.286-1.84.746-1.81-1.191-4.259-1.949-6.971-2.046l1.483-4.669 4.016.941-.006.058c0 1.193.975 2.163 2.174 2.163 1.198 0 2.172-.97 2.172-2.163s-.975-2.164-2.172-2.164c-.92 0-1.704.574-2.021 1.379l-4.329-1.015c-.189-.046-.381.063-.44.249l-1.654 5.207c-2.838.034-5.409.798-7.3 2.025-.474-.438-1.103-.712-1.799-.712-1.465 0-2.656 1.187-2.656 2.646 0 .97.533 1.811 1.317 2.271-.052.282-.086.567-.086.857 0 3.911 4.808 7.093 10.719 7.093s10.72-3.182 10.72-7.093c0-.274-.029-.544-.075-.81.832-.447 1.405-1.312 1.405-2.318zm-17.224 1.816c0-.868.71-1.575 1.582-1.575.872 0 1.581.707 1.581 1.575s-.709 1.574-1.581 1.574-1.582-.706-1.582-1.574zm9.061 4.669c-.797.793-2.048 1.179-3.824 1.179l-.013-.003-.013.003c-1.777 0-3.028-.386-3.824-1.179-.145-.144-.145-.379 0-.523.145-.145.381-.145.526 0 .65.647 1.729.961 3.298.961l.013.003.013-.003c1.569 0 2.648-.315 3.298-.962.145-.145.381-.144.526 0 .145.145.145.379 0 .524zm-.189-3.095c-.872 0-1.581-.706-1.581-1.574 0-.868.709-1.575 1.581-1.575s1.581.707 1.581 1.575-.709 1.574-1.581 1.574z"/>
+</svg>                    <span class="v-mid">Discuss on Reddit</span>
+                </a>
+            </div>
+        </div>
+
+        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/postmortem/" class="dib pl2 pr2 pt1 pb1 mb2 bg-gray8 no-underline blue3 f2">Post Mortem</a>
+        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/api/" class="dib pl2 pr2 pt1 pb1 mb2 bg-gray8 no-underline blue3 f2">API</a>
+        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/postgres/" class="dib pl2 pr2 pt1 pb1 mb2 bg-gray8 no-underline blue3 f2">Postgres</a>
+        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/outage/" class="dib pl2 pr2 pt1 pb1 mb2 bg-gray8 no-underline blue3 f2">Outage</a>
+        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/engineering/" class="dib pl2 pr2 pt1 pb1 mb2 bg-gray8 no-underline blue3 f2">Engineering</a>
+    </article>
+</main>
+
+    <div class="ph3 pv3">
+        <div class=" flex flex-row flex-wrap mw7 center">
+            <div class="w-100 bt b--gray8">
+                <p class="black fw5 f4 mt4">Follow on Twitter</p>
+            </div>  
+                    <div class="w-100 pb2">
+                        <span>Tom Lianza</span>
+                        <span class="ph1">|</span><a href="https://web.archive.org/web/20211015231917/https://twitter.com/@tlianza" class="no-underline">@tlianza </a>
+                    </div>
+            <div class="w-100 pb2">
+                <span>Cloudflare</span>
+                <span class="ph2">|</span><a href="https://web.archive.org/web/20211015231917/https://twitter.com/Cloudflare" class="no-underline">Cloudflare</a>
+            </div>
+        </div>
+    </div>
+
+<div class="pv4 ph3 ph0-l flex flex-row flex-wrap mw7 center">
+    <div class="w-100 bt b--gray8">
+        <p class="orange fw5 f4 mt4 ttu">Related Posts</p>
+    </div>
+                <article class="w-100 w-100-m w-50-l ph3 mb4">
+                    <p class="f3 fw5 gray5" data-iso-date="2017-07-21T09:01:00+01:00">July 21, 2017 9:01AM</p>
+                    <a href="/web/20211015231917/https://blog.cloudflare.com/service-discovery/" class="no-underline gray1 f4 fw5">
+                        <h2 class="gray1 f4 fw5 mt2">How to use Cloudflare for Service Discovery</h2>
+                    </a>
+                    <p class="gray1 lh-copy">Cloudflare runs 3,588 containers, making up 1,264 apps and services that all need to be able to find and discover each other in order to communicate -- a problem solved with service discovery....</p>
+                    <ul class="flex pl0 fw6 f2">
+                        <span>By&nbsp;</span>
+                        <li class="list flex items-center">
+                            <div class="author-name-tooltip">
+                                
+                                <a href="/web/20211015231917/https://blog.cloudflare.com/author/dani/" class="fw5 f2 black no-underline">Dani Grant</a>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="flex flex-row flex-wrap">
+                        
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/ddos/" class="no-underline f1 fw2 blue3 underline-hover">DDoS</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/reliability/" class="no-underline f1 fw2 blue3 underline-hover">Reliability</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/speed-and-reliability/" class="no-underline f1 fw2 blue3 underline-hover">Speed &amp; Reliability</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/ipv4/" class="no-underline f1 fw2 blue3 underline-hover">IPv4</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/dns/" class="no-underline f1 fw2 blue3 underline-hover">DNS</a>
+                    </div>
+                </article>
+                <article class="w-100 w-100-m w-50-l ph3 mb4">
+                    <p class="f3 fw5 gray5" data-iso-date="2016-04-13T17:59:24+01:00">April 13, 2016 5:59PM</p>
+                    <a href="/web/20211015231917/https://blog.cloudflare.com/new-for-virtual-dns-customers-self-service-dashboard-and-apis-and-two-new-features/" class="no-underline gray1 f4 fw5">
+                        <h2 class="gray1 f4 fw5 mt2">New for Virtual DNS Customers: Self-Service Dashboard and APIs, and Two New Features</h2>
+                    </a>
+                    <p class="gray1 lh-copy">Today we're launching two new features and a brand new dashboard and API for Virtual DNS. Virtual DNS is CloudFlare’s DNS proxy that sits in front of some of the largest hosting providers in the world, shielding their DNS infrastructure from attacks....</p>
+                    <ul class="flex pl0 fw6 f2">
+                        <span>By&nbsp;</span>
+                        <li class="list flex items-center">
+                            <div class="author-name-tooltip">
+                                
+                                <a href="/web/20211015231917/https://blog.cloudflare.com/author/dani/" class="fw5 f2 black no-underline">Dani Grant</a>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="flex flex-row flex-wrap">
+                        
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/product-news/" class="no-underline f1 fw2 blue3 underline-hover">Product News</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/virtual-dns/" class="no-underline f1 fw2 blue3 underline-hover">Virtual DNS</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/dns/" class="no-underline f1 fw2 blue3 underline-hover">DNS</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/reliability/" class="no-underline f1 fw2 blue3 underline-hover">Reliability</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/multi-user/" class="no-underline f1 fw2 blue3 underline-hover">Multi-User</a>
+                    </div>
+                </article>
+                <article class="w-100 w-100-m w-50-l ph3 mb4">
+                    <p class="f3 fw5 gray5" data-iso-date="2019-03-04T16:00:00Z">March 04, 2019 4:00PM</p>
+                    <a href="/web/20211015231917/https://blog.cloudflare.com/building-fast-interpreters-in-rust/" class="no-underline gray1 f4 fw5">
+                        <h2 class="gray1 f4 fw5 mt2">Building fast interpreters in Rust</h2>
+                    </a>
+                    <p class="gray1 lh-copy">In the previous post we described the Firewall Rules architecture and how the different components are integrated together. We created a configurable Rust library for writing and executing Wireshark®-like filters in different parts of our stack written in Go, Lua, C, C++ and JavaScript Workers....</p>
+                    <ul class="flex pl0 fw6 f2">
+                        <span>By&nbsp;</span>
+                        <li class="list flex items-center">
+                            <div class="author-name-tooltip">
+                                
+                                <a href="/web/20211015231917/https://blog.cloudflare.com/author/ingvar-stepanyan/" class="fw5 f2 black no-underline">Ingvar Stepanyan</a>
+                            </div>
+                        </li>
+                        <li class="list flex items-center">
+                            <div class="author-name-tooltip">
+                                <span class="fw5 f2 black no-underline">,&nbsp;</span>
+                                <a href="/web/20211015231917/https://blog.cloudflare.com/author/andrew-galloni/" class="fw5 f2 black no-underline">Andrew Galloni</a>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="flex flex-row flex-wrap">
+                        
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/rust/" class="no-underline f1 fw2 blue3 underline-hover">Rust</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/javascript/" class="no-underline f1 fw2 blue3 underline-hover">JavaScript</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/workers/" class="no-underline f1 fw2 blue3 underline-hover">Cloudflare Workers</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/serverless/" class="no-underline f1 fw2 blue3 underline-hover">Serverless</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/ipv4/" class="no-underline f1 fw2 blue3 underline-hover">IPv4</a>
+                    </div>
+                </article>
+                <article class="w-100 w-100-m w-50-l ph3 mb4">
+                    <p class="f3 fw5 gray5" data-iso-date="2018-03-06T22:13:18Z">March 06, 2018 10:13PM</p>
+                    <a href="/web/20211015231917/https://blog.cloudflare.com/http-analytics-for-6m-requests-per-second-using-clickhouse/" class="no-underline gray1 f4 fw5">
+                        <h2 class="gray1 f4 fw5 mt2">HTTP Analytics for 6M requests per second using ClickHouse</h2>
+                    </a>
+                    <p class="gray1 lh-copy">One of our large scale data infrastructure challenges here at Cloudflare is around providing HTTP traffic analytics to our customers. HTTP Analytics is available to all our customers via two options:...</p>
+                    <ul class="flex pl0 fw6 f2">
+                        <span>By&nbsp;</span>
+                        <li class="list flex items-center">
+                            <div class="author-name-tooltip">
+                                
+                                <a href="/web/20211015231917/https://blog.cloudflare.com/author/alex-bocharov/" class="fw5 f2 black no-underline">Alex Bocharov</a>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="flex flex-row flex-wrap">
+                        
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/analytics/" class="no-underline f1 fw2 blue3 underline-hover">Analytics</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/data/" class="no-underline f1 fw2 blue3 underline-hover">Data</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/speed-and-reliability/" class="no-underline f1 fw2 blue3 underline-hover">Speed &amp; Reliability</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/kafka/" class="no-underline f1 fw2 blue3 underline-hover">Kafka</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211015231917/https://blog.cloudflare.com/tag/capn-proto/" class="no-underline f1 fw2 blue3 underline-hover">Cap&#x27;n Proto</a>
+                    </div>
+                </article>
+</div>
+
+
+
+
+        <footer class="pt4 pb4 pl1 pr1 main-footer">
+  <div class="mw8 center dn db-l ph3">
+    <div class="flex flex-row justify-between">
+      <div class="main-footer__menu-group">
+        <ul id="sales-menu" class="list pl0">
+          <li class="pt1 pb1 f1" data-submenu="sales-menu" class="main-footer__menu-group__header js-toggle-footer-group f1">
+            Sales
+            <i class="icon-caret-down"></i>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/plans/enterprise/contact/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="enterprise_sales" class="f1 blue3 no-underline underline-hover">
+              Enterprise Sales
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/partners/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="become_a_partner" class="f1 blue3 no-underline underline-hover">
+              Become a Partner
+            </a>
+          </li>
+        </ul>
+        <p class="phone f1 blue3 no-underline underline-hover">
+          <p class="tel f1 blue3 no-underline underline-hover">Contact Sales:</p>
+          <p><a data-i18n-phonenumber="" class="tel f1 blue3 no-underline underline-hover" href="https://web.archive.org/web/20211015231917/tel:+18889935273">+1
+              (888) 99 FLARE</a></p>
+
+          <noscript><a class="phone f1 blue3 no-underline underline-hover" href="https://web.archive.org/web/20211015231917/tel:+16503198930">+1 650 319
+              8930</a></noscript>
+        </p>
+      </div>
+      <div class="main-footer__menu-group">
+        <ul id="getting-started-menu" class="list pl0">
+          <li class="pt1 pb1 f1" data-submenu="getting-started-menu" class="main-footer__menu-group__header js-toggle-footer-group">
+            Getting Started
+            <i class="icon-caret-down"></i>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/plans/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="plans" class="f1 blue3 no-underline underline-hover">
+              Pricing
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/case-studies/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="case_studies" class="f1 blue3 no-underline underline-hover">
+              Case Studies
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/resources/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="white_papers" class="f1 blue3 no-underline underline-hover">
+              White Papers
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/webinars/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="webinars" class="f1 blue3 no-underline underline-hover">
+              Webinars
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/learning/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="learning_center" class="f1 blue3 no-underline underline-hover">
+              Learning Center
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="main-footer__menu-group">
+        <ul id="community-menu" class="list pl0">
+          <li class="pt1 pb1 f1" data-submenu="community-menu" class="main-footer__menu-group__header js-toggle-footer-group">
+            Community
+            <i class="icon-caret-down"></i>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://community.cloudflare.com/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="community_hub" class="f1 blue3 no-underline underline-hover">
+              Community Hub
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://blog.cloudflare.com/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="blog" class="f1 blue3 no-underline underline-hover">
+              Blog
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/galileo/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="galileo" class="f1 blue3 no-underline underline-hover">
+              Project Galileo
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/athenian/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="athenian" class="f1 blue3 no-underline underline-hover">
+              Athenian Project
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.tv/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="tv" class="f1 blue3 no-underline underline-hover">
+              Cloudflare TV
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="main-footer__menu-group">
+        <ul id="developers-menu" class="list pl0">
+          <li class="pt1 pb1 f1" data-submenu="developers-menu" class="main-footer__menu-group__header js-toggle-footer-group">
+            Developers
+            <i class="icon-caret-down"></i>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://developers.cloudflare.com/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="developer_hub" class="f1 blue3 no-underline underline-hover">
+              Developer Hub
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/technical-resources/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="technical_resources" class="f1 blue3 no-underline underline-hover">
+              Technical Resources
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/products/cloudflare-workers/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="cloudflare_workers" class="f1 blue3 no-underline underline-hover">
+              Cloudflare Workers
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/integrations/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="integrations" class="f1 blue3 no-underline underline-hover">
+              Integrations
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="main-footer__menu-group">
+        <ul id="support-menu" class="list pl0">
+          <li class="pt1 pb1 f1" data-submenu="support-menu" class="main-footer__menu-group__header js-toggle-footer-group">
+            Support
+            <i class="icon-caret-down"></i>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://support.cloudflare.com/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="support" class="f1 blue3 no-underline underline-hover">
+              Support
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://www.cloudflarestatus.com/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="status" class="f1 blue3 no-underline underline-hover">
+              Cloudflare Status
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/compliance/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="compliance" class="f1 blue3 no-underline underline-hover">
+              Compliance
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/gdpr/introduction/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="gdpr" class="f1 blue3 no-underline underline-hover">
+              GDPR
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="main-footer__menu-group">
+        <ul id="company-menu" class="list pl0">
+          <li class="pt1 pb1 f1" data-submenu="company-menu" class="main-footer__menu-group__header js-toggle-footer-group">
+            Company
+            <i class="icon-caret-down"></i>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/about-overview/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="overview" class="f1 blue3 no-underline underline-hover">
+              About Cloudflare
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/people/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="our_team" class="f1 blue3 no-underline underline-hover">
+              Our Team
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/press/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="press" class="f1 blue3 no-underline underline-hover">
+              Press
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/analysts/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="analysts" class="f1 blue3 no-underline underline-hover">
+              Analysts
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/careers/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="careers" class="f1 blue3 no-underline underline-hover">
+              Careers
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/internetsummit/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="internet_summit" class="f1 blue3 no-underline underline-hover">
+              Internet Summit
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/logo/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="logo" class="f1 blue3 no-underline underline-hover">
+              Logo
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/network/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="network_map" class="f1 blue3 no-underline underline-hover">
+              Network Map
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="mw8 center ph3">
+    <div class="flex flex-row flex-wrap justify-between pt4">
+      <div class="flex flex-row items-start w-100 w-50-l pb4 pb0-l">
+        <a target="_blank" rel="noopener" href="https://web.archive.org/web/20211015231917/https://www.facebook.com/Cloudflare/" class="w-10"><img src="https://web.archive.org/web/20211015231917im_/https://cloudflare.com/img/footer/facebook.svg" class="w-60"></a>
+        <a target=" _blank" rel="noopener" href="https://web.archive.org/web/20211015231917/https://twitter.com/Cloudflare" class="w-10"><img src="https://web.archive.org/web/20211015231917im_/https://cloudflare.com/img/footer/twitter.svg" class="w-60"></a>
+        <a target="_blank" rel="noopener" href="https://web.archive.org/web/20211015231917/https://www.linkedin.com/company/cloudflare" class="w-10"><img src="https://web.archive.org/web/20211015231917im_/https://cloudflare.com/img/footer/linkedin.svg" class="w-60"></a>
+        <a target="_blank" rel="noopener" href="https://web.archive.org/web/20211015231917/https://www.youtube.com/cloudflare" class="w-10"><img src="https://web.archive.org/web/20211015231917im_/https://cloudflare.com/img/footer/youtube.svg" class="w-60"></a>
+        <a target="_blank" rel="noopener" href="https://web.archive.org/web/20211015231917/https://www.instagram.com/cloudflare" class="w-10"><img src="https://web.archive.org/web/20211015231917im_/https://cloudflare.com/img/footer/instagram.svg" class="w-60"></a>
+      </div>
+      <div class="w-100 w-50-l tr-l tl-ns">
+        <div>
+          <span class="main-footer__copyright f1">© 2020 Cloudflare, Inc.</span>
+          <span class="main-footer__copyright f1">|</span>
+          <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/privacypolicy/" class="main-footer__copyright f1 no-underline underline-hover">Privacy
+            Policy</a>
+          <span class="main-footer__copyright f1">|</span>
+          <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/website-terms/" class="main-footer__copyright f1 no-underline underline-hover">Terms of Use</a>
+          <span class="main-footer__copyright f1">|</span>
+          <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/abuse/" class="main-footer__copyright f1 no-underline underline-hover">Trust &amp; Safety</a>
+          <span class="main-footer__copyright f1">|</span>
+          <a href="https://web.archive.org/web/20211015231917/https://cloudflare.com/trademark/" class="main-footer__copyright f1 no-underline underline-hover">Trademark</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>    </div>
+
+
+    <script type="text/javascript">
+    (function () {
+        // Social media, make request to worker
+        var urlObj = new URL(window.location.href);
+        var currenturl = urlObj.origin + urlObj.pathname;
+        try {
+            $.get("https://web.archive.org/web/20211015231917/https://api.blog.cloudflare.com/social?u=" + currenturl, function( res ) {
+                if (!res.data.twitter && !res.data.hn && !res.data.reddit) {
+                    $("#social-buttons").hide();
+                }
+
+                if (res.data.twitter) {
+                    var twitterurl = "https://web.archive.org/web/20211015231917/https://twitter.com/intent/tweet?in_reply_to=" + res.data.twitter.id;
+                    $("#social-button-twitter").attr("href", twitterurl);
+                    $("#social-button-twitter").show()
+                }
+
+                if (!res.data.hn) {
+                    $("#social-button-hn").attr("href", "https://web.archive.org/web/20211015231917/https://news.ycombinator.com/submitlink?u=" + currenturl);
+                    $("#social-button-hn").show();
+                }
+
+                if (res.data.hn) {
+                    $("#social-button-hn").attr("href", res.data.hn.comments_link);
+                    $("#social-button-hn").show();
+                }
+
+                if (res.data.reddit) {
+                    $("#social-button-reddit").attr("href", res.data.reddit.comments_link);
+                    $("#social-button-reddit").show();
+                }
+            });
+        } catch (err) {
+            console.error(err);
+            $("#social-buttons").hide();
+        }
+    })();
+</script>
+
+<script type="text/javascript" src="/web/20211015231917js_/https://blog.cloudflare.com/assets/built/prism.js?v=6e624d9476"></script>
+<script>!function (d, s, id) { var js, fjs = d.getElementsByTagName(s)[0], p = /^http:/.test(d.location) ? 'http' : 'https'; if (!d.getElementById(id)) { js = d.createElement(s); js.id = id; js.src = p + '://platform.twitter.com/widgets.js'; fjs.parentNode.insertBefore(js, fjs); } }(document, 'script', 'twitter-wjs');
+</script>
+<script>(function (d, s, id) {
+        var js, fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id)) return;
+        js = d.createElement(s); js.id = id;
+        js.src = "//web.archive.org/web/20211015231917/https://connect.facebook.net/en_US/all.js#xfbml=1&appId=596756540369391";
+        fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+</script>
+<script src="//web.archive.org/web/20211015231917js_/https://platform.linkedin.com/in.js" type="text/javascript">lang: en_US</script>
+<script type="text/javascript">
+        (function () {
+            var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+            po.src = 'https://web.archive.org/web/20211015231917/https://apis.google.com/js/platform.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+        })();
+</script>
+
+<script>!function (d, s, id) { var js, fjs = d.getElementsByTagName(s)[0], p = /^http:/.test(d.location) ? 'http' : 'https'; if (!d.getElementById(id)) { js = d.createElement(s); js.id = id; js.src = p + '://platform.twitter.com/widgets.js'; fjs.parentNode.insertBefore(js, fjs); } }(document, 'script', 'twitter-wjs');
+</script>
+<script>(function (d, s, id) {
+        var js, fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id)) return;
+        js = d.createElement(s); js.id = id;
+        js.src = "//web.archive.org/web/20211015231917/https://connect.facebook.net/en_US/all.js#xfbml=1&appId=596756540369391";
+        fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+</script>
+<script src="//web.archive.org/web/20211015231917js_/https://platform.linkedin.com/in.js" type="text/javascript">lang: en_US</script>
+<script type="text/javascript">
+        (function () {
+            var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+            po.src = 'https://web.archive.org/web/20211015231917/https://apis.google.com/js/platform.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+        })();
+</script>
+
+
+    <!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://web.archive.org/web/20211015231917if_/https://tr.www.cloudflare.com/ns.html?id=GTM-PKQFGQB" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<script>
+    var links = document.links;
+
+    for (var i = 0, linksLength = links.length; i < linksLength; i++) {  
+       if (links[i].hostname != window.location.hostname) {
+           links[i].target = '_blank';
+       } 
+    } 
+</script>
+
+<script defer src="https://web.archive.org/web/20211015231917js_/https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;rayId&quot;:&quot;69ecc57d0a13ed27&quot;,&quot;token&quot;:&quot;2bc156e5f250476cb274d269511ffb57&quot;,&quot;version&quot;:&quot;2021.9.0&quot;,&quot;si&quot;:100}"></script>
+</body>
+
+</html><!--
+     FILE ARCHIVED ON 23:19:17 Oct 15, 2021 AND RETRIEVED FROM THE
+     INTERNET ARCHIVE ON 22:09:31 Oct 27, 2026.
+     JAVASCRIPT APPENDED BY WAYBACK MACHINE, COPYRIGHT INTERNET ARCHIVE.
+
+     ALL OTHER CONTENT MAY ALSO BE PROTECTED BY COPYRIGHT (17 U.S.C.
+     SECTION 108(a)(3)).
+-->
+<!--
+playback timings (ms):
+  captures_list: 0.521
+  exclusion.robots: 0.074
+  exclusion.robots.policy: 0.055
+  esindex: 0.006
+  cdx.remote: 13.483
+  LoadShardBlock: 245.191 (3)
+  PetaboxLoader3.datanode: 305.172 (4)
+  load_resource: 405.616
+  PetaboxLoader3.resolve: 60.62
+-->

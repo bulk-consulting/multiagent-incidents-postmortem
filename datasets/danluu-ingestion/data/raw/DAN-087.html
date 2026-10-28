@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head class="sans-serif"><script type="text/javascript" src="https://web-static.archive.org/_static/js/bundle-playback.js?v=3grhEDQT" charset="utf-8"></script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/wombat.js?v=o9P2E1FK" charset="utf-8"></script>
+<script>window.RufflePlayer=window.RufflePlayer||{};window.RufflePlayer.config={"autoplay":"on","unmuteOverlay":"hidden","showSwfDownload":true};</script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/ruffle/ruffle.js"></script>
+<script type="text/javascript">
+    __wm.init("https://web.archive.org/web");
+  __wm.wombat("https://blog.cloudflare.com/how-and-why-the-leap-second-affected-cloudflare-dns/","20211104160742","https://web.archive.org/","web","https://web-static.archive.org/_static/",
+	      "1636042062");
+</script>
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/banner-styles.css?v=1utQkbB3" />
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/iconochive.css?v=3PDvdIFv" />
+<!-- End Wayback Rewrite JS Include -->
+
+
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="baidu-site-verification" content="KeThzeyMOr"/>
+    <meta name="baidu-site-verification" content="code-NIlrS7gNhx"/>
+
+    <title>How and why the leap second affected Cloudflare DNS</title>
+    <meta name="HandheldFriendly" content="True"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+    <link rel="stylesheet" type="text/css" href="https://web.archive.org/web/20211104160742cs_/https://cdnjs.cloudflare.com/ajax/libs/tippy.js/3.4.1/themes/light.css"/>
+    <link rel="stylesheet" type="text/css" href="/web/20211104160742cs_/https://blog.cloudflare.com/assets/built/index.css?v=c50a6d66f5"/>
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/web/20211104160742im_/https://blog.cloudflare.com/favicon_package_v0.16/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/web/20211104160742im_/https://blog.cloudflare.com/favicon_package_v0.16/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/web/20211104160742im_/https://blog.cloudflare.com/favicon_package_v0.16/favicon-16x16.png">
+    <link rel="mask-icon" href="/web/20211104160742im_/https://blog.cloudflare.com/favicon_package_v0.16/safari-pinned-tab.svg" color="#f78100">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="theme-color" content="#ffffff">
+
+    <script type="text/javascript" src="/web/20211104160742js_/https://blog.cloudflare.com/assets/built/index.js?v=c50a6d66f5"></script>
+    <script src="/web/20211104160742js_/https://blog.cloudflare.com/assets/js/check-for-tex.js" defer></script>
+
+    <link rel="shortcut icon" href="/web/20211104160742im_/https://blog.cloudflare.com/favicon.png" type="image/png"/>
+    <link rel="canonical" href="https://web.archive.org/web/20211104160742/https://blog.cloudflare.com/how-and-why-the-leap-second-affected-cloudflare-dns/"/>
+    <meta name="referrer" content="no-referrer-when-downgrade"/>
+    
+    <meta property="og:site_name" content="The Cloudflare Blog"/>
+    <meta property="og:type" content="article"/>
+    <meta property="og:title" content="How and why the leap second affected Cloudflare DNS"/>
+    <meta property="og:description" content="At midnight UTC on New Year’s Day, deep inside Cloudflare’s custom RRDNS software, a number went negative when it should always have been, at worst, zero. A little later this negative value caused RRDNS to panic."/>
+    <meta property="og:url" content="https://web.archive.org/web/20211104160742/https://blog.cloudflare.com/how-and-why-the-leap-second-affected-cloudflare-dns/"/>
+    <meta property="og:image" content="https://web.archive.org/web/20211104160742im_/https://blog.cloudflare.com/content/images/2018/08/cloudflare_dns_control_panel.png.scaled500.png"/>
+    <meta property="article:published_time" content="2017-01-01T22:40:26.000Z"/>
+    <meta property="article:modified_time" content="2018-08-28T21:23:27.000Z"/>
+    <meta property="article:tag" content="DNS"/>
+    <meta property="article:tag" content="Post Mortem"/>
+    <meta property="article:tag" content="RRDNS"/>
+    <meta property="article:tag" content="Bugs"/>
+    <meta property="article:tag" content="Reliability"/>
+    
+    <meta property="article:publisher" content="https://www.facebook.com/cloudflare"/>
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:title" content="How and why the leap second affected Cloudflare DNS"/>
+    <meta name="twitter:description" content="At midnight UTC on New Year’s Day, deep inside Cloudflare’s custom RRDNS software, a number went negative when it should always have been, at worst, zero. A little later this negative value caused RRDNS to panic."/>
+    <meta name="twitter:url" content="https://web.archive.org/web/20211104160742im_/https://blog.cloudflare.com/how-and-why-the-leap-second-affected-cloudflare-dns/"/>
+    <meta name="twitter:image" content="https://web.archive.org/web/20211104160742im_/https://blog.cloudflare.com/content/images/2018/08/cloudflare_dns_control_panel.png.scaled500.png"/>
+    <meta name="twitter:label1" content="Written by"/>
+    <meta name="twitter:data1" content="John Graham-Cumming"/>
+    <meta name="twitter:label2" content="Filed under"/>
+    <meta name="twitter:data2" content="DNS, Post Mortem, RRDNS, Bugs, Reliability"/>
+    <meta name="twitter:site" content="@cloudflare"/>
+    <meta name="twitter:creator" content="@jgrahamc"/>
+    
+    <script type="application/ld+json">
+{
+    "@context": "https://web.archive.org/web/20211104160742/https://schema.org",
+    "@type": "Article",
+    "publisher": {
+        "@type": "Organization",
+        "name": "The Cloudflare Blog",
+        "logo": {
+            "@type": "ImageObject",
+            "url": "https://web.archive.org/web/20211104160742/https://blog-cloudflare-com-assets.storage.googleapis.com/2019/06/logo-cloudflare-dark-1.svg",
+            "width": 109,
+            "height": 40.5
+        }
+    },
+    "author": {
+        "@type": "Person",
+        "name": "John Graham-Cumming",
+        "image": "https://web.archive.org/web/20211104160742/https://blog.cloudflare.com/content/images/2017/03/url-2.jpg",
+        "url": "https://web.archive.org/web/20211104160742/https://blog.cloudflare.com/author/john-graham-cumming/",
+        "sameAs": [
+            "https://web.archive.org/web/20211104160742/https://twitter.com/jgrahamc"
+        ]
+    },
+    "headline": "How and why the leap second affected Cloudflare DNS",
+    "url": "https://web.archive.org/web/20211104160742/https://blog.cloudflare.com/how-and-why-the-leap-second-affected-cloudflare-dns/",
+    "datePublished": "2017-01-01T22:40:26.000Z",
+    "dateModified": "2018-08-28T21:23:27.000Z",
+    "image": "https://web.archive.org/web/20211104160742/https://blog.cloudflare.com/content/images/2018/08/cloudflare_dns_control_panel.png.scaled500.png",
+    "keywords": "DNS, Post Mortem, RRDNS, Bugs, Reliability",
+    "description": "At midnight UTC on New Year’s Day, deep inside Cloudflare’s custom RRDNS software, a number went negative when it should always have been, at worst, zero. A little later this negative value caused RRDNS to panic. ",
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "https://web.archive.org/web/20211104160742/https://blog.cloudflare.com/"
+    }
+}
+    </script>
+
+    <meta name="generator" content="Ghost 3.5"/>
+    <link rel="alternate" type="application/rss+xml" title="The Cloudflare Blog" href="https://web.archive.org/web/20211104160742/https://blog.cloudflare.com/rss/"/>
+    <!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://web.archive.org/web/20211104160742/https://tr.www.cloudflare.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','cfDataLayer','GTM-PKQFGQB');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Google Optimize -->
+<script src="https://web.archive.org/web/20211104160742js_/https://www.googleoptimize.com/optimize.js?id=GTM-N4JSZJ8"></script>
+
+<meta name="msvalidate.01" content="CF295E1604697F9CAD18B5A232E871F6"/>
+<meta class="swiftype" name="language" data-type="string" content="en"/>
+<!--<script src="/assets/js/index.js"></script>-->
+<script type="text/javascript" src="//web.archive.org/web/20211104160742js_/https://cdn.bizible.com/scripts/bizible.js" async=""></script>
+<script>
+var trackRecruitingLink = function(role, url) {
+   ga('send', 'event', 'recruiting', 'jobscore-click', role, {
+     'transport': 'beacon',
+     'hitCallback': function(){document.location = url;}
+   });
+}
+</script> 
+<script type="text/javascript">
+	(function() {
+		var didInit = false;
+		function initMunchkin() {
+			if(didInit === false) {
+				didInit = true;
+				Munchkin.init('713-XSC-918');
+			}
+		}
+		var s = document.createElement('script');
+		s.type = 'text/javascript';
+		s.async = true;
+		s.src = '//web.archive.org/web/20211104160742/https://munchkin.marketo.net/munchkin.js';
+		s.onreadystatechange = function() {
+			if (this.readyState == 'complete' || this.readyState == 'loaded') {
+				initMunchkin();
+			}
+		};
+		s.onload = initMunchkin;
+		document.getElementsByTagName('head')[0].appendChild(s);
+		})();
+</script>
+<script>
+var HTMLAttrToAdd = document.querySelector("html");
+HTMLAttrToAdd.setAttribute("lang", "en");
+</script>
+<style>
+    table {
+        background-color: transparent;
+    }
+    td {
+		padding: 5px 1em;
+    }
+    pre {
+        max-height: 500px;
+        overflow-y: scroll;
+    }
+</style>
+<!-- Cloudflare Web Analytics -->
+<script defer src="https://web.archive.org/web/20211104160742js_/https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;token&quot;: &quot;f446eacb44504e50864bad7c47ffa9e8&quot;}"></script>
+<!-- End Cloudflare Web Analytics -->
+
+<script defer src="https://web.archive.org/web/20211104160742js_/https://api.radar.cloudflare.com/beacon.js"></script>
+
+</head>
+
+<body id="main-body" class="post-template tag-dns tag-postmortem tag-rrdns tag-bugs tag-reliability sans-serif">
+
+    <div class="site-wrapper">
+
+        <header class="flex flex-row flex-wrap justify-between items-end mw8 center mv3 pl3 pr2">
+    <div class="w-100 flex items-end justify-between justify-start-l">
+        <div class="w-100 tr">
+            <span class="dn di-l">
+                <a href="https://web.archive.org/web/20211104160742/https://www.cloudflare.com/plans/enterprise/contact/" class="f1 gray4 no-underline underline-hover">Contact Sales:
+                </a>
+                <a href="https://web.archive.org/web/20211104160742/tel:+18889935273" class="f1 gray4 no-underline underline-hover">+1 (888) 274-3482</a>
+            </span>
+        </div>
+    </div>
+    <div class="w-100 w-50-l flex items-end justify-between justify-start-l">
+        <a href="https://web.archive.org/web/20211104160742/https://blog.cloudflare.com/" class="header-logo mr4">
+            <img src="https://web.archive.org/web/20211104160742im_/https://blog-cloudflare-com-assets.storage.googleapis.com/2019/06/logo-cloudflare-dark-1.svg" alt="The Cloudflare Blog" class="header-logo"/>
+        </a>
+        <h2 class="mt0 mb1">
+            <a href="/web/20211104160742/https://blog.cloudflare.com/" class="fw5 f5 gray3 no-underline">
+                <span class="dn di-l">The Cloudflare Blog</span>
+            </a>
+        </h2>
+    </div>
+    <div class="w-100 w-50-l dn db-l">
+        <div class="w-100 tr mkto-sub-message">
+            <p class="f2">Thanks for being here, come back soon. Get notified of new posts:</p>
+        </div>
+        <div class="w-100 tr">
+            <script src="//web.archive.org/web/20211104160742js_/https://app-ab13.marketo.com/js/forms2/js/forms2.min.js"></script>
+            <div class="marketo-form-container">
+                <form id="mktoForm_1653"></form>
+            </div>
+            <script>
+                MktoForms2.loadForm("//web.archive.org/web/20211104160742/https://app-ab13.marketo.com", "713-XSC-918", 1653, function(form) {
+                    document.querySelectorAll('#mktoForm_1653 .mktoEmailField')[0].placeholder = "Email Address";
+
+                    form.onSuccess(function(vals, thanksURL){
+                        // Hide form and show success msg
+                        document.getElementById("mktoForm_1653").style.display = "none";
+                        document.getElementsByClassName("mkto-sub-message")[0].style.display = "none";
+
+                        document.getElementsByClassName("js-form-success-msg")[0].style.display = "block";
+                        return false;
+                    });
+                });
+            </script>
+        </div>
+        <div class="w-100 tr dn js-form-success-msg">
+            <p class="f2">Subscription confirmed. Thank you for subscribing!</p>
+        </div>
+    </div>
+</header>
+
+<nav id="nav" class="w-100 bb b--black-10 z-1">
+    <div id="desktop-nav-items-container" class="flex flex-row flex-wrap justify-between items-center mw8 center mv3 mv0-l">
+        <div class="nav-item nav-item-desktop ml3 mr2 dn db-l pv3" data-tag="product-news">
+            <a href="/web/20211104160742/https://blog.cloudflare.com/tag/product-news/" class="no-underline gray1 f2 fw5 pv3">Product News</a>
+        </div>
+        <div class="nav-item nav-item-desktop mh2 dn db-l pv3" data-tag="speed-and-reliability">
+            <a href="/web/20211104160742/https://blog.cloudflare.com/tag/speed-and-reliability/" class="no-underline gray1 f2 fw5 pv3">Speed &amp; Reliability</a>
+        </div>
+        <div class="nav-item nav-item-desktop mh2 dn db-l pv3" data-tag="security">
+            <a href="/web/20211104160742/https://blog.cloudflare.com/tag/security/" class="no-underline gray1 f2 fw5 pv3">Security</a>
+        </div>
+        <div class="nav-item nav-item-desktop mh2 dn db-l pv3" data-tag="serverless">
+            <a href="/web/20211104160742/https://blog.cloudflare.com/tag/serverless/" class="no-underline gray1 f2 fw5 pv3">Serverless</a>
+        </div>
+        <div class="nav-item nav-item-desktop mh2 dn db-l pv3" data-tag="zero-trust">
+            <a href="/web/20211104160742/https://blog.cloudflare.com/tag/zero-trust/" class="no-underline gray1 f2 fw5 pv3">Zero Trust</a>
+        </div>
+        <div class="nav-item nav-item-desktop mh2 dn db-l pv3" data-tag="developers">
+            <a href="/web/20211104160742/https://blog.cloudflare.com/tag/developers/" class="no-underline gray1 f2 fw5 pv3">Developers</a>
+        </div>
+        <div class="nav-item nav-item-desktop mh2 dn db-l pv3" data-tag="deep-dive">
+            <a href="/web/20211104160742/https://blog.cloudflare.com/tag/deep-dive/" class="no-underline gray1 f2 fw5 pv3">Deep Dive</a>
+        </div>
+        <div class="nav-item nav-item-desktop ml2 mr3 dn db-l pv3" data-tag="life-at-cloudflare">
+            <a href="/web/20211104160742/https://blog.cloudflare.com/tag/life-at-cloudflare/" class="no-underline gray1 f2 fw5 pv3">Life @Cloudflare</a>
+        </div>
+        <a href="/web/20211104160742/https://blog.cloudflare.com/search/"><img src="/web/20211104160742im_/https://blog.cloudflare.com/assets/images/magnifier.svg?v=c50a6d66f5" class="js-search-box-trigger mw2 pointer ph3 ph2-l"/>
+        </a>
+        <img src="/web/20211104160742im_/https://blog.cloudflare.com/assets/images/hamburger.svg?v=c50a6d66f5" class="w2 pointer js-mobile-nav-trigger ph3 db dn-l"/>
+    </div>
+
+    <div class="js-mobile-nav-container dn">
+        <div class="flex flex-column flex-wrap bg-gray9 o-95 absolute w-100 ph3 z-1">
+            <div class="pv3 ph2">
+                <a href="/web/20211104160742/https://blog.cloudflare.com/tag/product-news/" class="no-underline gray1 f4 fw7">Product News</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211104160742/https://blog.cloudflare.com/tag/speed-and-reliability/" class="no-underline gray1 f4 fw7">Speed &amp; Reliability</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211104160742/https://blog.cloudflare.com/tag/security/" class="no-underline gray1 f4 fw7">Security</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211104160742/https://blog.cloudflare.com/tag/serverless/" class="no-underline gray1 f4 fw7">Serverless</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211104160742/https://blog.cloudflare.com/tag/zero-trust/" class="no-underline gray1 f4 fw7">Zero Trust</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211104160742/https://blog.cloudflare.com/tag/developers/" class="no-underline gray1 f4 fw7">Developers</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211104160742/https://blog.cloudflare.com/tag/deep-dive/" class="no-underline gray1 f4 fw7">Deep Dive</a>
+            </div>
+            <div class="pv3 ph2">
+                <a href="/web/20211104160742/https://blog.cloudflare.com/tag/life-at-cloudflare/" class="no-underline gray1 f4 fw7">Life @Cloudflare</a>
+            </div>
+        </div>
+    </div>
+</nav>
+        
+
+<main id="post" class="flex flex-row flex-wrap items-center justify-center pt2 pt4-l">
+    <article class="post-full mw-100 ph3 ph0-l fs-20px post tag-dns tag-postmortem tag-rrdns tag-bugs tag-reliability ">
+        <h1 class="f6 f7-l fw4 gray1 pt1 pt3-l mb1">How and why the leap second affected Cloudflare DNS</h1>
+
+
+        <p class="f3 fw5 gray5 db di-l mt2" localize datetime="2017-01-01T22:40:26Z">Loading...</p>
+        <noscript>
+            <p class="f3 fw5 gray5 db di-l mt2">January 01, 2017 10:40PM</p>
+        </noscript>
+
+        <ul class="flex flex-wrap pl0 mt4">
+            <li class="list flex items-center ml0 pl0 pb1">
+                <a href="/web/20211104160742/https://blog.cloudflare.com/author/john-graham-cumming/" class="static-avatar pr1">
+                    <img class="author-profile-image h2 w2 br-100 mr2" src="/web/20211104160742im_/https://blog.cloudflare.com/content/images/2017/03/url-2.jpg" alt="John Graham-Cumming"/>
+                </a>
+                <div class="author-name-tooltip">
+                    <a href="/web/20211104160742/https://blog.cloudflare.com/author/john-graham-cumming" class="fw5 f3 no-underline black mr3">John Graham-Cumming</a>
+                </div>
+            </li>
+        </ul>
+
+        <section class="post-full-content">
+            <div class="post-content lh-copy gray1">
+                <!--kg-card-begin: markdown--><p>At midnight UTC on New Year’s Day, deep inside Cloudflare’s custom <a href="https://web.archive.org/web/20211104160742/https://blog.cloudflare.com/tag/rrdns/">RRDNS</a> software, a number went negative when it should always have been, at worst, zero. A little later this negative value caused RRDNS to panic. This panic was caught using the recover feature of the Go language. The net effect was that some DNS resolutions to some Cloudflare managed web properties failed.</p>
+<p>The problem only affected customers who use CNAME DNS records with Cloudflare, and only affected a small number of machines across Cloudflare's 102 data centers. At peak approximately 0.2% of DNS queries to Cloudflare were affected and less than 1% of all HTTP requests to Cloudflare encountered an error.</p>
+<p>This problem was quickly identified. The most affected machines were patched in 90 minutes and the fix was rolled out worldwide by 0645 UTC. We are sorry that our customers were affected, but we thought it was worth writing up the root cause for others to understand.</p>
+<h3 id="alittlebitaboutcloudflaredns">A little bit about Cloudflare DNS</h3>
+<p>Cloudflare customers use our <a href="https://web.archive.org/web/20211104160742/https://www.cloudflare.com/dns/">DNS service</a> to serve the authoritative answers for DNS queries for their domains. They need to tell us the IP address of their origin web servers so we can contact the servers to handle non-cached requests. They do this in two ways: either they enter the IP addresses associated with the names (e.g. the IP address of example.com is 192.0.2.123 and is entered as an A record) or they enter a CNAME (e.g. example.com is origin-server.example-hosting.biz).</p>
+<p>This image shows a test site with an A record for <code>theburritobot.com</code> and a CNAME for <code>www.theburritobot.com</code> pointing directly to Heroku.</p>
+<p><img src="https://web.archive.org/web/20211104160742im_/https://blog.cloudflare.com/content/images/2017/01/cloudflare_dns_control_panel.png.scaled500.png" alt=""></p>
+<p>When a customer uses the CNAME option, Cloudflare has occasionally to do a lookup, using DNS, for the actual IP address of the origin server. It does this automatically using standard recursive DNS. It was this CNAME lookup code that contained the bug that caused the outage.</p>
+<p>Internally, Cloudflare operates DNS resolvers to lookup DNS records from the Internet and RRDNS talks to these resolvers to get IP addresses when doing CNAME lookups. RRDNS keeps track of how well the internal resolvers are performing and does a weighted selection of possible resolvers (we operate multiple per data center for redundancy) and chooses the most performant. Some of these resolutions ended up recording in a data structure a negative value during the leap second.</p>
+<p>The weighted selection code, at a later point, was being fed the negative number which caused it to panic. The negative number got there through a combination of the leap second and smoothing.</p>
+<h3 id="afalsehoodprogrammersbelieveabouttime">A falsehood programmers believe about time</h3>
+<p>The root cause of the bug that affected our DNS service was the belief that <em>time cannot go backwards</em>. In our case, some code assumed that the <em>difference</em> between two times would always be, at worst, zero.</p>
+<p>RRDNS is written in Go and uses Go’s <a href="https://web.archive.org/web/20211104160742/https://golang.org/pkg/time/#Now">time.Now()</a> function to get the time. Unfortunately, this function does not guarantee monotonicity. Go currently doesn’t offer a monotonic time source (see issue <a href="https://web.archive.org/web/20211104160742/https://github.com/golang/go/issues/12914">12914</a> for discussion).</p>
+<p>In measuring the performance of the upstream DNS resolvers used for CNAME lookups RRDNS contains the following code:</p>
+<pre><code>// Update upstream sRTT on UDP queries, penalize it if it fails
+if !start.IsZero() {
+	rtt := time.Now().Sub(start)
+	if success &amp;&amp; rcode != dns.RcodeServerFailure {
+		s.updateRTT(rtt)
+	} else {
+		// The penalty should be a multiple of actual timeout
+		// as we don't know when the good message was supposed to arrive,
+		// but it should not put server to backoff instantly
+		s.updateRTT(TimeoutPenalty * s.timeout)
+	}
+}
+</code></pre>
+<p>In the code above <code>rtt</code> could be negative if time.Now() was earlier than <code>start</code> (which was set by a call to <code>time.Now()</code> earlier).</p>
+<p>That code works well if time moves forward. Unfortunately, we’ve tuned our resolvers to be very fast which means that it’s normal for them to answer in a few milliseconds. If, right when a resolution is happening, time goes back a second the perceived resolution time will be <em>negative</em>.</p>
+<p>RRDNS doesn’t just keep a single measurement for each resolver, it takes many measurements and smoothes them. So, the single measurement wouldn’t cause RRDNS to think the resolver was working in negative time, but after a few measurements the smoothed value would eventually become negative.</p>
+<p>When RRDNS selects an upstream to resolve a CNAME it uses a weighted selection algorithm. The code takes the upstream time values and feeds them to Go’s <a href="https://web.archive.org/web/20211104160742/https://golang.org/pkg/math/rand/#Int63n">rand.Int63n()</a> function. <code>rand.Int63n</code> promptly panics if its argument is negative. That's where the RRDNS panics were coming from.</p>
+<p>(Aside: there are many other <a href="https://web.archive.org/web/20211104160742/http://infiniteundo.com/post/25326999628/falsehoods-programmers-believe-about-time">falsehoods programmers believe about time</a>)</p>
+<h3 id="theonecharacterfix">The one character fix</h3>
+<p>One precaution when using a non-monotonic clock source is to always check whether the difference between two timestamps is negative. Should this happen, it’s not possible to accurately determine the time difference until the clock stops rewinding.</p>
+<p>In this patch we allowed RRDNS to forget about current upstream performance, and let it normalize again if time skipped backwards. This prevents leaking of negative numbers to the server selection code, which would result in throwing errors before attempting to contact the upstream server.</p>
+<p><img src="https://web.archive.org/web/20211104160742im_/https://blog.cloudflare.com/content/images/2017/01/Screen-Shot-2017-01-01-at-12.22.33.png" alt=""></p>
+<p>The fix we applied prevents the recording of negative values in server selection. Restarting all the RRDNS servers then fixed any recurrence of the problem.</p>
+<h3 id="timeline">Timeline</h3>
+<p>The following is the complete timeline of the events around the leap second bug.</p>
+<p>2017-01-01 00:00 UTC Impact starts<br>
+2017-01-01 00:10 UTC Escalated to engineers<br>
+2017-01-01 00:34 UTC Issue confirmed<br>
+2017-01-01 00:55 UTC Mitigation deployed to one canary node and confirmed<br>
+2017-01-01 01:03 UTC Mitigation deployed to canary data center and confirmed<br>
+2017-01-01 01:23 UTC Fix deployed in most impacted data center<br>
+2017-01-01 01:45 UTC Fix being deployed to major data centers<br>
+2017-01-01 01:48 UTC Fix being deployed everywhere<br>
+2017-01-01 02:50 UTC Fix rolled out to most of the affected data centers<br>
+2017-01-01 06:45 UTC Impact ends</p>
+<p>This chart shows error rates for each Cloudflare data center (some data centers were more affected than others) and the rapid drop in errors as the fix was deployed. We deployed the fix prioritizing those locations with the most errors first.</p>
+<p><img src="https://web.archive.org/web/20211104160742im_/https://blog.cloudflare.com/content/images/2017/01/Screen-Shot-2017-01-01-at-13.59.43-1.png" alt=""></p>
+<h3 id="conclusion">Conclusion</h3>
+<p>We are sorry that our customers were affected by this bug and are inspecting all our code to ensure that there are no other leap second sensitive uses of time intervals.</p>
+<!--kg-card-end: markdown-->
+            </div>
+        </section>
+        <div class="pv2 ph0-l mw7 center" id="social-buttons">
+            <div class="mt5-l mt2 mb4 f2 flex flex-row-ns flex-column flex-wrap">
+                <a id="social-button-twitter" title="Discuss on Twitter" href="https://web.archive.org/web/20211104160742/https://twitter.com/Cloudflare" target="_blank" class="mr2-ns mb0-l white link b pv3 ph3 mb3 dn" style="background-color:#0055DC;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 32 32"><path d="M30.063 7.313c-.813 1.125-1.75 2.125-2.875 2.938v.75c0 1.563-.188 3.125-.688 4.625a15.088 15.088 0 0 1-2.063 4.438c-.875 1.438-2 2.688-3.25 3.813a15.015 15.015 0 0 1-4.625 2.563c-1.813.688-3.75 1-5.75 1-3.25 0-6.188-.875-8.875-2.625.438.063.875.125 1.375.125 2.688 0 5.063-.875 7.188-2.5-1.25 0-2.375-.375-3.375-1.125s-1.688-1.688-2.063-2.875c.438.063.813.125 1.125.125.5 0 1-.063 1.5-.25-1.313-.25-2.438-.938-3.313-1.938a5.673 5.673 0 0 1-1.313-3.688v-.063c.813.438 1.688.688 2.625.688a5.228 5.228 0 0 1-1.875-2c-.5-.875-.688-1.813-.688-2.75 0-1.063.25-2.063.75-2.938 1.438 1.75 3.188 3.188 5.25 4.25s4.313 1.688 6.688 1.813a5.579 5.579 0 0 1 1.5-5.438c1.125-1.125 2.5-1.688 4.125-1.688s3.063.625 4.188 1.813a11.48 11.48 0 0 0 3.688-1.375c-.438 1.375-1.313 2.438-2.563 3.188 1.125-.125 2.188-.438 3.313-.875z"/></svg>
+                    <span class="v-mid">Discuss on Twitter</span>
+                </a>
+                <a id="social-button-hn" title="Discuss on Hacker News" href="https://web.archive.org/web/20211104160742/https://hn.algolia.com/?dateRange=all&amp;page=0&amp;prefix=false&amp;query=blog.cloudflare.com&amp;sort=byDate&amp;type=story" target="_blank" class="mr2-ns mb0-l white link b pv3 ph3 mb3 dn" style="background-color:#0055DC;">
+                    <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewbox="0 0 512 512" xml:space="preserve">
+	<g>
+		<path d="M31,31v450h450V31H31z M270.1,287.6v94.9h-28.1v-94.9L165,143.5h31.9L256,254.3l59.1-110.8H347
+		C347,143.5,270.1,287.6,270.1,287.6z">
+		</path>
+	</g>
+</svg>                    <span class="v-mid">Discuss on Hacker News</span>
+                </a>
+                <a id="social-button-reddit" title="Discuss on Reddit" href="https://web.archive.org/web/20211104160742/https://www.reddit.com/r/CloudFlare/" target="_blank" class="mr2-ns mb0-l white link b pv3 ph3 mb3 dn" style="background-color:#0055DC;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 24 24">
+    <path d="M24 11.779c0-1.459-1.192-2.645-2.657-2.645-.715 0-1.363.286-1.84.746-1.81-1.191-4.259-1.949-6.971-2.046l1.483-4.669 4.016.941-.006.058c0 1.193.975 2.163 2.174 2.163 1.198 0 2.172-.97 2.172-2.163s-.975-2.164-2.172-2.164c-.92 0-1.704.574-2.021 1.379l-4.329-1.015c-.189-.046-.381.063-.44.249l-1.654 5.207c-2.838.034-5.409.798-7.3 2.025-.474-.438-1.103-.712-1.799-.712-1.465 0-2.656 1.187-2.656 2.646 0 .97.533 1.811 1.317 2.271-.052.282-.086.567-.086.857 0 3.911 4.808 7.093 10.719 7.093s10.72-3.182 10.72-7.093c0-.274-.029-.544-.075-.81.832-.447 1.405-1.312 1.405-2.318zm-17.224 1.816c0-.868.71-1.575 1.582-1.575.872 0 1.581.707 1.581 1.575s-.709 1.574-1.581 1.574-1.582-.706-1.582-1.574zm9.061 4.669c-.797.793-2.048 1.179-3.824 1.179l-.013-.003-.013.003c-1.777 0-3.028-.386-3.824-1.179-.145-.144-.145-.379 0-.523.145-.145.381-.145.526 0 .65.647 1.729.961 3.298.961l.013.003.013-.003c1.569 0 2.648-.315 3.298-.962.145-.145.381-.144.526 0 .145.145.145.379 0 .524zm-.189-3.095c-.872 0-1.581-.706-1.581-1.574 0-.868.709-1.575 1.581-1.575s1.581.707 1.581 1.575-.709 1.574-1.581 1.574z"/>
+</svg>                    <span class="v-mid">Discuss on Reddit</span>
+                </a>
+            </div>
+        </div>
+
+        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/dns/" class="dib pl2 pr2 pt1 pb1 mb2 bg-gray8 no-underline blue3 f2">DNS</a>
+        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/postmortem/" class="dib pl2 pr2 pt1 pb1 mb2 bg-gray8 no-underline blue3 f2">Post Mortem</a>
+        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/rrdns/" class="dib pl2 pr2 pt1 pb1 mb2 bg-gray8 no-underline blue3 f2">RRDNS</a>
+        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/bugs/" class="dib pl2 pr2 pt1 pb1 mb2 bg-gray8 no-underline blue3 f2">Bugs</a>
+        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/reliability/" class="dib pl2 pr2 pt1 pb1 mb2 bg-gray8 no-underline blue3 f2">Reliability</a>
+    </article>
+</main>
+
+    <div class="ph3 pv3">
+        <div class=" flex flex-row flex-wrap mw7 center">
+            <div class="w-100 bt b--gray8">
+                <p class="black fw5 f4 mt4">Follow on Twitter</p>
+            </div>  
+                    <div class="w-100 pb2">
+                        <span>John Graham-Cumming</span>
+                        <span class="ph1">|</span><a href="https://web.archive.org/web/20211104160742/https://twitter.com/@jgrahamc" class="no-underline">@jgrahamc </a>
+                    </div>
+            <div class="w-100 pb2">
+                <span>Cloudflare</span>
+                <span class="ph2">|</span><a href="https://web.archive.org/web/20211104160742/https://twitter.com/Cloudflare" class="no-underline">Cloudflare</a>
+            </div>
+        </div>
+    </div>
+
+<div class="pv4 ph3 ph0-l flex flex-row flex-wrap mw7 center">
+    <div class="w-100 bt b--gray8">
+        <p class="orange fw5 f4 mt4 ttu">Related Posts</p>
+    </div>
+                <article class="w-100 w-100-m w-50-l ph3 mb4">
+                    <p class="f3 fw5 gray5" data-iso-date="2018-06-01T02:13:53+01:00">June 01, 2018 2:13AM</p>
+                    <a href="/web/20211104160742/https://blog.cloudflare.com/today-we-mitigated-1-1-1-1/" class="no-underline gray1 f4 fw5">
+                        <h2 class="gray1 f4 fw5 mt2">Today we mitigated 1.1.1.1</h2>
+                    </a>
+                    <p class="gray1 lh-copy">Cloudflare is protected from attacks by the Gatebot DDoS mitigation pipeline. Gatebot performs hundreds of mitigations a day, shielding our infrastructure and our customers from L3 and L7 attacks....</p>
+                    <ul class="flex pl0 fw6 f2">
+                        <span>By&nbsp;</span>
+                        <li class="list flex items-center">
+                            <div class="author-name-tooltip">
+                                
+                                <a href="/web/20211104160742/https://blog.cloudflare.com/author/marek-majkowski/" class="fw5 f2 black no-underline">Marek Majkowski</a>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="flex flex-row flex-wrap">
+                        
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/reliability/" class="no-underline f1 fw2 blue3 underline-hover">Reliability</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/postmortem/" class="no-underline f1 fw2 blue3 underline-hover">Post Mortem</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/mitigation/" class="no-underline f1 fw2 blue3 underline-hover">Mitigation</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/1-1-1-1/" class="no-underline f1 fw2 blue3 underline-hover">1.1.1.1</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/dns/" class="no-underline f1 fw2 blue3 underline-hover">DNS</a>
+                    </div>
+                </article>
+                <article class="w-100 w-100-m w-50-l ph3 mb4">
+                    <p class="f3 fw5 gray5" data-iso-date="2016-06-21T07:03:30+01:00">June 21, 2016 7:03AM</p>
+                    <a href="/web/20211104160742/https://blog.cloudflare.com/a-post-mortem-on-this-mornings-incident/" class="no-underline gray1 f4 fw5">
+                        <h2 class="gray1 f4 fw5 mt2">A Post Mortem on this Morning&#x27;s Incident</h2>
+                    </a>
+                    <p class="gray1 lh-copy">We would like to share more details with our customers and readers on the internet outages that occurred this morning and earlier in the week, and what we are doing to prevent these from happening again....</p>
+                    <ul class="flex pl0 fw6 f2">
+                        <span>By&nbsp;</span>
+                        <li class="list flex items-center">
+                            <div class="author-name-tooltip">
+                                
+                                <a href="/web/20211104160742/https://blog.cloudflare.com/author/jerome-fleury/" class="fw5 f2 black no-underline">Jérôme Fleury</a>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="flex flex-row flex-wrap">
+                        
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/postmortem/" class="no-underline f1 fw2 blue3 underline-hover">Post Mortem</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/reliability/" class="no-underline f1 fw2 blue3 underline-hover">Reliability</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/traffic/" class="no-underline f1 fw2 blue3 underline-hover">Traffic</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/bandwidth/" class="no-underline f1 fw2 blue3 underline-hover">Bandwidth</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/bgp/" class="no-underline f1 fw2 blue3 underline-hover">BGP</a>
+                    </div>
+                </article>
+                <article class="w-100 w-100-m w-50-l ph3 mb4">
+                    <p class="f3 fw5 gray5" data-iso-date="2020-11-27T12:00:00Z">November 27, 2020 12:00PM</p>
+                    <a href="/web/20211104160742/https://blog.cloudflare.com/a-byzantine-failure-in-the-real-world/" class="no-underline gray1 f4 fw5">
+                        <h2 class="gray1 f4 fw5 mt2">A Byzantine failure in the real world</h2>
+                    </a>
+                    <p class="gray1 lh-copy">When we review design documents at Cloudflare, we are always on the lookout for Single Points of Failure (SPOFs). In this post, we present a timeline of a real-world incident, and how an interesting failure mode known as a Byzantine fault played a role in a cascading series of events....</p>
+                    <ul class="flex pl0 fw6 f2">
+                        <span>By&nbsp;</span>
+                        <li class="list flex items-center">
+                            <div class="author-name-tooltip">
+                                
+                                <a href="/web/20211104160742/https://blog.cloudflare.com/author/tom-lianza/" class="fw5 f2 black no-underline">Tom Lianza</a>
+                            </div>
+                        </li>
+                        <li class="list flex items-center">
+                            <div class="author-name-tooltip">
+                                <span class="fw5 f2 black no-underline">,&nbsp;</span>
+                                <a href="/web/20211104160742/https://blog.cloudflare.com/author/chris-snook/" class="fw5 f2 black no-underline">Chris Snook</a>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="flex flex-row flex-wrap">
+                        
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/postmortem/" class="no-underline f1 fw2 blue3 underline-hover">Post Mortem</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/api/" class="no-underline f1 fw2 blue3 underline-hover">API</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/postgres/" class="no-underline f1 fw2 blue3 underline-hover">Postgres</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/outage/" class="no-underline f1 fw2 blue3 underline-hover">Outage</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/engineering/" class="no-underline f1 fw2 blue3 underline-hover">Engineering</a>
+                    </div>
+                </article>
+                <article class="w-100 w-100-m w-50-l ph3 mb4">
+                    <p class="f3 fw5 gray5" data-iso-date="2013-03-03T13:47:00Z">March 03, 2013 1:47PM</p>
+                    <a href="/web/20211104160742/https://blog.cloudflare.com/todays-outage-post-mortem-82515/" class="no-underline gray1 f4 fw5">
+                        <h2 class="gray1 f4 fw5 mt2">Today&#x27;s Outage Post Mortem</h2>
+                    </a>
+                    <p class="gray1 lh-copy">This morning at 09:47 UTC CloudFlare effectively dropped off the Internet. The outage affected all of CloudFlare's services including DNS and any services that rely on our web proxy....</p>
+                    <ul class="flex pl0 fw6 f2">
+                        <span>By&nbsp;</span>
+                        <li class="list flex items-center">
+                            <div class="author-name-tooltip">
+                                
+                                <a href="/web/20211104160742/https://blog.cloudflare.com/author/matthew-prince/" class="fw5 f2 black no-underline">Matthew Prince</a>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="flex flex-row flex-wrap">
+                        
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/postmortem/" class="no-underline f1 fw2 blue3 underline-hover">Post Mortem</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/bgp/" class="no-underline f1 fw2 blue3 underline-hover">BGP</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/outage/" class="no-underline f1 fw2 blue3 underline-hover">Outage</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/ddos/" class="no-underline f1 fw2 blue3 underline-hover">DDoS</a>
+                        <span class="f1 fw2 blue3 no-underline underline-hover">,&nbsp;</span>
+                        <a href="/web/20211104160742/https://blog.cloudflare.com/tag/attacks/" class="no-underline f1 fw2 blue3 underline-hover">Attacks</a>
+                    </div>
+                </article>
+</div>
+
+
+
+
+        <footer class="pt4 pb4 pl1 pr1 main-footer">
+  <div class="mw8 center dn db-l ph3">
+    <div class="flex flex-row justify-between">
+      <div class="main-footer__menu-group">
+        <ul id="sales-menu" class="list pl0">
+          <li class="pt1 pb1 f1" data-submenu="sales-menu" class="main-footer__menu-group__header js-toggle-footer-group f1">
+            Sales
+            <i class="icon-caret-down"></i>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/plans/enterprise/contact/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="enterprise_sales" class="f1 blue3 no-underline underline-hover">
+              Enterprise Sales
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/partners/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="become_a_partner" class="f1 blue3 no-underline underline-hover">
+              Become a Partner
+            </a>
+          </li>
+        </ul>
+        <p class="phone f1 blue3 no-underline underline-hover">
+          <p class="tel f1 blue3 no-underline underline-hover">Contact Sales:</p>
+          <p><a data-i18n-phonenumber="" class="tel f1 blue3 no-underline underline-hover" href="https://web.archive.org/web/20211104160742/tel:+18889935273">+1
+              (888) 99 FLARE</a></p>
+
+          <noscript><a class="phone f1 blue3 no-underline underline-hover" href="https://web.archive.org/web/20211104160742/tel:+16503198930">+1 650 319
+              8930</a></noscript>
+        </p>
+      </div>
+      <div class="main-footer__menu-group">
+        <ul id="getting-started-menu" class="list pl0">
+          <li class="pt1 pb1 f1" data-submenu="getting-started-menu" class="main-footer__menu-group__header js-toggle-footer-group">
+            Getting Started
+            <i class="icon-caret-down"></i>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/plans/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="plans" class="f1 blue3 no-underline underline-hover">
+              Pricing
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/case-studies/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="case_studies" class="f1 blue3 no-underline underline-hover">
+              Case Studies
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/resources/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="white_papers" class="f1 blue3 no-underline underline-hover">
+              White Papers
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/webinars/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="webinars" class="f1 blue3 no-underline underline-hover">
+              Webinars
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/learning/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="learning_center" class="f1 blue3 no-underline underline-hover">
+              Learning Center
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="main-footer__menu-group">
+        <ul id="community-menu" class="list pl0">
+          <li class="pt1 pb1 f1" data-submenu="community-menu" class="main-footer__menu-group__header js-toggle-footer-group">
+            Community
+            <i class="icon-caret-down"></i>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://community.cloudflare.com/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="community_hub" class="f1 blue3 no-underline underline-hover">
+              Community Hub
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://blog.cloudflare.com/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="blog" class="f1 blue3 no-underline underline-hover">
+              Blog
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/galileo/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="galileo" class="f1 blue3 no-underline underline-hover">
+              Project Galileo
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/athenian/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="athenian" class="f1 blue3 no-underline underline-hover">
+              Athenian Project
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.tv/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="tv" class="f1 blue3 no-underline underline-hover">
+              Cloudflare TV
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="main-footer__menu-group">
+        <ul id="developers-menu" class="list pl0">
+          <li class="pt1 pb1 f1" data-submenu="developers-menu" class="main-footer__menu-group__header js-toggle-footer-group">
+            Developers
+            <i class="icon-caret-down"></i>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://developers.cloudflare.com/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="developer_hub" class="f1 blue3 no-underline underline-hover">
+              Developer Hub
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/technical-resources/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="technical_resources" class="f1 blue3 no-underline underline-hover">
+              Technical Resources
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/products/cloudflare-workers/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="cloudflare_workers" class="f1 blue3 no-underline underline-hover">
+              Cloudflare Workers
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/integrations/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="integrations" class="f1 blue3 no-underline underline-hover">
+              Integrations
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="main-footer__menu-group">
+        <ul id="support-menu" class="list pl0">
+          <li class="pt1 pb1 f1" data-submenu="support-menu" class="main-footer__menu-group__header js-toggle-footer-group">
+            Support
+            <i class="icon-caret-down"></i>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://support.cloudflare.com/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="support" class="f1 blue3 no-underline underline-hover">
+              Support
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://www.cloudflarestatus.com/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="status" class="f1 blue3 no-underline underline-hover">
+              Cloudflare Status
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/compliance/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="compliance" class="f1 blue3 no-underline underline-hover">
+              Compliance
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/gdpr/introduction/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="gdpr" class="f1 blue3 no-underline underline-hover">
+              GDPR
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="main-footer__menu-group">
+        <ul id="company-menu" class="list pl0">
+          <li class="pt1 pb1 f1" data-submenu="company-menu" class="main-footer__menu-group__header js-toggle-footer-group">
+            Company
+            <i class="icon-caret-down"></i>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/about-overview/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="overview" class="f1 blue3 no-underline underline-hover">
+              About Cloudflare
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/people/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="our_team" class="f1 blue3 no-underline underline-hover">
+              Our Team
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/press/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="press" class="f1 blue3 no-underline underline-hover">
+              Press
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/analysts/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="analysts" class="f1 blue3 no-underline underline-hover">
+              Analysts
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/careers/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="careers" class="f1 blue3 no-underline underline-hover">
+              Careers
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/internetsummit/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="internet_summit" class="f1 blue3 no-underline underline-hover">
+              Internet Summit
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/logo/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="logo" class="f1 blue3 no-underline underline-hover">
+              Logo
+            </a>
+          </li>
+          <li class="pt1 pb1">
+            <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/network/" data-tracking-category="footer" data-tracking-action="click" data-tracking-label="network_map" class="f1 blue3 no-underline underline-hover">
+              Network Map
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="mw8 center ph3">
+    <div class="flex flex-row flex-wrap justify-between pt4">
+      <div class="flex flex-row items-start w-100 w-50-l pb4 pb0-l">
+        <a target="_blank" rel="noopener" href="https://web.archive.org/web/20211104160742/https://www.facebook.com/Cloudflare/" class="w-10"><img src="https://web.archive.org/web/20211104160742im_/https://cloudflare.com/img/footer/facebook.svg" class="w-60"></a>
+        <a target=" _blank" rel="noopener" href="https://web.archive.org/web/20211104160742/https://twitter.com/Cloudflare" class="w-10"><img src="https://web.archive.org/web/20211104160742im_/https://cloudflare.com/img/footer/twitter.svg" class="w-60"></a>
+        <a target="_blank" rel="noopener" href="https://web.archive.org/web/20211104160742/https://www.linkedin.com/company/cloudflare" class="w-10"><img src="https://web.archive.org/web/20211104160742im_/https://cloudflare.com/img/footer/linkedin.svg" class="w-60"></a>
+        <a target="_blank" rel="noopener" href="https://web.archive.org/web/20211104160742/https://www.youtube.com/cloudflare" class="w-10"><img src="https://web.archive.org/web/20211104160742im_/https://cloudflare.com/img/footer/youtube.svg" class="w-60"></a>
+        <a target="_blank" rel="noopener" href="https://web.archive.org/web/20211104160742/https://www.instagram.com/cloudflare" class="w-10"><img src="https://web.archive.org/web/20211104160742im_/https://cloudflare.com/img/footer/instagram.svg" class="w-60"></a>
+      </div>
+      <div class="w-100 w-50-l tr-l tl-ns">
+        <div>
+          <span class="main-footer__copyright f1">© 2021 Cloudflare, Inc.</span>
+          <span class="main-footer__copyright f1">|</span>
+          <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/privacypolicy/" class="main-footer__copyright f1 no-underline underline-hover">Privacy
+            Policy</a>
+          <span class="main-footer__copyright f1">|</span>
+          <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/website-terms/" class="main-footer__copyright f1 no-underline underline-hover">Terms of Use</a>
+          <span class="main-footer__copyright f1">|</span>
+          <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/abuse/" class="main-footer__copyright f1 no-underline underline-hover">Trust &amp; Safety</a>
+          <span class="main-footer__copyright f1">|</span>
+          <a href="https://web.archive.org/web/20211104160742/https://cloudflare.com/trademark/" class="main-footer__copyright f1 no-underline underline-hover">Trademark</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>    </div>
+
+
+    <script type="text/javascript">
+    (function () {
+        // Social media, make request to worker
+        var urlObj = new URL(window.location.href);
+        var currenturl = urlObj.origin + urlObj.pathname;
+        try {
+            $.get("https://web.archive.org/web/20211104160742/https://api.blog.cloudflare.com/social?u=" + currenturl, function( res ) {
+                if (!res.data.twitter && !res.data.hn && !res.data.reddit) {
+                    $("#social-buttons").hide();
+                }
+
+                if (res.data.twitter) {
+                    var twitterurl = "https://web.archive.org/web/20211104160742/https://twitter.com/intent/tweet?in_reply_to=" + res.data.twitter.id;
+                    $("#social-button-twitter").attr("href", twitterurl);
+                    $("#social-button-twitter").show()
+                }
+
+                if (!res.data.hn) {
+                    $("#social-button-hn").attr("href", "https://web.archive.org/web/20211104160742/https://news.ycombinator.com/submitlink?u=" + currenturl);
+                    $("#social-button-hn").show();
+                }
+
+                if (res.data.hn) {
+                    $("#social-button-hn").attr("href", res.data.hn.comments_link);
+                    $("#social-button-hn").show();
+                }
+
+                if (res.data.reddit) {
+                    $("#social-button-reddit").attr("href", res.data.reddit.comments_link);
+                    $("#social-button-reddit").show();
+                }
+            });
+        } catch (err) {
+            console.error(err);
+            $("#social-buttons").hide();
+        }
+    })();
+</script>
+
+<script type="text/javascript" src="/web/20211104160742js_/https://blog.cloudflare.com/assets/built/prism.js?v=c50a6d66f5"></script>
+<script>!function (d, s, id) { var js, fjs = d.getElementsByTagName(s)[0], p = /^http:/.test(d.location) ? 'http' : 'https'; if (!d.getElementById(id)) { js = d.createElement(s); js.id = id; js.src = p + '://platform.twitter.com/widgets.js'; fjs.parentNode.insertBefore(js, fjs); } }(document, 'script', 'twitter-wjs');
+</script>
+<script>(function (d, s, id) {
+        var js, fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id)) return;
+        js = d.createElement(s); js.id = id;
+        js.src = "//web.archive.org/web/20211104160742/https://connect.facebook.net/en_US/all.js#xfbml=1&appId=596756540369391";
+        fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+</script>
+<script src="//web.archive.org/web/20211104160742js_/https://platform.linkedin.com/in.js" type="text/javascript">lang: en_US</script>
+<script type="text/javascript">
+        (function () {
+            var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+            po.src = 'https://web.archive.org/web/20211104160742/https://apis.google.com/js/platform.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+        })();
+</script>
+
+<script>!function (d, s, id) { var js, fjs = d.getElementsByTagName(s)[0], p = /^http:/.test(d.location) ? 'http' : 'https'; if (!d.getElementById(id)) { js = d.createElement(s); js.id = id; js.src = p + '://platform.twitter.com/widgets.js'; fjs.parentNode.insertBefore(js, fjs); } }(document, 'script', 'twitter-wjs');
+</script>
+<script>(function (d, s, id) {
+        var js, fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id)) return;
+        js = d.createElement(s); js.id = id;
+        js.src = "//web.archive.org/web/20211104160742/https://connect.facebook.net/en_US/all.js#xfbml=1&appId=596756540369391";
+        fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+</script>
+<script src="//web.archive.org/web/20211104160742js_/https://platform.linkedin.com/in.js" type="text/javascript">lang: en_US</script>
+<script type="text/javascript">
+        (function () {
+            var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+            po.src = 'https://web.archive.org/web/20211104160742/https://apis.google.com/js/platform.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+        })();
+</script>
+
+
+    <!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://web.archive.org/web/20211104160742if_/https://tr.www.cloudflare.com/ns.html?id=GTM-PKQFGQB" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<script>
+    var links = document.links;
+
+    for (var i = 0, linksLength = links.length; i < linksLength; i++) {  
+       if (links[i].hostname != window.location.hostname) {
+           links[i].target = '_blank';
+       } 
+    } 
+</script>
+
+<script defer src="https://web.archive.org/web/20211104160742js_/https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;rayId&quot;:&quot;6a8f18cc978f025a&quot;,&quot;token&quot;:&quot;2bc156e5f250476cb274d269511ffb57&quot;,&quot;version&quot;:&quot;2021.10.0&quot;,&quot;si&quot;:100}"></script>
+<script defer src="https://web.archive.org/web/20211104160742js_/https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;rayId&quot;:&quot;6a8f18cc7c9d025a&quot;,&quot;token&quot;:&quot;2bc156e5f250476cb274d269511ffb57&quot;,&quot;version&quot;:&quot;2021.10.0&quot;,&quot;si&quot;:100}"></script>
+</body>
+
+</html><!--
+     FILE ARCHIVED ON 16:07:42 Nov 04, 2021 AND RETRIEVED FROM THE
+     INTERNET ARCHIVE ON 22:10:31 Oct 27, 2026.
+     JAVASCRIPT APPENDED BY WAYBACK MACHINE, COPYRIGHT INTERNET ARCHIVE.
+
+     ALL OTHER CONTENT MAY ALSO BE PROTECTED BY COPYRIGHT (17 U.S.C.
+     SECTION 108(a)(3)).
+-->
+<!--
+playback timings (ms):
+  captures_list: 0.535
+  exclusion.robots: 0.077
+  exclusion.robots.policy: 0.067
+  esindex: 0.009
+  cdx.remote: 39.516
+  LoadShardBlock: 169.913 (3)
+  PetaboxLoader3.datanode: 122.207 (4)
+  PetaboxLoader3.resolve: 258.114 (2)
+  load_resource: 261.589
+-->

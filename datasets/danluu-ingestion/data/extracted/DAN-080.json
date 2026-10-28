@@ -1,0 +1,44 @@
+{
+  "catalog_id": "DAN-080",
+  "category": "Conflicts",
+  "company": "GoCardless",
+  "completeness": {
+    "impact": true,
+    "mitigation_recovery": false,
+    "prevention": false,
+    "root_cause": false,
+    "summary_context": false,
+    "symptoms": true,
+    "timeline": false
+  },
+  "content_hash": "996428eca4c5efae9ada6fb3b10dc93e1b5391b52a79e72406a7a1e31f9e2945",
+  "content_type": "text/html",
+  "domain": "gocardless.com",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "# Zero-downtime Postgres migrations - the hard parts\n\nLast editedJun 2024\n\nA few months ago, we took around 15 seconds of unexpected API downtime during a planned database migration. We're always careful about deploying schema changes, so we were surprised to see one go so badly wrong. As a payments company, the uptime of our API matters more than most - if we're not accepting requests, our merchants are losing money. It's not in our nature to leave issues like this unexplored, so naturally we set about figuring out what went wrong. This is what we found out.\n\nWe're no strangers to zero-downtime schema changes. Having the database stop responding to queries for more than a second or two isn't an option, so there's a bunch of stuff you learn early on. It's well covered in other articles<sup>1</sup>, and it mostly boils down to:\n\n- Don't rename columns/tables which are in use by the app - always copy the data and drop the old one once the app is no longer using it\n- Don't rewrite a table while you have an exclusive lock on it (e.g. no `ALTER TABLE foos ADD COLUMN bar varchar DEFAULT 'baz' NOT NULL`)\n- Don't perform expensive, synchronous actions while holding an exclusive lock (e.g. adding an index without the `CONCURRENTLY` flag)\n\nThis advice will take you a long way. It may even be all you need to scale this part of your app. For us, it wasn't, and we learned that the hard way.\n\nJump back to late January. At the time, we were building invoicing for our Pro product. We'd been through a couple of iterations, and settled on model/table names. We'd already deployed an earlier revision, so we had to rename the tables. That wasn't a problem though - the tables were empty, and there was no code depending on them in production.\n\nThe foreign key constraints on those tables had out of date names after the rename, so we decided to drop and recreate them<sup>2</sup>. Again, we weren't worried. The tables were empty, so there would be no long-held lock taken to validate the constraints.\n\nWe deployed the changes, and all of our assumptions got blown out of the water. Just after the schema migration started, we started getting alerts about API requests timing out. These lasted for around 15 seconds, at which point the migration went through and our API came back up. After a few minutes collecting our thoughts, we started digging into what went wrong.\n\nFirst, we re-ran the migrations against a backup of the database from earlier that day. They went through in a few hundred milliseconds. From there we turned back to the internet for an answer.\n\nInformation was scarce. We found lots of blog posts giving the advice from above, but no clues on what happened to us. Eventually, we stumbled on an old thread on the Postgres mailing list, which sounded exactly like the situation we'd ran into. We kept looking, and found a blog post which went into more depth<sup>3</sup>.\n\nIn order to add a foreign key constraint, Postgres takes `AccessExclusive` locks on both the table with the constraint<sup>4</sup>, *and the one it references* while it adds the triggers which enforce the constraint. When a lock can't be acquired because of a lock held by another transaction, it goes into a queue. Any locks that conflict with the queued lock will queue up behind it. As `AccessExclusive` locks conflict with every other type of lock, having one sat in the queue blocks all other operations<sup>5</sup> on that table.\n\nHere's a worked example using 3 concurrent transactions, started in order:\n\n```\n-- Transaction 1\nSELECT DISTINCT(email)     -- Takes an AccessShare lock on \"parent\"\nFROM parent;               -- for duration of slow query.\n-- Transaction 2\nALTER TABLE child          -- Needs an AccessExclusive lock on\nADD CONSTRAINT parent_fk   -- \"child\" /and/ \"parent\". AccessExclusive\n  FOREIGN KEY (parent_id)  -- conflicts with AccessShare, so sits in\n  REFERENCES parent        -- a queue.\n  NOT VALID;\n-- Transaction 3\nSELECT *                   -- Normal query also takes an AccessShare,\nFROM parent                -- which conflicts with AccessExclusive\nWHERE id = 123;            -- so goes to back of queue, and hangs.\n```\nWhile the tables we were adding the constraints to were unused by the app code at that point, the tables they referenced were some of the most heavily used. An unfortunately timed, long-running read query on the `parent` table collided with the migration which added the foreign key constraint.\n\nThe `ALTER TABLE` statement itself was fast to execute, but the effect of it waiting for an `AccessExclusive` lock on the referenced table caused the downtime - read/write queries issued by calls to our API piled up behind it, and clients timed out.\n\nApplications vary too much for there to be a \"one size fits all\" solution to this problem, but there are a few good places to start:\n\n- Eliminate long-running queries/transactions from your application.<sup>6</sup> Run analytics queries against an asynchronously updated replica.\n  - It's worth setting `log_min_duration_statement` and `log_lock_waits` to find these issues in your app before they turn into downtime.\n- Set `lock_timeout` in your migration scripts to a pause your app can tolerate. It's better to abort a deploy than take your application down.\n- Split your schema changes up.\n  - Problems become easier to diagnose.\n  - Transactions around DDL are shorter, so locks aren't held so long.\n- Keep Postgres up to date. The locking code is improved with every release.\n\nWhether this is worth doing comes down to the type of project you're working on. Some sites get by just fine putting up a maintenance page for the 30 seconds it takes to deploy. If that's not an option for you, then hopefully the advice in this post will help you avoid unexpected downtime one day.\n\n1. Braintree have a really good post on this.↩\n2. At the time, partly as an artefact of using Rails migrations which don't include a method to do it, we didn't realise that Postgres had support for renaming constraints with `ALTER TABLE`. Using this avoids the `AccessExclusive` lock on the table being referenced, but still takes one on the referencing table. Either way, we want to be able to add new foreign keys, not just rename the ones we have.↩\n3. It's also worth noting that the Postgres documentation and source code are extremely high quality. Once we had an idea of what was happening, we went straight to the locking code for `ALTER TABLE` statements.↩\n4. This still applies if you add the constraint with the `NOT VALID` flag. Postgres will briefly hold an `AccessExclusive` lock against both tables while it adds constraint triggers to them. 9.4 does make the `VALIDATE CONSTRAINT` step take a weaker `ShareUpdateExclusive` lock though, which makes it possible to validate existing data in large tables without downtime.↩\n5. `SELECT` statements take an `AccessShare` lock.↩\n6. If developers have access to a console where they can run queries against the production database, they need to be extremely cautious. `BEGIN; SELECT * FROM some_table WHERE id = 123; /* Developer goes to make a cup of tea */` will cause downtime if someone deploys a schema change for `some_table`.↩",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:10:18.512930+00:00",
+  "final_url": "https://gocardless.com/blog/zero-downtime-postgres-migrations-the-hard-parts",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-080.html",
+  "redirect_history": [
+    {
+      "destination_url": "https://gocardless.com/blog/zero-downtime-postgres-migrations-the-hard-parts",
+      "result": "followed",
+      "source_url": "https://gocardless.com/blog/zero-downtime-postgres-migrations-the-hard-parts/",
+      "type": "http"
+    }
+  ],
+  "redirects": [
+    "https://gocardless.com/blog/zero-downtime-postgres-migrations-the-hard-parts"
+  ],
+  "review_reason": [
+    "content_may_not_match_catalog_reference",
+    "insufficient_postmortem_signals"
+  ],
+  "source_url": "https://gocardless.com/blog/zero-downtime-postgres-migrations-the-hard-parts/",
+  "status": "needs_review",
+  "title": "Zero-downtime Postgres migrations - the hard parts | GoCardless",
+  "word_count": 1202
+}

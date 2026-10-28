@@ -1,0 +1,42 @@
+{
+  "catalog_id": "DAN-049",
+  "category": "Config Errors",
+  "company": "rust-lang",
+  "completeness": {
+    "impact": false,
+    "mitigation_recovery": true,
+    "prevention": true,
+    "root_cause": true,
+    "summary_context": true,
+    "symptoms": false,
+    "timeline": true
+  },
+  "content_hash": "649489009909d7f497a7cf1a862f4f3da9fff89fbbba1f591d52109b32affcda",
+  "content_type": "text/html",
+  "domain": "blog.rust-lang.org",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "On Wednesday, 2023-01-25 at 09:15 UTC, we deployed changes to the production\ninfrastructure for crates.io. During the deployment, the DNS record for\n`static.crates.io` failed to resolve for an estimated time of 10-15 minutes.\nUsers experienced build failures during this time, because crates could not be\ndownloaded. Around 9:30 UTC, the DNS record started to get propagated again and\nby 9:40 UTC traffic had returned to normal levels.\n\n## Root Cause of the Outage\n\nThe Rust infrastructure is managed with Terraform, a tool to configure and\nprovision infrastructure-as-code. The Infrastructure team recently made\nchanges to this configuration to separate the `staging` and `production`\nenvironments for crates.io so that both can be deployed independently of each\nother.\n\nThis feature was used to develop and test the infrastructure for a second\nContent Delivery Network (CDN) for `static.crates.io` in the `staging`\nenvironment. When the configuration was ready, we\nscheduled and announced\nthe rollout for January 25th.\n\nThe deployment to `production` contained two changes that were developed,\ndeployed, and tested individually on `staging`: a new TLS certificate for the\ncurrent Content Delivery Network and updated DNS records.\n\nWhen we deployed this configuration to `production`, Terraform first removed the\ncurrent certificate and DNS records. It then started to issue a new certificate,\nwhich took around 10 minutes. During this time, there was no DNS record for\n`static.crates.io` and users experienced build failures. After the new\ncertificate was provisioned, Terraform recreated the DNS records.\n\n## Resolution\n\nThe outage resolved itself after Terraform finished the deployment and created a\nnew DNS record for `static.crates.io`. For some users, the outage lasted a few\nminutes longer due to caches in their DNS server.\n\n## Postmortem\n\nThe outage could have been avoided by deploying the changes to the TLS certificate and DNS records individually. We have identified two reasons why this did not happen as well as lessons that we are taking from this.\n\nThis was one of the first times that we used the new tooling around environments\nto deploy changes to `production`. One of its features is that the `production`\nenvironment is locked to a specific Git commit. When deploying in the past, we\nset this to the latest commit on `master`. This was done here as well, with the\nconsequence that the deployment applied multiple changes simultaneously.\n\nAnother way to look at this is that `production` and `staging` diverged too much\nover time, because we did not deploy the changes when we merged them into the\nmain branch. If we had deployed the changes when they were merged into the main\nbranch, we would have isolated the DNS change. But given the importance of\ncrates.io to the Rust ecosystem, we were hesitant to deploy multiple times\nwithout announcing the changes to the community first.\n\nThe lessons that we are taking away from this incident are as follows:\n\n- We need to document the process of deploying changes to production, in particular how to pick the Git commit and how to review the changeset. Defining a process will enable us to iterate and improve it over time, and avoid the same issue in the future.\n- Changes that have been developed and tested in isolation on `staging` should\nbe deployed individually and in sequence to `production`. We need to add\nthis to the documentation.\n- When we merge changes into the main branch, we need to ensure that they get\ndeployed to `production` as well. This avoids a drift between the\nconfiguration in Git and what is deployed.",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:08:44.063141+00:00",
+  "final_url": "https://blog.rust-lang.org/inside-rust/2023/02/08/dns-outage-portmortem/",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-049.html",
+  "redirect_history": [
+    {
+      "destination_url": "https://blog.rust-lang.org/inside-rust/2023/02/08/dns-outage-portmortem/",
+      "intermediate_path": "data/raw/DAN-049.redirect-001.html",
+      "result": "followed",
+      "source_url": "https://blog.rust-lang.org/inside-rust/2023/02/08/dns-outage-portmortem.html",
+      "type": "meta_refresh"
+    }
+  ],
+  "redirects": [
+    "https://blog.rust-lang.org/inside-rust/2023/02/08/dns-outage-portmortem/"
+  ],
+  "review_reason": [],
+  "source_url": "https://blog.rust-lang.org/inside-rust/2023/02/08/dns-outage-portmortem.html",
+  "status": "extracted",
+  "title": "DNS Outage on 2023-01-25 | Inside Rust Blog",
+  "word_count": 579
+}
