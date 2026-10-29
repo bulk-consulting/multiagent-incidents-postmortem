@@ -1,28 +1,28 @@
-# E1.1 — Documento de entendimento do problema
+# E1.1 — Entendimento do problema
 
 **Projeto 4 — Incident Copilot: Assistente Inteligente de Incidentes e Post-Mortems**  
 **Entrega:** 1.1 — Entendimento do problema de negócio  
 
 
-## 1. Resumo
-
-O **Incident Copilot** é uma proposta de assistente para **apoiar, e não substituir, a investigação humana**. É um sistema multi-agente que recebe a descrição de um incidente em andamento (texto livre ou alerta estruturado), busca post-mortems e runbooks de incidentes parecidos e devolve um **diagnóstico diferencial ranqueado.** Cada causa provável vem com a remediação, a fonte original e o nível de confiança.
-
+## 1. Contexto do problema
+ 
+A Stratus Cloud Services é um provedor de nuvem (MSP) que opera 12.000+ servidores, 800+ clusters Kubernetes e 200+ microsserviços para 350 clientes corporativos. Com esse tamanho, incidentes são frequentes, e o NOC funciona 24/7 com 35 analistas de SRE em 3 turnos.
+ 
+Hoje, quando um incidente acontece, o analista de plantão recebe o alerta e precisa descobrir a causa raiz antes de corrigir. Para isso, procura manualmente se algo parecido já aconteceu: abre wikis, runbooks, post-mortems antigos e threads de Slack, e cruza com o que vê nas ferramentas de monitoramento. Só depois de encontrar a causa ele começa a remediação.
+ 
+Essa busca manual é o gargalo: num incidente P1, o diagnóstico consome a maior parte do tempo total de resolução. O conhecimento para acelerar essa etapa já existe na empresa, mas está espalhado e difícil de encontrar no momento em que é necessário.
+ 
+---
+ 
+## 2. Solução proposta: Incident Copilot
+ 
+O **Incident Copilot** é um sistema multi-agente que recebe a descrição de um incidente em andamento (texto livre ou alerta estruturado), busca post-mortems e runbooks de incidentes parecidos e devolve um **diagnóstico diferencial ranqueado**. Cada causa provável vem com a remediação, a fonte original e o nível de confiança.
+ 
 O objetivo é **reduzir o tempo de diagnóstico** dos incidentes, que hoje é a maior parte do MTTR, e assim contribuir para as metas de SLA da Stratus.
+ 
+---
 
-## 2. Contexto e problema
 
-### 2.1 Situação atual (hipótese de negócio)
-
-Em um processo tradicional de investigação, a pessoa responsável pode precisar:
-
-1. Interpretar alertas, relatos e sinais disponíveis sobre a ocorrência atual.
-2. Buscar manualmente incidentes parecidos e materiais de referência.
-3. Distinguir semelhança superficial de mecanismo de falha efetivamente sustentado por evidências.
-4. Registrar hipóteses concorrentes, lacunas de informação e próximos passos.
-5. Retomar a investigação conforme chegam novas evidências e preparar uma comunicação clara.
-
-Essas atividades podem ser demoradas, sobretudo quando post-mortems não possuem uma forma consistente de pesquisa ou quando o contexto do incidente está incompleto.
 
 ## 3. Quem é o usuário
 
