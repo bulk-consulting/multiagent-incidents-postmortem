@@ -90,18 +90,8 @@ Uma resposta útil não precisa necessariamente fornecer uma causa raiz definiti
 
 As informações atuais sobre o incidente são fornecidas pelo alerta ou usuário. Os post-mortems históricos servem para apoiar a investigação, **não para provar** que o mesmo mecanismo causal ocorre novamente.
 
-## 6. Jornada do usuário — cenário representativo
 
-1. Um alerta ou usuário informa sintomas e contexto de um incidente.
-2. O sistema valida e normaliza a entrada; uma síntese por LLM organiza os fatos recebidos.
-3. O pesquisador RAG busca ocorrências históricas relacionadas.
-4. O analista compara referências e contexto atual, elaborando hipóteses fundamentadas.
-5. A lógica de decisão verifica suficiência, necessidade de refinamento e limites da investigação.
-6. Se faltarem dados do incidente atual, o sistema faz perguntas específicas e persiste a investigação para retomada.
-7. Quando houver informação suficiente para uma avaliação — ou quando o limite for atingido — o sistema entrega relatório fundamentado, inclusive com resultado inconclusivo quando necessário.
-8. O profissional consulta as fontes, valida as hipóteses e decide os próximos passos.
-
-## 7. Métricas de sucesso e metodologia de avaliação
+## 6. Métricas de sucesso e metodologia de avaliação
 
 As métricas abaixo são **propostas de avaliação**, não valores observados. Os limiares numéricos devem ser definidos após obter uma linha de base, montar cenários de teste e acordar critérios com responsáveis pela capacitação.
 
@@ -116,7 +106,7 @@ As métricas abaixo são **propostas de avaliação**, não valores observados. 
 | **Continuidade** | Sucesso da retomada via `incident_id` sem perda de contexto relevante | Teste de pausa, complementação e retomada | Critério funcional a validar |
 | **Desempenho e custo** | Latência por investigação, número de chamadas LLM, tokens e custo estimado | Telemetria do protótipo | Estabelecer baseline e orçamento após implementação |
 
-### 7.1 Desenho mínimo da avaliação
+### 6.1 Desenho mínimo da avaliação
 
 - Preparar um conjunto pequeno e documentado de cenários, incluindo casos com similaridade histórica clara, casos ambíguos e casos sem evidência suficiente.
 - Definir respostas ou trechos de referência por revisão humana **antes** de comparar configurações.
@@ -126,7 +116,7 @@ As métricas abaixo são **propostas de avaliação**, não valores observados. 
 
 **Nota metodológica:** encontrar um post-mortem semelhante não prova melhora de MTTR real. MTTR pode ser uma métrica futura em um piloto operacional com incidentes reais, mas não é um resultado atribuível ao MVP documental sem estudo controlado.
 
-## 8. Riscos, premissas e mitigação
+## 7. Riscos, premissas e mitigação
 
 | Risco ou premissa | Consequência | Mitigação proposta |
 |---|---|---|
@@ -140,7 +130,7 @@ As métricas abaixo são **propostas de avaliação**, não valores observados. 
 | Ausência de integração com observabilidade no MVP | Diagnóstico baseado apenas no que foi informado | Comunicar explicitamente a origem e limitação das evidências |
 
 
-## 9. Conclusão
+## 8. Conclusão
 
 O problema de negócio escolhido é a **dificuldade de transformar o conhecimento de incidentes anteriores em apoio rápido, rastreável e responsável à investigação de incidentes atuais**. O Incident Copilot pretende ajudar profissionais de operações a organizar evidências, recuperar relatos históricos relevantes, formular hipóteses e identificar próximos passos, sem confundir similaridade documental com comprovação de causa raiz.
 
