@@ -56,7 +56,7 @@ A troca de informações acontece pelo **estado compartilhado da investigação*
 
 ### 6.1 Entrada e preparação (sequencial)
 
-**Alerta / interface → API FastAPI → Validação com Pydantic → identificar nova investigação ou existente → sacar los sintomas o complemento → salvar/crear incident_id**
+**Alerta / interface → API FastAPI → Validação com Pydantic → identificação de investigação nova ou existente → extração dos sintomas ou do complemento → persistência do estado (criação ou atualização do incident_id)**
 
 
 ### 6.2 Investigação multiagente (sequencial e condicional)
