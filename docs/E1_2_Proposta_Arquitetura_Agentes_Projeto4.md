@@ -2,16 +2,14 @@
 
 **Projeto 4 — Incident Copilot / Resolução de Incidentes e Post-Mortems**  
 **Entrega:** 1.2 — Proposta de arquitetura de agentes  
-**Data:** 28/10/2026  
 **Situação:** proposta de design; implementação e testes ainda não realizados
 
-## 1. Objetivo e escopo
+## 1. Visão geral
 
-Definir a quantidade de agentes, suas responsabilidades, a comunicação entre componentes e a orquestração da investigação. A solução recebe um incidente novo ou um complemento identificado pelo mesmo `incident_id`, organiza as evidências informadas, pesquisa **post-mortems históricos** e produz um diagnóstico preliminar fundamentado, ou solicita mais informações quando não há dados suficientes.
+O sistema é um workflow condicional multi-agente: o código define os caminhos possíveis do fluxo, e os agentes decidem, a cada passo, qual caminho seguir com base no que encontraram. A investigação de cada incidente é identificada por um `incident_id`, o que permite retomá-la quando o analista envia novas informações ou refina a busca.
 
 O desenho prioriza **orquestração definida (defined orchestration)**: os caminhos de execução são estabelecidos pela aplicação; o uso de LLM ajuda na interpretação e na seleção entre caminhos permitidos, sem controlar livremente toda a execução.
 
-**Limite do MVP:** a E1.3 qualificou um corpus de **20 post-mortems aprovados**, que é a fonte documental do RAG inicial. O diagrama menciona *runbooks e outras fontes* como possibilidade de expansão; **não há runbooks curados no corpus inicial**. Também **não está prevista integração direta para consultar logs ou métricas de produção**: evidências da ocorrência atual são enviadas pelo usuário, interface ou sistema de alertas.
 
 ## 2. Diagrama de referência
 
@@ -127,64 +125,6 @@ Quando faltam dados do incidente atual, o fluxo **não deve criar dados fictíci
 | **Runbooks** | Conhecimento operacional adicional | **Fora do corpus inicial**; depende de curadoria e validação futuras. |
 | **Logs e métricas** | Evidências do incidente atual | Recebidos na entrada; **sem integração direta** com observabilidade neste MVP. |
 | **LangGraph** | Implementação candidata/selecionada para orquestração | Decisão de stack E1.4; o diagrama é independente de uma implementação já existente. |
-
-## 7. Segurança, confiabilidade e supervisão
-
-- **Autenticar e autorizar** acesso à investigação antes de consultar ou alterar estado por `incident_id`.
-- **Validar entradas e saídas** por estruturas explícitas. Recomendações do modelo não substituem regras determinísticas de autorização, severidade ou políticas operacionais.
-- **Manter limites** para refinamentos de busca, custo, tentativas e tamanho do contexto.
-- **Preservar incertezas**: relatar hipóteses alternativas e evidências insuficientes; distinguir causas históricas de causas confirmadas no presente.
-- **Não executar remediação automática**: o MVP apoia investigação e recomendações; ações operacionais permanecem sujeitas a avaliação humana.
-- **Tratar textos recuperados como dados não confiáveis**: conteúdo de post-mortems não pode alterar regras, instruções ou permissões do workflow.
-- **Registrar rastreabilidade**: IDs, fontes, estados e decisões do workflow para auditoria e testes.
-
-## 8. Casos de funcionamento esperados
-
-| Cenário | Caminho esperado | Resultado |
-|---|---|---|
-| Incidente novo com contexto suficiente | Síntese → RAG → análise → relatório | Hipóteses justificadas com referências históricas. |
-| Incidente com correspondências históricas fracas | Síntese → RAG → análise → refinamento limitado → reanálise | Resposta fundamentada ou inconclusiva; sem loop infinito. |
-| Falta de logs, sintomas ou impacto atuais | Pesquisa/análise → solicitar informações → persistir e aguardar | Perguntas específicas e possibilidade de retomada. |
-| Usuário complementa o mesmo incidente | Recuperar estado → estruturar novas evidências → pesquisar/analisar | Continuidade da investigação com `incident_id`. |
-| Limite de investigação atingido | Análise → relatório inconclusivo → validação | Explicitação do que se sabe, do que é incerto e do próximo dado necessário. |
-
-## 9. Decisões e pendências
-
-| Item | Decisão/status |
-|---|---|
-| Quantidade de agentes | **2** — Pesquisa RAG e Análise/Diagnóstico. |
-| Padrão de orquestração | **Definida, sequencial e condicional**, com loop limitado de refinamento. |
-| Supervisor | **Lógica de roteamento**, não agente independente. |
-| Síntese de entrada | **Chamada de LLM**, não agente autônomo. |
-| Execução paralela | **Não prevista** para o MVP inicial. |
-| Corpus inicial | **20 post-mortems aprovados**; não incluir runbooks ainda. |
-| Consulta automática a logs/métricas | **Não prevista** nesta versão. |
-| Persistência/retomada | Prevista por `incident_id`; detalhes técnicos pendentes. |
-| API FastAPI | Papel conceitual definido; **contratos e endpoints pendentes da Mari**. |
-| Framework | **LangGraph** selecionado na E1.4, sujeito à implementação e validação. |
-| Parâmetros operacionais e testes | Limites, desempenho, confiabilidade e resultados **não medidos** nesta entrega. |
-
-## 10. Critérios de aceite da entrega 1.2
-
-| Critério | Evidência nesta proposta | Status |
-|---|---|---|
-| Definir quantidade de agentes | Dois agentes especializados, com classificação dos componentes auxiliares | Atendido no design |
-| Descrever a responsabilidade de cada agente | Seção 3 | Atendido no design |
-| Explicar a comunicação entre agentes | Estado compartilhado e fluxo de referências/hipóteses, seção 4 | Atendido no design |
-| Representar fluxo sequencial/condicional | Diagrama e seções 5.1–5.2 | Atendido no design |
-| Descrever loops | Refinamento limitado e retomada, seção 5.3 | Atendido no design |
-| Definir uso de paralelismo | Não previsto para o MVP, seção 5.4 | Atendido no design |
-| Delimitar o corpus e o escopo | Seções 1 e 6 | Atendido no design |
-| Validar comportamento em execução | Não há implementação nesta etapa | Pendente — próxima fase |
-
-## 11. Referências internas
-
-- **E1.3 — Mapeamento dos Dados:** `docs/E1_3_Mapeamento_dos_Dados.md`.
-- **E1.4 — Definição do Stack Técnico:** documento de decisões técnicas (chunking, embeddings, pgvector e LangGraph; API pendente de Mari).
-- **Corpus aprovado:** `datasets/danluu-ingestion/data/exports/corpus_20_by_stage/`.
-- **Decisões editoriais:** `datasets/danluu-ingestion/data/reviews/editorial_reviews.csv`.
-
-Todos os caminhos são relativos à raiz `~/bulk_projetos/treinamento_dell/`.
 
 ---
 
