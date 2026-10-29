@@ -23,11 +23,11 @@ Arquitetura do Incident Copilot
 A troca de informações acontece pelo **estado compartilhado da investigação** e pelas **transições do workflow**, e não por uma conversa livre entre os agentes.
  
 1. A API recebe uma nova descrição ou um complemento associado a um `incident_id` e valida a estrutura da entrada.
-2. O módulo inicial a descrição em sintomas ou organiza as novas evidências enviadas.
+2. O módulo inicial transforma a entrada em sintomas ou organiza as novas evidências enviadas.
 3. O contexto é persistido, e o workflow encaminha ao Agente 1 os sintomas, termos, filtros e histórico relevante da investigação.
 4. O Agente 1 devolve as referências recuperadas: IDs dos documentos e trechos, o conteúdo dos trechos, links das fontes, metadados e o score de relevância.
 5. O Agente 2 recebe o contexto do incidente atual e as evidências históricas, propõe hipóteses ranqueadas e avalia se a evidência é suficiente, quais lacunas existem e qual é o próximo passo. Com base nessa avaliação, o workflow conclui o diagnóstico, refina a pesquisa, solicita informações adicionais ou encerra como inconclusivo.
-6. O sistema envia ao usuário o relatório ou um pedido de informações. Se o usuário responder ou quiser refinar a busca, a nova mensagem entra como continuação da mesma investigação, e o processo volta ao passo 1.
+6. O sistema envia ao usuário o relatório ou um pedido de informações. Se o usuário responder ou quiser refinar a busca, a nova mensagem entra como continuação da mesma investigação e o processo volta ao passo 1.
 
 
 ## 4. Responsabilidade de cada agente
@@ -62,7 +62,7 @@ A troca de informações acontece pelo **estado compartilhado da investigação*
 - **Complemento com novas evidências:** o estado anterior é carregado e um LLM estrutura as informações adicionadas.
 - **Retomada para refinar:** termos e filtros são atualizados sem inventar evidências novas.
 
-A validação deve impedir a mistura de informações entre incidentes diferentes. Detalhes de endpoints, contratos, autenticação e tratamento de erros são responsabilidade da **E1.4 — Estrutura da API (Mari)** e não são definidos aqui.
+A validação deve impedir a mistura de informações entre incidentes diferentes. Detalhes de endpoints, contratos, autenticação e tratamento de erros são responsabilidade da **E1.4 — Estrutura da API ** e não são definidos aqui.
 
 ### 6.2 Investigação multiagente (sequencial e condicional)
 
@@ -74,7 +74,7 @@ O caminho principal é **Agente 1 → Agente 2 → decisão de suficiência**.
 
 ### 6.3 Loops controlados
 
-O ciclo **Agente 1 → Agente 2 → roteador → refinamento → Agente 1** só ocorre quando a busca histórica pode agregar informação e ainda há limite disponível. O limite de tentativas é um parâmetro **a definir na implementação**.
+O ciclo **Agente 1 → Agente 2 (roteador - refinamento) → Agente 1** só ocorre quando a busca histórica pode agregar informação e ainda há limite disponível. O limite de tentativas é um parâmetro **a definir na implementação**.
 
 ### 6.4 Paralelismo
 
@@ -84,4 +84,4 @@ As fontes do Agente 1 são organizadas em dois níveis. O **Tier 1** reúne as f
 
 ---
 
-**Conclusão:** a arquitetura proposta possui **dois agentes com responsabilidades complementares**, integrados por um **workflow definido, predominantemente sequencial, com decisões condicionais, refinamento limitado e pausa/retomada por incidente**. O desenho prevê geração de diagnóstico com fontes ou saída inconclusiva quando necessário, sem assumir integrações, ferramentas ou dados que ainda não foram implementados ou curados.
+**Conclusão:** a arquitetura proposta possui **dois agentes com responsabilidades complementares**, integrados por um **workflow definido, predominantemente sequencial, com decisões condicionais, refinamento limitado e pausa/retomada por incidente**. O desenho prevê geração de diagnóstico com fontes ou saída inconclusiva quando necessário.
