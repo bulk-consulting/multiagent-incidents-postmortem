@@ -10,18 +10,14 @@ A Stratus Cloud Services é um provedor de nuvem (MSP) que opera 12.000+ servido
  
 Hoje, quando um incidente acontece, o analista de plantão recebe o alerta e precisa descobrir a causa raiz antes de corrigir. Para isso, procura manualmente se algo parecido já aconteceu: abre wikis, runbooks, post-mortems antigos e threads de Slack, e cruza com o que vê nas ferramentas de monitoramento. Só depois de encontrar a causa ele começa a remediação.
  
-Essa busca manual é o gargalo: num incidente P1, o diagnóstico consome a maior parte do tempo total de resolução. O conhecimento para acelerar essa etapa já existe na empresa, mas está espalhado e difícil de encontrar no momento em que é necessário.
- 
----
+Essa busca manual é o gargalo: num incidente P1, o diagnóstico consome a maior parte do tempo total de resolução. O conhecimento para acelerar essa etapa já existe na empresa, mas está espalhado e difícil de encontrar no momento em que é necessário. 
+
  
 ## 2. Solução proposta: Incident Copilot
  
 O **Incident Copilot** é um sistema multi-agente que recebe a descrição de um incidente em andamento (texto livre ou alerta estruturado), busca post-mortems e runbooks de incidentes parecidos e devolve um **diagnóstico diferencial ranqueado**. Cada causa provável vem com a remediação, a fonte original e o nível de confiança.
  
 O objetivo é **reduzir o tempo de diagnóstico** dos incidentes, que hoje é a maior parte do MTTR, e assim contribuir para as metas de SLA da Stratus.
- 
----
-
 
 
 ## 3. Quem é o usuário
