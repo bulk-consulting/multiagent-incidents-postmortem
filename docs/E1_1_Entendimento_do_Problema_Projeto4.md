@@ -2,16 +2,13 @@
 
 **Projeto 4 — Incident Copilot: Assistente Inteligente de Incidentes e Post-Mortems**  
 **Entrega:** 1.1 — Entendimento do problema de negócio  
-**Data:** 28/10/2026  
-**Status:** proposta de planejamento; sem validação operacional ou métricas medidas
 
-## 1. Resumo executivo
 
-Incidentes em aplicações e infraestrutura exigem que profissionais de operações interpretem sintomas, relacionem informações recebidas, consultem ocorrências anteriores e comuniquem hipóteses de forma fundamentada. Quando o conhecimento histórico está disperso em post-mortems, a investigação pode demandar esforço manual elevado e estar sujeita a conclusões prematuras.
+## 1. Resumo
 
-O **Incident Copilot** é uma proposta de assistente para **apoiar, e não substituir, a investigação humana**. O sistema recebe informações do incidente atual, estrutura o relato, consulta uma base selecionada de post-mortems históricos e produz hipóteses, evidências, incertezas e próximas ações recomendadas com referências rastreáveis. Se faltarem informações, solicita complementação e permite continuar a análise do mesmo incidente.
+O **Incident Copilot** é uma proposta de assistente para **apoiar, e não substituir, a investigação humana**. É um sistema multi-agente que recebe a descrição de um incidente em andamento (texto livre ou alerta estruturado), busca post-mortems e runbooks de incidentes parecidos e devolve um **diagnóstico diferencial ranqueado.** Cada causa provável vem com a remediação, a fonte original e o nível de confiança.
 
-**Valor de negócio pretendido:** reduzir o esforço para localizar conhecimento histórico relevante e melhorar a consistência e a explicabilidade de análises preliminares de incidentes. Esses benefícios são hipóteses a testar; não são resultados já comprovados.
+O objetivo é **reduzir o tempo de diagnóstico** dos incidentes, que hoje é a maior parte do MTTR, e assim contribuir para as metas de SLA da Stratus.
 
 ## 2. Contexto e problema
 
