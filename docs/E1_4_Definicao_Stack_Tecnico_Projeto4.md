@@ -164,13 +164,12 @@ app/
   api/                  # routers FastAPI (somente entrada/saída HTTP)
     incidents.py        # criação, consulta e complementos de incidentes
     webhooks.py         # recebimento de alertas do sistema de alertas
-  schemas/              # modelos Pydantic de entrada e saída
+  schemas/              # modelos/classes Pydantic de entrada e saída
   services/             # lógica de aplicação
-    incident_service.py # nova investigação vs. retomada; chamada ao grafo
-    alert_service.py    # conversão de alerta em incidente ou complemento
+    incident_service.py # validação e envio de incidentes aos agentes
+    alert_service.py    # validação e envio dos alertas aos agentes
     dedup.py            # detecção de incidentes/alertas repetidos
-  agents/               # grafo LangGraph: Agente 1 (RAG), Agente 2 (análise), roteador
-  db/                   # modelos e repositórios PostgreSQL/pgvector
+  agents/               # grafo LangGraph: Agente 1 (RAG), Agente 2 (análise)
   core/                 # configuração, logging
 ```
 
@@ -184,7 +183,7 @@ Todos sob o prefixo `/api/v1`.
 |---|---|---|---|
 | `POST` | `/incidents` | Cria nova investigação e inicia o grafo | `202` com `incident_id` e `status` |
 | `GET` | `/incidents/{incident_id}` | Consulta estado, perguntas pendentes e relatório (quando houver) | `200` / `404` |
-| `POST` | `/incidents/{incident_id}` | Envia complemento: novas evidências ou pedido de refinamento; retoma a investigação | `202` |
+| `POST` | `/incidents/{incident_id}` | Envia complemento: novas evidências ou pedido de refinamento; retoma a investigação | `202` / `404` |
 
 Como a investigação pode levar tempo, os `POST` respondem imediatamente com `202` e a interface consulta o progresso via `GET /incidents/{incident_id}` (polling). O `incident_id` é usado como identificador da execução no grafo, permitindo pausar e retomar a mesma investigação.
 
@@ -196,14 +195,13 @@ Como a investigação pode levar tempo, os `POST` respondem imediatamente com `2
 
 Comportamento do webhook:
 
-- Alerta **novo** (`status=firing`) → cria investigação, como `POST /incidents`.
+- Alerta **novo** → cria investigação, como `POST /incidents`.
 - Alerta **repetido** de um incidente ainda aberto → não cria nova investigação; retorna o `incident_id` existente (ver 7.4).
-- Alerta **resolvido** (`status=resolved`) → registrado como evidência adicional do incidente associado, sem reiniciar a análise.
 - O sistema de alertas não aguarda o resultado da investigação; a resposta `202` apenas confirma o recebimento.
 
 ### 7.4 Validações
 
-- **Entrada:** os modelos Pydantic validam campos obrigatórios, tipos e tamanhos máximos (descrição, evidências, payload de alerta). Entradas inválidas retornam `422`.
+- **Entrada:** as classes Pydantic validam campos obrigatórios, tipos e tamanhos máximos (descrição, evidências, payload de alerta). Entradas inválidas retornam `422`.
 - **Duplicidade:** o sistema não deve abrir várias investigações para o **mesmo incidente**, evitando tráfego e custo de LLM desnecessários. Para cada entrada é calculada uma impressão digital (*fingerprint*):
   - **alertas:** origem + identificador/fingerprint do alerta enviado pela ferramenta;
   - **incidentes manuais:** hash do conteúdo normalizado (título, descrição e evidências).
