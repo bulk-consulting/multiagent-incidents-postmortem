@@ -24,20 +24,6 @@ Em um processo tradicional de investigação, a pessoa responsável pode precisa
 
 Essas atividades podem ser demoradas, sobretudo quando post-mortems não possuem uma forma consistente de pesquisa ou quando o contexto do incidente está incompleto.
 
-> **Limite da evidência:** o projeto ainda não dispõe de medições reais do tempo gasto pelas equipes, taxa de erros ou volume de incidentes em uma organização específica. Portanto, os pontos acima descrevem o problema a validar, e não um diagnóstico quantitativo de uma operação real da Dell.
-
-### 2.2 Dor central
-
-**Encontrar, interpretar e aplicar conhecimento histórico confiável durante a investigação de um incidente, sem confundir incidentes similares com prova da causa raiz atual.**
-
-### 2.3 Consequências potenciais
-
-- Maior tempo para localizar casos históricos relevantes.
-- Perda de contexto ao alternar entre documentos e atualizações da investigação.
-- Hipóteses sem indicação explícita de evidências favoráveis, contrárias ou ausentes.
-- Repetição de trabalho quando uma análise precisa ser retomada.
-- Relatórios preliminares inconsistentes ou excessivamente conclusivos.
-
 ## 3. Quem é o usuário
 
 | Persona | Quem é | O que precisa do sistema |
