@@ -139,28 +139,8 @@ As métricas abaixo são **propostas de avaliação**, não valores observados. 
 | Dependência de LLM/embeddings externos | Custos e requisitos de privacidade | Validar provedores e políticas; manter alternativa local se necessário |
 | Ausência de integração com observabilidade no MVP | Diagnóstico baseado apenas no que foi informado | Comunicar explicitamente a origem e limitação das evidências |
 
-## 9. Relação com as demais entregas da E1
 
-| Entrega | Como contribui para a E1.1 |
-|---|---|
-| **E1.2 — Arquitetura de agentes** | Define dois agentes, fluxo predefinido, refinamento, pausa e retomada |
-| **E1.3 — Mapeamento dos dados** | Valida o corpus inicial de 20 post-mortems e documenta limites e proveniência |
-| **E1.4 — Definição do stack técnico** | Propõe LangGraph, chunking hierárquico, embeddings e PostgreSQL/pgvector; API ainda sob definição da Mari |
-| **E1.5 — Organização do repositório** | Estrutura artefatos e documentação, ainda sujeita ao fechamento da entrega |
-
-## 10. Critérios de aceite da E1.1
-
-| Critério | Evidência no documento | Situação |
-|---|---|---|
-| Problema de negócio explicitado | Seções 1 e 2 | Atendido em nível de proposta |
-| Público-alvo identificado | Seção 3 | Atendido; perfis a validar |
-| Dor principal definida | Seção 2.2 | Atendido |
-| Resultado esperado descrito | Seção 4 | Atendido |
-| Escopo e limites definidos | Seção 5 | Atendido |
-| Métricas de sucesso propostas | Seção 7 | Atendido; metas e baselines pendentes |
-| Riscos e premissas descritos | Seção 8 | Atendido |
-
-## 11. Conclusão
+## 9. Conclusão
 
 O problema de negócio escolhido é a **dificuldade de transformar o conhecimento de incidentes anteriores em apoio rápido, rastreável e responsável à investigação de incidentes atuais**. O Incident Copilot pretende ajudar profissionais de operações a organizar evidências, recuperar relatos históricos relevantes, formular hipóteses e identificar próximos passos, sem confundir similaridade documental com comprovação de causa raiz.
 
