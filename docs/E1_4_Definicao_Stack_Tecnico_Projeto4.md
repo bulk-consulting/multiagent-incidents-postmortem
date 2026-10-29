@@ -154,7 +154,7 @@ documents (1) ─── (N) chunks (1) ─── (N) chunk_embeddings
 
 A API, em **FastAPI + Pydantic**, é a porta de entrada do sistema: recebe incidentes, alertas e complementos, valida a entrada e encaminha para a camada de serviços. **A API não executa lógica de investigação**: não chama LLM, não consulta o pgvector e não decide transições do grafo.
 
-Regra de organização: **cada camada só conversa com a camada vizinha**: `api` → `services` → `agents` / `rag` / `db`. 
+Regra de organização: **cada camada só conversa com a camada vizinha**: `api` → `services` → `agents` / `db`. 
 
 ### 7.2 Estrutura de pastas proposta
 
