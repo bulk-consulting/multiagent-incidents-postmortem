@@ -30,15 +30,12 @@ O sistema terá **2 agentes**:
 
 **Dois agentes especializados**, ambos no workflow condicional:
 
-| Componente | Classificação | Responsabilidade |
-|---|---|---|
-| **Agente 1 — Pesquisa RAG** | Agente | Formular/ajustar a consulta de recuperação, buscar trechos nos post-mortems aprovados, organizar achados e devolver evidências históricas com fontes e limitações. |
-| **Agente 2 — Análise e diagnóstico diferencial** | Agente | Confrontar os sintomas atuais com os trechos recuperados, elaborar hipóteses ordenadas, diferenciar fatos e conjecturas, avaliar a suficiência e redigir o relatório final ou inconclusivo. |
-| LLM de síntese/estruturação | Chamada de modelo, **não um agente** | Transformar descrição livre ou evidências adicionais em representação estruturada; não escolhe ferramentas nem conduz um ciclo independente de investigação. |
-| Supervisor/roteamento condicional | Lógica do workflow, **não um terceiro agente** | Selecionar entre transições permitidas a partir de estado, respostas estruturadas e regras de negócio; impor limites de tentativas. |
-| API, persistência, validação | Componentes de aplicação | Receber requisições, autenticar/validar, armazenar e recuperar estado, validar saídas e disponibilizar respostas. |
-
-**Observação sobre o diagrama:** a caixa “Agente 2 — Gerar relatório” representa **uma segunda responsabilidade do mesmo Agente 2**, não um terceiro agente.
+| Agente | Responsabilidade | Recebe | Entrega |
+|---|---|---|---|
+| **Agente 1 — Pesquisa RAG** | Buscar na base vetorial os post-mortems e runbooks mais parecidos com o incidente | Sintomas, termos e filtros da investigação | Post-mortems, runbooks e fontes encontrados |
+| **Agente 2 — Análise e diagnóstico diferencial** | Analisar as evidências, ranquear as causas prováveis e avaliar se a evidência é suficiente. No fim da investigação, gerar o relatório | Evidências do Agente 1 | Hipóteses ranqueadas e avaliação estruturada; depois, o relatório |
+ 
+O relatório traz, para cada causa provável: causa raiz histórica, passos de remediação, código ou configuração alterados, checklist de prevenção, link para o post-mortem original e nível de confiança.
 
 ## 5. Comunicação entre agentes e módulos
 
