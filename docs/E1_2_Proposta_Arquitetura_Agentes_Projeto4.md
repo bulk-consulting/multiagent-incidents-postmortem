@@ -56,13 +56,8 @@ A troca de informações acontece pelo **estado compartilhado da investigação*
 
 ### 6.1 Entrada e preparação (sequencial)
 
-**Alerta / interface / complemento → API FastAPI → autenticação e validação com Pydantic → identificar nova investigação ou retomada → estruturar contexto → persistir estado.**
+**Alerta / interface → API FastAPI → Validação com Pydantic → identificar nova investigação ou existente → sacar los sintomas o complemento → salvar/crear incident_id**
 
-- **Nova investigação:** o LLM sintetiza e decompõe sintomas antes de iniciar a pesquisa.
-- **Complemento com novas evidências:** o estado anterior é carregado e um LLM estrutura as informações adicionadas.
-- **Retomada para refinar:** termos e filtros são atualizados sem inventar evidências novas.
-
-A validação deve impedir a mistura de informações entre incidentes diferentes. Detalhes de endpoints, contratos, autenticação e tratamento de erros são responsabilidade da **E1.4 — Estrutura da API ** e não são definidos aqui.
 
 ### 6.2 Investigação multiagente (sequencial e condicional)
 
