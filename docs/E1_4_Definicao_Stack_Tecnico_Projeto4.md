@@ -2,7 +2,7 @@
 
 **Projeto 4 — Incident Copilot (Assistente Inteligente de Incidentes e Post-Mortems)**  
 **Data:** 28/10/2026  
-**Status:** proposta técnica consolidada para planejamento; API pendente de contribuição da Mari  
+**Status:** proposta técnica consolidada para planejamento  
 **Escopo:** decisões de arquitetura e modelagem. **Não foram executados nesta etapa** chunking, geração de embeddings, criação do banco, indexação, benchmark ou implementação dos agentes/API.
 
 ## 1. Objetivo e contexto
@@ -32,7 +32,7 @@ O filtro de elegibilidade consulta o registro editorial, associado ao JSON por `
 | Armazenamento | **PostgreSQL + pgvector** | Escolha arquitetural |
 | Modelo lógico de RAG | `documents` → `chunks` → `chunk_embeddings` | Proposta, não DDL final |
 | Recuperação | Busca por similaridade cosseno; começar por busca vetorial exata | Proposta de baseline |
-| API | Contratos e endpoints **pendentes** | **Responsável: Mari** |
+| API | **FastAPI + Pydantic**; endpoints de incidentes, complementos e webhook de alertas; deduplicação de entradas | Proposta inicial (Mari) |
 
 ## 3. Orquestração: LangGraph versus CrewAI
 
@@ -148,19 +148,76 @@ documents (1) ─── (N) chunks (1) ─── (N) chunk_embeddings
 
 **Estado:** modelo **lógico** proposto; sem DDL físico aprovado, sem banco criado e sem carga executada.
 
-## 7. Estrutura da API — PENDENTE (Mari)
+## 7. Estrutura da API
 
-**Responsável:** Mari. **Status:** aguardando definição e integração ao documento. Esta seção é uma reserva de escopo; **nenhum endpoint, payload, contrato, autenticação ou comportamento foi aprovado aqui**.
+### 7.1 Papel da API e organização em camadas
 
-Pontos a detalhar pela responsável, em alinhamento com a arquitetura:
+A API, em **FastAPI + Pydantic**, é a porta de entrada do sistema: recebe incidentes, alertas e complementos, valida a entrada e encaminha para a camada de serviços. **A API não executa lógica de investigação**: não chama LLM, não consulta o pgvector e não decide transições do grafo.
 
-- Framework e limites da API; proposta de uso de FastAPI/Pydantic a confirmar.
-- Contratos de entrada de incidente e evidências; validações e formato das respostas.
-- Identificação e consulta de investigações; envio de evidências adicionais e retomada por identificador.
-- Integração com o grafo, tratamento de estados (em andamento, aguardando evidências, concluído, falhou) e erros.
-- Segurança, autenticação, limites de acesso e observabilidade da aplicação.
+Regra de organização: **cada camada só conversa com a camada vizinha**: `api` → `services` → `agents` / `rag` / `db`. 
 
-**Não preencher com endpoints inventados sem a contribuição da Mari.**
+### 7.2 Estrutura de pastas proposta
+
+```text
+app/
+  main.py               # cria a aplicação FastAPI e registra os routers
+  api/                  # routers FastAPI (somente entrada/saída HTTP)
+    incidents.py        # criação, consulta e complementos de incidentes
+    webhooks.py         # recebimento de alertas do sistema de alertas
+  schemas/              # modelos Pydantic de entrada e saída
+  services/             # lógica de aplicação
+    incident_service.py # nova investigação vs. retomada; chamada ao grafo
+    alert_service.py    # conversão de alerta em incidente ou complemento
+    dedup.py            # detecção de incidentes/alertas repetidos
+  agents/               # grafo LangGraph: Agente 1 (RAG), Agente 2 (análise), roteador
+  db/                   # modelos e repositórios PostgreSQL/pgvector
+  core/                 # configuração, logging
+```
+
+### 7.3 Endpoints
+
+Todos sob o prefixo `/api/v1`.
+
+**Incidentes (usuário / interface web):**
+
+| Método | Rota | Função | Resposta |
+|---|---|---|---|
+| `POST` | `/incidents` | Cria nova investigação e inicia o grafo | `202` com `incident_id` e `status` |
+| `GET` | `/incidents/{incident_id}` | Consulta estado, perguntas pendentes e relatório (quando houver) | `200` / `404` |
+| `POST` | `/incidents/{incident_id}` | Envia complemento: novas evidências ou pedido de refinamento; retoma a investigação | `202` |
+
+Como a investigação pode levar tempo, os `POST` respondem imediatamente com `202` e a interface consulta o progresso via `GET /incidents/{incident_id}` (polling). O `incident_id` é usado como identificador da execução no grafo, permitindo pausar e retomar a mesma investigação.
+
+**Webhooks (sistema de alertas):**
+
+| Método | Rota | Função | Resposta |
+|---|---|---|---|
+| `POST` | `/webhooks/alerts` | Recebe alerta em formato genérico; abre nova investigação ou associa a uma investigação existente | `202` com `incident_id` |
+
+Comportamento do webhook:
+
+- Alerta **novo** (`status=firing`) → cria investigação, como `POST /incidents`.
+- Alerta **repetido** de um incidente ainda aberto → não cria nova investigação; retorna o `incident_id` existente (ver 7.4).
+- Alerta **resolvido** (`status=resolved`) → registrado como evidência adicional do incidente associado, sem reiniciar a análise.
+- O sistema de alertas não aguarda o resultado da investigação; a resposta `202` apenas confirma o recebimento.
+
+### 7.4 Validações
+
+- **Entrada:** os modelos Pydantic validam campos obrigatórios, tipos e tamanhos máximos (descrição, evidências, payload de alerta). Entradas inválidas retornam `422`.
+- **Duplicidade:** o sistema não deve abrir várias investigações para o **mesmo incidente**, evitando tráfego e custo de LLM desnecessários. Para cada entrada é calculada uma impressão digital (*fingerprint*):
+  - **alertas:** origem + identificador/fingerprint do alerta enviado pela ferramenta;
+  - **incidentes manuais:** hash do conteúdo normalizado (título, descrição e evidências).
+
+  Se já existir investigação **aberta** com o mesmo fingerprint, a API retorna o `incident_id` existente em vez de criar outro. A janela de tempo considerada para a duplicidade é um parâmetro a definir na implementação.
+
+### 7.5 Segurança e observabilidade (MVP)
+
+Por se tratar de um MVP, a proposta é manter o mínimo necessário:
+
+- Token simples em header para o endpoint de webhook, para que apenas o sistema de alertas configurado consiga enviar alertas.
+- Logs com `incident_id` em todas as etapas, para rastrear a investigação do início ao fim.
+
+Autenticação de usuários e controle de acesso por perfil ficam fora do escopo do MVP.
 
 ## 8. Riscos, dependências e validações pendentes
 
@@ -173,7 +230,7 @@ Pontos a detalhar pela responsável, em alinhamento com a arquitetura:
 | Dimensão do vetor | Divergência entre encoder e schema físico | Escolher esquema compatível com modelo/configuração |
 | Persistência | Retomada de fluxo pode repetir operações | Definir checkpoints e idempotência de ações |
 | Corpus | Apenas 20 documentos aprovados | Medir cobertura sem confundir similaridade com diagnóstico |
-| API | Especificação ainda não recebida | Integrar proposta da Mari |
+| API | Formato real dos alertas e janela de deduplicação ainda não definidos | Confirmar ferramenta de alertas e ajustar o mapeamento do payload e o fingerprint |
 
 ## 9. Critérios de aceite da E1.4
 
@@ -183,7 +240,7 @@ Pontos a detalhar pela responsável, em alinhamento com a arquitetura:
 | Chunking — estratégia, parâmetros e plano de validação | **Proposto / documentado** |
 | Embeddings — modelo, alternativa e condicionantes | **Provisório / documentado** |
 | PostgreSQL + pgvector — modelo lógico e decisões físicas pendentes | **Proposto / documentado** |
-| Estrutura da API — contratos e endpoints | **Pendente — Mari** |
+| Estrutura da API — pastas, endpoints, estados e validações | **Proposto / documentado** |
 | Testes, indexação, integração e implementação | **Fora do escopo desta etapa de planejamento** |
 
 ## 10. Referências técnicas para verificação na implementação
@@ -196,4 +253,4 @@ Pontos a detalhar pela responsável, em alinhamento com a arquitetura:
 - OpenAI — embeddings: https://platform.openai.com/docs/guides/embeddings
 - Hugging Face — multilingual-e5-base: https://huggingface.co/intfloat/multilingual-e5-base
 
-**Conclusão:** a E1.4 estabelece LangGraph como proposta de orquestração, chunking estrutural como estratégia-base, parâmetros iniciais de segmentação e embeddings sujeitos a avaliação, e um modelo lógico PostgreSQL + pgvector para o corpus documental. **A entrega continua parcial até a inclusão da especificação da API pela Mari.** Nenhuma dessas definições equivale a uma implementação já validada.
+**Conclusão:** a E1.4 estabelece LangGraph como proposta de orquestração, chunking estrutural como estratégia-base, parâmetros iniciais de segmentação e embeddings sujeitos a avaliação, e um modelo lógico PostgreSQL + pgvector para o corpus documental, além de uma estrutura de API em FastAPI com endpoints para incidentes, complementos e alertas. Nenhuma dessas definições equivale a uma implementação já validada.
