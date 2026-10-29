@@ -18,12 +18,16 @@ Arquitetura do Incident Copilot
 ![Arquitetura do Incident Copiloto](/docs/desenho.png)
 
 
-## 3. Quantos agentes o sistema terá
-
-O sistema terá **2 agentes**:
+## 3. Como os agentes se comunicam
  
-- **Agente 1 — Pesquisa RAG:** encontra, na base de post-mortems e runbooks, os incidentes passados mais parecidos com o incidente atual.
-- **Agente 2 — Análise e diagnóstico diferencial:** interpreta o que o Agente 1 encontrou, indica as causas mais prováveis e diz se a evidência é suficiente. No fim da investigação, gera o relatório.
+A troca de informações acontece pelo **estado compartilhado da investigação** e pelas **transições do workflow**, e não por uma conversa livre entre os agentes.
+ 
+1. A API recebe uma nova descrição ou um complemento associado a um `incident_id` e valida a estrutura da entrada.
+2. O módulo inicial a descrição em sintomas ou organiza as novas evidências enviadas.
+3. O contexto é persistido, e o workflow encaminha ao Agente 1 os sintomas, termos, filtros e histórico relevante da investigação.
+4. O Agente 1 devolve as referências recuperadas: IDs dos documentos e trechos, o conteúdo dos trechos, links das fontes, metadados e o score de relevância.
+5. O Agente 2 recebe o contexto do incidente atual e as evidências históricas, propõe hipóteses ranqueadas e avalia se a evidência é suficiente, quais lacunas existem e qual é o próximo passo. Com base nessa avaliação, o workflow conclui o diagnóstico, refina a pesquisa, solicita informações adicionais ou encerra como inconclusivo.
+6. O sistema envia ao usuário o relatório ou um pedido de informações. Se o usuário responder ou quiser refinar a busca, a nova mensagem entra como continuação da mesma investigação, e o processo volta ao passo 1.
 
 
 ## 4. Responsabilidade de cada agente
@@ -55,7 +59,7 @@ Os agentes **não devem tratar relatos históricos como prova de causalidade do 
 
 ## 6. Fluxo de orquestração
 
-### 5.1 Entrada e preparação (sequencial)
+### 6.1 Entrada e preparação (sequencial)
 
 **Alerta / interface / complemento → API FastAPI → autenticação e validação com Pydantic → identificar nova investigação ou retomada → estruturar contexto → persistir estado.**
 
@@ -65,7 +69,7 @@ Os agentes **não devem tratar relatos históricos como prova de causalidade do 
 
 A validação deve impedir a mistura de informações entre incidentes diferentes. Detalhes de endpoints, contratos, autenticação e tratamento de erros são responsabilidade da **E1.4 — Estrutura da API (Mari)** e não são definidos aqui.
 
-### 5.2 Investigação multiagente (sequencial e condicional)
+### 6.2 Investigação multiagente (sequencial e condicional)
 
 O caminho principal é **Agente 1 → Agente 2 → decisão de suficiência**.
 
@@ -73,26 +77,15 @@ O caminho principal é **Agente 1 → Agente 2 → decisão de suficiência**.
 - Se não há evidências suficientes e o limite foi alcançado, o Agente 2 prepara um relatório **inconclusivo**, explicitando lacunas.
 - Se falta aprofundamento e ainda existe orçamento de investigação, o roteador escolhe entre **refinar a busca histórica** ou **solicitar evidências atuais ao usuário**.
 
-### 5.3 Loops controlados
+### 6.3 Loops controlados
 
-O ciclo **Agente 1 → Agente 2 → roteador → refinamento → Agente 1** só ocorre quando a busca histórica pode agregar informação e ainda há limite disponível. O limite de tentativas é um parâmetro **a definir na implementação**, não um valor já medido.
+O ciclo **Agente 1 → Agente 2 → roteador → refinamento → Agente 1** só ocorre quando a busca histórica pode agregar informação e ainda há limite disponível. O limite de tentativas é um parâmetro **a definir na implementação**.
 
-Quando faltam dados do incidente atual, o fluxo **não deve criar dados fictícios nem insistir apenas em post-mortems**: grava pendências e retorna `aguardando informações`, preservando o `incident_id`.
+### 6.4 Paralelismo
 
-### 5.4 Paralelismo
-
-**Não há execução paralela de agentes prevista no MVP.** A pesquisa RAG precede a análise para que o Agente 2 receba referências e evidências completas. Recuperações paralelas de fontes distintas poderiam ser avaliadas futuramente, caso existam novas fontes curadas; isso **não está incluído nesta proposta inicial**.
-
-## 7. Ferramentas, dados e limites
-
-| Elemento | Uso previsto | Disponibilidade/limitação |
-|---|---|---|
-| **RAG histórico** | Recuperar trechos de post-mortems similares | Corpus de 20 documentos aprovado na E1.3; chunking, embeddings e indexação ainda não executados. |
-| **PostgreSQL + pgvector** | Persistir documentos/chunks/vetores para busca semântica | Modelo lógico proposto na E1.4; não afirmar que o banco está provisionado. |
-| **Persistência de investigação** | Guardar estado, histórico, iterações e pausas | Requisito arquitetural; mecanismo concreto e ciclo de vida serão definidos na implementação. |
-| **Runbooks** | Conhecimento operacional adicional | **Fora do corpus inicial**; depende de curadoria e validação futuras. |
-| **Logs e métricas** | Evidências do incidente atual | Recebidos na entrada; **sem integração direta** com observabilidade neste MVP. |
-| **LangGraph** | Implementação candidata/selecionada para orquestração | Decisão de stack E1.4; o diagrama é independente de uma implementação já existente. |
+O paralelismo acontece dentro do Agente 1, que faz as buscas nas fontes relevantes ao mesmo tempo e junta os resultados antes de entregá-los ao Agente 2.
+ 
+As fontes do Agente 1 são organizadas em dois níveis. O **Tier 1** reúne as fontes mais rápidas, consultadas primeiro. O **Tier 2** reúne fontes menos estruturadas e, por isso, com mais ruído, consultadas apenas quando o Tier 1 não traz evidência suficiente.
 
 ---
 
