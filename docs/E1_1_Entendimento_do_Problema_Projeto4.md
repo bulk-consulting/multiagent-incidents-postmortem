@@ -82,26 +82,10 @@ As métricas abaixo são **propostas de avaliação**, não valores observados. 
 - Preparar um conjunto pequeno e documentado de cenários, incluindo casos com similaridade histórica clara, casos ambíguos e casos sem evidência suficiente.
 - Definir respostas ou trechos de referência por revisão humana **antes** de comparar configurações.
 - Executar os mesmos cenários manualmente (quando possível) e com o assistente, registrando duração e utilidade.
-- Verificar se cada referência aponta para o documento correto e se o sistema preserva ressalvas editoriais.
+- Verificar se cada referência aponta para o documento correto.
 - Registrar falhas, custo, limitações e critérios de aprovação; evitar generalizar resultados de uma amostra pequena.
 
-
-## 7. Riscos, premissas e mitigação
-
-| Risco ou premissa | Consequência | Mitigação proposta |
-|---|---|---|
-| Corpus inicial pequeno (20 documentos) | Baixa cobertura de tecnologias ou tipos de falha | Expor ausência de evidências relevantes; avaliar expansão futura com curadoria |
-| Semelhança sem equivalência causal | Diagnóstico equivocado | Separar fatos atuais, hipóteses e histórico; exigir fonte e revisão humana |
-| Lacunas no conteúdo visual de oito documentos | Informações ausentes em gráficos/diagramas | Manter ressalvas editoriais; não inferir dados de figuras não extraídas |
-| Certeza causal variável entre post-mortems | Afirmações indevidamente conclusivas | Preservar `causal_status`, notas e limitações na recuperação |
-| Dados atuais insuficientes | Recomendações especulativas | Perguntar pelos dados faltantes; permitir relatório inconclusivo |
-| Exposição de informações sensíveis em incidentes reais | Risco de confidencialidade | Definir autenticação, sanitização, acesso e política de retenção antes de uso real |
-| Dependência de LLM/embeddings externos | Custos e requisitos de privacidade | Validar provedores e políticas; manter alternativa local se necessário |
-| Ausência de integração com observabilidade no MVP | Diagnóstico baseado apenas no que foi informado | Comunicar explicitamente a origem e limitação das evidências |
-
-
-## 8. Conclusão
+## 7. Conclusão
 
 O problema de negócio escolhido é a **dificuldade de transformar o conhecimento de incidentes anteriores em apoio rápido, rastreável e responsável à investigação de incidentes atuais**. O Incident Copilot pretende ajudar profissionais de operações a organizar evidências, recuperar relatos históricos relevantes, formular hipóteses e identificar próximos passos, sem confundir similaridade documental com comprovação de causa raiz.
 
-A E1.1 estabelece usuários, dores, resultados e indicadores de sucesso **como hipóteses de produto a validar**. O protótipo ainda não apresentou métricas de eficácia, redução de tempo ou impacto operacional. A arquitetura E1.2 e o corpus curado da E1.3 dão suporte técnico ao planejamento; as metas de negócio deverão ser aferidas em testes posteriores.
