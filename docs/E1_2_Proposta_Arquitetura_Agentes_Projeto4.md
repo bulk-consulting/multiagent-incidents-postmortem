@@ -41,21 +41,16 @@ A troca de informações acontece pelo **estado compartilhado da investigação*
  
 O relatório traz, para cada causa provável: causa raiz histórica, passos de remediação, código ou configuração alterados, checklist de prevenção, link para o post-mortem original e nível de confiança.
 
-## 5. Comunicação entre agentes e módulos
-
-A troca de informações é **mediada pelo estado compartilhado da investigação e pelas transições do workflow**, e não por conversação irrestrita entre agentes.
-
-1. A API recebe uma nova descrição ou um complemento associado a `incident_id` e valida a estrutura de entrada.
-2. O módulo inicial sintetiza a descrição ou organiza as novas evidências.
-3. O contexto é persistido; o workflow encaminha ao Agente 1 termos, sintomas, filtros e histórico relevante.
-4. O Agente 1 devolve referências recuperadas: IDs de documentos/chunks, trechos, URLs, metadados editoriais e indicação de relevância.
-5. O Agente 2 recebe o contexto da ocorrência atual e as evidências históricas; propõe hipóteses e indica suficiência, lacunas e próximos passos possíveis.
-6. O roteador aplica regras de fluxo: concluir, refinar pesquisa, solicitar evidências adicionais ou encerrar como inconclusivo.
-7. Quando o usuário complementa o incidente, a API recupera o estado pelo `incident_id`, incorpora as informações e retoma o workflow.
-
-**Campos conceituais do estado** (não são um contrato de API nem esquema SQL definitivo): `incident_id`, `status`, `incident_context`, `evidence_received`, `search_terms`, `filters`, `retrieved_references`, `hypotheses`, `uncertainties`, `refinement_count`, `max_refinements`, `pending_questions` e `report`.
-
-Os agentes **não devem tratar relatos históricos como prova de causalidade do incidente atual**. A resposta deve manter rastreabilidade das fontes e distinguir observação, hipótese, inferência e limitação.
+## 5. Como os agentes se comunicam
+ 
+A troca de informações acontece pelo **estado compartilhado da investigação** e pelas **transições do workflow**, e não por uma conversa livre entre os agentes.
+ 
+1. A API recebe uma nova descrição ou um complemento associado a um `incident_id` e valida a estrutura da entrada.
+2. A etapa inicial sintetiza a descrição em sintomas ou organiza as novas evidências enviadas.
+3. O contexto é persistido, e o workflow encaminha ao Agente 1 os sintomas, termos, filtros e histórico relevante da investigação.
+4. O Agente 1 devolve as referências recuperadas: IDs dos documentos e trechos, o conteúdo dos trechos, links das fontes, metadados e o score de relevância.
+5. O Agente 2 recebe o contexto do incidente atual e as evidências históricas, propõe hipóteses ranqueadas e avalia se a evidência é suficiente, quais lacunas existem e qual é o próximo passo. Com base nessa avaliação, o workflow conclui o diagnóstico, refina a pesquisa, solicita informações adicionais ou encerra como inconclusivo.
+6. O sistema envia ao usuário o relatório ou um pedido de informações. Se o usuário responder ou quiser refinar a busca, a nova mensagem entra como continuação da mesma investigação, e o processo volta ao passo 1.
 
 ## 6. Fluxo de orquestração
 
