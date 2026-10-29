@@ -18,7 +18,24 @@ Arquitetura do Incident Copilot
 ![Arquitetura do Incident Copiloto](/docs/desenho.png)
 
 
-## 3. Quantos agentes existem?
+## 3. Quantos agentes o sistema terá
+
+O sistema terá **2 agentes**:
+ 
+- **Agente 1 — Pesquisa RAG:** encontra, na base de post-mortems e runbooks, os incidentes passados mais parecidos com o incidente atual.
+- **Agente 2 — Análise e diagnóstico diferencial:** interpreta o que o Agente 1 encontrou, indica as causas mais prováveis e diz se a evidência é suficiente. No fim da investigação, gera o relatório.
+Os dois são agentes porque usam o LLM para tomar decisões sobre o próprio trabalho: o Agente 1 decide como buscar, e o Agente 2 decide o que as evidências indicam e se elas bastam. O detalhe de cada um está na seção 2.
+ 
+Os demais nós do diagrama não são agentes:
+ 
+| Nó | Tipo |
+|---|---|
+| Receber incidente ou refinamento; Autenticar e validar entrada | API (FastAPI + Pydantic) |
+| LLM — Síntese e decomposição dos sintomas; LLM — Estruturar novas informações | Chamada ao LLM com uma tarefa única, sem decidir o fluxo |
+| Recuperar estado; Atualizar termos e filtros; Atualizar e persistir contexto; Definir refinamento da busca; Solicitar informações adicionais; Persistir solicitação; Validar relatório | Código |
+
+
+## 4. Responsabilidade de cada agente
 
 **Dois agentes especializados**, ambos no workflow condicional:
 
@@ -32,7 +49,7 @@ Arquitetura do Incident Copilot
 
 **Observação sobre o diagrama:** a caixa “Agente 2 — Gerar relatório” representa **uma segunda responsabilidade do mesmo Agente 2**, não um terceiro agente.
 
-## 4. Comunicação entre agentes e módulos
+## 5. Comunicação entre agentes e módulos
 
 A troca de informações é **mediada pelo estado compartilhado da investigação e pelas transições do workflow**, e não por conversação irrestrita entre agentes.
 
@@ -48,7 +65,7 @@ A troca de informações é **mediada pelo estado compartilhado da investigaçã
 
 Os agentes **não devem tratar relatos históricos como prova de causalidade do incidente atual**. A resposta deve manter rastreabilidade das fontes e distinguir observação, hipótese, inferência e limitação.
 
-## 5. Fluxo de orquestração
+## 6. Fluxo de orquestração
 
 ### 5.1 Entrada e preparação (sequencial)
 
@@ -78,7 +95,7 @@ Quando faltam dados do incidente atual, o fluxo **não deve criar dados fictíci
 
 **Não há execução paralela de agentes prevista no MVP.** A pesquisa RAG precede a análise para que o Agente 2 receba referências e evidências completas. Recuperações paralelas de fontes distintas poderiam ser avaliadas futuramente, caso existam novas fontes curadas; isso **não está incluído nesta proposta inicial**.
 
-## 6. Ferramentas, dados e limites
+## 7. Ferramentas, dados e limites
 
 | Elemento | Uso previsto | Disponibilidade/limitação |
 |---|---|---|
