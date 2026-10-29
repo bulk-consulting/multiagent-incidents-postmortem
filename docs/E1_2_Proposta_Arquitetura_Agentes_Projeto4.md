@@ -17,18 +17,23 @@ Arquitetura do Incident Copilot
 
 ![Arquitetura do Incident Copiloto](/docs/desenho.png)
 
-
-## 3. Como os agentes se comunicam
+## 3. Quantos agentes o sistema terá
  
-A troca de informações acontece pelo **estado compartilhado da investigação** e pelas **transições do workflow**, e não por uma conversa livre entre os agentes.
+O sistema terá **2 agentes**:
  
-1. A API recebe uma nova descrição ou um complemento associado a um `incident_id` e valida a estrutura da entrada.
-2. O módulo inicial transforma a entrada em sintomas ou organiza as novas evidências enviadas.
-3. O contexto é persistido, e o workflow encaminha ao Agente 1 os sintomas, termos, filtros e histórico relevante da investigação.
-4. O Agente 1 devolve as referências recuperadas: IDs dos documentos e trechos, o conteúdo dos trechos, links das fontes, metadados e o score de relevância.
-5. O Agente 2 recebe o contexto do incidente atual e as evidências históricas, propõe hipóteses ranqueadas e avalia se a evidência é suficiente, quais lacunas existem e qual é o próximo passo. Com base nessa avaliação, o workflow conclui o diagnóstico, refina a pesquisa, solicita informações adicionais ou encerra como inconclusivo.
-6. O sistema envia ao usuário o relatório ou um pedido de informações. Se o usuário responder ou quiser refinar a busca, a nova mensagem entra como continuação da mesma investigação e o processo volta ao passo 1.
-
+- **Agente 1 — Pesquisa RAG:** encontra, na base de post-mortems e runbooks, os incidentes passados mais parecidos com o incidente atual.
+- **Agente 2 — Análise e diagnóstico diferencial:** interpreta o que o Agente 1 encontrou, indica as causas mais prováveis e diz se a evidência é suficiente. No fim da investigação, gera o relatório.
+Os dois são agentes porque usam o LLM para tomar decisões sobre o próprio trabalho: o Agente 1 decide como buscar, e o Agente 2 decide o que as evidências indicam e se elas bastam. O detalhe de cada um está na seção 2.
+ 
+Os demais nós do diagrama não são agentes:
+ 
+| Nó | Tipo |
+|---|---|
+| Receber incidente ou refinamento; Autenticar e validar entrada | API (FastAPI + Pydantic) |
+| LLM — Síntese e decomposição dos sintomas; LLM — Estruturar novas informações | Chamada ao LLM com uma tarefa única, sem decidir o fluxo |
+| Recuperar estado; Atualizar termos e filtros; Atualizar e persistir contexto; Definir refinamento da busca; Solicitar informações adicionais; Persistir solicitação; Validar relatório | Código |
+ 
+---
 
 ## 4. Responsabilidade de cada agente
 
@@ -46,11 +51,15 @@ O relatório traz, para cada causa provável: causa raiz histórica, passos de r
 A troca de informações acontece pelo **estado compartilhado da investigação** e pelas **transições do workflow**, e não por uma conversa livre entre os agentes.
  
 1. A API recebe uma nova descrição ou um complemento associado a um `incident_id` e valida a estrutura da entrada.
-2. A etapa inicial sintetiza a descrição em sintomas ou organiza as novas evidências enviadas.
+2. O módulo inicial transforma a entrada em sintomas ou organiza as novas evidências enviadas.
 3. O contexto é persistido, e o workflow encaminha ao Agente 1 os sintomas, termos, filtros e histórico relevante da investigação.
 4. O Agente 1 devolve as referências recuperadas: IDs dos documentos e trechos, o conteúdo dos trechos, links das fontes, metadados e o score de relevância.
-5. O Agente 2 recebe o contexto do incidente atual e as evidências históricas, propõe hipóteses ranqueadas e avalia se a evidência é suficiente, quais lacunas existem e qual é o próximo passo. Com base nessa avaliação, o workflow conclui o diagnóstico, refina a pesquisa, solicita informações adicionais ou encerra como inconclusivo.
-6. O sistema envia ao usuário o relatório ou um pedido de informações. Se o usuário responder ou quiser refinar a busca, a nova mensagem entra como continuação da mesma investigação, e o processo volta ao passo 1.
+5. O Agente 2 recebe o contexto do incidente atual e as evidências históricas, elabora hipóteses ranqueadas e avalia a suficiência das evidências, identificando eventuais lacunas. A partir dessa avaliação, o workflow adota um dos seguintes encaminhamentos:
+    - **Evidências suficientes:** o Agente 2 elabora o relatório com as causas prováveis ranqueadas.
+    - **Evidências insuficientes, com possibilidade de aprofundamento da busca:** o workflow define novos termos e filtros e os encaminha ao Agente 1 para uma nova pesquisa (loop de refinamento).
+    - **Ausência de dados do incidente atual:** o workflow solicita informações complementares ao usuário.
+6. O sistema envia ao usuário o relatório ou um pedido de informações. Se o usuário responder ou quiser refinar a busca, a nova mensagem entra como continuação da mesma investigação e o processo volta ao passo 1.
+
 
 ## 6. Fluxo de orquestração
 
