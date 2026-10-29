@@ -15,7 +15,7 @@ O desenho prioriza **orquestração definida (defined orchestration)**: os camin
 
 Arquitetura do Incident Copilot
 
-![Arquitetura do Incident Copiloto](docs/desenho.png)
+![Arquitetura do Incident Copiloto](/docs/desenho.png)
 
 
 ## 3. Quantos agentes existem?
