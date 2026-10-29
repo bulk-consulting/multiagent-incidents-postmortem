@@ -13,14 +13,10 @@ O desenho prioriza **orquestração definida (defined orchestration)**: os camin
 
 ## 2. Diagrama de referência
 
-As imagens de referência fornecidas para esta entrega mostram a mesma arquitetura em temas claro e escuro. Para mantê-las junto ao documento, colocar os arquivos na pasta `docs/` do projeto:
+As imagens abaixo mostram a mesma arquitetura em temas claro e escuro. A especificação textual a seguir é a referência para interpretar decisões e ressalvas do desenho.
 
-- `docs/E1_2_Arquitetura_Claro.png` — versão clara (`desenho.png`, conforme organização adotada ao copiar).
-- `docs/E1_2_Arquitetura_Escuro.png` — versão escura (`desenho2.png`, conforme organização adotada ao copiar).
-
-![Diagrama original da arquitetura — tema claro](E1_2_Arquitetura_Claro.png)
-
-> **Nota de integração:** os nomes acima são nomes **propostos para publicação no WSL**; as duas imagens acompanham o pacote desta entrega. A especificação textual abaixo é a referência para interpretar decisões e ressalvas do desenho.
+- [Arquitetura de agentes — tema claro](desenho.png)
+- [Arquitetura de agentes — tema escuro](desenho2.png)
 
 ### Visão lógica resumida
 
