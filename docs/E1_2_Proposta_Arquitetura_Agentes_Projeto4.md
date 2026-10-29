@@ -65,11 +65,11 @@ O caminho principal é **Agente 1 → Agente 2 → decisão de suficiência**.
 
 - Se há evidências suficientes, o Agente 2 prepara um diagnóstico **fundamentado e com ressalvas**.
 - Se não há evidências suficientes e o limite foi alcançado, o Agente 2 prepara um relatório **inconclusivo**, explicitando lacunas.
-- Se falta aprofundamento e ainda existe orçamento de investigação, o roteador escolhe entre **refinar a busca histórica** ou **solicitar evidências atuais ao usuário**.
+- Se falta aprofundamento e ainda existe orçamento de investigação, o agente 2 escolhe entre **refinar a busca histórica** ou **solicitar evidências atuais ao usuário**.
 
 ### 6.3 Loops controlados
 
-O ciclo **Agente 1 → Agente 2 (roteador - refinamento) → Agente 1** só ocorre quando a busca histórica pode agregar informação e ainda há limite disponível. O limite de tentativas é um parâmetro **a definir na implementação**.
+O ciclo **Agente 1 → Agente 2 (rotear - refinamento) → Agente 1** só ocorre quando a busca histórica pode agregar informação e ainda há limite disponível. O limite de tentativas é um parâmetro **a definir na implementação**.
 
 ### 6.4 Paralelismo
 
