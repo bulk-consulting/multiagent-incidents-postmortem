@@ -38,57 +38,46 @@ Essas atividades podem ser demoradas, sobretudo quando post-mortems não possuem
 - Repetição de trabalho quando uma análise precisa ser retomada.
 - Relatórios preliminares inconsistentes ou excessivamente conclusivos.
 
-## 3. Quem são os usuários
+## 3. Quem é o usuário
 
-| Perfil | Papel no processo | Necessidade principal |
+| Persona | Quem é | O que precisa do sistema |
 |---|---|---|
-| **Usuário primário — analista de operações, SRE ou engenheiro de suporte/infraestrutura** | Investiga incidentes e avalia hipóteses | Localizar rapidamente referências históricas, entender possíveis mecanismos e decidir o que investigar a seguir |
-| **Usuário secundário — responsável pelo incidente / liderança técnica** | Acompanha andamento, riscos e comunicação | Receber uma síntese rastreável do que se sabe, do que ainda é incerto e das ações sugeridas |
-| **Usuário eventual — engenheiro de desenvolvimento ou especialista de plataforma** | Contribui com informações técnicas e valida interpretações | Acrescentar evidências, contestar hipóteses e consultar as fontes recuperadas |
+| **Analista SRE/NOC de plantão** (usuário principal) | Um dos 35 analistas; recebe o alerta e precisa encontrar a causa raiz | Causas prováveis em minutos, com passos de remediação e link da fonte |
+| **SRE júnior / recém-contratado** | Em onboarding de 3 meses, sem o conhecimento tácito dos seniores | Acesso ao histórico de incidentes parecidos, explicado e citado |
+| **Gestor de SRE** | Responde por SLA e penalidades contratuais | Redução do MTTR e da recorrência de incidentes |
 
 **Premissa de uso:** um profissional humano continua responsável por validar o diagnóstico e decidir qualquer ação operacional. Os perfis são propostos para o MVP e ainda devem ser confirmados com usuários reais.
 
-## 4. Objetivo e resultados esperados
+## 4. Qual é a dor
+ 
+- **Diagnóstico lento:** dos 72 minutos de um P1, **47 são gastos só para encontrar a causa raiz**, buscando manualmente em wikis, Slack, runbooks e post-mortems.
+- **Conhecimento fragmentado:** existem **500+ post-mortems** de 3 anos e centenas de runbooks espalhados em Confluence, Google Docs, repositórios Git e threads de Slack.
+- **Problemas repetidos:** cerca de **35% dos incidentes** dos últimos 12 meses eram variações de problemas já resolvidos, mas o post-mortem certo não foi encontrado a tempo.
+- **Perda de conhecimento tácito:** quando um SRE sênior sai da empresa, os novos analistas repetem os mesmos erros de diagnóstico.
+- **Sinais de observabilidade espalhados:** os analistas alternam entre Zabbix, Datadog/Grafana, ELK/OpenSearch e Jaeger/OpenTelemetry sem uma visão consolidada.
+- **Pressão de SLA:** o contrato exige MTTR < 30 min para P1 e < 2 h para P2. Hoje há **4,2 violações de SLA P1 por mês**.
+**Impacto no negócio:** cada minuto de indisponibilidade custa cerca de **R$ 8.500** em penalidades e perda de receita. Reduzir o MTTR em 50% representa uma economia estimada de **R$ 2,1 milhões por ano**.
 
-### 4.1 Objetivo principal
 
-Apoiar a **triagem investigativa e a elaboração de diagnósticos preliminares** de incidentes de infraestrutura e aplicações com recuperação de conhecimento histórico, rastreabilidade das fontes e comunicação explícita da incerteza.
+## 5. Resultado esperado
+ 
+Dado um incidente em andamento, o sistema deve:
+ 
+1. **Receber** a descrição em texto livre (web chat) ou um alerta estruturado (sistema de alertas).
+2. **Decompor** o incidente em sintomas distintos e pesquisáveis.
+3. **Buscar** na base de post-mortems e runbooks os incidentes passados mais parecidos.
+4. **Avaliar** se a evidência encontrada é suficiente. Se não for, **refinar a busca** (novos termos e filtros, com limite de tentativas) ou **pedir informações adicionais** ao analista.
+5. **Entregar um diagnóstico diferencial ranqueado**, com cada causa provável acompanhada de:
+   - causa raiz histórica;
+   - passos de remediação;
+   - código ou configuração alterados;
+   - checklist de prevenção;
+   - link para o post-mortem original;
+   - nível de confiança.
+6. **Permitir interação iterativa:** o analista pode responder perguntas ou refinar a busca (ex.: "descarte incidentes de rede", "busque também por DNS") dentro da mesma investigação.
+7. **Registrar** todas as buscas realizadas e as evidências consultadas, garantindo rastreabilidade.
 
-### 4.2 Resultados funcionais esperados
-
-- Receber uma descrição de incidente ou alerta e validar os dados de entrada.
-- Estruturar o contexto atual (sintomas, ambiente, impacto e informações fornecidas), sem inventar observações.
-- Recuperar trechos pertinentes de post-mortems aprovados.
-- Produzir hipóteses priorizadas, distinguindo observações atuais, paralelos históricos e inferências.
-- Explicar a relação entre hipóteses e evidências; indicar limitações e perguntas ainda abertas.
-- Refinar a busca dentro de um limite definido quando a primeira recuperação for insuficiente.
-- Solicitar informações adicionais e retomar uma investigação por `incident_id`.
-- Produzir um relatório que possa ser revisado pelo profissional responsável.
-
-### 4.3 O que constitui sucesso para o usuário
-
-Uma resposta útil não precisa necessariamente fornecer uma causa raiz definitiva. Ela deve permitir que o usuário **avance com segurança**: conhecendo hipóteses plausíveis, suas evidências, o que falta verificar e os documentos usados como referência. Uma conclusão **inconclusiva e fundamentada** é preferível a uma conclusão assertiva sem suporte.
-
-## 5. Escopo do MVP e restrições
-
-### 5.1 Incluído
-
-- Entrada do incidente por interface/API, conforme contrato a ser definido na E1.4.
-- Síntese inicial por LLM, sem tratá-la como agente independente.
-- **Dois agentes:** (1) pesquisador RAG e (2) analista de diagnóstico.
-- Orquestração predefinida com condições, refinamento limitado e possibilidade de pausa/retomada.
-- Recuperação documental sobre **20 post-mortems públicos aprovados editorialmente** na E1.3.
-- Relatório com fontes, hipóteses e incertezas.
-
-### 5.2 Fora do escopo inicial
-
-- Consulta automática em tempo real a logs, métricas, traces ou sistemas de observabilidade.
-- Runbooks reais como fonte RAG já disponível: **não foram curados no corpus inicial**.
-- Execução automática de comandos de remediação, mudanças em infraestrutura ou fechamento automático de incidentes.
-- Garantia de diagnóstico correto ou descoberta da causa raiz em todos os casos.
-- Substituição de políticas de incident management, escalonamento e revisão humana.
-
-As informações atuais sobre o incidente são fornecidas pelo alerta ou usuário. Os post-mortems históricos servem para apoiar a investigação, **não para provar** que o mesmo mecanismo causal ocorre novamente.
+Quando não houver evidência suficiente, o sistema deve dizer isso de forma explícita, em vez de inventar uma causa.
 
 
 ## 6. Métricas de sucesso e metodologia de avaliação
@@ -114,7 +103,6 @@ As métricas abaixo são **propostas de avaliação**, não valores observados. 
 - Verificar se cada referência aponta para o documento correto e se o sistema preserva ressalvas editoriais.
 - Registrar falhas, custo, limitações e critérios de aprovação; evitar generalizar resultados de uma amostra pequena.
 
-**Nota metodológica:** encontrar um post-mortem semelhante não prova melhora de MTTR real. MTTR pode ser uma métrica futura em um piloto operacional com incidentes reais, mas não é um resultado atribuível ao MVP documental sem estudo controlado.
 
 ## 7. Riscos, premissas e mitigação
 
