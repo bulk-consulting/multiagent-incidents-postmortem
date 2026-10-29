@@ -13,43 +13,10 @@ O desenho prioriza **orquestração definida (defined orchestration)**: os camin
 
 ## 2. Diagrama de referência
 
-As imagens abaixo mostram a mesma arquitetura em temas claro e escuro. A especificação textual a seguir é a referência para interpretar decisões e ressalvas do desenho.
+Arquitetura do Incident Copilot
 
-- [Arquitetura de agentes — tema claro](desenho.png)
-- [Arquitetura de agentes — tema escuro](desenho2.png)
+![Arquitetura do Incident Copiloto](docs/desenho.png)
 
-### Visão lógica resumida
-
-```mermaid
-flowchart TD
-    IN[Alerta / Usuário / Complemento com incident_id] --> API[API FastAPI: autenticação e validação Pydantic]
-    API --> NEW{Nova investigação?}
-    NEW -->|Sim| SYN[LLM: síntese dos sintomas]
-    NEW -->|Não| LOAD[Recuperar estado]
-    LOAD --> CHG{Há novas evidências?}
-    CHG -->|Sim| STRUCT[LLM: estruturar novas informações]
-    CHG -->|Não: refinamento| FILTER[Atualizar termos e filtros]
-    SYN --> SAVE[Persistir contexto atualizado]
-    STRUCT --> SAVE
-    FILTER --> SAVE
-    SAVE --> RAG[Agente 1: pesquisa RAG]
-    RAG --> ANALYZE[Agente 2: análise e diagnóstico diferencial]
-    ANALYZE --> SUFF{Evidência suficiente?}
-    SUFF -->|Sim| REPORT[Agente 2: relatório fundamentado]
-    SUFF -->|Não| LIMIT{Limite de investigação atingido?}
-    LIMIT -->|Sim| REPORT
-    LIMIT -->|Não| DEEP{Como aprofundar?}
-    DEEP -->|Expandir pesquisa histórica| REFINE[Definir refinamento]
-    REFINE --> RAG
-    DEEP -->|Faltam dados da ocorrência atual| ASK[Solicitar evidências ao usuário]
-    ASK --> WAIT[Persistir estado: aguardando informações]
-    REPORT --> VALID[Validar estrutura, referências e ressalvas]
-    VALID --> OUT[Resposta ao usuário]
-    WAIT --> OUT
-    OUT -.->|Resposta ou refinamento com mesmo incident_id| IN
-```
-
-O ramo de **limite atingido** gera um relatório explicitamente **inconclusivo ou de baixa confiança**, nunca uma causa raiz afirmada sem evidência. A decisão de aprofundamento pode solicitar novas evidências ou executar outra busca, mas somente dentro de limites definidos.
 
 ## 3. Quantos agentes existem?
 
