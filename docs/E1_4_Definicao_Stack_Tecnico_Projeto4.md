@@ -1,9 +1,6 @@
 # E1.4 — Definição do Stack Técnico
 
 **Projeto 4 — Incident Copilot (Assistente Inteligente de Incidentes e Post-Mortems)**  
-**Data:** 28/10/2026  
-**Status:** proposta técnica consolidada para planejamento  
-**Escopo:** decisões de arquitetura e modelagem. **Não foram executados nesta etapa** chunking, geração de embeddings, criação do banco, indexação, benchmark ou implementação dos agentes/API.
 
 ## 1. Objetivo e contexto
 
@@ -208,7 +205,7 @@ Comportamento do webhook:
 
   Se já existir investigação **aberta** com o mesmo fingerprint, a API retorna o `incident_id` existente em vez de criar outro. A janela de tempo considerada para a duplicidade é um parâmetro a definir na implementação.
 
-### 7.5 Segurança e observabilidade (MVP)
+### 7.5 Observabilidade e segurança (MVP)
 
 Por se tratar de um MVP, a proposta é manter o mínimo necessário:
 
@@ -216,39 +213,5 @@ Por se tratar de um MVP, a proposta é manter o mínimo necessário:
 - Logs com `incident_id` em todas as etapas, para rastrear a investigação do início ao fim.
 
 Autenticação de usuários e controle de acesso por perfil ficam fora do escopo do MVP.
-
-## 8. Riscos, dependências e validações pendentes
-
-| Item | Risco ou dependência | Próxima verificação |
-|---|---|---|
-| Extração textual | Perda de cabeçalhos ou dependências entre linhas | Inspecionar amostras reais antes do chunking |
-| Fidelidade causal | Hipótese histórica recuperada como se fosse causa provada | Testes com casos de incerteza e referências de origem |
-| Multilinguismo | Consulta em português contra texto em inglês | Avaliar buscas nos dois idiomas |
-| Modelo de embedding | Acesso/custo ou impossibilidade de enviar dados à API | Confirmar condições de uso; comparar com alternativa local |
-| Dimensão do vetor | Divergência entre encoder e schema físico | Escolher esquema compatível com modelo/configuração |
-| Persistência | Retomada de fluxo pode repetir operações | Definir checkpoints e idempotência de ações |
-| Corpus | Apenas 20 documentos aprovados | Medir cobertura sem confundir similaridade com diagnóstico |
-| API | Formato real dos alertas e janela de deduplicação ainda não definidos | Confirmar ferramenta de alertas e ajustar o mapeamento do payload e o fingerprint |
-
-## 9. Critérios de aceite da E1.4
-
-| Critério | Situação |
-|---|---|
-| LangGraph vs. CrewAI — decisão justificada | **Proposto / documentado** |
-| Chunking — estratégia, parâmetros e plano de validação | **Proposto / documentado** |
-| Embeddings — modelo, alternativa e condicionantes | **Provisório / documentado** |
-| PostgreSQL + pgvector — modelo lógico e decisões físicas pendentes | **Proposto / documentado** |
-| Estrutura da API — pastas, endpoints, estados e validações | **Proposto / documentado** |
-| Testes, indexação, integração e implementação | **Fora do escopo desta etapa de planejamento** |
-
-## 10. Referências técnicas para verificação na implementação
-
-- LangGraph — documentação: https://docs.langchain.com/oss/python/langgraph/overview
-- LangGraph — persistência: https://docs.langchain.com/oss/python/langgraph/persistence
-- LangGraph — interrupções: https://docs.langchain.com/oss/python/langgraph/interrupts
-- CrewAI — Flows: https://docs.crewai.com/en/concepts/flows
-- pgvector — documentação: https://github.com/pgvector/pgvector
-- OpenAI — embeddings: https://platform.openai.com/docs/guides/embeddings
-- Hugging Face — multilingual-e5-base: https://huggingface.co/intfloat/multilingual-e5-base
 
 **Conclusão:** a E1.4 estabelece LangGraph como proposta de orquestração, chunking estrutural como estratégia-base, parâmetros iniciais de segmentação e embeddings sujeitos a avaliação, e um modelo lógico PostgreSQL + pgvector para o corpus documental, além de uma estrutura de API em FastAPI com endpoints para incidentes, complementos e alertas. Nenhuma dessas definições equivale a uma implementação já validada.

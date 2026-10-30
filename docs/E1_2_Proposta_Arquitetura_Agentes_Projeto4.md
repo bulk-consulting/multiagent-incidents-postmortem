@@ -1,7 +1,6 @@
 # E1.2 — Proposta de Arquitetura de Agentes
 
 **Projeto 4 — Incident Copilot / Resolução de Incidentes e Post-Mortems**  
-**Entrega:** 1.2 — Proposta de arquitetura de agentes  
 **Situação:** proposta de design; implementação e testes ainda não realizados
 
 ## 1. Visão geral

@@ -1,7 +1,6 @@
 # E1.1 — Entendimento do problema
 
 **Projeto 4 — Incident Copilot: Assistente Inteligente de Incidentes e Post-Mortems**  
-**Entrega:** 1.1 — Entendimento do problema de negócio  
 
 
 ## 1. Contexto do problema
@@ -32,7 +31,7 @@ O objetivo é **reduzir o tempo de diagnóstico** dos incidentes, que hoje é a 
 
 ## 4. Qual é a dor
  
-- **Diagnóstico lento:** dos 72 minutos de um P1, **47 são gastos só para encontrar a causa raiz**, buscando manualmente em wikis, Slack, runbooks e post-mortems.
+- **Diagnóstico lento:** dos 72 minutos de um P1, **47min são gastos só para encontrar a causa raiz**, buscando manualmente em wikis, Slack, runbooks e post-mortems.
 - **Conhecimento fragmentado:** existem **500+ post-mortems** de 3 anos e centenas de runbooks espalhados em Confluence, Google Docs, repositórios Git e threads de Slack.
 - **Problemas repetidos:** cerca de **35% dos incidentes** dos últimos 12 meses eram variações de problemas já resolvidos, mas o post-mortem certo não foi encontrado a tempo.
 - **Perda de conhecimento tácito:** quando um SRE sênior sai da empresa, os novos analistas repetem os mesmos erros de diagnóstico.
