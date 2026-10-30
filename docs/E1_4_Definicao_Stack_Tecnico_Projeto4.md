@@ -19,7 +19,9 @@ Este documento define o stack do MVP do Incident Copilot. A base de conhecimento
 
 ## 3. Orquestração: LangGraph versus CrewAI
 
-**Decisão:** adotar **LangGraph**, principalmente pela **clareza para representar o processo de investigação** como estados, nós, bifurcações e pontos de interrupção. CrewAI não foi descartado por falta de funcionalidades; seus Flows oferecem alternativas para esses requisitos. A escolha é de adequação e legibilidade arquitetural.
+**Decisão:** adotar **LangGraph**, principalmente pela **clareza para representar o processo de investigação**. No Incident Copilot, depois de analisar as evidências, o sistema pode gerar o relatório, voltar ao Agente 1 para refinar a busca ou pausar para pedir informações ao analista. No LangGraph, cada etapa é desenhada como um nó e cada decisão como um caminho entre os nós, o que corresponde diretamente a esse fluxo. Ele também salva o estado da investigação, permitindo pausar e retomar o mesmo `incident_id`.
+
+O CrewAI também atenderia a esses requisitos, mas é mais centrado em equipes de agentes e tarefas. **Como nosso fluxo tem caminhos bem definidos, o LangGraph é a opção mais adequada.**
 
 | Critério | LangGraph | CrewAI |
 |---|---|---|
