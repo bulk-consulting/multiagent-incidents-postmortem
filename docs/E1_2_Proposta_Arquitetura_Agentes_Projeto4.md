@@ -72,9 +72,7 @@ O ciclo **Agente 1 → Agente 2 (rotear - refinamento) → Agente 1** só ocorre
 
 ### 6.4 Paralelismo
 
-O paralelismo acontece dentro do Agente 1, que faz as buscas nas fontes relevantes ao mesmo tempo e junta os resultados antes de entregá-los ao Agente 2.
- 
-As fontes do Agente 1 são organizadas em dois níveis. O **Tier 1** reúne as fontes mais rápidas, consultadas primeiro. O **Tier 2** reúne fontes menos estruturadas e, por isso, com mais ruído, consultadas apenas quando o Tier 1 não traz evidência suficiente.
+**Não há execução paralela de agentes prevista no MVP.** A pesquisa RAG precede a análise para que o Agente 2 receba referências e evidências completas. Recuperações paralelas de fontes distintas poderiam ser avaliadas futuramente, caso existam novas fontes curadas; isso **não está incluído nesta proposta inicial**.
 
 ---
 
