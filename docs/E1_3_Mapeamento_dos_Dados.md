@@ -67,4 +67,4 @@ O RAG receberá o texto dos documentos e os campos necessários para identificar
 
 ## 4. Conclusão
 
-Os dois datasets são uma base inicial para o RAG: `danluu-ingestion` oferece maior volume, e `incident-postmortem-assistant` oferece documentos com estrutura padronizada. Os problemas identificados, incluindo os alertas de revisão gerados na coleta de `danluu-ingestion`, serão tratados na limpeza dos dados. No futuro, novos datasets poderão ser adicionados caso seja necessário ampliar a base de conhecimento.
+Os dois datasets são uma base inicial para o RAG: `danluu-ingestion` oferece maior volume, e `incident-postmortem-assistant` oferece documentos com estrutura padronizada. Os problemas identificados, incluindo os alertas de revisão gerados na coleta de `danluu-ingestion`, serão tratados na limpeza dos dados. **No futuro, novos datasets poderão ser adicionados caso seja necessário ampliar a base de conhecimento.**
