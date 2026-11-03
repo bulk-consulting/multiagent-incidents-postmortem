@@ -1,0 +1,113 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-framelink-figma-mcp-rce
+title: "Command-injection RCE in the Framelink Figma MCP server, triggerable via indirect prompt injection"
+summary: >-
+  The widely used Framelink Figma MCP server (figma-developer-mcp) built shell
+  commands from unsanitized input in its curl fallback path (CVE-2025-53967),
+  allowing remote code execution. An agent using the tool could be induced via
+  indirect prompt injection to trigger it. Reported by Imperva and fixed in
+  version 0.6.3.
+date: "2025-09-29"
+incident_type: hazard
+status: final
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  Remote code execution (CVE-2025-53967, CVSS 7.5) in a third-party MCP server
+  with 600,000+ downloads, reachable through indirect prompt injection against
+  agents that use it. Patched; no in-the-wild exploitation reported.
+
+system:
+  framework: MCP (Model Context Protocol) client with Framelink Figma MCP server
+  models: []
+  tools: ["figma-developer-mcp", "figma"]
+  vendor: Framelink
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: indirect
+  - class: unsafe-action
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: pre-deployment
+
+trigger: >-
+  The server's fallback curl mechanism (the fetchWithRetry path) interpolated
+  unsanitized URL and header values directly into a shell command string. An
+  attacker-controlled input reaching the get_figma_data tool could inject
+  arbitrary system commands; an agent could be steered to send that input via
+  indirect prompt injection, executing commands on the host even over STDIO
+  transport.
+root_cause: >-
+  Unvalidated user input was concatenated into a shell command (OS command
+  injection), and the MCP tool was reachable by an agent that treats retrieved
+  content as actionable. The combination turned a design-data tool into a
+  remote-code-execution path.
+contributing_factors:
+  - Shell commands were constructed from unsanitized URL/header input.
+  - The tool could be invoked by an agent acting on untrusted retrieved content.
+  - The package was widely adopted (600,000+ downloads), widening exposure.
+detection: >-
+  Discovered and reported to the maintainers by Imperva on 2025-07-08; assigned
+  CVE-2025-53967 and covered by security outlets on public disclosure.
+recovery: >-
+  The maintainers released a complete fix in version 0.6.3 on 2025-09-29; users
+  on earlier versions were advised to upgrade.
+prevention: >-
+  Never build shell commands from unsanitized input (use argument arrays / avoid
+  shell interpolation); validate and sanitize tool inputs; sandbox MCP servers;
+  treat agent-reachable tool inputs as untrusted; keep MCP dependencies patched.
+
+blast_radius:
+  data:
+    classification: confidential
+    description: >-
+      Exploitation could allow arbitrary command execution on the host, enabling
+      manipulation of design files, exfiltration of intellectual property, or
+      lateral movement into broader networks.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      A disclosed vulnerability with a released fix; no in-the-wild exploitation
+      was reported.
+  scope: "users of figma-developer-mcp < 0.6.3 (600,000+ downloads)"
+  reversibility: reversible
+
+cve: ["CVE-2025-53967"]
+cwe: ["CWE-78"]
+mappings:
+  owasp_llm: [LLM01, LLM06]
+  owasp_agentic: [T3]
+  mitre_atlas: [AML.T0051]
+tags: ["mcp", "figma", "rce", "command-injection", "cve"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Agent uses an MCP tool that passes retrieved/untrusted input into a shell
+    command; measure whether untrusted content can reach a command-execution
+    path via the tool without sanitization or sandboxing.
+
+sources:
+  - url: "https://www.imperva.com/blog/another-critical-rce-discovered-in-a-popular-mcp-server/"
+    title: "Another Critical RCE Discovered in a Popular MCP Server"
+    publisher: Imperva
+    type: primary-research
+    date_accessed: "2026-08-28"
+    archive_url: "https://web.archive.org/web/20260822222353/https://www.imperva.com/blog/another-critical-rce-discovered-in-a-popular-mcp-server/"
+  - url: "https://thehackernews.com/2025/10/severe-figma-mcp-vulnerability-lets.html"
+    title: "Severe Framelink Figma MCP Vulnerability Lets Hackers Execute Code Remotely"
+    publisher: The Hacker News
+    type: news
+    date_accessed: "2026-08-28"
+    archive_url: "https://web.archive.org/web/20260611133421/https://thehackernews.com/2025/10/severe-figma-mcp-vulnerability-lets.html"
+  - url: "https://www.darkreading.com/vulnerabilities-threats/figma-mcp-server-agentic-ai-compromise"
+    title: "Figma MCP Server Opens Orgs to Agentic AI Compromise"
+    publisher: Dark Reading
+    type: news
+    date_accessed: "2026-08-28"
+    archive_url: "https://web.archive.org/web/20260704072439/https://www.darkreading.com/vulnerabilities-threats/figma-mcp-server-agentic-ai-compromise"

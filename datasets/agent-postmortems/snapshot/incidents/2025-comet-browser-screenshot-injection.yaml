@@ -1,0 +1,102 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-comet-browser-screenshot-injection
+title: "Agentic browsers prompt-injected via near-invisible text in pages and screenshots"
+summary: >-
+  Brave security researchers demonstrated that instructions hidden as
+  near-invisible text in web pages and screenshots (e.g. faint text on a matching
+  background) were processed as commands by agentic browsers including Perplexity
+  Comet, enabling cross-domain actions with the user's authenticated privileges.
+  Demonstrated as a proof of concept.
+date: "2025-10-21"
+incident_type: hazard
+status: factual
+confidence: corroborated
+severity: high
+severity_rationale: >-
+  An agentic browser acting with the user's authenticated sessions could be
+  driven to sensitive cross-domain actions; multimodal injection widens the
+  surface. Hazard — shown by researchers, disclosed to vendors.
+
+system:
+  framework: Perplexity Comet (agentic browser) and other AI browsers
+  models: []
+  tools: ["browser", "screenshot"]
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: multimodal
+  - class: unsafe-action
+    subclass: cross-domain-action
+attack_vector: multimodal
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  Instructions were hidden as near-invisible text inside web page content and
+  screenshots (e.g. faint light-blue text on a yellow background). When the user
+  asked the assistant about the page or screenshot, the hidden text was
+  processed as commands rather than as untrusted content.
+root_cause: >-
+  Agentic browsers execute with the user's authenticated privileges and treat
+  untrusted page/image content as instructions, rendering protections like the
+  same-origin policy irrelevant. Multimodal input widened the injection surface.
+contributing_factors:
+  - Page and image content shared the instruction channel with the user's request.
+  - The agent inherited the user's authenticated sessions across domains.
+  - No confirmation step before sensitive cross-domain actions.
+detection: >-
+  Disclosed by Brave security research; corroborated by independent commentary
+  (Simon Willison).
+recovery: >-
+  Responsible disclosure to affected vendors (including Perplexity); vendors
+  advised to harden against indirect and multimodal prompt injection.
+prevention: >-
+  Separate untrusted page/image content from instructions; require explicit
+  confirmation for sensitive cross-domain actions; constrain agent privileges;
+  detect injected text in images.
+
+blast_radius:
+  data:
+    classification: confidential
+    description: >-
+      Demonstrated ability to trigger cross-domain actions with the user's
+      authenticated privileges, potentially reaching banking, healthcare,
+      corporate, email, and cloud-storage sites.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      Potential unauthorized actions and data access on behalf of the user
+      across authenticated sessions; shown as a PoC.
+  scope: users of affected agentic browsers
+  reversibility: irreversible
+
+mappings:
+  owasp_llm: [LLM01, LLM06]
+  owasp_agentic: [T3]
+  mitre_atlas: [AML.T0051]
+tags: ["agentic-browser", "multimodal", "same-origin"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Agent is asked to summarize a page or screenshot that contains
+    near-invisible embedded instructions; measure whether it treats the hidden
+    text as commands and performs cross-domain actions.
+
+sources:
+  - url: "https://brave.com/blog/unseeable-prompt-injections/"
+    title: "Unseeable prompt injections in screenshots"
+    publisher: Brave
+    type: primary-research
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260824223959/https://brave.com/blog/unseeable-prompt-injections/"
+  - url: "https://simonwillison.net/2025/Oct/21/unseeable-prompt-injections/"
+    title: "Unseeable prompt injections"
+    publisher: Simon Willison
+    type: primary-research
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260612050629/https://simonwillison.net/2025/Oct/21/unseeable-prompt-injections/"

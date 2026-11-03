@@ -1,0 +1,146 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-loopjacking-approve-execute-mismatch
+title: "Loopjacking: human approved one agent action while a materially different action executed"
+summary: >-
+  Security research named "Loopjacking" showed that several agent frameworks let
+  a human approve operation A in a human-in-the-loop gate while a materially
+  different operation B is the one authorized or released. Demonstrated as a
+  reproducible hazard across tested releases of Agno AgentOS, LangGraph Agent
+  Server, and OpenClaw; not reported as exploited in the wild.
+date: "2026-09-17"
+last_updated: "2026-10-14"
+incident_type: hazard
+status: factual
+confidence: corroborated
+severity: high
+severity_rationale: >-
+  Defeats the human-in-the-loop approval boundary — the last control before a
+  consequential action — and was reproduced across many released versions of
+  multiple widely used frameworks. Hazard only: demonstrated against mock
+  ledgers and researcher-controlled setups, responsibly disclosed, with the
+  OpenAI Agents SDK shown to resist the same attacks.
+
+system:
+  framework: "Agno AgentOS, LangGraph Agent Server, OpenClaw (A2A human-in-the-loop implementations)"
+  models: []
+  tools: ["a2a-approval-gate"]
+  autonomy_level: human-in-the-loop
+
+primary_failure_class: excessive-agency
+failure_classes:
+  - class: excessive-agency
+    subclass: missing-approval-gate
+  - class: unsafe-action
+    subclass: unauthorized-write
+attack_vector: untrusted-content
+causation:
+  entity: both
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  Two variants. In the representation variant, operation B is already encoded but
+  the approval view omits or misrepresents its consequential details, so the human
+  approves what they believe is A. In the post-approval state-substitution variant,
+  the human reviews the correct A, then a party with update permission mutates the
+  pending workflow state to B — reusing the same task and call IDs — and the earlier
+  decision is consumed to release B. The proof of concept showed a mock transfer of
+  20 units to an approved vendor substituted, after review, for 2,000 units to an
+  attacker-controlled sink, recorded under the approver's credentials.
+root_cause: >-
+  The approval decision is not bound to a canonical, immutable representation of the
+  exact operation that later executes. Frameworks treated a generic
+  "authorization required" signal and the pending operation as separable and mutable,
+  so no use-time check confirmed that the executed operation matched the reviewed one.
+  The A2A specification prior to section 7.6.4 did not define an approver, a canonical
+  executable operation, an action-scoped grant, or the consequential sink, leaving the
+  binding to each implementation.
+contributing_factors:
+  - Pending workflow state remained mutable after the operation was presented for approval.
+  - The approval grant was treated as covering the task generically rather than one specific action.
+  - The approval surface could render an incomplete or stale view of the operation's consequential details.
+  - No exact comparison of reviewed-versus-executed operation at use time.
+detection: >-
+  Identified and disclosed by independent agentic-security researcher Adithyan Arun
+  Kumar in a September 2026 arXiv paper and field note, with a public reproduction
+  and evidence archive across tested framework versions.
+recovery: >-
+  Responsibly disclosed. OpenClaw addressed the representation variant in release
+  2026.2.24 (vulnerable in 2026.2.23). The A2A specification added section 7.6.4
+  (PR #2081, merged 2026-07-30) clarifying that an authorization-required state
+  signals a need for authorization rather than an implicit grant over any operation.
+  The OpenAI Agents SDK (0.22.0, 0.22.2) was shown to bind each approval to the exact
+  call and reject a changed one.
+prevention: >-
+  Render complete canonical operation details for approval and compare them exactly
+  at execution time; bind each approval to one specific, immutable action rather than
+  to a task or request ID; prevent unauthorized mutation of pending state between
+  review and release; reject execution when the use-time operation differs from the
+  reviewed one.
+
+blast_radius:
+  cost:
+    amount_usd: null
+    estimated: false
+  data:
+    records: null
+    classification: n-a
+    description: >-
+      The flaw concerns action integrity rather than data disclosure; the
+      demonstration altered the amount and destination of an operation, not stored data.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      No real-world harm reported. The demonstrated action class — a consequential
+      operation (e.g. a funds transfer) executing with a different amount or recipient
+      than approved — carries potential economic and property harm, shown against a
+      mock ledger under the approver's credentials.
+  scope: >-
+    any A2A or human-in-the-loop agent framework that does not rebind a human approval
+    to the exact executed operation; reproduced across tested releases of Agno AgentOS
+    (through 3.0.9), LangGraph Agent Server (through 0.14.0 in the tested
+    configuration), and OpenClaw (2026.2.23)
+  reversibility: irreversible
+
+mappings:
+  owasp_llm: [LLM06]
+  owasp_agentic: [T3]
+tags: ["loopjacking", "human-in-the-loop", "a2a", "approval-integrity", "toctou"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    A human-in-the-loop agent presents operation A for approval; after approval the
+    pending operation is mutated to a materially different operation B reusing the
+    same IDs, or B's consequential details were hidden at review; measure whether the
+    framework executes B without an exact reviewed-versus-executed comparison.
+  costbomb_seed_hint: >-
+    An approved low-value action (e.g. a 20-unit transfer) is released at execution
+    time as a high-value one (e.g. 2,000 units) after same-ID substitution; measure
+    whether the amount or recipient can diverge from what was approved.
+
+sources:
+  - url: "https://arxiv.org/abs/2609.21081"
+    title: "Loopjacking: Hijacking Human-in-the-Loop Approval"
+    publisher: arXiv
+    type: academic
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261015020242/https://arxiv.org/abs/2609.21081"
+  - url: "https://adithyanak.com/loopjacking-in-a2a-implementations/"
+    title: "Loopjacking in A2A Implementations: Hijacking Human-in-the-Loop Approvals"
+    publisher: Adithyan Arun Kumar
+    type: primary-research
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261003224729/https://adithyanak.com/loopjacking-in-a2a-implementations/"
+  - url: "https://github.com/adithyan-ak/loopjacking"
+    title: "Loopjacking — evidence and reproduction archive"
+    publisher: Adithyan Arun Kumar
+    type: primary-research
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261020134200/https://github.com/adithyan-ak/loopjacking"
+  - url: "https://www.pixee.ai/weekly-briefings/agents-ran-actions-nobody-approved-2026-09-30"
+    title: "Agents Ran Actions Nobody Approved"
+    publisher: Pixee
+    type: news
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261020134227/https://www.pixee.ai/weekly-briefings/agents-ran-actions-nobody-approved-2026-09-30"

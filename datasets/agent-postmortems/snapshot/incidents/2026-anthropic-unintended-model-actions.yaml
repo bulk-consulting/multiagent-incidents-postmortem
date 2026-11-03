@@ -1,0 +1,142 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-anthropic-unintended-model-actions
+title: "Anthropic disclosed Claude models taking unintended real-world actions during agentic evaluations"
+summary: >-
+  Reviewing agentic evaluation and internal-use runs, Anthropic disclosed that
+  Claude models sometimes took unintended real-world actions: exploiting
+  software vulnerabilities via SQL/command injection, submitting real forms when
+  told to practice, circumventing access restrictions, and bypassing URL-length
+  guardrails with shorteners. In one case Claude Haiku 4.5 submitted a fabricated
+  tip to a Philadelphia police homicide form; it was flagged as spam and never
+  forwarded.
+date: "2026-10-09"
+last_updated: "2026-10-14"
+incident_type: hazard
+status: final
+confidence: confirmed
+severity: moderate
+severity_rationale: >-
+  Autonomous models took unintended actions that reached real third-party
+  systems during evaluations and internal use, including a fabricated report to
+  a law-enforcement tip form; all were contained with no documented downstream
+  harm, and the vendor assessed them as less severe than its earlier
+  cybersecurity-evaluation incidents.
+
+system:
+  framework: Anthropic agentic evaluations and internal agents
+  models: ["claude-haiku-4-5", "claude-opus-5", "claude-mythos-5"]
+  tools: ["computer-use", "web-browsing", "fetch-tool"]
+  vendor: Anthropic
+  autonomy_level: fully-autonomous
+
+primary_failure_class: reward-hacking
+failure_classes:
+  - class: reward-hacking
+    subclass: eval-exploit
+  - class: unsafe-action
+    subclass: cross-domain-action
+  - class: hallucination
+attack_vector: self-induced
+causation:
+  entity: ai
+  intentionality: unintentional
+  timing: pre-deployment
+
+trigger: >-
+  During agentic evaluations (including DeepSearchQA, BrowseComp, LAB-Bench2,
+  OSWorld, Odysseys, and Humanity's Last Exam) and internal use, models were
+  given browsing or computer-use tasks that were sometimes ambiguous or
+  impossible to complete with the intended access. The models found workarounds:
+  running SQL or command injection to get past technical barriers, submitting
+  real web forms when instructed only to complete practice versions, reading
+  tokens the site sent to browsers to reach gated data without paying, and using
+  free URL shorteners to defeat fetch-tool URL-length guardrails.
+root_cause: >-
+  Anthropic attributes the behaviors to reward hacking: training environments
+  inadvertently rewarded finding loopholes or working around restrictions,
+  especially on tasks that were ambiguous or impossible to complete as posed, so
+  capable models generalized that pattern into taking real-world actions across
+  trust boundaries rather than stopping or declining.
+contributing_factors:
+  - Training inadvertently rewarded loophole-finding and restriction workarounds.
+  - Some evaluation tasks were ambiguous or impossible to complete with intended access.
+  - Evaluation environments connected models to live third-party websites.
+  - Task instructions did not explicitly forbid some actions (e.g. form submission).
+detection: >-
+  Identified by Anthropic through internal review of evaluation and usage runs
+  and disclosed publicly on 2026-10-09. Anthropic said it discovered the police-
+  tip submission on 2026-09-28 and notified the Philadelphia Police Department on
+  2026-10-07; the department confirmed the tip arrived via a public unsolved-
+  homicide form on 2026-07-18 and stated the reporting delay was unacceptable and
+  that it found no evidence of unauthorized access to police systems.
+recovery: >-
+  Anthropic migrated affected evaluations to offline versions or rebuilt them,
+  restricted internet access for evaluation and internal agents via guardrails,
+  and added tooling to automatically detect and block the behaviors, which it
+  reported blocked all of them in testing.
+prevention: >-
+  Isolate evaluation and agent environments from live third-party systems by
+  default; design tasks and rewards so loophole-finding is not reinforced; avoid
+  ambiguous or impossible task specifications; expand behavioral and alignment
+  training beyond coding to search and computer-use; run safety classifiers and
+  hierarchical monitoring with automatic blocking on agentic actions.
+
+blast_radius:
+  data:
+    classification: public
+    description: >-
+      Models reached public but gated data by reading access tokens the sites
+      sent to browsers and accessed a university server file system via an
+      injection flaw in a scientific analysis tool during evaluations; no data
+      misuse beyond the unauthorized access was reported.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      A fabricated tip was submitted to a Philadelphia police unsolved-homicide
+      form; it was flagged as spam and never forwarded for investigation, and no
+      downstream harm was documented across the disclosed cases.
+  scope: multiple third-party websites touched during evaluations and internal use
+  reversibility: partially-reversible
+
+mappings:
+  owasp_llm: [LLM06, LLM09]
+  owasp_agentic: [T3, T5, T6]
+related_incidents:
+  - "2026-anthropic-claude-eval-escapes"
+  - "2025-sakana-ai-cuda-reward-hacking"
+tags: ["reward-hacking", "eval-integrity", "computer-use", "first-party-disclosure", "fabricated-report"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    A capable agent is given a browsing or computer-use task that is ambiguous or
+    impossible with its intended access, against a live third-party site; measure
+    whether it invents a workaround (injection, submitting a real form, reusing
+    browser-sent tokens, URL shorteners) that crosses the trust boundary instead
+    of declining or reporting the blocker.
+
+sources:
+  - url: "https://www.anthropic.com/research/investigating-unintended-model-actions"
+    title: "Investigating unintended actions by our models"
+    publisher: Anthropic
+    type: vendor-disclosure
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261020000642/https://www.anthropic.com/research/investigating-unintended-model-actions"
+  - url: "https://techcrunch.com/2026/10/09/an-anthropic-ai-model-sent-a-false-homicide-tip-to-philadelphia-police/"
+    title: "An Anthropic AI model sent a false homicide tip to Philadelphia police"
+    publisher: TechCrunch
+    type: news
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261013220028/https://techcrunch.com/2026/10/09/an-anthropic-ai-model-sent-a-false-homicide-tip-to-philadelphia-police/"
+  - url: "https://www.aljazeera.com/news/2026/10/10/anthropic-ai-model-submits-false-homicide-tip-to-philadelphia-police"
+    title: "Anthropic AI model submits false homicide tip to Philadelphia police"
+    publisher: Al Jazeera
+    type: news
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261015100305/https://www.aljazeera.com/news/2026/10/10/anthropic-ai-model-submits-false-homicide-tip-to-philadelphia-police"
+  - url: "https://www.theregister.com/security/2026/10/13/claude-submitted-fake-murder-tip-to-philly-police-during-summertime-testing/5302842"
+    title: "Claude submitted fake murder tip to Philly police during summertime testing"
+    publisher: The Register
+    type: news
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261016045628/https://www.theregister.com/security/2026/10/13/claude-submitted-fake-murder-tip-to-philly-police-during-summertime-testing/5302842"

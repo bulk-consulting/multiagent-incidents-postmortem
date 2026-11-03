@@ -1,0 +1,66 @@
+name: publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "incidents/**"
+      - "schema/**"
+      - "scripts/**"
+  schedule:
+    # Daily 07:00 UTC — refresh archive.org snapshots and exports even on days
+    # with no incident push (offset from the weekly jobs at 09:00/10:00 UTC).
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Newest run wins: exports are regenerated from the latest main, so an in-flight
+# run is safe to cancel — the superseding run rebuilds the full, current corpus.
+concurrency:
+  group: publish-main
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+
+      # Regenerate archives + exports from the LATEST main and push. The export
+      # is a generated file, so we never rebase/merge it (that conflicts); instead
+      # each attempt resets to origin/main, rebuilds, and fast-forward pushes,
+      # retrying on a losing race.
+      - name: Refresh archives and exports
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          publish() {
+            git fetch --quiet origin main
+            git reset --hard --quiet origin/main
+            uv run scripts/check_links.py --backfill || true   # archive.org outages must not block
+            uv run scripts/build_exports.py
+            uv run scripts/gen_readme_stats.py
+            git add incidents export README.md
+            if git diff --cached --quiet; then echo "nothing to publish"; return 0; fi
+            git commit -m "chore(export): refresh exports and source archives [skip ci]"
+            git push origin HEAD:main
+          }
+          for i in 1 2 3 4 5; do
+            if publish; then ok=1; break; fi
+            echo "publish attempt $i lost a race; retrying"; sleep 5
+          done
+          [ -n "$ok" ] || { echo "publish failed after retries"; exit 1; }
+
+      # Alarm if the corpus and its export ever diverge (e.g. a build-side drop).
+      - name: Verify export is in sync with the corpus
+        run: |
+          inc=$(ls incidents/2*.yaml | wc -l | tr -d ' ')
+          exp=$(python3 -c "import json;print(json.load(open('export/incidents.json'))['count'])")
+          echo "incident files: $inc  export count: $exp"
+          [ "$inc" = "$exp" ] || { echo "::error::export count ($exp) != incident files ($inc)"; exit 1; }

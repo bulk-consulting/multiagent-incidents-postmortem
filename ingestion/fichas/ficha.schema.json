@@ -1,0 +1,600 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ficha.schema.json",
+  "title": "Ficha de post-mortem (danluu)",
+  "description": "Campos extraídos de um post-mortem, cada afirmação acompanhada de trechos literais do texto original. Ver FICHA.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "catalog_id",
+    "triagem",
+    "incidente",
+    "confianca",
+    "extracao"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "catalog_id": {
+      "type": "string",
+      "pattern": "^DAN-[0-9]{3}$"
+    },
+    "triagem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "catalogo",
+        "autoria",
+        "tipo",
+        "dominio",
+        "seguranca",
+        "problemas_texto"
+      ],
+      "properties": {
+        "catalogo": {
+          "enum": [
+            "sim",
+            "parcial",
+            "nao",
+            "nao_verificavel"
+          ]
+        },
+        "autoria": {
+          "enum": [
+            "primaria",
+            "secundaria",
+            null
+          ]
+        },
+        "tipo": {
+          "enum": [
+            "postmortem",
+            "atualizacoes_status",
+            "relatorio_periodico",
+            "artigo_tecnico",
+            "relatorio_formal",
+            "noticia_enciclopedia",
+            "outro",
+            null
+          ]
+        },
+        "dominio": {
+          "enum": [
+            "software_servicos",
+            "infra_fisica_datacenter",
+            "seguranca",
+            "fora_de_ti",
+            null
+          ]
+        },
+        "seguranca": {
+          "enum": [
+            "nao",
+            "exposicao_dados",
+            "ataque",
+            null
+          ]
+        },
+        "problemas_texto": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "sem_conteudo",
+              "comentarios",
+              "rodape_marketing",
+              "pdf_embaralhado"
+            ]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "catalogo": {
+                "enum": [
+                  "nao",
+                  "nao_verificavel"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "autoria": {
+                "const": null
+              },
+              "tipo": {
+                "const": null
+              },
+              "dominio": {
+                "const": null
+              },
+              "seguranca": {
+                "const": null
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "autoria": {
+                "type": "string"
+              },
+              "tipo": {
+                "type": "string"
+              },
+              "dominio": {
+                "type": "string"
+              },
+              "seguranca": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "incidente": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "if": {
+        "type": "object"
+      },
+      "then": {
+        "$ref": "#/$defs/incidente"
+      }
+    },
+    "confianca": {
+      "enum": [
+        "alta",
+        "baixa"
+      ]
+    },
+    "motivo_confianca_baixa": {
+      "type": "string",
+      "minLength": 1
+    },
+    "observacoes": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Notas que não são escolhas de classificação (origem de um valor, duração alternativa, lista ausente no texto). Não afeta a confiança. Ver FICHA.md."
+    },
+    "extracao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "modelo",
+        "data",
+        "versao_prompt"
+      ],
+      "properties": {
+        "modelo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "versao_prompt": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "triagem": {
+            "properties": {
+              "catalogo": {
+                "enum": [
+                  "nao",
+                  "nao_verificavel"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "incidente": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "incidente": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "confianca": {
+            "const": "baixa"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "motivo_confianca_baixa"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "motivo_confianca_baixa"
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "trechos": {
+      "description": "Cópias literais do texto extraído, em inglês, sem alteração. O validador confere se existem no original.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 10
+      }
+    },
+    "afirmacao": {
+      "description": "Uma afirmação curta em inglês e os trechos do original que a sustentam por si sós.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "texto",
+        "trechos"
+      ],
+      "properties": {
+        "texto": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trechos": {
+          "$ref": "#/$defs/trechos"
+        }
+      }
+    },
+    "afirmacao_ou_nulo": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "if": {
+        "type": "object"
+      },
+      "then": {
+        "$ref": "#/$defs/afirmacao"
+      }
+    },
+    "incidente": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resumo",
+        "data_incidente",
+        "status_relatorio",
+        "servicos_afetados",
+        "tecnologias",
+        "categoria_causa",
+        "deteccao",
+        "gatilho",
+        "causa_raiz",
+        "fatores_contribuintes",
+        "mudanca_causadora",
+        "mitigacao",
+        "prevencao",
+        "duracao",
+        "perguntas_em_aberto"
+      ],
+      "properties": {
+        "resumo": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600
+        },
+        "data_incidente": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$"
+            }
+          ]
+        },
+        "status_relatorio": {
+          "enum": [
+            "final",
+            "preliminar",
+            "misto",
+            "indefinido"
+          ]
+        },
+        "servicos_afetados": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "tecnologias": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "categoria_causa": {
+          "enum": [
+            "configuration-error",
+            "human-error",
+            "credential-auth",
+            "database-storage",
+            "cascading-failure",
+            "network-bgp",
+            "capacity-load",
+            "hardware-power",
+            "software-bug",
+            "supply-chain",
+            "other",
+            null
+          ]
+        },
+        "deteccao": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "forma",
+            "descricao"
+          ],
+          "properties": {
+            "forma": {
+              "enum": [
+                "alerta_automatico",
+                "usuarios_clientes",
+                "equipe_interna",
+                "terceiros",
+                "nao_informada"
+              ]
+            },
+            "descricao": {
+              "$ref": "#/$defs/afirmacao_ou_nulo"
+            }
+          }
+        },
+        "gatilho": {
+          "$ref": "#/$defs/afirmacao_ou_nulo"
+        },
+        "causa_raiz": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "descricao"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "concreta",
+                "incerta",
+                "vaga",
+                "ausente"
+              ]
+            },
+            "descricao": {
+              "$ref": "#/$defs/afirmacao_ou_nulo"
+            }
+          },
+          "if": {
+            "properties": {
+              "status": {
+                "const": "ausente"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "descricao": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "descricao": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "fatores_contribuintes": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "$ref": "#/$defs/afirmacao"
+          }
+        },
+        "mudanca_causadora": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "nivel",
+            "descricao"
+          ],
+          "properties": {
+            "nivel": {
+              "enum": [
+                "especifica",
+                "generica",
+                "nao_se_aplica",
+                "ausente"
+              ]
+            },
+            "descricao": {
+              "$ref": "#/$defs/afirmacao_ou_nulo"
+            }
+          },
+          "if": {
+            "properties": {
+              "nivel": {
+                "enum": [
+                  "nao_se_aplica",
+                  "ausente"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "descricao": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "descricao": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "mitigacao": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "nivel",
+            "passos"
+          ],
+          "properties": {
+            "nivel": {
+              "enum": [
+                "especifica",
+                "generica",
+                "ausente"
+              ]
+            },
+            "passos": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/afirmacao"
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "nivel": {
+                "const": "ausente"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "passos": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "passos": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        "prevencao": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "nivel",
+            "acoes"
+          ],
+          "properties": {
+            "nivel": {
+              "enum": [
+                "especificas",
+                "genericas",
+                "ausentes"
+              ]
+            },
+            "acoes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/afirmacao"
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "nivel": {
+                "const": "ausentes"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "acoes": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "acoes": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        "duracao": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "minutos",
+                "trechos"
+              ],
+              "properties": {
+                "minutos": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "trechos": {
+                  "$ref": "#/$defs/trechos"
+                }
+              }
+            }
+          ]
+        },
+        "perguntas_em_aberto": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

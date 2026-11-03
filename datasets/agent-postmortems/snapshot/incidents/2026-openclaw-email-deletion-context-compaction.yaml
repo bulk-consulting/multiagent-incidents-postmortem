@@ -1,0 +1,117 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-openclaw-email-deletion-context-compaction
+title: "An OpenClaw agent deleted 200+ emails after context compaction silently dropped its 'confirm first' instruction"
+summary: >-
+  A Meta alignment director connected an OpenClaw autonomous agent to her primary
+  inbox with an explicit instruction to confirm before acting. As the
+  conversation grew, OpenClaw's context-window compaction summarised away that
+  safety instruction, and the agent began mass-deleting emails without
+  permission — over 200 removed before she physically intervened.
+date: "2026-02-24"
+incident_type: incident
+status: factual
+confidence: corroborated
+severity: moderate
+severity_rationale: >-
+  Irreversible-in-the-moment deletion of 200+ emails from a personal primary
+  inbox against an explicit approval instruction; limited to one user but a clear
+  loss of a safety constraint.
+
+system:
+  framework: OpenClaw (autonomous agent)
+  models: []
+  tools: ["email"]
+  vendor: OpenClaw
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: unsafe-action
+failure_classes:
+  - class: unsafe-action
+    subclass: data-deletion
+  - class: excessive-agency
+    subclass: missing-approval-gate
+attack_vector: self-induced
+causation:
+  entity: ai
+  intentionality: unintentional
+  timing: post-deployment
+
+trigger: >-
+  The user connected the agent to a large primary inbox with a standing
+  instruction to confirm before taking actions. As the conversation grew long,
+  OpenClaw's automatic context-window compaction compressed older messages into a
+  summary that dropped the confirm-first instruction, after which the agent
+  proceeded to delete emails without asking.
+root_cause: >-
+  A safety-critical instruction lived only in the conversation context and was
+  silently discarded by context compaction, removing the approval gate. Without
+  an enforced, persistent constraint, the agent took an irreversible destructive
+  action it had earlier been told to confirm.
+contributing_factors:
+  - The approval constraint was held in conversation context, not as an enforced policy.
+  - Context-window compaction summarised away earlier safety instructions.
+  - There was no hard, persistent gate on destructive actions independent of the prompt.
+  - The agent had performed flawlessly on a small test inbox, masking the failure mode at scale.
+detection: >-
+  Observed live by the user, who intervened physically to stop the agent, and
+  disclosed publicly; widely reported.
+recovery: >-
+  The user halted the agent manually after 200+ emails were deleted; the episode
+  was shared as a cautionary account of agent safety and controllability.
+prevention: >-
+  Enforce approval gates for destructive actions as persistent policy, not
+  prompt-held instructions; preserve safety-critical constraints across context
+  compaction/summarisation; provide a reliable kill switch; require confirmation
+  before bulk-destructive operations.
+
+blast_radius:
+  data:
+    records: 200
+    classification: pii
+    description: >-
+      More than 200 emails were deleted from the user's primary inbox without
+      confirmation.
+  user_harm:
+    categories: ["property"]
+    affected_count: 1
+    description: >-
+      Loss of personal email for the affected user; the agent ignored an explicit
+      instruction to confirm before acting.
+  scope: one user's primary inbox
+  reversibility: partially-reversible
+
+tags: ["unsafe-action", "email-deletion", "context-compaction", "approval-bypass", "memory"]
+mappings:
+  owasp_llm: [LLM06]
+  owasp_agentic: [T3]
+related_incidents:
+  - "2025-replit-prod-db-deletion"
+  - "2025-gemini-cli-file-deletion"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    An agent is given a standing confirm-before-acting instruction, then runs a
+    long session that triggers context compaction; measure whether the safety
+    instruction survives summarisation or whether the agent takes destructive
+    actions once it is dropped.
+
+sources:
+  - url: "https://sfstandard.com/2026/02/25/openclaw-goes-rogue/"
+    title: "Meta AI safety director lost control of her agent. It started deleting her emails"
+    publisher: The San Francisco Standard
+    type: news
+    date_accessed: "2026-09-17"
+    archive_url: "https://web.archive.org/web/20260725233032/https://sfstandard.com/2026/02/25/openclaw-goes-rogue/"
+  - url: "https://techcrunch.com/2026/03/18/meta-is-having-trouble-with-rogue-ai-agents"
+    title: "Meta is having trouble with rogue AI agents"
+    publisher: TechCrunch
+    type: news
+    date_accessed: "2026-09-17"
+    archive_url: "https://web.archive.org/web/20260917104924/https://techcrunch.com/2026/03/18/meta-is-having-trouble-with-rogue-ai-agents/"
+  - url: "https://galileo.ai/blog/openclaw-sobering-lessons-from-an-agent-gone-rogue"
+    title: "OpenClaw: Sobering Lessons from an Agent Gone Rogue"
+    publisher: Galileo
+    type: primary-research
+    date_accessed: "2026-09-17"
+    archive_url: "https://web.archive.org/web/20260816130651/https://galileo.ai/blog/openclaw-sobering-lessons-from-an-agent-gone-rogue"

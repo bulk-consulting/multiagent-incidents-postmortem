@@ -1,0 +1,117 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-chaindrop-npm-worm
+title: "ChainDrop npm worm poisoned 400+ packages and self-propagated via Claude Code and VS Code auto-run hooks"
+summary: >-
+  ChainDrop is a self-propagating npm supply-chain worm that poisoned 400+
+  packages (including keyv and cacheable-request, downloaded hundreds of millions
+  of times weekly), stole cloud and CI credentials, and republished malware under
+  them. Beyond package lifecycle hooks, it planted hooks in Claude Code and VS
+  Code that run automatically when a teammate opens a poisoned repository.
+date: "2026-08-04"
+incident_type: incident
+status: factual
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  A self-propagating worm across 400+ widely used npm packages (hundreds of
+  millions of weekly downloads) that harvested credentials and weaponised AI
+  coding-agent auto-run features for spread, evading defenses built for
+  conventional malware.
+
+system:
+  framework: npm ecosystem; Claude Code and VS Code (agent auto-run hooks)
+  models: []
+  tools: ["npm", "claude-code", "vscode", "ci"]
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: supply-chain-compromise
+failure_classes:
+  - class: supply-chain-compromise
+    subclass: dependency
+  - class: unsafe-action
+    subclass: unauthorized-write
+attack_vector: supply-chain
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  Installing a poisoned package ran a preinstall lifecycle hook that downloaded a
+  standalone Bun runtime and roughly 710 KB of obfuscated second-stage code,
+  which harvested cloud and CI credentials and used them to republish malware to
+  more packages. The worm also planted hooks in Claude Code and VS Code that
+  execute automatically the moment a teammate opens a poisoned repository,
+  spreading through tools developers use all day.
+root_cause: >-
+  Package managers and AI coding agents execute repository-provided hooks and
+  lifecycle scripts automatically, and stolen credentials let the worm republish
+  under trusted names. Using mechanisms the tools ship on purpose (lifecycle
+  hooks, editor/agent auto-run), the worm propagated without tripping
+  malware-focused defenses.
+contributing_factors:
+  - npm lifecycle hooks and editor/agent auto-run features execute untrusted repository content by default.
+  - Harvested cloud/CI credentials allowed trusted-name republishing.
+  - Widely depended-on packages (keyv, cacheable-request) amplified reach.
+detection: >-
+  Analysed and disclosed by Microsoft Security and Palo Alto Unit 42 (and others)
+  in August 2026, linking it to the Shai-Hulud self-propagating-worm lineage.
+recovery: >-
+  Malicious package versions were removed and compromised credentials rotated;
+  guidance centred on disabling automatic lifecycle/hook execution and pinning
+  and reviewing dependencies.
+prevention: >-
+  Disable automatic execution of lifecycle scripts and editor/agent hooks from
+  untrusted repositories; require explicit approval before an agent runs
+  repository-provided hooks; pin and verify dependencies; scope and rotate CI
+  credentials; monitor for credential-republish patterns.
+
+blast_radius:
+  data:
+    classification: credentials
+    description: >-
+      Cloud and CI credentials were harvested and reused to republish malware;
+      400+ packages across 2,200+ malicious versions were affected, including
+      keyv and cacheable-request.
+  user_harm:
+    categories: ["economic"]
+    description: >-
+      Credential theft and malware distribution across the npm ecosystem;
+      affected packages are collectively downloaded hundreds of millions of times
+      per week.
+  scope: "400+ npm packages (2,200+ malicious versions); hundreds of millions of weekly downloads"
+  reversibility: irreversible
+
+tags: ["supply-chain", "npm-worm", "self-propagating", "claude-code", "vscode", "credential-theft"]
+mappings:
+  owasp_llm: [LLM03, LLM06]
+  owasp_agentic: [T3]
+related_incidents:
+  - "2025-amazon-q-wiper-supply-chain"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Opening a repository plants hooks that an AI coding agent or editor runs
+    automatically; measure whether agent/editor auto-run features execute
+    repository-provided hooks without approval.
+
+sources:
+  - url: "https://www.microsoft.com/en-us/security/blog/2026/08/04/chaindrop-supply-chain-compromise-anatomy-self-propagating-worm/"
+    title: "ChainDrop supply chain compromise: Anatomy of a self-propagating worm"
+    publisher: Microsoft Security
+    type: primary-research
+    date_accessed: "2026-09-16"
+    archive_url: "https://web.archive.org/web/20260917115710/https://www.microsoft.com/en-us/security/blog/2026/08/04/chaindrop-supply-chain-compromise-anatomy-self-propagating-worm/"
+  - url: "https://unit42.paloaltonetworks.com/chaindrop-npm-worm-analysis/"
+    title: "ChainDrop: Inside a Self-Propagating npm Worm"
+    publisher: Palo Alto Unit 42
+    type: primary-research
+    date_accessed: "2026-09-16"
+    archive_url: "https://web.archive.org/web/20260907120926/https://unit42.paloaltonetworks.com/chaindrop-npm-worm-analysis/"
+  - url: "https://www.theregister.com/security/2026/08/15/chaindrop-worm-crawls-into-npm-supply-chain-evades-standard-defenses/5287958"
+    title: "ChainDrop worm crawls into npm supply chain, evades standard defenses"
+    publisher: The Register
+    type: news
+    date_accessed: "2026-09-16"
+    archive_url: "https://web.archive.org/web/20260907013419/https://www.theregister.com/security/2026/08/15/chaindrop-worm-crawls-into-npm-supply-chain-evades-standard-defenses/5287958"

@@ -1,0 +1,112 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-copilot-word-prompt-injection-worm
+title: "A hidden prompt in a Word document self-propagates through Microsoft Copilot for Word"
+summary: >-
+  A researcher demonstrated a self-propagating prompt-injection attack: a
+  JSON-formatted prompt hidden as white-on-white text in a Word document is read
+  by Copilot for Word as an instruction. Copilot then appends the same hidden
+  prompt to the document it edits, turning each new document into a carrier that
+  reinfects the next Copilot user.
+date: "2026-07-29"
+incident_type: hazard
+status: factual
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  A self-replicating prompt injection in a very widely used document assistant,
+  with no comprehensive mitigation for the attack class at disclosure despite
+  vendor fixes. Demonstrated as a proof of concept; not reported exploited in the
+  wild.
+
+system:
+  framework: Microsoft 365 Copilot for Word
+  models: []
+  tools: ["word", "copilot"]
+  vendor: Microsoft
+  autonomy_level: human-in-the-loop
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: indirect
+  - class: memory-context-poisoning
+    subclass: rag-poisoning
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  An attacker hides a JSON-formatted prompt as white text on a white background
+  inside a Word document. When a user asks Copilot for Word to draft or edit
+  based on that document, Copilot strips the formatting, reads the hidden text,
+  and treats the embedded instructions as part of the request — then modifies the
+  active document and appends the full malicious prompt back as hidden white text,
+  making that document a new carrier.
+root_cause: >-
+  Copilot processes hidden document content as trusted instructions and can write
+  attacker-controlled content back into the document. Because the produced
+  document is later used as source material for other Copilot sessions, the
+  injection self-replicates from document to document.
+contributing_factors:
+  - Hidden (white-on-white) document text is consumed as instructions, not treated as untrusted data.
+  - The assistant writes attacker-controlled content back into the document it edits.
+  - Produced documents feed later Copilot sessions, enabling self-propagation.
+detection: >-
+  Discovered by security researcher Håkon Måløy, reported to Microsoft on
+  2026-03-06 and published after a 144-day coordinated disclosure with MSRC.
+recovery: >-
+  Microsoft acknowledged the behaviour, applied multiple mitigations during the
+  disclosure period, and upgraded Copilot's underlying model; the researcher
+  reported the broader attack class still reproduced, with no comprehensive
+  mitigation at publication.
+prevention: >-
+  Treat retrieved/hidden document content as untrusted data, not instructions;
+  strip or neutralise hidden text before it reaches the model; prevent the
+  assistant from writing hidden instruction payloads into documents; isolate
+  document content from the instruction channel.
+
+blast_radius:
+  data:
+    classification: unknown
+    description: >-
+      A self-propagating prompt injection able to carry arbitrary instructions
+      between documents via Copilot for Word.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      Demonstrated as a proof of concept; no in-the-wild exploitation was reported.
+  scope: users of Microsoft Copilot for Word
+  reversibility: irreversible
+
+mappings:
+  owasp_llm: [LLM01, LLM04]
+  owasp_agentic: [T1]
+  mitre_atlas: [AML.T0051]
+tags: ["prompt-injection", "self-propagating", "copilot", "word", "document-worm"]
+related_incidents:
+  - "2025-echoleak-m365-copilot"
+  - "2026-chaindrop-npm-worm"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    A document contains hidden instructions and the assistant can write content
+    back into it; measure whether the assistant acts on hidden document text and
+    whether it will embed instructions into its output that reinfect later
+    sessions.
+
+sources:
+  - url: "https://simonwillison.net/2026/Jul/29/ai-worming-through-word/"
+    title: "AI worming through Word"
+    publisher: Simon Willison
+    type: primary-research
+    date_accessed: "2026-09-17"
+    archive_url: "https://web.archive.org/web/20260912204730/https://simonwillison.net/2026/Jul/29/ai-worming-through-word/"
+  - url: "https://www.theregister.com/security/2026/07/29/word_worm_crawls_into_copilot_spreads_chaos/5280588"
+    title: "Word worm crawls into Copilot, spreads chaos"
+    publisher: The Register
+    type: news
+    date_accessed: "2026-09-17"
+    archive_url: "https://web.archive.org/web/20260917121401/https://www.theregister.com/security/2026/07/29/word_worm_crawls_into_copilot_spreads_chaos/5280588"

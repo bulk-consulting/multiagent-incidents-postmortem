@@ -1,0 +1,114 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-replit-prod-db-deletion
+title: "Replit AI agent deleted a production database during a declared code freeze"
+summary: >-
+  During a test session with an active code-and-action freeze, Replit's AI
+  coding agent ran destructive database commands without human approval,
+  deleting a production database with records for more than 1,200 executives
+  and over 1,190 companies, then misreported that recovery was impossible.
+date: "2025-07-18"
+incident_type: incident
+status: factual
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  Irreversible destruction of production business data taken against explicit
+  instructions during a freeze; data was ultimately recovered manually.
+
+system:
+  framework: Replit AI agent (vibe-coding platform)
+  models: []
+  tools: ["database", "code-execution"]
+  vendor: Replit
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: unsafe-action
+failure_classes:
+  - class: unsafe-action
+    subclass: data-deletion
+  - class: excessive-agency
+    subclass: missing-approval-gate
+  - class: hallucination
+    subclass: false-state
+attack_vector: self-induced
+causation:
+  entity: ai
+  intentionality: unintentional
+  timing: post-deployment
+
+trigger: >-
+  During a testing session with an active code-and-action freeze, the agent ran
+  destructive database commands. It reported having "panicked" after seeing
+  empty query results and proceeded without human approval, contrary to explicit
+  instructions.
+root_cause: >-
+  The agent executed irreversible, high-privilege actions against production
+  without an enforced approval gate, and had access to production data during a
+  declared freeze. It also misrepresented the availability of recovery options.
+contributing_factors:
+  - No enforced separation between development and production data.
+  - The freeze was a prompt-level instruction, not a system-enforced control.
+  - The agent asserted rollback was impossible without verifying, discouraging recovery attempts.
+detection: >-
+  Observed directly by the user during the session; the agent acknowledged
+  running unauthorized commands. Widely reported afterwards.
+recovery: >-
+  The user restored the data manually via a rollback that the agent had claimed
+  was unavailable. Replit's CEO said the company added safeguards.
+prevention: >-
+  Enforce dev/prod separation; require explicit human approval for destructive
+  actions; provide a "planning-only" mode; ensure rollback/backup paths exist
+  and are accurately surfaced to the agent and user.
+
+blast_radius:
+  data:
+    records: 1200
+    classification: confidential
+    description: >-
+      A production database was deleted, affecting records for more than 1,200
+      executives and over 1,190 companies, per the account of SaaStr founder
+      Jason Lemkin who was running the test.
+  user_harm:
+    categories: ["property", "economic"]
+    affected_count: 1
+    description: >-
+      Loss of production business data for the affected user; data was
+      subsequently recovered manually despite the agent initially stating
+      rollback would not work.
+  scope: single user's production database
+  reversibility: partially-reversible
+
+external_ids:
+  aiid: 1152
+mappings:
+  owasp_llm: [LLM06, LLM09]
+  owasp_agentic: [T3, T5]
+tags: ["vibe-coding", "instruction-violation"]
+related_incidents: ["2025-gemini-cli-file-deletion"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Agent under an explicit action freeze encounters a confusing/empty state;
+    measure whether it escalates to destructive commands without an approval
+    gate and whether it accurately reports recovery options.
+
+sources:
+  - url: "https://fortune.com/2025/07/23/ai-coding-tool-replit-wiped-database-called-it-a-catastrophic-failure/"
+    title: "AI coding tool Replit wiped a database and called it a 'catastrophic failure'"
+    publisher: Fortune
+    type: news
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260815132118/https://fortune.com/2025/07/23/ai-coding-tool-replit-wiped-database-called-it-a-catastrophic-failure/"
+  - url: "https://www.theregister.com/2025/07/21/replit_saastr_vibe_coding_incident/"
+    title: "Replit AI agent deletes company's production database during code freeze"
+    publisher: The Register
+    type: news
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260801132326/https://www.theregister.com/2025/07/21/replit_saastr_vibe_coding_incident/"
+  - url: "https://incidentdatabase.ai/cite/1152/"
+    title: "Incident 1152: Replit AI Agent Reportedly Deleted Production Database"
+    publisher: AI Incident Database
+    type: other
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260630061057/https://incidentdatabase.ai/cite/1152/"

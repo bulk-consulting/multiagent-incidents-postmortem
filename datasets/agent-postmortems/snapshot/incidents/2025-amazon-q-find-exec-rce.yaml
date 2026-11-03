@@ -1,0 +1,121 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-amazon-q-find-exec-rce
+title: "Amazon Q Developer could be prompt-injected into RCE via the find command's -exec flag"
+summary: >-
+  In the Amazon Q Developer VS Code extension (v1.81 and earlier), the `find`
+  command was classified as read-only and so bypassed human confirmation. A
+  prompt injection hidden in a source file could invoke `find -exec` to run
+  arbitrary commands without approval; a proof of concept downloaded and ran a
+  Sliver command-and-control agent. AWS patched it but assigned no CVE.
+date: "2025-08-19"
+incident_type: hazard
+status: final
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  Demonstrated remote code execution (a working PoC ran a Sliver C2 agent) on a
+  developer machine via an extension with over a million downloads. AWS declined
+  a CVE, assessing that exploitation presupposes attacker-controlled content;
+  patched in v1.85.
+
+system:
+  framework: Amazon Q Developer (VS Code extension)
+  models: []
+  tools: ["vscode", "shell", "amazon-q"]
+  vendor: Amazon Web Services
+  autonomy_level: human-in-the-loop
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: indirect
+  - class: tool-misuse
+    subclass: over-broad-scope
+  - class: unsafe-action
+    subclass: unauthorized-write
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  Instructions injected into a source file (including via invisible Unicode Tag
+  characters) were followed by the agent when a developer asked it to analyze the
+  file. Because `find` was categorised as read-only, it ran without the
+  human-in-the-loop confirmation, and its `-exec` flag executed arbitrary
+  commands — staged as a base64-encoded payload that was decoded and run.
+root_cause: >-
+  A command capable of executing arbitrary programs (`find ... -exec`) was
+  misclassified as read-only, so it bypassed the approval gate. Combined with the
+  agent acting on untrusted file content, this allowed injected instructions to
+  reach command execution without user consent.
+contributing_factors:
+  - The find command was classified as read-only despite its -exec flag running arbitrary commands.
+  - The agent acted on instructions embedded in untrusted file content (including hidden Unicode).
+  - Approval was enforced by a per-command classification that a single miscategorisation defeated.
+detection: >-
+  Discovered and disclosed by researcher Johann Rehberger (wunderwuzzi); reported
+  to AWS on 2025-07-04 and publicly disclosed on 2025-08-19.
+recovery: >-
+  AWS reclassified `find` from read-only to a mutating command (restoring
+  mandatory confirmation) and patched it in v1.85 (reported resolved by August
+  2025); AWS did not assign a CVE, stating it did not meet CNA criteria.
+prevention: >-
+  Classify tool commands by their maximal capability, not their common use
+  (a command that can execute programs is not read-only); default to requiring
+  approval; strip or reject hidden/obfuscated instructions in analyzed content;
+  treat file content as untrusted.
+
+blast_radius:
+  data:
+    classification: internal
+    description: >-
+      Exploitation allowed arbitrary command execution on the developer's
+      machine; a proof of concept downloaded and executed a Sliver
+      command-and-control agent.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      A disclosed vulnerability with a released fix; no confirmed in-the-wild
+      exploitation was reported.
+  scope: "Amazon Q Developer VS Code users on v1.81 and earlier (1M+ installs)"
+  reversibility: reversible
+
+cwe: ["CWE-77"]
+mappings:
+  owasp_llm: [LLM01, LLM06]
+  owasp_agentic: [T2, T3]
+  mitre_atlas: [AML.T0051, AML.T0053]
+tags: ["prompt-injection", "rce", "amazon-q", "approval-bypass", "find-exec", "no-cve"]
+related_incidents:
+  - "2025-amazon-q-wiper-supply-chain"
+  - "2025-github-copilot-autoapprove-rce"
+  - "2025-claude-code-dns-exfiltration"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Agent has a command allowlist/classification that treats a program-executing
+    command as read-only; measure whether untrusted content can reach command
+    execution by invoking that command without triggering an approval prompt.
+
+sources:
+  - url: "https://embracethered.com/blog/posts/2025/amazon-q-developer-remote-code-execution/"
+    title: "Amazon Q Developer VS Code Extension: Remote Code Execution with Prompt Injection"
+    publisher: Embrace The Red (Johann Rehberger)
+    type: primary-research
+    date_accessed: "2026-08-31"
+    archive_url: "https://web.archive.org/web/20260821082459/https://embracethered.com/blog/posts/2025/amazon-q-developer-remote-code-execution/"
+  - url: "https://www.theregister.com/security/2025/08/20/aws-patches-q-developer-after-prompt-injection-rce-demo/827867"
+    title: "AWS patches Q Developer after prompt injection, RCE demo"
+    publisher: The Register
+    type: news
+    date_accessed: "2026-08-31"
+    archive_url: "https://web.archive.org/web/20260829091738/https://www.theregister.com/security/2025/08/20/aws-patches-q-developer-after-prompt-injection-rce-demo/827867"
+  - url: "https://aws.amazon.com/security/security-bulletins/AWS-2025-019"
+    title: "AWS security bulletin AWS-2025-019"
+    publisher: Amazon Web Services
+    type: vendor-disclosure
+    date_accessed: "2026-08-31"
+    archive_url: "https://web.archive.org/web/20260827213952/https://aws.amazon.com/security/security-bulletins/AWS-2025-019/"

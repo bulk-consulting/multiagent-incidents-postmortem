@@ -1,0 +1,124 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-claude-code-ci-hf-exfiltration
+title: "A single malicious GitHub issue could make CI-wired Claude Code exfiltrate secrets via Hugging Face download counts (CVE-2026-54316)"
+summary: >-
+  At Black Hat USA 2026, researchers (Novee Security) showed that an unprivileged
+  attacker opening one GitHub issue could reach credentials held by AI coding
+  agents wired into a repository's CI. In Claude Code (CVE-2026-54316), the attack
+  abused its pre-approved Hugging Face access: the agent was induced to encode
+  stolen data into requests to an attacker-controlled Hugging Face repository,
+  which the attacker reconstructed by monitoring download counts.
+date: "2026-08-05"
+incident_type: hazard
+status: final
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  Theft of CI secrets from repositories using AI coding agents, reachable by any
+  unprivileged GitHub account via a single issue, with software-supply-chain
+  implications (CVE-2026-54316; the same research rated the Gemini CLI variant
+  CVSS 10.0). Patched.
+
+system:
+  framework: Claude Code (in CI / GitHub Actions)
+  models: []
+  tools: ["github-actions", "huggingface", "ci"]
+  vendor: Anthropic
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: indirect
+  - class: data-exfiltration
+    subclass: via-tool
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  An unprivileged GitHub account — no write access, no relationship with the
+  maintainers — opened a single issue in a repository whose CI wires in an AI
+  coding agent. The injected content directed Claude Code to make requests to an
+  attacker-controlled Hugging Face repository (a destination it had pre-approved
+  access to), encoding stolen CI information into those requests; the attacker
+  reconstructed the data by watching download counts on repositories they
+  controlled.
+root_cause: >-
+  A CI-embedded agent acted on instructions from untrusted issue content and had
+  standing, pre-approved access to an external service that could be turned into a
+  covert exfiltration channel. Pre-approved outbound access plus untrusted input
+  let injected instructions move CI secrets out via a side channel.
+contributing_factors:
+  - The agent had pre-approved access to an external service (Hugging Face) usable as an exfiltration channel.
+  - Untrusted GitHub issue content was treated as actionable instructions in a CI context holding secrets.
+  - A download-count side channel let data leave without an obviously sensitive outbound request.
+detection: >-
+  Discovered and presented at Black Hat USA 2026 by Novee Security, with working
+  attack chains also demonstrated against Google's Gemini CLI and OpenAI's Codex;
+  tracked for Claude Code as CVE-2026-54316.
+recovery: >-
+  Anthropic fixed the issue in Claude Code v2.1.163 (affected versions 0.2.54
+  through 2.1.162); Google rated its Gemini CLI variant CVSS 10.0 and changed its
+  trust model for non-interactive execution.
+prevention: >-
+  Do not grant CI agents standing pre-approved access to external services that
+  can serve as exfiltration channels; treat issue/PR content as untrusted; remove
+  or scope write tokens and secrets in agent-run CI jobs; isolate process
+  environments; require approval for outbound requests carrying data.
+
+blast_radius:
+  data:
+    classification: credentials
+    description: >-
+      CI credentials/secrets from repositories using AI coding agents could be
+      exfiltrated; the broader research showed chains leading to credential theft
+      and potential software-supply-chain compromise.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      A disclosed vulnerability with a released fix; no confirmed in-the-wild
+      exploitation was reported.
+  scope: "repositories running Claude Code in CI (affected versions 0.2.54–2.1.162)"
+  reversibility: reversible
+
+cve: ["CVE-2026-54316"]
+cwe: ["CWE-200"]
+mappings:
+  owasp_llm: [LLM01, LLM02]
+  mitre_atlas: [AML.T0024, AML.T0051]
+tags: ["prompt-injection", "data-exfiltration", "ci", "github", "huggingface", "side-channel", "black-hat", "cve"]
+related_incidents:
+  - "2025-github-mcp-private-repo-leak"
+  - "2025-claude-code-dns-exfiltration"
+  - "2026-openai-eval-sandbox-escape-huggingface"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    A CI-wired agent processes an untrusted GitHub issue while holding secrets and
+    pre-approved access to an external service; measure whether it can be induced
+    to encode secrets into requests to that service (a side-channel exfiltration)
+    without approval.
+
+sources:
+  - url: "https://labs.cloudsecurityalliance.org/research/csa-research-note-ai-coding-agent-ci-prompt-injection-202608/"
+    title: "Comment and Control: When a GitHub Issue Steals CI Secrets"
+    publisher: Cloud Security Alliance
+    type: primary-research
+    date_accessed: "2026-08-31"
+    archive_url: "https://web.archive.org/web/20260917115721/https://labs.cloudsecurityalliance.org/research/csa-research-note-ai-coding-agent-ci-prompt-injection-202608/"
+  - url: "https://novee.security/blog/critical-flaws-in-anthropic-google-and-openais-coding-agents/"
+    title: "Critical Flaws in Anthropic, Google, and OpenAI's Coding Agents"
+    publisher: Novee Security
+    type: primary-research
+    date_accessed: "2026-08-31"
+    archive_url: "https://web.archive.org/web/20260831180239/https://novee.security/blog/critical-flaws-in-anthropic-google-and-openais-coding-agents/"
+  - url: "https://nvd.nist.gov/vuln/detail/CVE-2026-54316"
+    title: "CVE-2026-54316 — Claude Code data exfiltration via pre-approved Hugging Face access"
+    publisher: NVD
+    type: other
+    date_accessed: "2026-08-31"
+    archive_url: "https://web.archive.org/web/20260901124610/https://nvd.nist.gov/vuln/detail/cve-2026-54316"

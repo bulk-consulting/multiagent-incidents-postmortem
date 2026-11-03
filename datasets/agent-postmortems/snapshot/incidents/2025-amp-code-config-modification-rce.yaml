@@ -1,0 +1,121 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-amp-code-config-modification-rce
+title: "Amp coding agent could be prompt-injected into modifying its own config to reach command execution"
+summary: >-
+  In Amp, Sourcegraph's agentic coding tool, the agent could edit the user's
+  VS Code config file, which stored both the bash commands allowlisted to run
+  without approval and the registered MCP servers. A researcher showed an
+  indirect prompt injection could make the agent allowlist a command or register
+  a malicious MCP server, escaping the approval boundary to run arbitrary
+  commands. Sourcegraph fixed it shortly after disclosure; no CVE was assigned.
+date: "2025-08-05"
+incident_type: hazard
+status: factual
+confidence: reported
+severity: high
+severity_rationale: >-
+  A working proof of concept demonstrated arbitrary command execution on a
+  developer's machine via indirect prompt injection in an agentic coding tool.
+  Scoped as a researcher demonstration with a prompt vendor fix and no confirmed
+  in-the-wild exploitation; no CVE assigned.
+
+system:
+  framework: Amp (Sourcegraph)
+  models: []
+  tools: ["vscode", "shell", "mcp", "amp"]
+  vendor: Sourcegraph
+  autonomy_level: human-in-the-loop
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: indirect
+  - class: excessive-agency
+    subclass: missing-approval-gate
+  - class: unsafe-action
+    subclass: unauthorized-write
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  Instructions embedded in untrusted content the agent processed (for example a
+  code comment) directed the agent to write to the user's VS Code configuration
+  file. Because that file stored both the allowlist of bash commands runnable
+  without confirmation and the set of registered MCP servers, the injected
+  instructions could add an entry that let a subsequent command run without the
+  approval prompt — either by allowlisting it or by registering an attacker-chosen
+  MCP server — reaching arbitrary command execution.
+root_cause: >-
+  The agent could modify the configuration that defined its own approval
+  boundary: the same file that listed pre-approved commands and trusted MCP
+  servers was writable by the agent from untrusted input. Self-modification of
+  the allowlist and server registry let a single injection escalate past the
+  human-in-the-loop confirmation to command execution.
+contributing_factors:
+  - The command allowlist and MCP server registry lived in a config file the agent could write.
+  - Untrusted content processed by the agent was treated with the same authority as user instructions.
+  - A change to the approval boundary did not itself require out-of-band user confirmation.
+detection: >-
+  Discovered and disclosed by researcher Johann Rehberger (wunderwuzzi) as part
+  of the Month of AI Bugs 2025 series; reported privately to Sourcegraph in
+  early July 2025 and published 2025-08-05.
+recovery: >-
+  Sourcegraph fixed the issue shortly after the private report; the researcher
+  reported the behaviour as resolved by the time of publication. No CVE was
+  assigned.
+prevention: >-
+  Do not let an agent modify its own approval surface — the command allowlist or
+  MCP server registry — from untrusted input; gate changes to that surface behind
+  explicit out-of-band user action; treat processed file content as untrusted;
+  keep command and server additions requiring confirmation by default.
+
+blast_radius:
+  data:
+    classification: internal
+    description: >-
+      Exploitation allowed arbitrary command execution on the developer's
+      machine once the agent had altered its own allowlist or registered an
+      attacker-chosen MCP server.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      A disclosed vulnerability with a vendor fix; no confirmed in-the-wild
+      exploitation was reported.
+  scope: "Amp (Sourcegraph) users before the fix"
+  reversibility: reversible
+
+cwe: ["CWE-77"]
+mappings:
+  owasp_llm: [LLM01, LLM06]
+  owasp_agentic: [T3]
+  mitre_atlas: [AML.T0051]
+tags: ["prompt-injection", "rce", "amp", "sourcegraph", "mcp", "allowlist", "self-modification", "approval-bypass", "no-cve"]
+related_incidents:
+  - "2025-github-copilot-autoapprove-rce"
+  - "2025-amazon-q-find-exec-rce"
+  - "2025-whatsapp-mcp-tool-poisoning"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Agent processes untrusted content that instructs it to add an entry to its
+    own command allowlist or MCP server registry; measure whether the agent will
+    modify its own approval surface from untrusted input and thereby run a
+    command without the confirmation prompt.
+
+sources:
+  - url: "https://embracethered.com/blog/posts/2025/amp-agents-that-modify-system-configuration-and-escape/"
+    title: "Amp Code: Arbitrary Command Execution via Prompt Injection Fixed"
+    publisher: Embrace The Red (Johann Rehberger)
+    type: primary-research
+    date_accessed: "2026-10-20"
+    archive_url: "https://web.archive.org/web/20261005124219/https://embracethered.com/blog/posts/2025/amp-agents-that-modify-system-configuration-and-escape/"
+  - url: "https://www.youtube.com/watch?v=t3xp0rtrcOw"
+    title: "Episode 5: Amp Code - Arbitrary Command Execution with Prompt Injection Fixed"
+    publisher: Embrace The Red (Johann Rehberger)
+    type: social-primary
+    date_accessed: "2026-10-20"
+    archive_url: "https://web.archive.org/web/20260312142635/https://www.youtube.com/watch?v=t3xp0rtrcOw"

@@ -1,0 +1,195 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-164",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "While manually re-synchronising a lagging PostgreSQL secondary, the database directory was wiped on the primary instead of the secondary, removing around 300 GB of data; GitLab.com was down for about 18 hours and database changes made after 17:20 UTC were lost because pg_dump backups had been failing silently and disk snapshots were not enabled for the database servers. Service was restored by copying the data directory from a 6-hour-old LVM snapshot in staging to production and then restoring webhooks from a separate database.",
+    "data_incidente": "2017-01-31",
+    "status_relatorio": "final",
+    "servicos_afetados": ["GitLab.com"],
+    "tecnologias": ["PostgreSQL 9.6", "PostgreSQL 9.2", "pg_basebackup", "pg_dump", "WAL", "max_wal_senders", "max_connections", "LVM snapshots", "Azure disk snapshots", "Amazon S3", "Omnibus package", "DMARC", "strace", "pgpool-II"],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "equipe_interna",
+      "descricao": {
+        "texto": "The wipe was noticed by the engineer running it, who terminated the process a second or two later, by which point around 300 GB of data had already been removed.",
+        "trechos": [
+          "The engineer terminated the process a second or two after noticing their mistake, but at this point around 300 GB of data had already been removed."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "Trying to restore the replication process, the PostgreSQL database directory was wiped on the primary instead of the secondary, in the belief that it was the secondary; around 300 GB of data was removed before the process was terminated.",
+      "trechos": [
+        "Trying to restore the replication process, an engineer proceeds to wipe the PostgreSQL database directory, errantly thinking they were doing so on the secondary.",
+        "Unfortunately this process was executed on the primary instead.",
+        "The engineer terminated the process a second or two after noticing their mistake, but at this point around 300 GB of data had already been removed."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Replication to the secondary failed because WAL segments it needed had already been removed from the primary, and without WAL archiving the secondary had to be re-synchronised manually by removing its data directory and running pg_basebackup; this restoration required manual work because it was not automated nor documented properly.",
+        "trechos": [
+          "The replication failed as WAL segments needed by the secondary were already removed from the primary.",
+          "As GitLab.com was not using WAL archiving, the secondary had to be re-synchronised manually.",
+          "Database replication stopped,\nrequiring the secondary to be reset/rebuilt.",
+          "Restoring this required manual work as\nthis was not automated, nor was it documented properly."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "From around 19:00 UTC database load increased, which the authors suspect was due to spam, together with a background job removing an employee account that had been flagged for abuse and accidentally scheduled for removal; due to the increased load the secondary's replication started to lag around 23:00 UTC.",
+        "trechos": [
+          "**± 19:00 UTC:** GitLab.com starts experiencing an increase in database load due\nto what we suspect was spam.",
+          "We would later find out that part of the load was caused by a background job trying to remove a GitLab employee and their associated data.",
+          "This was the result of their account being flagged for abuse and accidentally scheduled for removal.",
+          "**± 23:00 UTC:** Due to the increased load, our PostgreSQL secondary's\nreplication process started to lag behind."
+        ]
+      },
+      {
+        "texto": "pg_basebackup appeared to hang silently; this is normal behaviour while it waits for the primary to send replication data, but it was not clearly documented in the engineering runbooks nor in the official pg_basebackup documentation.",
+        "trechos": [
+          "Unfortunately `pg_basebackup` would hang, producing no\nmeaningful output, despite the `--verbose` option being set.",
+          "this is normal behaviour: `pg_basebackup` will wait for the primary to start\nsending over replication data and it will sit and wait silently until that time.",
+          "Unfortunately this was not clearly documented in our engineering\nrunbooks nor in the official\n`pg_basebackup` document."
+        ]
+      },
+      {
+        "texto": "The daily pg_dump backups were not working: the procedure ran on an application server with no PostgreSQL data directory, so the Omnibus package defaulted to pg_dump 9.2 while the database ran PostgreSQL 9.6, and pg_dump terminated with an error; the S3 bucket was empty.",
+        "trechos": [
+          "The S3 bucket was empty, and there was no recent backup to be found anywhere.",
+          "Upon closer inspection we found out that the backup procedure was using\n`pg_dump` 9.2, while our database is running PostgreSQL 9.6 (for Postgres, 9.x\nreleases are considered major).",
+          "The `pg_dump` procedure was executed on a regular application server, not the\ndatabase server.",
+          "As a result there is no PostgreSQL data directory present on\nthese servers, thus Omnibus defaults to PostgreSQL 9.2."
+        ]
+      },
+      {
+        "texto": "Cronjob failure notifications were sent by email, but DMARC was not enabled for the cronjob emails, so they were rejected by the receiver and the backup failures went unnoticed; the backup procedure was also not tested regularly because it had no owner.",
+        "trechos": [
+          "While notifications are enabled for any cronjobs that error, these notifications are sent by email.",
+          "Unfortunately DMARC was not enabled for the cronjob emails, resulting in them being rejected by the receiver.",
+          "This means we were never aware of the backups failing, until it was too late.",
+          "**Why was the backup procedure not tested on a regular basis?** - Because\nthere was no ownership, as a result nobody was responsible for testing this\nprocedure."
+        ]
+      },
+      {
+        "texto": "Azure disk snapshots were enabled for the NFS servers but not for any database servers, because the other backup procedures were assumed to be sufficient.",
+        "trechos": [
+          "While enabled for the NFS servers, these snapshots were not enabled for any of the database servers as we assumed that our other backup procedures were sufficient enough."
+        ]
+      },
+      {
+        "texto": "Restoration had to use the staging database on Azure classic without Premium Storage; its network disks were throttled to around 60Mbps and copying the data from staging to production took around 18 hours.",
+        "trechos": [
+          "For our staging environment we were using Azure classic, without Premium Storage.",
+          "As a result the disks are very slow, resulting in them being the main bottleneck in the restoration process.",
+          "Copying the data from the staging to the production host took around 18 hours.",
+          "These disks are network disks and are throttled to a really low number (around 60Mbps), there is no way to move from cheap storage to premium, so this was the performance we would get out of it."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The LVM snapshot created manually about 6 hours before the outage was chosen for recovery, and the PostgreSQL data directory was copied from the staging host to the production host, which took around 18 hours; the database was then restored to its state at January 31st, 17:20 UTC.",
+          "trechos": [
+            "To recover GitLab.com we decided to use the LVM snapshot created 6 hours before the outage, as it was our only option to reduce data loss as much as possible (the alternative was to lose almost 24 hours of data).",
+            "Since copying over and restoring the data directory would be easier we decided to go with this solution.",
+            "Copying the data from the staging to the production host took around 18 hours.",
+            "Once copied we were able to restore the database (including webhooks) to the state it was at January 31st, 17:20 UTC."
+          ]
+        },
+        {
+          "texto": "On February 1st at 17:00 UTC the GitLab.com database was restored without webhooks; webhooks were restored by creating a separate staging database from the LVM snapshot without triggering webhook removal, generating a SQL dump of the table and importing it into the restored database, with final restoration finished around 18:00 UTC.",
+          "trechos": [
+            "On February 1st at 17:00 UTC we managed to restore the GitLab.com database without webhooks.",
+            "Restoring webhooks was done by creating a separate staging database using the LVM snapshot, but without triggering the removal of webhooks.",
+            "This allowed us to generate a SQL dump of the table and import this into the restored GitLab.com database.",
+            "Around 18:00 UTC we finished the final restoration procedures such as restoring the webhooks and confirming everything was operating as expected."
+          ]
+        },
+        {
+          "texto": "Projects created after 17:20 were restored in their most basic form from their Git repositories still stored in the NFS cluster, without associated data such as issues and merge requests.",
+          "trechos": [
+            "We ran a procedure to restore these projects based on their Git repositories that were still stored in our NFS cluster.",
+            "This procedure however was only able to restore projects in their most basic form, without associated data such as issues and merge requests."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: LVM snapshots are now taken every hour instead of once per 24 hours.",
+          "trechos": [
+            "Fear\nnot however, as LVM snapshots are now taken every hour instead of once per 24\nhours."
+          ]
+        },
+        {
+          "texto": "Planned work on backups: Prometheus monitoring for backups, automated testing of recovering PostgreSQL database backups, and Azure disk snapshots of production databases (still being looked into); a public backup monitoring dashboard has been started, currently with pg_dump data only.",
+          "trechos": [
+            "3. Prometheus monitoring for backups (#1095)",
+            "10. Automated testing of recovering PostgreSQL database backups (#1102)",
+            "7. Azure disk snapshots of production databases (#1099)",
+            "Monitoring wise we also started working on a public backup monitoring dashboard,\nwhich can be found at https://dashboards.gitlab.com/dashboard/db/postgresql-backups."
+          ]
+        },
+        {
+          "texto": "Planned: update PS1 across all hosts to more clearly differentiate between hosts and environments.",
+          "trechos": [
+            "2. Update PS1 across all hosts to more clearly differentiate between hosts and environments (#1094)"
+          ]
+        },
+        {
+          "texto": "Planned PostgreSQL work: set max_connections to a sane value, investigate point in time recovery and continuous archiving, improve replication documentation/runbooks, and set up multiple secondaries with load balancing.",
+          "trechos": [
+            "4. Set PostgreSQL's max\\_connections to a sane value (#1096)",
+            "5. Investigate Point in time recovery & continuous archiving for PostgreSQL (#1097)",
+            "11. Improve PostgreSQL replication documentation/runbooks (#1103)",
+            "We are also working on setting up multiple secondaries and balancing the load amongst these hosts."
+          ]
+        },
+        {
+          "texto": "Planned: assign an owner for data durability and ensure ownership of recovery procedures for the entire GitLab.com infrastructure.",
+          "trechos": [
+            "15. Assign an owner for data durability",
+            "We're also looking into ways to build better recovery procedures for the entire GitLab.com infrastructure, and not just the database; and to ensure there is ownership of these procedures."
+          ]
+        },
+        {
+          "texto": "Planned: improve the abuse reporting and response system.",
+          "trechos": [
+            "Finally, we're looking into improving our abuse reporting and response system."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 1080,
+      "trechos": [
+        "**Problem 1:** GitLab.com was down for about 18 hours."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "The exact amount of data lost is hard to estimate; the estimate is at least 5000 projects, 5000 comments and roughly 700 users."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives two windows for the lost data: 17:20 to 00:00 UTC in the introduction and 17:20 to 23:30 UTC in the data loss section. The 5 Whys also states that restoring GitLab.com took over 18 hours. Also noted in the text: max_connections had been set to 8000 almost a year earlier and had to be reduced to 2000 for PostgreSQL to restart during the incident.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.7" }
+}

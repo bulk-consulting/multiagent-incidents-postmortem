@@ -1,0 +1,132 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-tensorlake-npm-shaihulud-compromise
+title: "Shai-Hulud worm variant compromised the Tensorlake npm SDK for AI-agent sandboxes"
+summary: >-
+  A malicious release of the Tensorlake npm SDK (tensorlake@0.5.144, ~12K weekly
+  downloads) carried a Shai-Hulud/ChainDrop worm payload that ran on install,
+  harvested developer and cloud credentials, and republished itself under the
+  victim's npm identity. Tensorlake provides isolated sandboxes for running
+  untrusted LLM-generated code, so the compromised SDK ran on the developer and
+  agent-infrastructure machines that integrate it.
+date: "2026-10-08"
+last_updated: "2026-10-14"
+incident_type: incident
+status: factual
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  A self-propagating credential-stealing worm reached the public npm registry on
+  a widely used AI-agent-infrastructure SDK and ran automatically on install;
+  realized credential exposure on any host that installed 0.5.144, with a
+  destructive dead-man switch, before the version was removed.
+
+system:
+  framework: npm ecosystem; Tensorlake SDK (AI-agent sandbox infrastructure)
+  models: []
+  tools: ["npm", "github", "aws", "hashicorp-vault", "kubernetes"]
+  vendor: Tensorlake
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: supply-chain-compromise
+failure_classes:
+  - class: supply-chain-compromise
+    subclass: dependency
+  - class: data-exfiltration
+    subclass: via-tool
+  - class: unsafe-action
+    subclass: data-deletion
+attack_vector: supply-chain
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  Installing tensorlake@0.5.144 ran a preinstall lifecycle hook ("node
+  lib/setup.mjs") that executed an obfuscated payload before the SDK was ever
+  imported. The payload matched the ChainDrop/Shai-Hulud pattern previously seen
+  in the keyv and cacheable compromises: it harvested secrets, established
+  persistence, and republished malware under the victim's npm identity.
+root_cause: >-
+  npm executes package-provided install lifecycle scripts automatically, so a
+  single poisoned release of a trusted dependency runs attacker code on every
+  consumer's machine. Credentials stolen from one victim let the worm build
+  Sigstore provenance and republish under that victim's publishing identity,
+  propagating without a human in the loop.
+contributing_factors:
+  - npm preinstall lifecycle scripts run untrusted code by default during install.
+  - Stolen npm and GitHub credentials enabled trusted-name republishing and self-propagation.
+  - The SDK is embedded in AI-agent sandbox infrastructure, broadening where the install script executed.
+  - Secrets were reachable from developer and CI hosts (.npmrc, IMDS/ECS, Vault, kubeconfig).
+detection: >-
+  Socket's scanning flagged the malicious tensorlake@0.5.144 roughly 11 minutes
+  after it was published to npm, attributing it to the Shai-Hulud/ChainDrop worm
+  lineage; corroborated by Endor Labs and other security vendors.
+recovery: >-
+  The malicious version was removed from npm; guidance was to pin to the prior
+  clean release (0.5.143), audit any host where the install script ran, and
+  rotate exposed npm, GitHub, SSH, cloud, Vault, and Kubernetes secrets.
+prevention: >-
+  Install dependencies with lifecycle scripts disabled by default and require
+  explicit approval for install-time execution; pin and verify dependency
+  versions; scope and rotate CI and cloud credentials; monitor npm for
+  credential-driven republish patterns and anomalous provenance.
+
+blast_radius:
+  cost:
+    amount_usd:
+    estimated: false
+  data:
+    classification: credentials
+    description: >-
+      The payload targeted npm tokens (.npmrc, npm token API, OIDC exchange),
+      GitHub tokens, AWS credentials (IMDS, ECS, Secrets Manager, SSM),
+      HashiCorp Vault secrets, Kubernetes service-account tokens and kubeconfig
+      files, and SSH keys. A dead-man switch monitored stolen GitHub tokens and
+      triggered data wiping on token revocation.
+  user_harm:
+    categories: ["economic"]
+    affected_count:
+    description: >-
+      Credential and secret exposure on any developer or CI host that installed
+      tensorlake@0.5.144 during the exposure window; the package had roughly 12K
+      weekly downloads.
+  scope: "tensorlake npm SDK (~12K weekly downloads); hosts that ran the install script"
+  reversibility: irreversible
+
+tags: ["supply-chain", "npm-worm", "shai-hulud", "chaindrop", "self-propagating", "credential-theft", "ai-agent-infra"]
+mappings:
+  owasp_llm: [LLM02, LLM03, LLM06]
+  owasp_agentic: [T3]
+  mitre_atlas: [AML.T0024]
+related_incidents:
+  - "2026-chaindrop-npm-worm"
+  - "2025-amazon-q-wiper-supply-chain"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    A trusted dependency ships a poisoned release whose install lifecycle hook
+    runs automatically; measure whether the build/agent environment executes
+    package-provided install scripts and exposes npm, cloud, and cluster
+    credentials without an approval gate.
+
+sources:
+  - url: "https://socket.dev/blog/tensorlake-compromise"
+    title: "TensorLake npm SDK Compromise"
+    publisher: Socket
+    type: primary-research
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261010143221/https://www.socket.dev/blog/tensorlake-compromise"
+  - url: "https://www.endorlabs.com/learn/tensorlake-npm-package-compromised-by-shai-hulud-in-latest-software-supply-chain-attack"
+    title: "Tensorlake npm package compromised by Shai-Hulud in latest software supply chain attack"
+    publisher: Endor Labs
+    type: primary-research
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261009112828/https://www.endorlabs.com/learn/tensorlake-npm-package-compromised-by-shai-hulud-in-latest-software-supply-chain-attack"
+  - url: "https://thehackernews.com/2026/10/tensorlake-npm-package-compromised-to.html"
+    title: "Tensorlake npm Package Compromised to Deliver Shai-Hulud Credential-Stealing Worm"
+    publisher: The Hacker News
+    type: news
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261016090809/https://thehackernews.com/2026/10/tensorlake-npm-package-compromised-to.html"

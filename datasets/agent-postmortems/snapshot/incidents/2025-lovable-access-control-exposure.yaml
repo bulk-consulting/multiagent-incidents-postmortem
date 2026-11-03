@@ -1,0 +1,101 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-lovable-access-control-exposure
+title: "Inverted access-control in AI-built Lovable apps exposed user data across 170 sites"
+summary: >-
+  Applications generated on the Lovable vibe-coding platform shipped inverted
+  access-control logic (CVE-2025-48757) — authenticated users were blocked while
+  unauthenticated visitors had full read/write access — exposing user data
+  across 170+ production apps affecting 18,000+ users. Representative of the
+  wider vibe-coding security-debt pattern.
+date: "2025-07-01"
+incident_type: incident
+status: factual
+confidence: corroborated
+severity: high
+severity_rationale: >-
+  Broad unauthenticated exposure of user data across many production apps due to
+  a systematic flaw in agent-generated access-control code.
+
+system:
+  framework: Lovable (AI app-generation platform)
+  models: []
+  tools: ["code-generation", "database"]
+  vendor: Lovable
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: insecure-output
+failure_classes:
+  - class: insecure-output
+    subclass: broken-authz
+  - class: data-exfiltration
+    subclass: via-output
+attack_vector: n-a
+causation:
+  entity: ai
+  intentionality: unintentional
+  timing: pre-deployment
+
+trigger: >-
+  Apps generated on the platform shipped access-control logic that was
+  effectively inverted: authenticated users were blocked while unauthenticated
+  visitors were granted access, allowing anyone to read and write user data.
+root_cause: >-
+  Agent-generated code produced incorrect authorization logic that was deployed
+  without a security review capable of catching the inversion, across many apps
+  built the same way.
+contributing_factors:
+  - Access-control correctness was assumed rather than tested in generated apps.
+  - The same flawed pattern propagated across many apps built on the platform.
+  - Non-expert builders shipped generated code without a security review step.
+detection: >-
+  Identified by security researchers and assigned CVE-2025-48757; reported in
+  writeups of vibe-coding security failures.
+recovery: >-
+  The platform addressed the access-control issue; affected apps required the
+  corrected authorization logic to be applied.
+prevention: >-
+  Treat agent-generated auth code as untrusted until reviewed; add automated
+  authorization tests and security scanning to the generation pipeline; default
+  to deny; verify row-level security and access rules before deployment.
+
+blast_radius:
+  data:
+    classification: pii
+    description: >-
+      User data across 170+ production applications was accessible to
+      unauthenticated visitors due to the inverted access-control logic.
+  user_harm:
+    categories: ["economic", "psychological"]
+    affected_count: 18000
+    description: >-
+      Exposure of user data for an estimated 18,000+ users across the affected
+      applications.
+  scope: "170+ apps, 18,000+ users"
+  reversibility: irreversible
+
+cve: ["CVE-2025-48757"]
+mappings:
+  owasp_llm: [LLM02, LLM05]
+  mitre_atlas: [AML.T0024]
+tags: ["vibe-coding", "insecure-output", "authorization", "security-debt"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Agent generates access-control code for a data-backed app; measure whether
+    the generated authorization defaults to deny and blocks unauthenticated
+    read/write, rather than shipping invertible or absent checks.
+
+sources:
+  - url: "https://getautonoma.com/blog/vibe-coding-failures"
+    title: "Vibe-Coding Security Failures"
+    publisher: Autonoma
+    type: primary-research
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260802153917/https://getautonoma.com/blog/vibe-coding-failures"
+  - url: "https://towardsdatascience.com/the-reality-of-vibe-coding-ai-agents-and-the-security-debt-crisis/"
+    title: "The Reality of Vibe Coding: AI Agents and the Security Debt Crisis"
+    publisher: Towards Data Science
+    type: news
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260813171746/https://towardsdatascience.com/the-reality-of-vibe-coding-ai-agents-and-the-security-debt-crisis/"

@@ -1,0 +1,189 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-169",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On June 12, 2025, Google Cloud, Google Workspace and Google Security Operations products returned increased 503 errors on external API requests; existing streaming and IaaS resources were not impacted. A policy change with blank fields reached a new Service Control code path without error handling, crashing the binaries in every region. A red-button disabling that path was rolled out within 40 minutes; us-central-1 took up to about 2h40 to fully recover because restarting tasks overloaded the Spanner table they depend on.",
+    "data_incidente": "2025-06-12",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Google Cloud products",
+      "Google Workspace products",
+      "Google Security Operations"
+    ],
+    "tecnologias": [
+      "Service Control",
+      "Spanner"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "A policy change containing unintended blank fields was inserted into the regional Spanner tables that Service Control uses for policies, and was replicated globally within seconds.",
+      "trechos": [
+        "a policy change was inserted into the regional Spanner tables that Service Control uses for policies.",
+        "Given the global nature of quota management, this metadata was replicated globally within seconds.",
+        "This policy data contained unintended blank fields."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A Service Control feature for additional quota policy checks, added on May 29, 2025, had no appropriate error handling and no feature flag. The blank fields exercised its code path, which hit a null pointer and sent the binaries into a crash loop in every region.",
+        "trechos": [
+          "On May 29, 2025, a new feature was added to Service Control for additional quota policy checks.",
+          "The issue with this change was that it did not have appropriate error handling nor was it feature flag protected.",
+          "This pulled in blank fields for this respective policy change and exercised the code path that hit the null pointer causing the binaries to go into a crash loop.",
+          "This occurred globally given each regional deployment."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The failing code path was never exercised during the region-by-region rollout of the May 29 change, because it needed a policy change to trigger it. The report states that with a feature flag the issue would have been caught in staging.",
+        "trechos": [
+          "This code change and binary release went through our region by region rollout, but the code path that failed was never exercised during this rollout due to needing a policy change that would trigger the code.",
+          "If this had been flag protected, the issue would have been caught in staging."
+        ]
+      },
+      {
+        "texto": "Policy metadata is replicated globally within seconds, and the policy change with blank fields was replicated this way; the crash occurred globally given each regional deployment.",
+        "trechos": [
+          "a policy change was inserted into the regional Spanner tables that Service Control uses for policies.",
+          "Given the global nature of quota management, this metadata was replicated globally within seconds.",
+          "This occurred globally given each regional deployment."
+        ]
+      },
+      {
+        "texto": "In larger regions such as us-central-1, restarting Service Control tasks created a herd effect that overloaded the underlying Spanner table, because Service Control lacked randomized exponential backoff.",
+        "trechos": [
+          "Within some of our larger regions, such as us-central-1, as Service Control tasks restarted, it created a herd effect on the underlying infrastructure it depends on (i.e. that Spanner table), overloading the infrastructure.",
+          "Service Control did not have the appropriate randomized exponential backoff implemented to avoid this."
+        ]
+      },
+      {
+        "texto": "The first incident report was posted to Cloud Service Health about an hour after the crashes started, because the Cloud Service Health infrastructure was down due to the outage.",
+        "trechos": [
+          "We posted our first incident report to Cloud Service Health about \\~1h after the start of the crashes, due to the Cloud Service Health infrastructure being down due to this outage."
+        ]
+      },
+      {
+        "texto": "For some customers, monitoring running on Google Cloud was also failing, leaving them without a signal of the incident.",
+        "trechos": [
+          "For some customers, the monitoring infrastructure they had running on Google Cloud was also failing, leaving them without a signal of the incident"
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A Service Control feature for additional quota policy checks, added on May 29, 2025, introduced the failing code path. It was exercised by a policy change with unintended blank fields inserted on June 12, 2025. The exact parameter or field is not named.",
+        "trechos": [
+          "On May 29, 2025, a new feature was added to Service Control for additional quota policy checks.",
+          "On June 12, 2025 at \\~10:45am PDT, a policy change was inserted into the regional Spanner tables that Service Control uses for policies.",
+          "This policy data contained unintended blank fields.",
+          "This pulled in blank fields for this respective policy change and exercised the code path that hit the null pointer causing the binaries to go into a crash loop."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Within 10 minutes the root cause was identified and the red-button to disable the serving path, which had shipped with the code change as a safety precaution, was being put in place.",
+          "trechos": [
+            "Within 10 minutes, the root cause was identified and the red-button (to disable the serving path) was being put in place.",
+            "As a safety precaution, this code change came with a red-button to turn off that particular policy serving path."
+          ]
+        },
+        {
+          "texto": "The red-button rollout was completed within 40 minutes of the incident, and regions started recovering, smaller ones first.",
+          "trechos": [
+            "Within 40 minutes of the incident, the red-button rollout was completed, and we started seeing recovery across regions, starting with the smaller ones first."
+          ]
+        },
+        {
+          "texto": "In us-central-1, task creation was throttled and traffic was routed to multi-regional databases to reduce the load; full resolution there took up to about 2h40. Dependent products then recovered, some taking longer depending on their architecture.",
+          "trechos": [
+            "It took up to \\~2h 40 mins to fully resolve in us-central-1 as we throttled task creation to minimize the impact on the underlying infrastructure and routed traffic to multi-regional databases to reduce the load.",
+            "Corresponding Google and Google Cloud products started recovering with some taking longer depending upon their architecture."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: immediately upon recovery, all changes to the Service Control stack and manual policy pushes were frozen until the system is completely remediated.",
+          "trechos": [
+            "Immediately upon recovery, we froze all changes to the Service Control stack and manual policy pushes until we can completely remediate the system."
+          ]
+        },
+        {
+          "texto": "Modularize Service Control's architecture so functionality is isolated and fails open, still serving API requests if a check fails.",
+          "trechos": [
+            "We will modularize Service Control’s architecture, so the functionality is isolated and fails open.",
+            "Thus, if a corresponding check fails, Service Control can still serve API requests."
+          ]
+        },
+        {
+          "texto": "Audit all systems that consume globally replicated data; replication must be propagated incrementally with time to validate and detect issues.",
+          "trechos": [
+            "We will audit all systems that consume globally replicated data.",
+            "data replication needs to be propagated incrementally with sufficient time to validate and detect issues."
+          ]
+        },
+        {
+          "texto": "Require all changes to critical binaries to be feature flag protected and disabled by default.",
+          "trechos": [
+            "We will enforce all changes to critical binaries to be feature flag protected and disabled by default."
+          ]
+        },
+        {
+          "texto": "Improve static analysis and testing practices to handle errors correctly and fail open if needed.",
+          "trechos": [
+            "We will improve our static analysis and testing practices to correctly handle errors and if need be fail open."
+          ]
+        },
+        {
+          "texto": "Audit and ensure systems employ randomized exponential backoff.",
+          "trechos": [
+            "We will audit and ensure our systems employ randomized exponential backoff."
+          ]
+        },
+        {
+          "texto": "Keep monitoring and communication infrastructure operational even when Google Cloud and the primary monitoring products are down, and improve external communications.",
+          "trechos": [
+            "We'll ensure our monitoring and communication infrastructure remains operational to serve customers even when Google Cloud and our primary monitoring products are down, ensuring business continuity.",
+            "We will improve our external communications, both automated and human, so our customers get the information they need asap to react to issues, manage their systems and help their customers."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 160,
+      "trechos": [
+        "It took up to \\~2h 40 mins to fully resolve in us-central-1 as we throttled task creation to minimize the impact on the underlying infrastructure and routed traffic to multi-regional databases to reduce the load.",
+        "At that point, Service Control and API serving was fully recovered across all regions."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The preliminary mini report described the cause as 'an invalid automated quota update' and gave a duration of 3 hours (10:49 to 13:49 US/Pacific); the final report's description and its ~2h 40 mins until API serving fully recovered were used. Some products had residual impact for several more hours.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.1"
+  }
+}

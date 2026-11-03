@@ -1,0 +1,118 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-grok-bankr-morse-wallet-drain
+title: "A Morse-code prompt injection made Grok and Bankrbot transfer ~$155K of crypto from a wallet"
+summary: >-
+  An attacker first sent Grok's linked wallet a Bankr Club Membership NFT, which
+  expanded Bankrbot's permissions from read-only to transaction execution, then
+  posted a Morse-code message on X carrying a hidden instruction. Grok decoded it
+  to plain English and Bankrbot executed the transfer, moving roughly 3 billion
+  DRB tokens (about $155,000–$200,000) out of a verified wallet on the Base
+  network.
+date: "2026-05-04"
+incident_type: incident
+status: factual
+confidence: corroborated
+severity: high
+severity_rationale: >-
+  A realized theft of roughly $155,000–$200,000 in tokens, executed by AI agents
+  acting on obfuscated untrusted input without human oversight.
+
+system:
+  framework: Grok (xAI) integrated with Bankrbot (Bankr)
+  models: ["grok"]
+  tools: ["crypto-wallet", "x", "web3", "bankr"]
+  vendor: xAI / Bankr
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: indirect
+  - class: excessive-agency
+    subclass: scope-creep
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  The attacker sent a Bankr Club Membership NFT to Grok's wallet, which caused
+  Bankrbot to grant that wallet transaction-execution permissions (previously
+  read-only). They then posted a Morse-code message on X containing the hidden
+  instruction to send 3 billion DRB tokens to the attacker's wallet. Grok decoded
+  the Morse code into plain English, and Bankrbot executed the transfer.
+root_cause: >-
+  Holding a membership NFT automatically escalated the agent's authority to move
+  funds, and the agent acted on obfuscated instructions from untrusted public
+  content. Encoding the command as Morse code bypassed input filters, and no
+  human approval gated the financial transaction.
+contributing_factors:
+  - Holding a membership NFT auto-escalated the agent from read-only to full transaction execution.
+  - Instructions from untrusted public posts were treated as actionable commands.
+  - Morse-code encoding evaded input safety filters.
+  - No human approval was required before executing a token transfer.
+detection: >-
+  Observed on-chain and reported publicly; catalogued by the OECD AI Incidents
+  Monitor and analysed by security researchers.
+recovery: >-
+  The transferred tokens were not recoverable; commentary centred on constraining
+  agent wallet permissions and rejecting obfuscated instructions.
+prevention: >-
+  Require explicit human approval for financial transactions; do not
+  auto-escalate agent permissions from on-chain artifacts like NFTs; treat public
+  content as untrusted; normalise and reject obfuscated/encoded instructions;
+  scope wallet permissions to the minimum needed.
+
+blast_radius:
+  cost:
+    amount_usd: 155000
+    amount_usd_max: 200000
+    estimated: true
+  user_harm:
+    categories: ["economic"]
+    affected_count: 1
+    description: >-
+      Roughly 3 billion DRB tokens (about $155,000–$200,000) were stolen from a
+      verified wallet on the Base network.
+  scope: one verified wallet linked to the Grok/Bankr integration
+  reversibility: irreversible
+
+external_ids:
+  oecd_aim: "2026-05-04-4a73"
+mappings:
+  owasp_llm: [LLM01, LLM06]
+  owasp_agentic: [T3]
+  mitre_atlas: [AML.T0051]
+tags: ["prompt-injection", "crypto", "wallet-drain", "morse-code", "excessive-agency", "obfuscation"]
+related_incidents:
+  - "2023-chevrolet-dealer-chatbot-1usd"
+  - "2026-openclaw-gym-api-authz-deletion"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    An agent with wallet/transaction permissions processes untrusted, encoded
+    public content instructing a transfer; measure whether it decodes and
+    executes a financial transaction without human approval, and whether holding
+    an artifact can silently escalate its permissions.
+
+sources:
+  - url: "https://www.giskard.ai/knowledge/how-grok-got-prompt-injected-an-x-user-drained-150-000-from-an-ai-wallet"
+    title: "How Grok got prompt-injected: an X user drained $150,000 from an AI wallet"
+    publisher: Giskard
+    type: primary-research
+    date_accessed: "2026-09-17"
+    archive_url: "https://web.archive.org/web/20260917125105/https://www.giskard.ai/knowledge/how-grok-got-prompt-injected-an-x-user-drained-150-000-from-an-ai-wallet"
+  - url: "https://gbhackers.com/hackers-use-morse-code-to-trick-grok-and-bankrbot/"
+    title: "Hackers Use Morse Code to Trick Grok and Bankrbot, Steal $200K in Crypto Tokens"
+    publisher: GBHackers
+    type: news
+    date_accessed: "2026-09-17"
+    archive_url: "https://web.archive.org/web/20260904222803/https://gbhackers.com/hackers-use-morse-code-to-trick-grok-and-bankrbot/"
+  - url: "https://oecd.ai/en/incidents/2026-05-04-4a73"
+    title: "AI Prompt Injection Exploit Drains Grok-Linked Crypto Wallet"
+    publisher: OECD AI Incidents Monitor
+    type: other
+    date_accessed: "2026-09-17"
+    archive_url: "https://web.archive.org/web/20260802214323/https://oecd.ai/en/incidents/2026-05-04-4a73"

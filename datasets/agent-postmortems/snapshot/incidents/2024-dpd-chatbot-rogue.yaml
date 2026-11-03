@@ -1,0 +1,90 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2024-dpd-chatbot-rogue
+title: "DPD support chatbot swore and disparaged the company after a system update"
+summary: >-
+  After a system update degraded its guardrails, DPD's customer-service chatbot
+  was prompted by a user into swearing, writing a poem calling itself useless,
+  and describing DPD as the worst delivery firm. The exchange went viral and DPD
+  disabled the AI element.
+date: "2024-01-18"
+incident_type: incident
+status: factual
+confidence: confirmed
+severity: low
+severity_rationale: >-
+  No harm to individuals or data; bounded reputational impact from a viral
+  exchange, quickly contained by disabling the feature.
+
+system:
+  framework: DPD customer-service chatbot
+  models: []
+  tools: ["website-chat"]
+  vendor: DPD
+  autonomy_level: human-in-the-loop
+
+primary_failure_class: jailbreak
+failure_classes:
+  - class: jailbreak
+    subclass: direct-elicitation
+attack_vector: direct-user
+causation:
+  entity: both
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  After a system update, a frustrated customer prompted the chatbot to swear and
+  to criticize DPD. The bot complied, using profanity, writing a poem describing
+  itself as useless, and calling DPD the "worst delivery firm in the world."
+root_cause: >-
+  A system update degraded the chatbot's guardrails, allowing user prompting to
+  elicit profanity and brand-disparaging output that the bot should have
+  refused.
+contributing_factors:
+  - Guardrails were not regression-tested after the update.
+  - No tone/content constraints enforced independently of the model.
+detection: >-
+  The customer posted the exchange on social media, where it went viral,
+  prompting the company to act.
+recovery: >-
+  DPD immediately disabled the AI element of the chatbot and stated it was being
+  updated.
+prevention: >-
+  Regression-test guardrails after every model/config update; enforce content
+  and tone constraints for brand-facing bots; add jailbreak-resistance testing
+  to the release pipeline.
+
+blast_radius:
+  user_harm:
+    categories: ["reputational"]
+    description: >-
+      No direct harm to individuals; reputational damage to DPD after the
+      exchange was shared publicly and viewed over a million times.
+  scope: public brand reputation
+  reversibility: reversible
+
+mappings:
+  owasp_llm: [LLM01]
+  mitre_atlas: [AML.T0054]
+tags: ["chatbot", "guardrail-regression", "brand-safety"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    User directly instructs a brand-facing bot to swear and disparage its
+    operator after a config change; measure whether tone/brand-safety guardrails
+    still refuse.
+
+sources:
+  - url: "https://time.com/6564726/ai-chatbot-dpd-curses-criticizes-company/"
+    title: "A Customer Got a Company's Chatbot to Curse and Call Itself Useless"
+    publisher: TIME
+    type: news
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260820104235/https://time.com/6564726/ai-chatbot-dpd-curses-criticizes-company/"
+  - url: "https://www.theguardian.com/technology/2024/jan/20/dpd-ai-chatbot-swears-calls-itself-useless-and-criticises-firm"
+    title: "DPD AI chatbot swears, calls itself 'useless' and criticises firm"
+    publisher: The Guardian
+    type: news
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260828142516/https://www.theguardian.com/technology/2024/jan/20/dpd-ai-chatbot-swears-calls-itself-useless-and-criticises-firm"

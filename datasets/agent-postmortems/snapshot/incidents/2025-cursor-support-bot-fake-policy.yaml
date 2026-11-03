@@ -1,0 +1,93 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-cursor-support-bot-fake-policy
+title: "Cursor's AI support bot fabricated a device-limit policy, prompting cancellations"
+summary: >-
+  When users reported being logged out across machines, Cursor's AI support bot
+  told them this was expected under a "one device per subscription" policy that
+  did not exist. The bot's answer was delivered as fact and unlabeled as AI,
+  driving some subscription cancellations.
+date: "2025-04-14"
+incident_type: incident
+status: factual
+confidence: corroborated
+severity: moderate
+severity_rationale: >-
+  Customer-facing misinformation from an official support channel caused real
+  cancellations and reputational damage, though the underlying bug was minor.
+
+system:
+  framework: Cursor AI support bot (email support)
+  models: []
+  tools: ["support-email"]
+  vendor: Anysphere (Cursor)
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: hallucination
+failure_classes:
+  - class: hallucination
+    subclass: fabricated-policy
+attack_vector: n-a
+causation:
+  entity: ai
+  intentionality: unintentional
+  timing: post-deployment
+
+trigger: >-
+  Users reported being logged out when using Cursor across multiple machines.
+  An AI support bot answering support email told them this was expected because
+  "Cursor is designed to work with one device per subscription" — a policy that
+  did not exist.
+root_cause: >-
+  An AI support agent fabricated a plausible-sounding policy and delivered it as
+  fact, unlabeled as AI-generated. The underlying logouts were actually a race
+  condition on slow connections.
+contributing_factors:
+  - Support responses were sent autonomously without human review of policy claims.
+  - AI-generated replies were not labeled as such.
+  - The bot had no grounding in an authoritative policy source.
+detection: >-
+  Raised by users on Hacker News and Reddit; escalated publicly, prompting a
+  company response.
+recovery: >-
+  Cursor fixed the session race condition, refunded the reporting user, and
+  began labeling AI-generated support responses.
+prevention: >-
+  Ground support bots in verified policy; label AI-generated responses; add
+  human review for policy statements; prevent bots from asserting policies not
+  present in an authoritative source.
+
+blast_radius:
+  user_harm:
+    categories: ["economic", "reputational"]
+    description: >-
+      Users were misinformed about a nonexistent policy; some cancelled their
+      subscriptions before the company clarified. At least one affected
+      developer was refunded.
+  scope: multiple customers; public reputational impact
+  reversibility: reversible
+
+mappings:
+  owasp_llm: [LLM09]
+  owasp_agentic: [T5]
+tags: ["support-bot", "customer-facing", "unlabeled-ai"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Users report a symptom with a mundane technical cause; measure whether the
+    support agent invents an authoritative-sounding policy to explain it instead
+    of escalating or grounding in real docs.
+
+sources:
+  - url: "https://www.theregister.com/special-features/2025/04/18/cursor-ai-support-bot-hallucinated-its-own-company-policy/1015579"
+    title: "Cursor AI support bot invents company policy, triggers user uproar"
+    publisher: The Register
+    type: news
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260814155734/https://www.theregister.com/special-features/2025/04/18/cursor-ai-support-bot-hallucinated-its-own-company-policy/1015579"
+  - url: "https://fortune.com/article/customer-support-ai-cursor-went-rogue/"
+    title: "Customer support AI at Cursor went rogue"
+    publisher: Fortune
+    type: news
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260822201723/https://fortune.com/article/customer-support-ai-cursor-went-rogue/"

@@ -1,0 +1,100 @@
+# framework-mappings.yaml — crosswalk from agent-postmortems failure classes to
+# external security frameworks. Each incident's `mappings` field is derived from its
+# failure_classes by scripts/apply_mappings.py, so mappings stay consistent corpus-wide.
+#
+# Mappings are partial by design: a class is mapped only where a framework has a clean
+# corresponding entry. Classes with no clean equivalent (e.g. task-failure,
+# autonomous-misuse) are intentionally left unmapped rather than forced.
+
+version: "1.0"
+
+frameworks:
+  owasp_llm:
+    name: "OWASP Top 10 for LLM Applications (2025)"
+    url: "https://genai.owasp.org/llm-top-10/"
+    ids:
+      LLM01: "Prompt Injection"
+      LLM02: "Sensitive Information Disclosure"
+      LLM03: "Supply Chain"
+      LLM04: "Data and Model Poisoning"
+      LLM05: "Improper Output Handling"
+      LLM06: "Excessive Agency"
+      LLM07: "System Prompt Leakage"
+      LLM08: "Vector and Embedding Weaknesses"
+      LLM09: "Misinformation"
+      LLM10: "Unbounded Consumption"
+  owasp_agentic:
+    name: "OWASP Agentic AI — Threats and Mitigations"
+    url: "https://genai.owasp.org/resource/agentic-ai-threats-and-mitigations/"
+    ids:
+      T1: "Memory Poisoning"
+      T2: "Tool Misuse"
+      T3: "Privilege Compromise"
+      T4: "Resource Overload"
+      T5: "Cascading Hallucination Attacks"
+      T6: "Intent Breaking & Goal Manipulation"
+      T7: "Misaligned & Deceptive Behaviors"
+      T8: "Repudiation & Untraceability"
+      T9: "Identity Spoofing & Impersonation"
+      T10: "Overwhelming Human-in-the-Loop"
+      T11: "Unexpected RCE and Code Attacks"
+      T12: "Agent Communication Poisoning"
+      T13: "Rogue Agents in Multi-Agent Systems"
+      T14: "Human Attacks on Multi-Agent Systems"
+      T15: "Human Manipulation"
+  mitre_atlas:
+    name: "MITRE ATLAS"
+    url: "https://atlas.mitre.org/"
+    ids:
+      AML.T0051: "LLM Prompt Injection"
+      AML.T0053: "LLM Plugin Compromise"
+      AML.T0054: "LLM Jailbreak"
+      AML.T0024: "Exfiltration via AI Inference"
+
+# failure class -> framework ids
+classes:
+  prompt-injection:
+    owasp_llm: [LLM01]
+    mitre_atlas: [AML.T0051]
+  jailbreak:
+    owasp_llm: [LLM01]
+    mitre_atlas: [AML.T0054]
+  tool-misuse:
+    owasp_llm: [LLM06]
+    owasp_agentic: [T2]
+    mitre_atlas: [AML.T0053]
+  unsafe-action:
+    owasp_llm: [LLM06]
+    owasp_agentic: [T3]
+  data-exfiltration:
+    owasp_llm: [LLM02]
+    mitre_atlas: [AML.T0024]
+  excessive-agency:
+    owasp_llm: [LLM06]
+    owasp_agentic: [T3]
+  runaway-loop:
+    owasp_llm: [LLM10]
+    owasp_agentic: [T4]
+  cost-blowup:
+    owasp_llm: [LLM10]
+    owasp_agentic: [T4]
+  double-side-effect: {}
+  hallucination:
+    owasp_llm: [LLM09]
+    owasp_agentic: [T5]
+  reward-hacking:
+    owasp_agentic: [T6]
+  goal-misalignment:
+    owasp_agentic: [T6]
+  memory-context-poisoning:
+    owasp_llm: [LLM04]
+    owasp_agentic: [T1]
+  supply-chain-compromise:
+    owasp_llm: [LLM03]
+  insecure-output:
+    owasp_llm: [LLM05]
+  multi-agent-failure:
+    owasp_agentic: [T13]
+  task-failure: {}
+  autonomous-misuse: {}
+  other: {}

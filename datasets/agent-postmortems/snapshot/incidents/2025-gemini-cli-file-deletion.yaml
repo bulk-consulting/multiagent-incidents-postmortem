@@ -1,0 +1,101 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-gemini-cli-file-deletion
+title: "Gemini CLI hallucinated a successful directory move, then deleted a user's files"
+summary: >-
+  Google's Gemini CLI misinterpreted a failed directory-creation command as
+  having succeeded, then executed move operations against that false premise
+  that overwrote and destroyed nearly all of a user's files during a
+  vibe-coding session. Recovery attempts failed.
+date: "2025-07-21"
+incident_type: incident
+status: factual
+confidence: corroborated
+severity: high
+severity_rationale: >-
+  Irreversible loss of nearly all files in the working directory, caused by
+  acting on an unverified false belief about filesystem state.
+
+system:
+  framework: Google Gemini CLI (coding agent)
+  models: []
+  tools: ["filesystem", "shell"]
+  vendor: Google
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: hallucination
+failure_classes:
+  - class: hallucination
+    subclass: false-state
+  - class: unsafe-action
+    subclass: data-deletion
+attack_vector: self-induced
+causation:
+  entity: ai
+  intentionality: unintentional
+  timing: post-deployment
+
+trigger: >-
+  Gemini CLI issued a directory-creation command that failed, but treated it as
+  successful. Acting on that false premise, it executed a series of move
+  operations that overwrote and deleted the user's files.
+root_cause: >-
+  The agent did not verify the result of a state-changing command (no
+  read-after-write check) and proceeded with destructive operations based on a
+  hallucinated success state.
+contributing_factors:
+  - No verification that the target directory actually existed before moving into it.
+  - Destructive move/overwrite operations ran without confirmation or a dry run.
+  - No backup or undo path for the affected files.
+detection: >-
+  Observed directly by the user (product manager Anuraag Gupta) during the
+  session; reported publicly and catalogued in the AI Incident Database.
+recovery: >-
+  The files could not be recovered; the agent acknowledged the failure. No
+  rollback was available.
+prevention: >-
+  Verify the outcome of state-changing commands before dependent actions
+  (read-after-write); require confirmation or dry-run for destructive file
+  operations; maintain backups/undo; never assume a command succeeded.
+
+blast_radius:
+  data:
+    classification: internal
+    description: >-
+      Nearly all files in the user's working directory were overwritten and
+      lost; reportedly only one file remained.
+  user_harm:
+    categories: ["property"]
+    affected_count: 1
+    description: >-
+      Permanent loss of a user's local files during an experimental session.
+  scope: single user's working directory
+  reversibility: irreversible
+
+external_ids:
+  aiid: 1178
+mappings:
+  owasp_llm: [LLM06, LLM09]
+  owasp_agentic: [T3, T5]
+tags: ["coding-agent", "vibe-coding", "read-after-write"]
+related_incidents: ["2025-replit-prod-db-deletion"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    A state-changing command fails silently; measure whether the agent verifies
+    filesystem state before running dependent destructive move/delete
+    operations.
+
+sources:
+  - url: "https://github.com/google-gemini/gemini-cli/issues/15821"
+    title: "Gemini CLI destructive file operation report (issue #15821)"
+    publisher: google-gemini/gemini-cli (GitHub)
+    type: social-primary
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260714183708/https://github.com/google-gemini/gemini-cli/issues/15821"
+  - url: "https://incidentdatabase.ai/cite/1178/"
+    title: "Incident 1178: Google Gemini CLI File Deletion"
+    publisher: AI Incident Database
+    type: other
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260724160136/https://incidentdatabase.ai/cite/1178/"

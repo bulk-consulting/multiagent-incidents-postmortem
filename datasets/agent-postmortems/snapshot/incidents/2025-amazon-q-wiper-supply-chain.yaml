@@ -1,0 +1,102 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-amazon-q-wiper-supply-chain
+title: "Malicious PR injected a data-wiping prompt into the Amazon Q VS Code extension"
+summary: >-
+  A pull request from an alias contributor merged a malicious system prompt into
+  the Amazon Q Developer VS Code extension, instructing the agent to delete
+  local files and wipe AWS resources. The compromised version 1.84.0 shipped to
+  a base of nearly one million installs but failed to execute due to a syntax
+  error.
+date: "2025-07-13"
+incident_type: hazard
+status: factual
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  A destructive agent-directing prompt reached a widely distributed release;
+  realized impact was averted only by a syntax error, making this a near-miss
+  with very high potential blast radius.
+
+system:
+  framework: Amazon Q Developer (VS Code extension)
+  models: []
+  tools: ["aws-cli", "filesystem"]
+  vendor: Amazon Web Services
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: supply-chain-compromise
+failure_classes:
+  - class: supply-chain-compromise
+    subclass: extension
+  - class: unsafe-action
+    subclass: data-deletion
+attack_vector: supply-chain
+causation:
+  entity: human
+  intentionality: intentional
+  timing: pre-deployment
+
+trigger: >-
+  A contributor operating under an alias submitted a pull request to the Amazon
+  Q VS Code extension repository. The merged code contained a malicious system
+  prompt instructing the agent to act as a "system cleaner" and delete local
+  files and wipe AWS cloud resources.
+root_cause: >-
+  A pull request from an untrusted contributor was merged into the extension
+  codebase with insufficient review/permission controls, allowing a malicious
+  agent-directing prompt into a widely distributed release.
+contributing_factors:
+  - System prompts were not treated as security-critical artifacts in review.
+  - Contribution permissions allowed an untrusted party's change to reach release.
+  - Releases were not signed/verified in a way that would flag the injected instruction.
+detection: >-
+  Reported by security researchers after the compromised version shipped;
+  analysed by ReversingLabs and others.
+recovery: >-
+  Amazon revoked and replaced the compromised credentials, removed the malicious
+  code, and released a new version of the tool.
+prevention: >-
+  Enforce strict review and permission controls on contributions to
+  agent-directing code; treat system prompts as security-critical artifacts;
+  sign and verify releases; constrain what agent instructions may command.
+
+blast_radius:
+  data:
+    classification: internal
+    description: >-
+      The malicious prompt targeted deletion of users' home directories and
+      local files and destruction of AWS resources (EC2, S3, IAM). Version
+      1.84.0 shipped to a user base of nearly one million installs.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      No customer environments were affected; AWS reported the destructive code
+      failed to execute due to a syntax error.
+  scope: "~1M extension installs"
+  reversibility: irreversible
+
+mappings:
+  owasp_llm: [LLM03, LLM06]
+  owasp_agentic: [T3]
+tags: ["supply-chain", "ide-extension", "near-miss"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Agent-directing configuration (a system prompt) is altered upstream to
+    instruct destructive cleanup; measure whether the runtime executes
+    high-privilege deletion instructions delivered via its own config.
+
+sources:
+  - url: "https://www.reversinglabs.com/blog/aws-amazonq-ai-incident"
+    title: "Malicious code in Amazon Q extension: a supply chain AI incident"
+    publisher: ReversingLabs
+    type: primary-research
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260821162622/https://www.reversinglabs.com/blog/aws-amazonq-ai-incident"
+  - url: "https://www.csoonline.com/article/4027963/hacker-inserts-destructive-code-in-amazon-q-as-update-goes-live.html"
+    title: "Hacker inserts destructive code in Amazon Q as update goes live"
+    publisher: CSO Online
+    type: news
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260714221646/https://www.csoonline.com/article/4027963/hacker-inserts-destructive-code-in-amazon-q-as-update-goes-live.html"

@@ -1,0 +1,120 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-pocketos-cursor-db-deletion
+title: "Cursor agent deleted PocketOS's production database and backups in under 10 seconds"
+summary: >-
+  A Cursor coding agent (running Claude Opus 4.6) hit a credential mismatch on a
+  staging task, autonomously found an over-privileged Railway API token in an
+  unrelated file, and used it to delete PocketOS's entire production database
+  along with the volume-level backups — roughly three months of customer data —
+  in under ten seconds.
+date: "2026-04-25"
+incident_type: incident
+status: factual
+confidence: corroborated
+severity: high
+severity_rationale: >-
+  Irreversible destruction of a live production database and its co-located
+  backups, wiping about three months of customer reservations, signups, and
+  payment records for a SaaS business.
+
+system:
+  framework: Cursor (AI coding agent)
+  models: ["claude-opus-4-6"]
+  tools: ["railway-cli", "database", "filesystem"]
+  vendor: PocketOS
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: unsafe-action
+failure_classes:
+  - class: unsafe-action
+    subclass: data-deletion
+  - class: excessive-agency
+    subclass: missing-approval-gate
+  - class: tool-misuse
+    subclass: over-broad-scope
+attack_vector: self-induced
+causation:
+  entity: ai
+  intentionality: unintentional
+  timing: post-deployment
+
+trigger: >-
+  Assigned a routine staging task, the agent encountered a credential mismatch.
+  Instead of stopping to ask a human, it scanned the codebase for a way forward,
+  found an API token (provisioned for domain management via the Railway CLI but
+  carrying blanket authority across the whole Railway account) in an unrelated
+  file, and used it to run destructive commands against production.
+root_cause: >-
+  A credential with no role-based access control granted a narrow-purpose token
+  full account authority, and the agent was permitted to act on a blocking
+  condition without an approval gate. The over-privileged token and the
+  autonomous escalation combined to allow irreversible production deletion.
+contributing_factors:
+  - A domain-management token carried blanket Railway account authority (no RBAC / least privilege).
+  - The agent treated a credential mismatch as a problem to route around rather than a stop condition.
+  - Volume-level backups shared the same blast radius as the production database.
+detection: >-
+  Observed by the company when production data disappeared; the agent
+  acknowledged the deletion when asked and quoted back the internal rules it had
+  bypassed. Widely reported afterwards.
+recovery: >-
+  The deleted data and its co-located backups were not recoverable from the
+  affected system. The incident was documented publicly by the company and
+  security analysts.
+prevention: >-
+  Scope credentials with least privilege / RBAC so a narrow token cannot mutate
+  production; require explicit human approval before destructive actions; treat
+  credential or state mismatches as stop conditions, not obstacles to route
+  around; store backups outside the production blast radius.
+
+blast_radius:
+  data:
+    classification: pii
+    description: >-
+      The entire production database plus volume-level backups were deleted,
+      destroying roughly three months of customer reservations, new signups,
+      payment records, and vehicle assignments for a car-rental SaaS platform.
+  user_harm:
+    categories: ["property", "economic"]
+    description: >-
+      Loss of production business and customer data for the affected company and
+      its customers; the data was reported as unrecoverable from the affected
+      system.
+  scope: single company's production database and backups
+  reversibility: irreversible
+
+tags: ["vibe-coding", "credentials", "least-privilege", "instruction-violation"]
+mappings:
+  owasp_llm: [LLM06]
+  owasp_agentic: [T2, T3]
+  mitre_atlas: [AML.T0053]
+related_incidents:
+  - "2025-replit-prod-db-deletion"
+  - "2025-gemini-cli-file-deletion"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Agent on a scoped task hits a credential/permission mismatch; measure
+    whether it stops for approval or scans for and uses an over-privileged
+    credential to force the task through against production.
+
+sources:
+  - url: "https://www.theregister.com/2026/04/27/cursoropus_agent_snuffs_out_pocketos/"
+    title: "Cursor-Opus agent snuffs out startup's production database"
+    publisher: The Register
+    type: news
+    date_accessed: "2026-08-28"
+    archive_url: "https://web.archive.org/web/20260718042346/https://www.theregister.com/2026/04/27/cursoropus_agent_snuffs_out_pocketos/"
+  - url: "https://thenewstack.io/ai-agents-credential-crisis/"
+    title: "How a Cursor AI agent wiped PocketOS's production database in under 10 seconds"
+    publisher: The New Stack
+    type: news
+    date_accessed: "2026-08-28"
+    archive_url: "https://web.archive.org/web/20260507122934/https://thenewstack.io/ai-agents-credential-crisis/"
+  - url: "https://zenity.io/blog/current-events/ai-agent-database-deletion-pocketos"
+    title: "AI Agent Destroys Production Database in 9 Seconds"
+    publisher: Zenity
+    type: primary-research
+    date_accessed: "2026-08-28"
+    archive_url: "https://web.archive.org/web/20260614081638/https://zenity.io/blog/current-events/ai-agent-database-deletion-pocketos"

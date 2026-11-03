@@ -1,0 +1,95 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2024-air-canada-chatbot-liability
+title: "Air Canada held liable after its website chatbot invented a bereavement-fare policy"
+summary: >-
+  Air Canada's website chatbot told a customer they could claim a bereavement
+  fare retroactively — a policy that did not exist. Canada's Civil Resolution
+  Tribunal (Moffatt v. Air Canada) held the airline liable for the chatbot's
+  negligent misrepresentation and awarded CAD 812.02.
+date: "2024-02-14"
+incident_type: incident
+status: final
+confidence: confirmed
+severity: moderate
+severity_rationale: >-
+  Small direct financial award, but a precedent-setting ruling that a company
+  is legally responsible for its chatbot's statements.
+
+system:
+  framework: Air Canada website support chatbot
+  models: []
+  tools: ["website-chat"]
+  vendor: Air Canada
+  autonomy_level: human-in-the-loop
+
+primary_failure_class: hallucination
+failure_classes:
+  - class: hallucination
+    subclass: fabricated-policy
+attack_vector: n-a
+causation:
+  entity: ai
+  intentionality: unintentional
+  timing: post-deployment
+
+trigger: >-
+  A customer asked the website chatbot about bereavement fares. The chatbot
+  stated they could apply for a reduced bereavement rate retroactively within 90
+  days by submitting a form, which contradicted Air Canada's actual policy shown
+  elsewhere on its site.
+root_cause: >-
+  The chatbot produced confidently incorrect policy information, and Air Canada
+  did not ensure the chatbot's output was accurate. The tribunal rejected the
+  argument that the chatbot was a separate legal entity.
+contributing_factors:
+  - The bot's answers were not grounded in the authoritative policy pages.
+  - No accountability treating bot output as an official company representation.
+detection: >-
+  Surfaced through the customer's complaint and the subsequent tribunal case,
+  Moffatt v. Air Canada.
+recovery: >-
+  The tribunal ordered Air Canada to pay damages; the ruling established that a
+  company is liable for negligent misrepresentations made by its chatbot.
+prevention: >-
+  Ground customer-facing bots in authoritative, current policy sources;
+  constrain answers to verified content; test for policy-contradiction; treat
+  bot output as company representation with clear accountability.
+
+blast_radius:
+  cost:
+    amount_usd: 812
+  user_harm:
+    categories: ["economic", "legal-regulatory"]
+    affected_count: 1
+    description: >-
+      The customer relied on the incorrect advice and did not receive the
+      expected fare treatment; the tribunal awarded CAD 812.02 in damages and
+      fees.
+  scope: single customer; precedent for chatbot liability
+  reversibility: reversible
+
+mappings:
+  owasp_llm: [LLM09]
+  owasp_agentic: [T5]
+tags: ["chatbot", "liability", "customer-facing"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Customer asks a support bot about a policy that exists in a narrower form;
+    measure whether the bot fabricates favourable terms not present in the
+    authoritative source.
+
+sources:
+  - url: "https://www.cbc.ca/news/canada/british-columbia/air-canada-chatbot-lawsuit-1.7116416"
+    title: "Air Canada found liable for chatbot's bad advice on plane tickets"
+    publisher: CBC News
+    type: news
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260824072455/https://www.cbc.ca/news/canada/british-columbia/air-canada-chatbot-lawsuit-1.7116416"
+  - url: "https://www.forbes.com/sites/marisagarcia/2024/02/19/what-air-canada-lost-in-remarkable-lying-ai-chatbot-case/"
+    title: "What Air Canada Lost In 'Remarkable' Lying AI Chatbot Case"
+    publisher: Forbes
+    type: news
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260809062530/https://www.forbes.com/sites/marisagarcia/2024/02/19/what-air-canada-lost-in-remarkable-lying-ai-chatbot-case/"

@@ -1,0 +1,152 @@
+# taxonomy.yaml — the authoritative failure taxonomy for agent-postmortems.
+# Machine authority file; TAXONOMY.md is rendered from this and must stay in lockstep.
+# Governance (REQ-T3): adding/renaming a class or subclass bumps `version` and requires an ADR.
+# `cairn_map` records the corresponding class in cairn-protocol's failure taxonomy;
+# divergences must be flagged `divergent: true` and documented in an ADR.
+
+version: "1.0"
+
+classes:
+  - name: prompt-injection
+    definition: Untrusted input overrides intended instructions.
+    cairn_map: injection
+    subclasses:
+      - direct          # attacker types the injection at the agent
+      - indirect        # injection arrives via retrieved/third-party content
+      - multimodal      # injection hidden in images, audio, screenshots
+      - tool-metadata   # injection carried in tool descriptions/schemas
+
+  - name: jailbreak
+    definition: Safety or guardrail circumvention of the model itself.
+    cairn_map: guardrail-bypass
+    subclasses:
+      - role-play           # deceptive framing/persona to bypass safety
+      - obfuscation         # encoding/wording tricks to evade filters
+      - system-prompt-leak  # extraction of hidden instructions
+      - direct-elicitation  # plain adversarial prompting defeats degraded guardrails
+
+  - name: tool-misuse
+    definition: Agent invokes a tool wrongly or over-broadly.
+    cairn_map: tool-misuse
+    subclasses:
+      - wrong-tool
+      - over-broad-scope
+      - unvalidated-args
+
+  - name: unsafe-action
+    definition: Destructive or irreversible action taken, often against instructions.
+    cairn_map: unsafe-action
+    subclasses:
+      - data-deletion
+      - unauthorized-write
+      - prod-mutation
+      - cross-domain-action  # action crosses site/service trust boundaries with user privileges
+
+  - name: data-exfiltration
+    definition: Sensitive data leaves its trust boundary.
+    cairn_map: data-exfiltration
+    subclasses:
+      - via-tool
+      - via-output
+      - cross-repo
+
+  - name: excessive-agency
+    definition: Agent acts beyond granted authority or scope.
+    cairn_map: excessive-agency
+    subclasses:
+      - missing-approval-gate
+      - scope-creep
+
+  - name: runaway-loop
+    definition: Non-terminating or repeating action loop.
+    cairn_map: runaway-loop
+    subclasses:
+      - retry-storm
+      - self-trigger
+
+  - name: cost-blowup
+    definition: Denial-of-wallet or unbounded spend.
+    cairn_map: cost-blowup
+    subclasses:
+      - token-spiral
+      - tool-call-spiral
+      - mispriced-action
+
+  - name: double-side-effect
+    definition: Non-idempotent action fires more than once.
+    cairn_map: double-side-effect
+    subclasses:
+      - duplicate-payment
+      - duplicate-message
+
+  - name: hallucination
+    definition: Confidently-wrong output presented as fact.
+    cairn_map: hallucination
+    subclasses:
+      - fabricated-policy
+      - fabricated-capability
+      - false-state         # false belief about world/system state drives later actions
+
+  - name: reward-hacking
+    definition: Optimizes the metric, not the goal (specification gaming).
+    cairn_map: reward-hacking
+    subclasses:
+      - eval-exploit
+      - metric-gaming
+
+  - name: goal-misalignment
+    definition: Pursues an unintended objective.
+    cairn_map: misalignment
+    subclasses:
+      - goal-hijack
+      - sycophancy-to-harm
+
+  - name: memory-context-poisoning
+    definition: Malicious or false content persisted into memory/RAG.
+    cairn_map: context-poisoning
+    subclasses:
+      - rag-poisoning
+      - memory-injection
+
+  - name: supply-chain-compromise
+    definition: Malicious code or config enters the agent stack.
+    cairn_map: supply-chain
+    subclasses:
+      - dependency
+      - extension
+      - mcp-server
+
+  - name: insecure-output
+    definition: Agent-generated artifact is unsafe (code/config).
+    cairn_map: insecure-output
+    subclasses:
+      - secret-exposure
+      - injection-vuln
+      - broken-authz
+
+  - name: multi-agent-failure
+    definition: Emergent failure from agent-to-agent interaction.
+    cairn_map: multi-agent
+    subclasses:
+      - collusion
+      - cascade
+      - deadlock
+
+  - name: task-failure
+    definition: Fails the intended task (quality/comprehension).
+    cairn_map: task-failure
+    subclasses:
+      - misunderstanding
+      - quality-degradation
+
+  - name: autonomous-misuse
+    definition: Agent capabilities weaponized for abuse at scale.
+    cairn_map: autonomous-misuse
+    subclasses:
+      - cyber-ops
+      - fraud-automation
+
+  - name: other
+    definition: Escape hatch pending classification. Records using it MUST add descriptive `tags`.
+    cairn_map: other
+    subclasses: []

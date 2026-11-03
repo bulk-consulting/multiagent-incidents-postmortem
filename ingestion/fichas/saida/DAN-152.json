@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-152",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "seguranca",
+    "seguranca": "ataque",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On July 12, 2018 an attacker compromised the npm account of an ESLint maintainer and published malicious versions of eslint-scope and eslint-config-eslint whose install script sent the user's .npmrc contents, which typically hold npm access tokens, to the attacker. The malicious versions were unpublished, the pastebin.com paste was taken down, and npm revoked all access tokens issued before 12:30 UTC that day.",
+    "data_incidente": "2018-07-12",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "eslint-scope (malicious version 3.7.2, npm package)",
+      "eslint-config-eslint (malicious version 5.0.2, npm package)"
+    ],
+    "tecnologias": [
+      "npm",
+      "postinstall script",
+      ".npmrc",
+      "pastebin.com",
+      "two-factor authentication"
+    ],
+    "categoria_causa": "credential-auth",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "At 11:17 UTC a user posted issue eslint/eslint-scope#39, notifying the ESLint team.",
+        "trechos": [
+          "**2018-07-12 11:17 UTC**: A user posted eslint/eslint-scope#39, notifying the ESLint team of the issue."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "Using an authentication token generated in the maintainer's npm account, the attacker published eslint-config-eslint@5.0.2 at 09:49 UTC and eslint-scope@3.7.2 at 10:40 UTC, both with a malicious postinstall script that attempts to exfiltrate the local machine's .npmrc authentication token.",
+      "trechos": [
+        "**2018-07-12 9:49 UTC**: The attacker used the generated authentication token to publish `eslint-config-eslint@5.0.2`, which contained a malicious `postinstall` script that attempts to exfiltrate the local machine’s `.npmrc` authentication token.",
+        "**2018-07-12 10:40 UTC**: The attacker published `eslint-scope@3.7.2`, which contained the same malicious `postinstall` script."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The maintainer had reused their npm password on several other sites and did not have two-factor authentication enabled. The attacker presumably found the reused email and password in a third-party breach and used them to log in to the npm account.",
+        "trechos": [
+          "The maintainer whose account was compromised had reused their npm password on several other sites and did not have two-factor authentication enabled on their npm account.",
+          "The attacker presumably found the maintainer’s reused email and password in a third-party breach and used them to log in to the maintainer’s npm account."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Exposure differed between the packages: eslint-scope@3.7 is a dependency of several popular packages, including some older versions of eslint and the latest versions of babel-eslint and webpack, while eslint-config-eslint@5.0 is used internally by the ESLint team with very little usage elsewhere.",
+        "trechos": [
+          "`eslint-scope@3.7`, a scope analysis library, is a dependency of several popular packages, including some older versions of `eslint` and the latest versions of `babel-eslint` and `webpack`.",
+          "`eslint-config-eslint@5.0` is a configuration used internally by the ESLint team, with very little usage elsewhere."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 12:27 UTC the pastebin.com link containing the malicious code was taken down.",
+          "trechos": [
+            "**2018-07-12 12:27 UTC**: The pastebin.com link containing malicious code was taken down."
+          ]
+        },
+        {
+          "texto": "At 12:37 UTC the npm team unpublished eslint-scope@3.7.2 after being contacted by an ESLint maintainer.",
+          "trechos": [
+            "**2018-07-12 12:37 UTC**: The npm team unpublished `eslint-scope@3.7.2` after being contacted by an ESLint maintainer."
+          ]
+        },
+        {
+          "texto": "At 17:41 UTC the ESLint team published eslint-scope@3.7.3 with the code from eslint-scope@3.7.1 so that caches could pick up the new version.",
+          "trechos": [
+            "**2018-07-12 17:41 UTC**: The ESLint team published `eslint-scope@3.7.3` with the code from `eslint-scope@3.7.1` so that caches could pick up the new version."
+          ]
+        },
+        {
+          "texto": "At 18:42 UTC npm revoked all access tokens generated before 2018-07-12 12:30 UTC, so tokens compromised by the attack should no longer be usable.",
+          "trechos": [
+            "**2018-07-12 18:42 UTC**: npm revoked all access tokens generated before 2018-07-12 12:30 UTC.",
+            "As a result, all access tokens compromised by this attack should no longer be usable."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Recommendation to maintainers and users: avoid reusing the same password across sites; a password manager can help.",
+          "trechos": [
+            "Package maintainers and users should avoid reusing the same password across multiple different sites.",
+            "A password manager like 1Password or LastPass can help with this."
+          ]
+        },
+        {
+          "texto": "Recommendation to maintainers: enable npm two-factor authentication.",
+          "trechos": [
+            "Package maintainers should enable npm two-factor authentication."
+          ]
+        },
+        {
+          "texto": "Recommendation to maintainers: audit and limit the number of people who can publish on npm.",
+          "trechos": [
+            "Package maintainers should audit and limit the number of people who have access to publish on npm."
+          ]
+        },
+        {
+          "texto": "Recommendation to maintainers: be careful with services that auto-merge dependency upgrades.",
+          "trechos": [
+            "Package maintainers should be careful with using any services that auto-merge dependency upgrades."
+          ]
+        },
+        {
+          "texto": "Recommendation to application developers: use a lockfile (package-lock.json or yarn.lock) to prevent the auto-install of new packages.",
+          "trechos": [
+            "Application developers should use a lockfile (`package-lock.json` or `yarn.lock`) to prevent the auto-install of new packages."
+          ]
+        },
+        {
+          "texto": "Recommendation to operators of their own npm registry: unpublish the malicious versions of each package; they were already unpublished from the npmjs.com registry.",
+          "trechos": [
+            "If you run your own npm registry, you should unpublish the malicious versions of each package.",
+            "They have already been unpublished from the npmjs.com registry."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The incident as a whole also has the shape of a supply-chain attack; categoria_causa follows the root cause (compromised credentials). The prevention items are recommendations to the npm community, not commitments by the ESLint team. Several possible end times are given (unpublish, token revocation) and no stated duration.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.2"
+  }
+}

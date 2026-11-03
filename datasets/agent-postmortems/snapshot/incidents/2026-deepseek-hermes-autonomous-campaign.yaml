@@ -1,0 +1,110 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-deepseek-hermes-autonomous-campaign
+title: "A Chinese-speaking operator used DeepSeek via the Hermes agent framework to autonomously attack 460+ targets"
+summary: >-
+  Unit 42 documented a campaign in which a Chinese-speaking operator paired the
+  open-source Hermes agent framework (terminal access, a skills system, and
+  Telegram command-and-control) with DeepSeek as the reasoning engine to
+  autonomously assess targets, generate commands, gather exploit tools, and choose
+  where to focus — launching exploitation attempts against 460+ targets. It was
+  uncovered when Hermes accidentally exposed the attacker's own environment.
+date: "2026-07-30"
+incident_type: incident
+status: factual
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  A largely autonomous offensive operation against 460+ targets with confirmed
+  intrusions (e.g. Citrix NetScaler, Marimo command execution); demonstrates a
+  single operator scaling attacks via an AI agent.
+
+system:
+  framework: Hermes agent framework with DeepSeek as reasoning engine
+  models: ["deepseek"]
+  tools: ["hermes", "telegram", "pentesting-utilities"]
+  vendor: Chinese-speaking operator (aliases knaithe / KnYuan)
+  autonomy_level: fully-autonomous
+
+primary_failure_class: autonomous-misuse
+failure_classes:
+  - class: autonomous-misuse
+    subclass: cyber-ops
+attack_vector: direct-user
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  The operator ran the Hermes agent framework with DeepSeek as its reasoning
+  engine, controlling it over Telegram. In a recovered May 2026 session the
+  operator provided only an initial task, after which the agent autonomously
+  surveyed product families, searched GitHub for trending vulnerability
+  proof-of-concepts, prioritised widely exposed software (identifying 647,000+
+  exposed n8n instances), and launched exploitation attempts across 460+ targets.
+root_cause: >-
+  An open-source agent framework plus a capable model turned a single operator's
+  intent into an autonomous attack pipeline — assessing targets, generating
+  commands, gathering tools, and adapting focus without continuous human input.
+contributing_factors:
+  - An open-source agent framework (Hermes) provided terminal access, a skills system, and Telegram C2.
+  - A capable reasoning model (DeepSeek) drove target selection and command generation autonomously.
+  - Publicly exposed software (e.g. hundreds of thousands of n8n instances) offered large attack surface.
+detection: >-
+  Discovered by Palo Alto Networks Unit 42 after Hermes accidentally created a web
+  server from its home directory, exposing the attacker's API keys, exploit
+  scripts, target lists, shell history, and AI attack logs; disclosed on
+  2026-07-30 and attributed to an operator reportedly based in Zhuhai, China.
+recovery: >-
+  Reported publicly by Unit 42; mitigations centre on patching widely exposed
+  software, monitoring for agentic-attack behaviour, and enforcing usage policy
+  and abuse detection against offensive orchestration of AI models.
+prevention: >-
+  Patch and reduce exposure of internet-facing software (e.g. n8n, Citrix
+  NetScaler); monitor for machine-speed, multi-target exploitation patterns;
+  constrain offensive orchestration of models via usage policy and abuse
+  detection.
+
+blast_radius:
+  data:
+    classification: confidential
+    description: >-
+      Exploitation attempts against 460+ targets, with confirmed intrusions
+      including Citrix NetScaler devices and command execution on Marimo notebook
+      instances, plus reverse-shell attempts against Apache Tomcat and VPN targets.
+  user_harm:
+    categories: ["economic"]
+    description: >-
+      Compromise and attempted compromise of exposed servers across many
+      organizations.
+  scope: "460+ targeted hosts across many organizations"
+  reversibility: irreversible
+
+tags: ["nation-state", "autonomous-attack", "deepseek", "hermes", "cyber-ops", "telegram-c2"]
+related_incidents:
+  - "2025-gtg1002-ai-orchestrated-espionage"
+  - "2026-taiwan-nuclear-agency-autonomous-attack"
+  - "2026-jadepuffer-agentic-ransomware"
+machine_export:
+  replayable: false
+
+sources:
+  - url: "https://unit42.paloaltonetworks.com/autonomous-ai-cyber-attack-campaign/"
+    title: "Chinese-Speaking Threat Actor Harnesses AI Models for Autonomous Cyberattacks"
+    publisher: Palo Alto Unit 42
+    type: primary-research
+    date_accessed: "2026-09-17"
+    archive_url: "https://web.archive.org/web/20260928133144/https://unit42.paloaltonetworks.com/autonomous-ai-cyber-attack-campaign/"
+  - url: "https://thehackernews.com/2026/07/chinese-hacker-commands-deepseek-via.html"
+    title: "Chinese Hacker Commands DeepSeek via Telegram to Launch Autonomous Attacks"
+    publisher: The Hacker News
+    type: news
+    date_accessed: "2026-09-17"
+    archive_url: "https://web.archive.org/web/20260920145352/https://thehackernews.com/2026/07/chinese-hacker-commands-deepseek-via.html"
+  - url: "https://www.bleepingcomputer.com/news/security/hacker-uses-deepseek-ai-to-autonomously-attack-vulnerable-servers/"
+    title: "Hacker uses DeepSeek AI to autonomously attack vulnerable servers"
+    publisher: BleepingComputer
+    type: news
+    date_accessed: "2026-09-17"
+    archive_url: "https://web.archive.org/web/20260909000018/https://www.bleepingcomputer.com/news/security/hacker-uses-deepseek-ai-to-autonomously-attack-vulnerable-servers/"

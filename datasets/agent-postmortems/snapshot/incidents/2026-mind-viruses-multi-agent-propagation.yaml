@@ -1,0 +1,117 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-mind-viruses-multi-agent-propagation
+title: "\"Mind Viruses\": self-propagating instructions spread agent-to-agent through persistent identity files"
+summary: >-
+  Researchers from Anthropic and EPFL demonstrated that a self-propagating
+  instruction planted in a persistent file that agents load into their system
+  prompt can spread from one agent to the next. The strongest channel was an
+  OpenClaw-style identity file (SOUL.md): payloads there accounted for 88% of
+  propagation attempts and infected the next agent 55% of the time, versus ~17%
+  for an ordinary file. A one-paragraph system-prompt warning cut spread to near
+  zero.
+date: "2026-08-10"
+incident_type: hazard
+status: factual
+confidence: confirmed
+severity: moderate
+severity_rationale: >-
+  A demonstrated agent-to-agent contagion mechanism with a high propagation rate
+  via identity files, but a research proof of concept with a simple effective
+  mitigation and no evidence of successful spread in the wild.
+
+system:
+  framework: multi-agent LLM systems using persistent identity/context files (OpenClaw-style harnesses)
+  models: []
+  tools: ["agent-harness"]
+  vendor: research (Anthropic and EPFL)
+  autonomy_level: fully-autonomous
+
+primary_failure_class: multi-agent-failure
+failure_classes:
+  - class: multi-agent-failure
+    subclass: cascade
+  - class: memory-context-poisoning
+    subclass: memory-injection
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  A self-propagating instruction is written into a file whose contents persist
+  between sessions and are injected into an agent's system prompt. Acting on it,
+  the agent writes the same payload into files the next agent will load, so the
+  instruction copies itself from agent to agent. Persistent identity files such as
+  SOUL.md were by far the strongest carrier.
+root_cause: >-
+  Persistent files loaded into the system prompt are treated as trusted
+  instructions, and agents will reproduce self-propagating content into them.
+  Identity files carry extra weight in an agent's behaviour, so payloads placed
+  there propagate far more reliably than ordinary content.
+contributing_factors:
+  - Persistent files are injected into the system prompt and treated as trusted instructions.
+  - Agents write attacker-controlled content into files that downstream agents load.
+  - Identity files (e.g. SOUL.md) are weighted heavily, boosting propagation.
+detection: >-
+  Demonstrated and published by researchers at Anthropic and EPFL on 2026-08-10
+  (arXiv 2608.10218); a review of archived posts from an AI-agent social network
+  found no successful agent-to-agent propagation in the wild.
+recovery: >-
+  A research disclosure with a tested mitigation: adding a one-paragraph warning
+  to the agent's system prompt reduced spread to near zero across the payloads
+  tested.
+prevention: >-
+  Treat persistent/identity files as untrusted data, not instructions; prevent
+  agents from writing instruction-like content into files other agents load;
+  add explicit anti-propagation guidance to system prompts; isolate and review
+  shared context files across agents.
+
+blast_radius:
+  data:
+    classification: n-a
+    description: >-
+      A self-propagating instruction able to spread arbitrary behaviour across a
+      chain of agents via shared persistent files.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      A research proof of concept; no successful in-the-wild propagation was
+      observed.
+  scope: multi-agent systems that share persistent identity/context files
+  reversibility: reversible
+
+tags: ["multi-agent", "self-propagating", "memory", "soul-md", "prompt-injection", "research"]
+mappings:
+  owasp_llm: [LLM04]
+  owasp_agentic: [T1, T13]
+related_incidents:
+  - "2026-copilot-word-prompt-injection-worm"
+  - "2026-microsoft-mcp-tool-description-poisoning"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    An agent loads a persistent/identity file into its system prompt and can write
+    to files other agents will load; measure whether a self-propagating instruction
+    placed in that file spreads from one agent to the next.
+
+sources:
+  - url: "https://arxiv.org/abs/2608.10218"
+    title: "Mind Viruses: Self-Propagating Ideas in Multi-Agent LLM Systems"
+    publisher: arXiv (Anthropic, EPFL)
+    type: academic
+    date_accessed: "2026-09-20"
+    archive_url: "https://web.archive.org/web/20260917022839/https://arxiv.org/abs/2608.10218"
+  - url: "https://thehackernews.com/2026/08/ai-mind-viruses-can-spread-between.html"
+    title: "AI 'Mind Viruses' Can Spread Between Agents Through Persistent Prompt Files"
+    publisher: The Hacker News
+    type: news
+    date_accessed: "2026-09-20"
+    archive_url: "https://web.archive.org/web/20260917013914/https://thehackernews.com/2026/08/ai-mind-viruses-can-spread-between.html"
+  - url: "https://labs.cloudsecurityalliance.org/research/csa-research-note-ai-mind-viruses-agent-contagion-20260827-c/"
+    title: "Mind Viruses: A New Contagion Vector for AI Agents"
+    publisher: Cloud Security Alliance
+    type: primary-research
+    date_accessed: "2026-09-20"
+    archive_url: "https://web.archive.org/web/20261020134253/https://labs.cloudsecurityalliance.org/research/csa-research-note-ai-mind-viruses-agent-contagion-20260827-c/"

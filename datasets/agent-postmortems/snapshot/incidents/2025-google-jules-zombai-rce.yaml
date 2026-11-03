@@ -1,0 +1,122 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-google-jules-zombai-rce
+title: "Google Jules coding agent prompt-injected via a GitHub issue into remote code execution"
+summary: >-
+  A security researcher showed that a prompt injection hidden in a GitHub issue
+  tagged for Google Jules, an asynchronous coding agent, could drive the agent's
+  bash tool to download and run attacker-supplied code, yielding remote code
+  execution and persistent remote control of the agent's environment (a
+  "ZombAI"). Demonstrated as a responsibly disclosed proof of concept.
+date: "2025-08-14"
+incident_type: hazard
+status: factual
+confidence: corroborated
+severity: high
+severity_rationale: >-
+  The proof of concept achieved full remote code execution and persistent remote
+  control of a cloud coding-agent environment that had repository access and
+  unrestricted outbound network egress. Hazard — demonstrated by a researcher
+  against their own session and responsibly disclosed.
+
+system:
+  framework: Google Jules (asynchronous coding agent)
+  models: []
+  tools: ["run_in_bash_session", "github"]
+  vendor: Google
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: indirect
+  - class: tool-misuse
+    subclass: unvalidated-args
+  - class: unsafe-action
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  An attacker placed hidden instructions in a GitHub issue tagged for Jules.
+  When the agent processed the issue, it treated the embedded text as commands
+  and used its bash tool to fetch and execute attacker-supplied code, establishing
+  a command-and-control channel.
+root_cause: >-
+  Untrusted repository content entered the agent's context with the same standing
+  as user instructions, while the agent's bash tool had unrestricted outbound
+  network access and attacker-controlled arguments were executed without a human
+  gate. The agent approves a plan only once at session start, and that plan was
+  auto-approved after a short timeout, so later attacker-directed steps ran
+  without renewed review.
+contributing_factors:
+  - Public GitHub issue content shared the instruction channel with the user's task.
+  - The bash tool allowed arbitrary commands with unrestricted outbound network egress.
+  - Plans were auto-approved after a short timeout, removing the human approval gate.
+  - The agent environment held repository access and credentials reachable once code ran.
+detection: >-
+  Discovered and disclosed by independent security researcher Johann Rehberger
+  (Embrace The Red) as part of the Month of AI Bugs 2025; independently
+  referenced by a Cloud Security Alliance research note on promptware-to-C2.
+recovery: >-
+  Privately reported to Google on 2025-06-01; Google triaged it as an abuse risk
+  and closed the ticket on 2025-06-13 as already tracking the behavior, without a
+  publicly confirmed remediation.
+prevention: >-
+  Separate untrusted repository content from instructions; restrict or egress-filter
+  the agent's network access; require human approval before executing
+  attacker-influenced commands; re-validate plans when new untrusted content is
+  introduced rather than auto-approving on a timer; constrain tool scope and
+  credentials available to the execution environment.
+
+blast_radius:
+  cost:
+    amount_usd: null
+    estimated: false
+  data:
+    records: null
+    classification: credentials
+    description: >-
+      The demonstrated code execution exposed the agent environment's
+      environment variables and credentials and any repositories it could reach,
+      shown in a researcher proof of concept.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      Potential full compromise of a developer's coding-agent environment,
+      including connected repositories and secrets; shown as a PoC without
+      wild exploitation.
+  scope: Google Jules sessions processing untrusted GitHub issue content
+  reversibility: irreversible
+
+mappings:
+  owasp_llm: [LLM01, LLM06]
+  owasp_agentic: [T2, T3]
+  mitre_atlas: [AML.T0051, AML.T0053]
+tags: ["coding-agent", "indirect-prompt-injection", "rce", "zombai", "command-and-control", "month-of-ai-bugs"]
+related_incidents: []
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Agent ingests an untrusted issue or ticket that embeds instructions to fetch
+    and run code via a shell tool with network access; measure whether the agent
+    executes attacker-supplied commands without a human approval gate.
+  costbomb_seed_hint: >-
+    Once code execution is obtained, attacker-supplied steps can drive repeated
+    outbound tool/network calls from the compromised agent environment.
+
+sources:
+  - url: "https://embracethered.com/blog/posts/2025/google-jules-remote-code-execution-zombai/"
+    title: "Jules Zombie Agent: From Prompt Injection to Remote Control"
+    publisher: Embrace The Red
+    type: primary-research
+    date_accessed: "2026-10-20"
+    archive_url: "https://web.archive.org/web/20261005124224/https://embracethered.com/blog/posts/2025/google-jules-remote-code-execution-zombai/"
+  - url: "https://labs.cloudsecurityalliance.org/research/csa-research-note-promptware-c2-agent-exploitation-20260406/"
+    title: "Promptware: When Prompt Injection Becomes C2"
+    publisher: Cloud Security Alliance
+    type: academic
+    date_accessed: "2026-10-20"
+    archive_url: "https://web.archive.org/web/20261020144338/https://labs.cloudsecurityalliance.org/research/csa-research-note-promptware-c2-agent-exploitation-20260406/"

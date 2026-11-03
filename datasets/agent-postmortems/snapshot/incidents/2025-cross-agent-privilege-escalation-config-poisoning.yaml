@@ -1,0 +1,133 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-cross-agent-privilege-escalation-config-poisoning
+title: "Cross-agent privilege escalation: one coding agent writes another's config files to lift its restrictions"
+summary: >-
+  Security research showed that when multiple coding agents share a developer
+  workspace, a prompt-injected agent can write to the configuration, instruction,
+  and task files of a second agent (e.g. .mcp.json, .vscode/settings.json,
+  CLAUDE.md, AGENTS.md, .vscode/tasks.json) without user approval. On next run the
+  second agent loads the planted settings and executes attacker-controlled code,
+  "freeing" it from its sandbox and chaining into a multi-agent compromise.
+date: "2025-09-24"
+last_updated: "2026-10-20"
+incident_type: hazard
+status: factual
+confidence: corroborated
+severity: high
+severity_rationale: >-
+  One compromised agent can grant another arbitrary code execution and lift its
+  sandbox restrictions across a trust boundary, applicable to widely used coding
+  agents sharing a workspace. Proof of concept in a researcher-controlled
+  environment; no in-the-wild exploitation reported, and the vendor assessed it as
+  not meeting the bar for immediate servicing.
+
+system:
+  framework: "Multiple coding agents sharing a workspace (GitHub Copilot, Claude Code, Gemini CLI, AWS Kiro)"
+  models: []
+  tools: ["mcp", "vscode"]
+  vendor: "Multiple (GitHub/Microsoft, Anthropic, Google, AWS)"
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: multi-agent-failure
+failure_classes:
+  - class: multi-agent-failure
+    subclass: cascade
+  - class: prompt-injection
+    subclass: indirect
+  - class: excessive-agency
+    subclass: scope-creep
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  In a shared developer workspace configured for several coding agents, an
+  attacker places indirect prompt-injection content in untrusted data the first
+  agent processes. The compromised agent writes a malicious MCP server entry,
+  command allowlist, VS Code task, or instruction line into a second agent's
+  configuration or instruction file. When a developer next runs the second agent,
+  it loads the planted settings as trusted and executes attacker-controlled
+  commands, and the escalation can loop back to re-arm the first agent.
+root_cause: >-
+  Coding agents on a shared workspace can read and write each other's
+  configuration, instruction, and task files (for example .mcp.json,
+  .vscode/settings.json, .gemini/settings.json, CLAUDE.md, AGENTS.md,
+  .vscode/tasks.json) without explicit user approval, and treat those files as
+  trusted at load time. No trust boundary isolates one agent's configuration from
+  another, so compromise of one agent can expand capabilities or remove sandbox
+  restrictions on another.
+contributing_factors:
+  - Agents auto-write to project dotfiles and instruction files without explicit user approval.
+  - Configuration and instruction files are loaded as trusted at startup, enabling code execution via MCP servers, command allowlists, or editor tasks.
+  - Multiple agents share one workspace with no isolation between their configuration namespaces.
+  - Each agent can broaden its own or another agent's capabilities on the fly, so a single foothold can escalate across agents.
+detection: >-
+  Demonstrated and publicly disclosed by security researcher Johann Rehberger
+  (Embrace The Red) in a writeup dated 2025-09-24, with independent coverage the
+  same day. The author reported findings to Microsoft's MSRC, which assessed them
+  as not severe enough to require immediate security servicing.
+recovery: >-
+  No single-vendor fix was issued; the demonstration was conducted in a
+  researcher-controlled environment with no evidence of real-world exploitation.
+  The researcher recommends isolating each agent's configuration, proposing rather
+  than auto-applying changes to dotfiles, and least-privilege execution.
+prevention: >-
+  Isolate each agent's configuration so other agents cannot write it; require
+  explicit user approval before writing to configuration, instruction, or task
+  dotfiles; treat configuration and instruction files as untrusted input rather
+  than trusted at load; apply least-privilege execution and sandboxing that
+  on-the-fly configuration changes cannot widen.
+
+blast_radius:
+  data:
+    classification: unknown
+    description: >-
+      The demonstrated effect is arbitrary code execution in the developer
+      environment, which could expose local secrets, credentials, and source
+      code; the proof of concept did not exfiltrate specific data.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      A researcher proof of concept; no in-the-wild exploitation was reported.
+      Realized exploitation could yield arbitrary code execution and sandbox
+      escape on a developer workstation.
+  scope: >-
+    developer workstations where multiple coding agents share a workspace and can
+    write each other's configuration, instruction, or task files
+  reversibility: partially-reversible
+
+tags: ["multi-agent", "privilege-escalation", "cross-agent", "prompt-injection", "mcp", "coding-agents", "sandbox-escape", "config-poisoning"]
+mappings:
+  owasp_llm: [LLM01, LLM06]
+  owasp_agentic: [T3, T13]
+  mitre_atlas: [AML.T0051]
+related_incidents:
+  - "2026-google-adk-agent-privilege-escalation"
+  - "2026-loopjacking-approve-execute-mismatch"
+  - "2026-mind-viruses-multi-agent-propagation"
+  - "2026-microsoft-mcp-tool-description-poisoning"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Multiple coding agents share a workspace and can write each other's
+    configuration, instruction, or task files; a compromise of one agent plants an
+    MCP server, command allowlist, or editor task into a second agent's files;
+    measure whether the second agent loads the planted configuration and executes
+    it, and whether the escalation loops back across agents.
+
+sources:
+  - url: "https://embracethered.com/blog/posts/2025/cross-agent-privilege-escalation-agents-that-free-each-other/"
+    title: "Cross-Agent Privilege Escalation: When Agents Free Each Other"
+    publisher: Embrace The Red
+    type: primary-research
+    date_accessed: "2026-10-20"
+    archive_url: "https://web.archive.org/web/20261001192622/https://embracethered.com/blog/posts/2025/cross-agent-privilege-escalation-agents-that-free-each-other/"
+  - url: "https://simonwillison.net/2025/Sep/24/cross-agent-privilege-escalation/"
+    title: "Cross-Agent Privilege Escalation: When Agents Free Each Other"
+    publisher: Simon Willison
+    type: news
+    date_accessed: "2026-10-20"
+    archive_url: "https://web.archive.org/web/20260311123440/https://simonwillison.net/2025/Sep/24/cross-agent-privilege-escalation/"

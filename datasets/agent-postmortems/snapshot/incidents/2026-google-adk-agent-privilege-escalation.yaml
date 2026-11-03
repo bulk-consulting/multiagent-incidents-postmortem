@@ -1,0 +1,120 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-google-adk-agent-privilege-escalation
+title: "A malicious GitHub issue could make a low-privilege ADK agent trigger a maintainer-privileged one (agent-to-agent escalation)"
+summary: >-
+  Researchers showed that GitHub Actions workflows in Google's open-source Agent
+  Development Kit (ADK) for Python could be chained: a public, low-privilege
+  triage agent was prompt-injected via a crafted issue into triggering a
+  maintainer-only agent holding broad repository and cloud credentials, achieving
+  code execution on the CI runner and exposing its secrets. Google removed three
+  workflows.
+date: "2026-08-03"
+incident_type: hazard
+status: final
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  Agent-to-agent privilege escalation yielding code execution on a CI runner and
+  exposure of maintainer-level credentials from an unprivileged, public entry
+  point. Proof of concept in a researcher-controlled environment; no in-the-wild
+  exploitation reported.
+
+system:
+  framework: Google Agent Development Kit (ADK) for Python — GitHub Actions agent workflows
+  models: []
+  tools: ["github-actions", "ci"]
+  vendor: Google
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: indirect
+  - class: multi-agent-failure
+    subclass: cascade
+  - class: unsafe-action
+    subclass: unauthorized-write
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  An unprivileged party opened a crafted GitHub issue that prompt-injected the
+  repository's public, low-privilege triage agent. That agent's output became the
+  injection vector for a second, maintainer-only agent with broad repository and
+  cloud credentials, which then executed attacker-controlled commands on the CI
+  runner.
+root_cause: >-
+  A low-privilege agent acting on untrusted issue content could influence a
+  higher-privilege agent, crossing a privilege boundary. Trust flowed from an
+  untrusted, public entry point through one agent into another with far greater
+  authority, with no boundary enforced between them.
+contributing_factors:
+  - A public, low-privilege agent processed untrusted issue content as instructions.
+  - One agent's output could trigger a second, maintainer-privileged agent.
+  - The privileged agent held broad repository and cloud credentials on the CI runner.
+detection: >-
+  Discovered by Pillar Security and disclosed publicly around 2026-08-03; Google
+  removed the workflows issue-analyze.yml, issue-fix.yml, and pr-analyze.yml
+  (patch dated 2026-06-09, verified absent 2026-07-02, confirmed fixed 2026-07-21).
+recovery: >-
+  Google deleted the three affected workflows from the ADK for Python repository.
+  The proof of concept was conducted in a researcher-controlled environment with
+  no evidence of real-world exploitation.
+prevention: >-
+  Enforce privilege boundaries between agents so a low-privilege agent cannot
+  trigger a higher-privileged one; treat issue/PR content as untrusted; remove
+  standing broad credentials from agent-run CI jobs; require approval before
+  cross-agent or privileged actions.
+
+blast_radius:
+  data:
+    classification: credentials
+    description: >-
+      The proof of concept achieved arbitrary code execution on a CI runner and
+      exposed the credentials available to that job.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      A researcher proof of concept; no in-the-wild exploitation was reported.
+  scope: repositories using the affected ADK GitHub Actions agent workflows
+  reversibility: reversible
+
+tags: ["multi-agent", "privilege-escalation", "prompt-injection", "ci", "github-actions", "adk"]
+mappings:
+  owasp_llm: [LLM01, LLM06]
+  owasp_agentic: [T3, T13]
+  mitre_atlas: [AML.T0051]
+related_incidents:
+  - "2026-mind-viruses-multi-agent-propagation"
+  - "2026-claude-code-ci-hf-exfiltration"
+  - "2025-github-mcp-private-repo-leak"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    A public low-privilege agent processes untrusted content and can trigger a
+    second, higher-privileged agent; measure whether injected content can cross
+    the privilege boundary and reach the privileged agent's credentials or actions.
+
+sources:
+  - url: "https://thehackernews.com/2026/08/google-deletes-3-adk-ai-workflows-after.html"
+    title: "Google Deletes 3 ADK AI Workflows After Malicious GitHub Issue Could Trigger Privileged Agent"
+    publisher: The Hacker News
+    type: news
+    date_accessed: "2026-09-20"
+    archive_url: "https://web.archive.org/web/20260809185427/https://thehackernews.com/2026/08/google-deletes-3-adk-ai-workflows-after.html"
+  - url: "https://www.scworld.com/news/researchers-find-agent-to-agent-privilege-escalation-in-googles-adk-for-python-repo"
+    title: "Researchers find 'agent-to-agent' privilege escalation in Google's ADK for Python repo"
+    publisher: SC Media
+    type: news
+    date_accessed: "2026-09-20"
+    archive_url: "https://web.archive.org/web/20260911022719/https://www.scworld.com/news/researchers-find-agent-to-agent-privilege-escalation-in-googles-adk-for-python-repo"
+  - url: "https://labs.cloudsecurityalliance.org/research/csa-research-note-google-adk-trustissues-agent-injection-202/"
+    title: "Google Deletes ADK Workflows After Agent-to-Agent Injection"
+    publisher: Cloud Security Alliance
+    type: primary-research
+    date_accessed: "2026-09-20"
+    archive_url: "https://web.archive.org/web/20260920145420/https://labs.cloudsecurityalliance.org/research/csa-research-note-google-adk-trustissues-agent-injection-202/"

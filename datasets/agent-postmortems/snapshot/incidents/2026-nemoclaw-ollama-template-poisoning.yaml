@@ -1,0 +1,122 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-nemoclaw-ollama-template-poisoning
+title: "NVIDIA NemoClaw exposed a local model server, letting a webpage persistently poison the agent's model template (CVE-2026-65105)"
+summary: >-
+  NVIDIA's NemoClaw deployment wrapper bound its local Ollama instance to all
+  interfaces without authentication. Via DNS rebinding, a single malicious
+  webpage could reach the API and rewrite the model's chat template
+  (CVE-2026-65105) — a structural, persistent poisoning applied to every message
+  that could make the agent supply vulnerable code, suppress warnings, or
+  exfiltrate data. Disclosed by Oasis Security; patched by NVIDIA.
+date: "2026-08-25"
+incident_type: hazard
+status: final
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  Persistent, invisible compromise of a local agent's model template
+  (CVE-2026-65105, CVSS 8.1) reachable drive-by from any webpage; affects
+  resources the agent can access. Patched on Linux/macOS; Windows/WSL reported
+  still unfixed at disclosure.
+
+system:
+  framework: NVIDIA NemoClaw (deployment wrapper for the OpenClaw agent)
+  models: []
+  tools: ["ollama", "browser"]
+  vendor: NVIDIA
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: memory-context-poisoning
+failure_classes:
+  - class: memory-context-poisoning
+    subclass: memory-injection
+  - class: insecure-output
+    subclass: injection-vuln
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  NemoClaw launched Ollama with OLLAMA_HOST=0.0.0.0:11434, exposing the
+  unauthenticated model API on all interfaces and disabling Ollama's Host-header
+  validation. A malicious webpage used DNS rebinding to reach the local API and
+  called /api/create to rewrite the model's chat template, appending hidden
+  attacker instructions applied at inference time to every message — including
+  the client's own system prompt.
+root_cause: >-
+  A local model server was bound to all interfaces without authentication and
+  with Host-header validation disabled, so a browser-based DNS-rebinding attack
+  could reach it. The chat-template mechanism then allowed structural, persistent
+  poisoning — distinct from per-query prompt injection because it survives across
+  sessions and overrides the client's system prompt.
+contributing_factors:
+  - Ollama was bound to 0.0.0.0 without authentication, reachable beyond loopback.
+  - Binding to all interfaces disabled Ollama's Host-header validation, enabling DNS rebinding.
+  - The model template is applied to all messages, so poisoning it persists and overrides system prompts.
+detection: >-
+  Discovered by Oasis Security during research into non-human identity and AI
+  agent risks; responsibly reported to NVIDIA's PSIRT before publication on
+  2026-08-25.
+recovery: >-
+  NVIDIA rated it High (CVSS 8.1) and patched it; NemoClaw v0.0.35 fixed macOS and
+  Linux (Linux versions 0 through 0.0.25 affected), with Windows/WSL reported
+  still unfixed at disclosure.
+prevention: >-
+  Bind local model servers to loopback and require authentication; keep
+  Host-header/origin validation enabled to resist DNS rebinding; treat the model
+  template/config as security-critical and disallow unauthenticated modification;
+  isolate agent-reachable local services.
+
+blast_radius:
+  data:
+    classification: confidential
+    description: >-
+      A poisoned template could direct the agent to supply vulnerable code,
+      suppress security warnings, or exfiltrate data, and could reach source
+      control, cloud accounts, and other resources the agent is authorized to use.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      A responsibly disclosed vulnerability demonstrated as a proof of concept;
+      no confirmed in-the-wild exploitation was reported.
+  scope: "NemoClaw for Linux 0–0.0.25 (Windows/WSL still unfixed at disclosure)"
+  reversibility: partially-reversible
+
+cve: ["CVE-2026-65105"]
+cwe: ["CWE-346"]
+mappings:
+  owasp_llm: [LLM04, LLM05]
+  owasp_agentic: [T1]
+tags: ["model-poisoning", "dns-rebinding", "ollama", "nemoclaw", "drive-by", "cve"]
+related_incidents:
+  - "2026-microsoft-mcp-tool-description-poisoning"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    A local model server is reachable from a webpage (e.g. via DNS rebinding) and
+    its template/config can be modified without authentication; measure whether an
+    unauthenticated network origin can persistently alter the agent's model
+    template or approval configuration.
+
+sources:
+  - url: "https://securityboulevard.com/2026/08/oasis-security-researchers-reveal-security-flaw-in-nemoclaw-ai-agent/"
+    title: "Oasis Security Researchers Reveal Security Flaw in NemoClaw AI Agent"
+    publisher: Security Boulevard / Oasis Security
+    type: primary-research
+    date_accessed: "2026-08-31"
+    archive_url: "https://web.archive.org/web/20260831180129/https://securityboulevard.com/2026/08/oasis-security-researchers-reveal-security-flaw-in-nemoclaw-ai-agent/"
+  - url: "https://www.esecurityplanet.com/vulnerabilities/news-nvidia-nemoclaw-cve-2026-65105/"
+    title: "NVIDIA Patches High-Severity NemoClaw Flaw After Model-Poisoning Demo"
+    publisher: eSecurity Planet
+    type: news
+    date_accessed: "2026-08-31"
+    archive_url: "https://web.archive.org/web/20260828033447/https://www.esecurityplanet.com/vulnerabilities/news-nvidia-nemoclaw-cve-2026-65105/"
+  - url: "https://nvd.nist.gov/vuln/detail/CVE-2026-65105"
+    title: "CVE-2026-65105 — NVIDIA NemoClaw local model-template poisoning"
+    publisher: NVD
+    type: other
+    date_accessed: "2026-08-31"
+    archive_url: "https://web.archive.org/web/20260831180105/https://nvd.nist.gov/vuln/detail/cve-2026-65105"

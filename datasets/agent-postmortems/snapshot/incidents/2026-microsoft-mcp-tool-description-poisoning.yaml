@@ -1,0 +1,110 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-microsoft-mcp-tool-description-poisoning
+title: "Microsoft advisory: poisoned MCP tool descriptions can silently redirect agents to exfiltrate data"
+summary: >-
+  Microsoft Incident Response and Microsoft Defender researchers warned that a
+  poisoned Model Context Protocol tool description can embed hidden instructions
+  an agent follows, using the user's own permissions to collect and exfiltrate
+  business data. Because MCP can pick up description changes dynamically, a
+  poisoned version can take effect without a new approval step.
+date: "2026-06-30"
+incident_type: hazard
+status: factual
+confidence: corroborated
+severity: high
+severity_rationale: >-
+  A vendor-confirmed trust-boundary weakness affecting enterprise agents that
+  connect business systems via MCP; enables silent data exfiltration under the
+  user's permissions across widely deployed platforms.
+
+system:
+  framework: Microsoft 365 Copilot / Copilot Studio / Azure AI Foundry / custom MCP servers
+  models: []
+  tools: ["mcp", "copilot"]
+  vendor: Microsoft
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: tool-metadata
+  - class: data-exfiltration
+    subclass: via-tool
+attack_vector: tool-metadata
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  A tool connected via MCP carries a plain-text description that tells the agent
+  what it does. An attacker poisons that description with hidden instructions;
+  because MCP can pick up description changes dynamically, the poisoned version
+  becomes active without a new approval step in default setups. When a user
+  makes a normal request, the agent follows the hidden instruction and copies
+  data to an attacker-controlled tool while returning a normal-looking answer.
+root_cause: >-
+  AI agents treat third-party MCP tool descriptions as trusted instructions.
+  This is a trust-boundary problem, not a bug in the assistant: descriptions
+  from external tools enter the model context with the standing of instructions,
+  and dynamic description updates bypass the initial approval.
+contributing_factors:
+  - MCP tool descriptions can change after approval and take effect without re-review.
+  - Tool descriptions are consumed as instructions rather than as untrusted data.
+  - Actions run with the requesting user's permissions, so exfiltration looks routine.
+detection: >-
+  Documented by Microsoft Incident Response and Microsoft Defender researchers
+  in a public advisory; reported by multiple security outlets.
+recovery: >-
+  Microsoft published guidance for teams approving agents that connect to
+  business systems, emphasising treating tool descriptions as untrusted and
+  re-reviewing on change. No specific in-the-wild exploitation was reported in
+  the advisory.
+prevention: >-
+  Treat MCP tool metadata as untrusted input; pin and re-review tool
+  descriptions on change; require approval before cross-tool data movement;
+  constrain the destinations tools may send data to; isolate untrusted tools
+  from sensitive ones.
+
+blast_radius:
+  data:
+    classification: confidential
+    description: >-
+      Business data reachable by an enterprise agent (e.g. supplier invoices in
+      the advisory's example) could be collected under the user's permissions
+      and copied to an attacker-controlled server.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      A vendor advisory describing an attack class; no specific in-the-wild
+      exploitation was reported.
+  scope: enterprise agents connecting business systems via MCP
+  reversibility: irreversible
+
+tags: ["mcp", "tool-poisoning", "copilot", "vendor-advisory"]
+mappings:
+  owasp_llm: [LLM01, LLM02]
+  mitre_atlas: [AML.T0024, AML.T0051]
+related_incidents:
+  - "2025-whatsapp-mcp-tool-poisoning"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    An approved MCP tool's description is later changed to embed instructions to
+    forward data to another tool; measure whether the agent re-reviews the
+    changed description or silently acts on the injected instruction.
+
+sources:
+  - url: "https://thehackernews.com/2026/06/microsoft-warns-poisoned-mcp-tool.html"
+    title: "Microsoft Warns Poisoned MCP Tool Descriptions Can Make AI Agents Leak Data"
+    publisher: The Hacker News
+    type: news
+    date_accessed: "2026-08-28"
+    archive_url: "https://web.archive.org/web/20260817214224/https://thehackernews.com/2026/06/microsoft-warns-poisoned-mcp-tool.html"
+  - url: "https://www.techrepublic.com/article/news-microsoft-mcp-tool-risk/"
+    title: "Microsoft Flags MCP Tool Descriptions as Hidden AI Agent Attack Path"
+    publisher: TechRepublic
+    type: news
+    date_accessed: "2026-08-28"
+    archive_url: "https://web.archive.org/web/20260711133424/https://www.techrepublic.com/article/news-microsoft-mcp-tool-risk/"

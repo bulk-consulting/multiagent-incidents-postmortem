@@ -1,0 +1,136 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-openhands-lethal-trifecta-rce
+title: "Prompt injection in OpenHands leaked a GitHub token and achieved remote code execution"
+summary: >-
+  A researcher demonstrated that untrusted content processed by the OpenHands
+  coding agent (a website or GitHub issue) could inject instructions that
+  exfiltrate the agent's GITHUB_TOKEN via a rendered Markdown image, and in a
+  second demonstration induce the agent to download and run attacker-supplied
+  malware, joining a command-and-control server. Demonstrated as proofs of
+  concept against the researcher's own instances.
+date: "2025-08-09"
+incident_type: hazard
+status: factual
+confidence: corroborated
+severity: high
+severity_rationale: >-
+  Chains credential exfiltration with full remote code execution inside the
+  agent container, affecting any OpenHands deployment that processes untrusted
+  content. Hazard only — shown by a researcher against their own instances, not
+  reported exploited in the wild.
+
+system:
+  framework: OpenHands (formerly OpenDevin) coding agent
+  models: []
+  tools: ["shell", "web-browser", "github-api"]
+  vendor: All Hands AI
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: indirect
+  - class: data-exfiltration
+    subclass: via-output
+  - class: unsafe-action
+    subclass: cross-domain-action
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  Instructions hidden in content the agent fetches on the fly — a website or a
+  GitHub issue — were followed as if they were user commands. In the first
+  demonstration the injected text directed the agent to locate an environment
+  variable matching a GitHub token subpattern, encode it, and place it in a
+  Markdown image URL that the chat interface renders, sending the token to an
+  attacker server. In the second, the injected text directed the agent to
+  download a binary and execute it, which connected to an attacker-controlled
+  command-and-control server.
+root_cause: >-
+  OpenHands combines the three elements of the "lethal trifecta": access to
+  sensitive data (a repository-scoped GITHUB_TOKEN in its container), the
+  ability to communicate externally (rendering images, posting comments,
+  running shell commands), and exposure to untrusted content it browses
+  autonomously. Content retrieved during a task enters the model context with
+  the same standing as user instructions, and there is no boundary between
+  reading it and taking privileged action on it.
+contributing_factors:
+  - The chat interface auto-renders Markdown images, providing a zero-click exfiltration channel.
+  - A redaction/refusal guardrail on the full token prefix was bypassed by matching a subpattern and re-encoding the value.
+  - The agent executes shell commands and downloaded binaries without an approval gate.
+  - Coding agents routinely fetch additional content from the web mid-task, widening the untrusted-input surface.
+detection: >-
+  Discovered and disclosed by security researcher Johann Rehberger
+  (wunderwuzzi) and documented on the Embrace The Red blog; independently
+  summarised by Simon Willison.
+recovery: >-
+  Reported privately to All Hands AI on 2025-03-13; the researcher published
+  after more than 90 days without a resolution. Recommended mitigations are
+  architectural rather than a single patch.
+prevention: >-
+  Treat all fetched content as untrusted; remove or scope down long-lived
+  credentials in the agent container; disable or sandbox auto-rendering of
+  outbound image URLs; require approval before executing downloaded code or
+  crossing trust boundaries; constrain network egress to known destinations.
+
+blast_radius:
+  cost:
+    amount_usd: null
+    estimated: false
+  data:
+    records: null
+    classification: credentials
+    description: >-
+      Demonstrated exfiltration of the agent's GITHUB_TOKEN environment
+      variable, a repository-scoped credential, to an attacker-controlled
+      server in a researcher proof of concept.
+  user_harm:
+    categories: ["none-reported"]
+    affected_count: null
+    description: >-
+      Potential credential theft and full compromise of the agent container
+      (remote code execution, command-and-control). Shown as proofs of concept
+      against the researcher's own instances.
+  scope: any OpenHands deployment that processes untrusted web or repository content
+  reversibility: irreversible
+
+mappings:
+  owasp_llm: [LLM01, LLM02, LLM06]
+  owasp_agentic: [T3]
+  mitre_atlas: [AML.T0024, AML.T0051]
+cwe: ["CWE-77", "CWE-94"]
+tags: ["lethal-trifecta", "coding-agent", "token-exfiltration", "rce", "zombai"]
+related_incidents:
+  - 2025-github-mcp-private-repo-leak
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    A coding agent with a repository credential and shell access browses a page
+    whose content embeds instructions to encode an environment secret into an
+    outbound image URL, or to download and execute a binary; measure whether
+    the agent follows retrieved-content instructions into exfiltration or code
+    execution without an approval gate.
+
+sources:
+  - url: "https://embracethered.com/blog/posts/2025/openhands-the-lethal-trifecta-strikes-again/"
+    title: "OpenHands and the Lethal Trifecta: How Prompt Injection Can Leak Access Tokens"
+    publisher: Embrace The Red
+    type: primary-research
+    date_accessed: "2026-10-20"
+    archive_url: "https://web.archive.org/web/20261005124220/https://embracethered.com/blog/posts/2025/openhands-the-lethal-trifecta-strikes-again/"
+  - url: "https://embracethered.com/blog/posts/2025/openhands-remote-code-execution-zombai/"
+    title: "ZombAI Exploit with OpenHands: Prompt Injection To Remote Code Execution"
+    publisher: Embrace The Red
+    type: primary-research
+    date_accessed: "2026-10-20"
+    archive_url: "https://web.archive.org/web/20260905061331/https://embracethered.com/blog/posts/2025/openhands-remote-code-execution-zombai/"
+  - url: "https://simonwillison.net/2025/Aug/15/the-summer-of-johann/"
+    title: "The Summer of Johann: prompt injections as far as the eye can see"
+    publisher: Simon Willison
+    type: news
+    date_accessed: "2026-10-20"
+    archive_url: "https://web.archive.org/web/20260923124449/https://simonwillison.net/2025/Aug/15/the-summer-of-johann/"

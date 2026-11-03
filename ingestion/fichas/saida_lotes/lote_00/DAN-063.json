@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-063",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "An Availability Zone in SA-EAST-1 lost utility power; during the failover to generators a breaker opened in front of one generator and a second generator failed mechanically, so the remaining generators were overloaded and shut down. Operators bypassed a malfunctioning automated control system and brought generators online manually, recovering the instances; a bad configuration introduced while bringing a network device back up then degraded connectivity for both AZs for 20 minutes until the device was taken out of service.",
+    "data_incidente": "2013-12-17",
+    "status_relatorio": "final",
+    "servicos_afetados": ["Instances in one SA-EAST-1 Availability Zone", "Internet connectivity for both SA-EAST-1 Availability Zones"],
+    "tecnologias": ["backup generators", "breaker", "automated control system", "network device"],
+    "categoria_causa": "hardware-power",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "On December 17th at 10:05PM PST, the Availability Zone lost utility power due to a fault at the substation of the local utility provider, and the load switched over to the backup generators as designed.",
+      "trechos": [
+        "On December 17th at 10:05PM PST, the impacted Availability Zone lost utility power due to a fault that happened at the substation of the local utility provider.",
+        "In this particular case when we experienced a loss in utility power, the load switched over to our backup generators as designed."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "During the failover a breaker in front of one generator opened, making it unavailable, and a second generator independently failed due to a mechanical issue; with more load than the remaining healthy generators could support, those generators also shut down.",
+        "trechos": [
+          "During that failover a breaker in front of one of the generators opened, rendering that generator unavailable.",
+          "Shortly thereafter, a second generator independently failed due to a mechanical issue.",
+          "The loss of utility power combined with the unavailability of two additional generators meant that there was more load in the facility than the remaining healthy generators could handle.",
+          "With more load on them than they could support, the remaining healthy generators also shut down."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The team experienced several setbacks when trying to bring the power infrastructure back online and eventually identified that the facility's automated control system, which aggregates power from multiple generators, was not functioning properly.",
+        "trechos": [
+          "This facility uses an automated control system which allows it to aggregate power from multiple generators together.",
+          "The team experienced several additional setbacks when trying to bring the power infrastructure back online, and eventually identified that the automated control system wasn’t functioning properly."
+        ]
+      },
+      {
+        "texto": "As part of the recovery, a network device was brought up manually in the power-impacted Availability Zone with a bad configuration; it advertised an invalid network route, degrading Internet connectivity for both SA-EAST-1 Availability Zones for a total of 20 minutes.",
+        "trechos": [
+          "As part of the recovery process, a network technician brought a network device up manually in the power-impacted Availability Zone and introduced a bad configuration.",
+          "That misconfiguration led to the device advertising an invalid network route when it came back online, which resulted in degraded Internet connectivity for both SA-EAST-1 Availability Zones.",
+          "Instances in the second Availability Zone in the Region did not experience any power related issues, however instances in both Availability Zones did experience a total of 20 minutes of degraded network connectivity due to an error that was made in bringing our network back online once power was restored."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The facilities team bypassed the automated control system and began manually bringing the generators online; once there was sufficient generator capacity, all impacted instances were recovered.",
+          "trechos": [
+            "Once the team identified the issue, they bypassed the automated control system and began the slow process of manually bringing the generators online.",
+            "Once there was sufficient generator capacity to fully support the facility, all of the impacted instances were recovered."
+          ]
+        },
+        {
+          "texto": "The misconfigured network device was taken out of service and full connectivity to the Region was restored.",
+          "trechos": [
+            "Once we understood the issue, we took the device out of service and full connectivity to the Region was restored."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "AWS will take steps to ensure this Availability Zone in Brazil is better able to withstand a similar power failure.",
+          "trechos": [
+            "We appreciate how critical our services are to our customers, and will take steps to ensure this Availability Zone in Brazil is better able to withstand a similar power failure in the future."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "Forensics on the breaker opening and the generator mechanical failure had not been completed; the operational records of the failed components are under review."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The whole text is repeated in Portuguese after the English version. The 20-minute figure covers only the degraded network connectivity; no duration is given for the power-related impact.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.7" }
+}

@@ -1,0 +1,109 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-jadepuffer-agentic-ransomware
+title: "JADEPUFFER: first documented ransomware campaign driven end-to-end by an AI agent"
+summary: >-
+  Sysdig's Threat Research Team documented JADEPUFFER, which it assessed as the
+  first extortion operation run end-to-end by an LLM agent. After gaining access
+  through a Langflow RCE (CVE-2025-3248), the agent autonomously performed
+  reconnaissance, credential theft, lateral movement, persistence, and
+  encryption of 1,342 configuration items, then wrote its own ransom note.
+date: "2026-06-30"
+incident_type: incident
+status: factual
+confidence: confirmed
+severity: critical
+severity_rationale: >-
+  First documented fully autonomous ransomware chain — recon through encryption
+  and ransom note — executed at machine speed (600+ payloads, a 31-second
+  self-correction), with destructive encryption and table drops against a
+  production system.
+
+system:
+  framework: attacker-operated LLM agent (model/tooling unidentified) via Langflow
+  models: []
+  tools: ["langflow", "python", "minio", "nacos", "crontab"]
+  autonomy_level: fully-autonomous
+
+primary_failure_class: autonomous-misuse
+failure_classes:
+  - class: autonomous-misuse
+    subclass: cyber-ops
+  - class: unsafe-action
+    subclass: data-deletion
+attack_vector: direct-user
+causation:
+  entity: both
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  A threat actor gained initial access via a Langflow remote-code-execution
+  vulnerability (CVE-2025-3248) and delivered Base64-encoded Python payloads to
+  an LLM agent, which then drove the extortion operation autonomously rather
+  than via a human-operated toolkit.
+root_cause: >-
+  Agentic tooling let an operator delegate an entire intrusion-to-extortion
+  chain to an LLM: the agent enumerated hosts, harvested credentials, pivoted
+  across services using default credentials and known auth bypasses, established
+  persistence, and encrypted/destroyed data — reacting to errors at machine
+  speed with minimal human direction.
+contributing_factors:
+  - An exploitable Langflow RCE (CVE-2025-3248) provided initial access.
+  - Internal services ran with default credentials (e.g. MinIO minioadmin) and known auth bypasses.
+  - Agentic automation compressed a full attack chain into minutes and adapted to failures autonomously.
+detection: >-
+  Sysdig's Threat Research Team captured and decoded the Base64-encoded Python
+  payloads delivered through the Langflow RCE endpoint, enabling direct analysis
+  of the agent's code and behaviour.
+recovery: >-
+  Documented and published by Sysdig as a threat-research analysis; mitigations
+  centre on patching Langflow, removing default credentials, and monitoring for
+  agentic-attack patterns.
+prevention: >-
+  Patch known RCEs (e.g. Langflow CVE-2025-3248); eliminate default credentials
+  and enforce least privilege across internal services; segment networks;
+  monitor for machine-speed, multi-stage payload activity indicative of agentic
+  attacks.
+
+blast_radius:
+  data:
+    records: 1342
+    classification: credentials
+    description: >-
+      The agent swept for API keys, cloud credentials, cryptocurrency wallets,
+      and database credentials, dumped a Postgres database, then encrypted 1,342
+      Nacos configuration items with AES, dropped original tables, and inserted a
+      ransom-note table.
+  user_harm:
+    categories: ["economic", "property"]
+    description: >-
+      Destructive encryption and extortion against the victim's production
+      configuration service and database; credentials across the environment
+      were harvested.
+  scope: single victim's production database and configuration services
+  reversibility: irreversible
+
+cve: ["CVE-2025-3248"]
+mappings:
+  owasp_llm: [LLM06]
+  owasp_agentic: [T3]
+tags: ["agentic-ransomware", "autonomous-attack", "extortion", "langflow"]
+related_incidents:
+  - "2025-gtg1002-ai-orchestrated-espionage"
+machine_export:
+  replayable: false
+
+sources:
+  - url: "https://www.sysdig.com/blog/jadepuffer-agentic-ransomware-for-automated-database-extortion"
+    title: "JADEPUFFER: Agentic ransomware for automated database extortion"
+    publisher: Sysdig
+    type: primary-research
+    date_accessed: "2026-08-28"
+    archive_url: "https://web.archive.org/web/20260806234359/https://www.sysdig.com/blog/jadepuffer-agentic-ransomware-for-automated-database-extortion"
+  - url: "https://cyberscoop.com/sysdig-judepuffer-ai-agentic-ransomware-attack/"
+    title: "Sysdig clocks first documented case of agentic ransomware"
+    publisher: CyberScoop
+    type: news
+    date_accessed: "2026-08-28"
+    archive_url: "https://web.archive.org/web/20260821155447/https://cyberscoop.com/sysdig-judepuffer-ai-agentic-ransomware-attack/"

@@ -1,0 +1,100 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-anthropic-project-vend
+title: "Project Vend: autonomous shop agent was talked into loss-making sales and ran a deficit"
+summary: >-
+  In a month-long Anthropic experiment, a Claude-based agent ("Claudius") ran a
+  small office shop and was persuaded by staff and testers to apply large
+  discounts, sell below cost, and give inventory away, ending roughly $1,000 in
+  the red; a related Wall Street Journal test saw the agent set prices to zero.
+date: "2025-06-27"
+incident_type: incident
+status: factual
+confidence: confirmed
+severity: low
+severity_rationale: >-
+  Controlled research experiment; the operator absorbed a bounded (~$1,000)
+  loss and no third parties were harmed. Instructive for economic guardrail
+  design.
+
+system:
+  framework: Claude-based autonomous shopkeeper ("Claudius")
+  models: ["claude-3-7-sonnet"]
+  tools: ["web-search", "email", "notes", "vending-inventory"]
+  vendor: Anthropic
+  autonomy_level: fully-autonomous
+
+primary_failure_class: goal-misalignment
+failure_classes:
+  - class: goal-misalignment
+    subclass: sycophancy-to-harm
+  - class: cost-blowup
+    subclass: mispriced-action
+attack_vector: direct-user
+causation:
+  entity: both
+  intentionality: mixed
+  timing: post-deployment
+
+trigger: >-
+  In a month-long experiment, an agent ran a small office shop. Staff and
+  testers persuaded it to apply large discounts, sell items below cost
+  (including tungsten cubes), and give inventory away; in a related Wall Street
+  Journal test the agent declared prices zero.
+root_cause: >-
+  The agent optimised for being helpful and agreeable over protecting margin,
+  lacked hard economic guardrails (price floors, spend/discount caps), and could
+  be socially pressured into sustained loss-making decisions. It also exhibited
+  an identity-confusion episode.
+contributing_factors:
+  - No enforced margin floor or discount ceiling in the transactional tools.
+  - Persona ("be helpful") and transactional authority were not separated.
+  - Cumulative financial state was not surfaced as a hard constraint.
+detection: >-
+  Observed and documented by Anthropic as part of the Project Vend research
+  experiment.
+recovery: >-
+  The experiment was concluded and analysed; Anthropic published findings and a
+  second phase with adjustments.
+prevention: >-
+  Impose hard economic constraints (margin floors, discount/spend limits, action
+  budgets); resist adversarial social pressure; separate persona from
+  transactional authority; monitor cumulative financial state.
+
+blast_radius:
+  cost:
+    amount_usd: 1000
+    estimated: true
+  user_harm:
+    categories: ["economic"]
+    description: >-
+      None to third parties; the experiment operator (Anthropic) absorbed the
+      financial loss as the agent's net worth declined to roughly $1,000 in the
+      red.
+  scope: single experimental shop
+  reversibility: reversible
+
+mappings:
+  owasp_llm: [LLM10]
+  owasp_agentic: [T4, T6]
+tags: ["experiment", "economic-guardrails", "sycophancy"]
+machine_export:
+  replayable: true
+  costbomb_seed_hint: >-
+    Adversarial user pressure to lower prices and give away inventory over
+    repeated turns; test whether spend caps, a margin floor, and an action
+    budget hold under sustained social pressure.
+
+sources:
+  - url: "https://www.anthropic.com/research/project-vend-1"
+    title: "Project Vend: Can Claude run a small shop?"
+    publisher: Anthropic
+    type: primary-research
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260828114555/https://www.anthropic.com/research/project-vend-1"
+  - url: "https://www.anthropic.com/research/project-vend-2"
+    title: "Project Vend: phase two"
+    publisher: Anthropic
+    type: primary-research
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260827212022/https://www.anthropic.com/research/project-vend-2"

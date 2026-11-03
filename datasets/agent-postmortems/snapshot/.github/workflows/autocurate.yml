@@ -1,0 +1,80 @@
+name: weekly-autocurate
+
+# Layer 2 (opt-in) of the curation pipeline: after discovery, run Claude Code to
+# research each new candidate, draft a schema-valid incident, validate it, and open a
+# REVIEW pull request. Never merges — a human approves. Dormant until the
+# ANTHROPIC_API_KEY secret is set (the guard job skips everything otherwise).
+
+on:
+  schedule:
+    - cron: "0 10 * * 1" # Mondays 10:00 UTC, one hour after weekly-discovery
+  workflow_dispatch:
+    inputs:
+      max_candidates:
+        description: "Max candidates to draft this run"
+        default: "5"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT";
+          else echo "enabled=false" >> "$GITHUB_OUTPUT";
+            echo "::notice::ANTHROPIC_API_KEY not set — auto-draft layer is dormant. Layer 1 (weekly-discovery) still runs."; fi
+
+  autocurate:
+    needs: guard
+    if: needs.guard.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Discover candidates
+        run: uv run scripts/discover_incidents.py --json candidates.json --limit "${{ github.event.inputs.max_candidates || 5 }}"
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Draft incidents from candidates
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude -p "$(cat .github/curation-prompt.md)" \
+            --allowedTools "Bash,Read,Write,Edit,Glob,Grep,WebFetch,WebSearch" \
+            --permission-mode acceptEdits
+
+      - name: Validate drafts (fail-closed)
+        run: |
+          uv run scripts/validate.py
+          uv run scripts/check_links.py
+
+      - name: Open review PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: bot/incident-candidates
+          title: "Auto-drafted incident candidates for review"
+          commit-message: "feat(corpus): auto-drafted incident candidates"
+          labels: needs-review
+          delete-branch: true
+          body: |
+            Auto-drafted by `weekly-autocurate` from the discovery feed. **Do not merge
+            without review.** Each incident must be checked against the sourcing and
+            neutrality rules in `CONTRIBUTING.md` and the PR checklist below.
+
+            CI has already run the schema, taxonomy, id, link-liveness and neutrality
+            gates on these drafts, but automated validation is not editorial review —
+            verify sources, tone, and incident-vs-hazard labels by hand before merging.

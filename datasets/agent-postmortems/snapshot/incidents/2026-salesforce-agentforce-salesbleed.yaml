@@ -1,0 +1,130 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-salesforce-agentforce-salesbleed
+title: "SalesBleed: indirect prompt injection enabled zero-click CRM data exfiltration on Salesforce Agentforce"
+summary: >-
+  Zenity Labs disclosed three vulnerabilities in Salesforce Agentforce,
+  collectively named SalesBleed. A prompt injection hidden in a public
+  Web-to-Lead submission stayed dormant until an employee asked an Agentforce
+  agent about recent leads; two of the flaws then let the agent silently
+  exfiltrate CRM data via a Trusted URLs redaction bypass, and a third let the
+  agent post phishing messages under its own identity. Salesforce fixed all
+  three; no exploitation in the wild was reported.
+date: "2026-09-24"
+last_updated: "2026-10-14"
+incident_type: hazard
+status: final
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  Zero-click exfiltration of confidential CRM data (company names, deal sizes,
+  account records) reachable by the default General CRM subagent, from an
+  unauthenticated public entry point. Researcher proof of concept, patched
+  before any known exploitation; no CVE or CVSS was assigned.
+
+system:
+  framework: Salesforce Agentforce (General CRM subagent, Query Records tool)
+  models: []
+  tools: ["web-to-lead", "query-records", "slack"]
+  vendor: Salesforce
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: indirect
+  - class: data-exfiltration
+    subclass: via-output
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  An unauthenticated party submitted a lead through a public Web-to-Lead form
+  with prompt-injection instructions hidden in the lead fields. The record stayed
+  dormant until an employee asked their Agentforce agent a routine question about
+  recent leads; the agent read the poisoned record and executed the hidden
+  instructions, querying the Accounts table and emitting the retrieved data inside
+  a crafted URL that the browser or Slack fetched automatically.
+root_cause: >-
+  Untrusted third-party content entered the agent's trust boundary and was acted
+  on as instructions, and the Trusted URLs redaction mechanism and the rendering
+  surface interpreted the same URL string differently. Unrecognised top-level
+  domains and URL-termination characters let an attacker-controlled URL carrying
+  exfiltrated data pass redaction, while auto-loaded HTML images and Slack link
+  unfurling fetched it with no user action.
+contributing_factors:
+  - Public Web-to-Lead endpoints accept external content by design, and poisoned leads persist in the database.
+  - The default General CRM subagent had read access to both the Leads and Accounts tables.
+  - Redaction and rendering layers parsed URLs differently, so a crafted URL bypassed the Trusted URLs allowlist.
+  - Auto-fetched images and Slack link unfurling provided zero-click outbound exfiltration channels.
+detection: >-
+  Discovered and disclosed by Zenity Labs researchers (Alex Apostolov, Joao
+  Donato, Avishai Efrat, Ayush RoyChowdhury), who named the chain SalesBleed and
+  reported it to Salesforce on 2026-06-01.
+recovery: >-
+  Salesforce hardened the Trusted URLs mechanism and updated default Slack
+  message settings to require user confirmation. Zenity confirmed all three fixes
+  on 2026-09-21; the full attack chain and bypasses no longer work. The work was
+  a researcher proof of concept with no reported real-world exploitation.
+prevention: >-
+  Separate untrusted retrieved content from instructions so lead data cannot act
+  as commands; reconcile URL parsing between redaction and rendering layers;
+  scope agent tool access so a lead-review agent cannot read unrelated sensitive
+  tables; restrict outbound image and link-preview fetching; require confirmation
+  before an agent posts under its own identity.
+
+blast_radius:
+  data:
+    classification: confidential
+    description: >-
+      CRM records reachable by the default General CRM subagent (company names,
+      deal sizes, account and lead fields) could be silently exfiltrated to
+      attacker-controlled infrastructure.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      Researcher proof of concept; Salesforce and Zenity reported no evidence of
+      exploitation in the wild. The third flaw additionally allowed the agent to
+      be used to deliver phishing messages under its own identity.
+  scope: Agentforce tenants running the default General CRM subagent before the fix
+  reversibility: irreversible
+
+mappings:
+  owasp_llm: [LLM01, LLM02]
+  mitre_atlas: [AML.T0024, AML.T0051]
+related_incidents:
+  - "2025-echoleak-m365-copilot"
+  - "2025-anthropic-slack-mcp-exfiltration"
+  - "2025-claude-code-dns-exfiltration"
+tags: ["zero-click", "prompt-injection", "data-exfiltration", "agentforce", "crm", "web-to-lead", "dns-exfiltration"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    An untrusted record entering through a public intake form carries instructions
+    aimed at the agent; on a later unrelated query the agent retrieves it, reads an
+    unrelated sensitive table, and emits the data inside a crafted URL. Measure
+    whether the URL evades redaction and is fetched zero-click via image load or
+    link unfurling.
+
+sources:
+  - url: "https://labs.zenity.io/post/salesbleed-0-click-data-exfiltration-on-agentforce"
+    title: "SalesBleed: 0-Click Data Exfiltration in Agentforce"
+    publisher: Zenity Labs
+    type: primary-research
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261010233937/https://labs.zenity.io/post/salesbleed-0-click-data-exfiltration-on-agentforce"
+  - url: "https://www.securityweek.com/salesbleed-flaws-in-salesforce-agentforce-enabled-zero-click-data-exfiltration/"
+    title: "'SalesBleed' Flaws in Salesforce Agentforce Enabled Zero-Click Data Exfiltration"
+    publisher: SecurityWeek
+    type: news
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261008030758/https://www.securityweek.com/salesbleed-flaws-in-salesforce-agentforce-enabled-zero-click-data-exfiltration/"
+  - url: "https://www.salesforceben.com/lab-exposes-new-agentforce-data-exploit/"
+    title: "Lab Exposes New Agentforce Data Exploit"
+    publisher: Salesforce Ben
+    type: news
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261025104439/https://www.salesforceben.com/lab-exposes-new-agentforce-data-exploit/"

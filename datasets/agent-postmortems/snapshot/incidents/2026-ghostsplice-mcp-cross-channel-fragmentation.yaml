@@ -1,0 +1,118 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-ghostsplice-mcp-cross-channel-fragmentation
+title: "GhostSplice: splitting a malicious request across MCP channels raised agent compliance from 42% to 82%"
+summary: >-
+  Researchers (ASSET Research Group) demonstrated "GhostSplice", a cross-channel
+  trust-fragmentation attack: a malicious MCP server splits a disallowed
+  instruction into individually benign fragments placed in a tool description, a
+  tool result, and server-initiated sampling. The agent stitches them in one
+  context and complies where it would refuse the whole request, exfiltrating
+  files like .ssh/id_rsa, source code, and .env secrets.
+date: "2026-08-10"
+incident_type: hazard
+status: factual
+confidence: corroborated
+severity: moderate
+severity_rationale: >-
+  A demonstrated guardrail bypass that sharply raised exfiltration compliance
+  (42% to 82% average; several models to 100%), enabling theft of SSH keys and
+  secrets — but it presupposes the developer already connected the attacker's MCP
+  server and the agent can already read the files. Proof of concept; no in-the-wild
+  exploitation reported.
+
+system:
+  framework: AI coding agents using the Model Context Protocol
+  models: ["gpt-4o", "gemini-2.0-flash", "llama-3.3-70b"]
+  tools: ["mcp", "malicious-mcp-server"]
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: tool-metadata
+  - class: jailbreak
+    subclass: obfuscation
+  - class: data-exfiltration
+    subclass: via-tool
+attack_vector: tool-metadata
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  A malicious MCP server advertises a harmless-looking tool and splits a
+  disallowed instruction across channels — part in the tool description, part in a
+  later tool result (and optionally server-initiated sampling). Each fragment is
+  benign on its own, so the assistant processes each without refusing; because all
+  channels pour into one memory context, the agent reassembles the full request
+  and, for example, collects and exfiltrates sensitive files.
+root_cause: >-
+  Content from tool descriptions, tool results, files, and chat all enter the same
+  context and are treated as instructions. Refusal is evaluated per fragment
+  rather than over the reassembled sequence, so splitting a request across trusted
+  channels evades guardrails that would block the combined instruction.
+contributing_factors:
+  - Multiple MCP channels (description, result, sampling) share one instruction-bearing context.
+  - Guardrails judged fragments individually rather than the full reassembled tool-call sequence.
+  - Values from one tool's output flowed unchecked into another tool's arguments.
+detection: >-
+  Disclosed by the ASSET Research Group with a public proof-of-concept; reported
+  by security press. In testing, splitting into two halves roughly doubled average
+  compliance (42% to 82%) across eleven models, with some reaching 100%; Claude
+  Sonnet and Opus resisted (0/20) by evaluating the whole tool-call sequence before
+  acting.
+recovery: >-
+  A research disclosure with mitigations; any CVE identifiers were noted to follow
+  coordinated disclosure. Defenses centre on treating tool output as data, not
+  instructions.
+prevention: >-
+  Treat MCP server output strictly as data, not instructions; do not let values
+  from one tool's output flow unchecked into another tool's arguments; evaluate the
+  full reassembled sequence of tool calls before executing any; isolate untrusted
+  channels from one another.
+
+blast_radius:
+  data:
+    classification: credentials
+    description: >-
+      Demonstrated collection and exfiltration of sensitive files such as
+      .ssh/id_rsa, proprietary source code, and .env credentials.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      A proof of concept in controlled testing; no real-world intrusions were
+      reported.
+  scope: coding agents connected to a malicious MCP server that can read local files
+  reversibility: irreversible
+
+tags: ["mcp", "prompt-injection", "guardrail-bypass", "fragmentation", "data-exfiltration"]
+mappings:
+  owasp_llm: [LLM01, LLM02]
+  mitre_atlas: [AML.T0024, AML.T0051, AML.T0054]
+related_incidents:
+  - "2025-whatsapp-mcp-tool-poisoning"
+  - "2026-microsoft-mcp-tool-description-poisoning"
+  - "2025-anthropic-slack-mcp-exfiltration"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    A malicious MCP server splits a disallowed instruction into benign fragments
+    across a tool description and a later tool result; measure whether the agent
+    reassembles and complies where it would refuse the combined request, and
+    whether it evaluates the full tool-call sequence before acting.
+
+sources:
+  - url: "https://thehackernews.com/2026/08/malicious-mcp-servers-can-split.html"
+    title: "Malicious MCP Servers Can Split Instructions to Make AI Coding Agents Exfiltrate Secrets"
+    publisher: The Hacker News
+    type: news
+    date_accessed: "2026-08-31"
+    archive_url: "https://web.archive.org/web/20260824125117/https://thehackernews.com/2026/08/malicious-mcp-servers-can-split.html"
+  - url: "https://github.com/asset-group/ghostsplice"
+    title: "ghostsplice — PoC for the Cross-Channel Trust Fragmentation Attack"
+    publisher: ASSET Research Group
+    type: primary-research
+    date_accessed: "2026-08-31"
+    archive_url: "https://web.archive.org/web/20260831180110/https://github.com/asset-group/ghostsplice"

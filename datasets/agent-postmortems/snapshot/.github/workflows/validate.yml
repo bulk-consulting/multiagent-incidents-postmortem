@@ -1,0 +1,41 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+
+      # G-SCHEMA, G-TAX, G-ID, G-NEUTRAL, G-DRIFT — corpus-wide, fail-closed
+      - name: Validate corpus
+        run: uv run scripts/validate.py
+
+      # Meta-test: fixtures must pass/fail exactly as expected ("test the tests")
+      - name: Validate fixtures
+        run: uv run scripts/validate.py --fixtures
+
+      # G-MAP — framework mappings are derived from the crosswalk, not hand-edited
+      - name: Check framework mappings
+        run: uv run scripts/apply_mappings.py --check
+
+      # G-LINK — every sources[].url reachable (403/429 warn as likely bot-blocks)
+      - name: Check source links
+        run: uv run scripts/check_links.py
+
+      # G-EXPORT — exports build cleanly and validate against their schemas.
+      # We do NOT require exports to be committed in the PR: export/*.json are
+      # generated artifacts, regenerated and committed on main by publish.yml.
+      # Committing them per-PR causes merge conflicts between branches.
+      - name: Build and validate exports
+        run: uv run scripts/build_exports.py
+
+      # G-SITE — the static site builds from every incident (smoke test; the
+      # pages.yml workflow does the real build + deploy on main).
+      - name: Build site (smoke)
+        run: uv run scripts/build_site.py

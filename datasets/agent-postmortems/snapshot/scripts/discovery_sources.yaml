@@ -1,0 +1,117 @@
+# Discovery sources for the weekly curation pipeline (scripts/discover_incidents.py).
+# All sources are keyless and public. Add/remove feeds here — no code change needed.
+
+# Google News RSS queries. Each becomes news.google.com/rss/search?q=<query>.
+# Keep queries agent-action-oriented (the engineering lens), not generic "AI news".
+google_news_queries:
+  - '"AI agent" (deleted OR wiped OR leaked OR "prompt injection")'
+  - '"AI chatbot" (lawsuit OR hallucinated OR "made up" OR rogue)'
+  - '"MCP server" (vulnerability OR exfiltration OR "tool poisoning")'
+  - '"coding agent" (deleted files OR "production database" OR destructive)'
+  - '"AI agent" (denial of wallet OR runaway OR "cost blowup" OR overspend)'
+  - 'autonomous agent (misuse OR jailbreak OR "reward hacking")'
+
+# arXiv API category+keyword searches (for hazards / demonstrated PoCs).
+arxiv_queries:
+  - 'all:"prompt injection" AND (cat:cs.CR OR cat:cs.AI)'
+  - 'all:"agent" AND all:"tool" AND cat:cs.CR'
+  - 'all:"LLM agent" AND all:"security"'
+
+# Plain RSS/Atom feeds. Primary security-research sources and structured incident
+# databases — higher signal than general news, and boosted in ranking (see
+# discover_incidents.py). Only verified-live feeds; failures are non-fatal.
+# Known gaps without a usable feed (revisit if they add one, or add a custom
+# fetcher): Invariant Labs (no RSS), OECD AI Incidents Monitor (no RSS).
+rss_feeds:
+  # Structured incident database — directly on-topic, real-world harms.
+  - "https://incidentdatabase.ai/rss.xml"
+  # Primary agent/LLM security research.
+  - "https://embracethered.com/blog/index.xml"   # Embrace The Red (Johann Rehberger)
+  - "https://simonwillison.net/atom/everything/"  # Simon Willison
+  - "https://brave.com/blog/index.xml"            # Brave (agentic-browser injection research)
+  - "https://portswigger.net/research/rss"        # PortSwigger research
+  - "https://blog.trailofbits.com/feed/"          # Trail of Bits
+  # First-party lab / vendor disclosures — where frontier-model incidents break first.
+  - "https://openai.com/news/rss.xml"             # OpenAI news
+  - "https://huggingface.co/blog/feed.xml"        # Hugging Face blog
+  - "https://security.googleblog.com/feeds/posts/default"  # Google Security Blog
+  - "https://www.microsoft.com/en-us/security/blog/feed/"  # Microsoft Security blog
+
+# CVE keyword searches via the NVD API (keyless, free-text). Many agent incidents
+# are CVEs first. Queries are ANDed by NVD; keep them tight to agent/LLM/MCP scope.
+cve_queries:
+  - "MCP server"
+  - "prompt injection"
+  - "LLM agent"
+  - "AI coding agent"
+  - "AI agent remote code execution"
+
+# GitHub global Security Advisory database. No free-text filter, so we pull recent
+# advisories and keyword-filter locally — enable if you want GHSA coverage beyond
+# what NVD keyword search already returns (CVEs usually appear in both).
+github_advisories:
+  enabled: true
+  pages: 1
+
+# Completeness-critic reference lists (scripts/coverage_gaps.py). Curated,
+# agent-specific incident sources to diff our corpus against, to surface what we're
+# missing. AIID is intentionally NOT used here: it is a broad "AI harms" database
+# (copyright, bias, etc.), so it floods the critic with non-agent noise — we
+# cross-reference it per-incident via external_ids instead. AgentSecDB has no
+# public data endpoint.
+coverage_sources:
+  markdown_headings:
+    - "https://raw.githubusercontent.com/webpro255/awesome-ai-agent-attacks/main/README.md"
+  # Incident-database RSS feeds, keyword-filtered to agent relevance — broadens the
+  # completeness check beyond a single curated list. Add more date-headed markdown
+  # lists or incident-DB feeds here as they become available.
+  rss:
+    - "https://incidentdatabase.ai/rss.xml"   # AI Incident Database (AIID)
+
+# Stricter agent-identity keywords applied only to broad incident-DB feeds under
+# coverage_sources.rss (e.g. AIID), which otherwise surface general "AI harms"
+# outside our agent-action scope. An RSS entry must match at least one of these.
+coverage_rss_keywords:
+  - "ai agent"
+  - "agentic"
+  - "ai chatbot"
+  - "chatbot"
+  - "copilot"
+  - "coding agent"
+  - "autonomous agent"
+  - "llm agent"
+  - "mcp server"
+  - "ai assistant"
+
+# Relevance keywords — a candidate's score is the count of these it matches in
+# its title/summary. Used only to rank; humans still decide.
+relevance_keywords:
+  - agent
+  - agentic
+  - autonomous
+  - chatbot
+  - copilot
+  - mcp
+  - "tool"
+  - "prompt injection"
+  - jailbreak
+  - exfiltration
+  - "data leak"
+  - deleted
+  - wiped
+  - destructive
+  - "reward hacking"
+  - hallucinat
+  - runaway
+  - "denial of wallet"
+  - overspend
+  - supply chain
+  - ransomware
+  - extortion
+  - credential
+  - database
+  - "code execution"
+  - rce
+  - sandbox
+  - backdoor
+  - "data exfiltration"

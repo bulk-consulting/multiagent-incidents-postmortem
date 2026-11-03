@@ -1,0 +1,132 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-grok-cfo-bot-slack-disclosure
+title: "Personal-finance Grok agent reportedly posted a user's bank balances to a company Slack channel"
+summary: >-
+  A software-company executive described publicly that a personal "CFO"
+  finance agent he built on xAI's Grok, meant to deliver a private monthly
+  summary of his own bank balances and expenses, instead posted that summary
+  into his company's exec Slack channel. The account was widely reported but
+  is contested: a community note and some observers questioned it, and the
+  vendor did not publicly confirm it.
+date: "2026-10-06"
+last_updated: "2026-10-20"
+incident_type: incident
+status: preliminary
+confidence: disputed
+severity: moderate
+severity_rationale: >-
+  As described, one individual's personal financial details were exposed to
+  colleagues in a shared work channel — a privacy and reputational harm limited
+  to a single person and largely reversible by deleting the message. Severity is
+  bounded; the underlying account is disputed and not vendor-confirmed.
+
+system:
+  framework: xAI Grok (consumer agent feature)
+  models: ["grok"]
+  tools: ["bank-account-connector", "slack"]
+  vendor: xAI
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: excessive-agency
+failure_classes:
+  - class: excessive-agency
+    subclass: scope-creep
+  - class: unsafe-action
+    subclass: cross-domain-action
+  - class: data-exfiltration
+    subclass: via-output
+attack_vector: self-induced
+causation:
+  entity: ai
+  intentionality: unintentional
+  timing: post-deployment
+
+trigger: >-
+  A user-created finance agent, set up at the end of August 2026 with read-only
+  access to checking and savings accounts and tasked with a monthly personal
+  finance summary intended for a private chat, ran and posted the summary — bank
+  balances and itemized monthly expenses — into the user's company exec Slack
+  channel instead of the intended private recipient.
+root_cause: >-
+  The agent acted beyond the narrow task it was given: its authorized job was a
+  private monthly finance report delivered to the user, but it surfaced that
+  sensitive data into a broad company channel. Per the account, separate agents
+  shared a common execution environment, so finance data reachable by one agent
+  could be posted by another agent that held messaging access, and a
+  similarly-named work channel was selected over the intended private one.
+  Read-only scoping constrained what the agent could do to the bank, not what it
+  could disclose to other connected surfaces.
+contributing_factors:
+  - Separate agents reportedly shared one execution environment, letting one agent's financial data be reachable by another agent that could post to Slack.
+  - Two similarly-named destinations — a private agent group chat and a company exec Slack channel — made wrong-recipient selection easy.
+  - No approval gate stood between composing a sensitive financial summary and broadcasting it to a broad audience.
+  - Read-only access governed the bank connection's writes, not the routing of the agent's own output.
+
+detection: >-
+  The user noticed the message in his company exec channel and described the
+  event publicly on X on 2026-10-06; it was then reported by multiple outlets.
+  The account is contested: a community note and some observers characterized it
+  as promotional or engagement-driven, the reporter also builds an agent-
+  permissions product, and the vendor did not publicly confirm it.
+recovery: >-
+  Per the account, the agent offered to check the channel and delete the message,
+  and the user disconnected his personal financial accounts from the agents.
+prevention: >-
+  Isolate execution environments and credentials per agent; require explicit
+  approval before an agent posts sensitive data to shared or broad channels;
+  bind an agent's output destinations to an allowlist and confirm the recipient;
+  treat read-only data access and output-routing authority as distinct
+  permissions; use unambiguous channel naming to avoid wrong-recipient selection.
+
+blast_radius:
+  data:
+    records: 1
+    classification: pii
+    description: >-
+      Personal checking and savings balances and itemized monthly expenses for a
+      single individual, as described, posted into a company exec Slack channel.
+  user_harm:
+    categories: ["psychological", "reputational"]
+    affected_count: 1
+    description: >-
+      One individual's personal financial details were, as described, disclosed
+      to colleagues in a work channel. No financial loss or unauthorized
+      transaction was reported.
+  scope: single individual's personal financial data; one company exec Slack channel
+  reversibility: partially-reversible
+
+mappings:
+  owasp_llm: [LLM02, LLM06]
+  owasp_agentic: [T3]
+  mitre_atlas: [AML.T0024]
+tags: ["personal-finance", "slack", "cross-agent", "shared-environment", "disputed"]
+related_incidents: ["2026-grok-bankr-morse-wallet-drain"]
+machine_export:
+  replayable: false
+  stampede_scenario_hint: >-
+    A read-only personal-finance agent shares an execution environment and
+    output surface with a messaging-capable agent; given a similarly-named
+    private chat and a broad work channel, measure whether the agent routes a
+    sensitive financial summary to the broad channel instead of the intended
+    private recipient, and whether any approval gate intervenes before posting.
+
+sources:
+  - url: "https://futurism.com/future-society/ai-agent-posted-bank-balances-spending-slack"
+    title: "Man Says He Was Mortified When His AI Agent Posted His Bank Balances and Exactly What He's Spending His Money On in a Slack Work Channel"
+    publisher: Futurism
+    type: news
+    date_accessed: "2026-10-20"
+    archive_url: "https://web.archive.org/web/20261015005717/https://futurism.com/future-society/ai-agent-posted-bank-balances-spending-slack"
+  - url: "https://tech.yahoo.com/ai/deals/articles/grok-ai-agent-posted-founder-161757171.html"
+    title: "Grok AI Agent Posted a Founder's Bank Balances in Slack"
+    publisher: TechCrunch (via Yahoo Tech)
+    type: news
+    date_accessed: "2026-10-20"
+    archive_url: "https://web.archive.org/web/20261020144652/https://tech.yahoo.com/ai/deals/articles/grok-ai-agent-posted-founder-161757171.html"
+  - url: "https://sfstandard.com/2026/10/19/ai-agent-craze-takes-over-sf"
+    title: "Everyone in San Francisco has an AI agent now. Privacy be damned"
+    publisher: The San Francisco Standard
+    type: news
+    date_accessed: "2026-10-20"
+    archive_url: "https://web.archive.org/web/20261020144706/https://sfstandard.com/2026/10/19/ai-agent-craze-takes-over-sf/"

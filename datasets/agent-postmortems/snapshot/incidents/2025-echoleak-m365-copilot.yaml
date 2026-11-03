@@ -1,0 +1,107 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-echoleak-m365-copilot
+title: "EchoLeak: zero-click prompt injection could exfiltrate Microsoft 365 Copilot context"
+summary: >-
+  A crafted email carrying a hidden prompt (CVE-2025-32711, CVSS 9.3) could be
+  retrieved by Microsoft 365 Copilot during a later unrelated query and silently
+  exfiltrate context with no user click. Disclosed by Aim Security and fixed
+  server-side; Microsoft reported no evidence of exploitation in the wild.
+date: "2025-06-11"
+incident_type: hazard
+status: final
+confidence: confirmed
+severity: critical
+severity_rationale: >-
+  CVSS 9.3; zero-click exfiltration of any data reachable in the assistant's
+  RAG context across an enterprise tenant. Near-miss — patched before known
+  exploitation.
+
+system:
+  framework: Microsoft 365 Copilot (RAG assistant)
+  models: []
+  tools: ["email", "sharepoint", "onedrive", "teams"]
+  vendor: Microsoft
+  autonomy_level: human-in-the-loop
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: indirect
+  - class: memory-context-poisoning
+    subclass: rag-poisoning
+  - class: data-exfiltration
+    subclass: via-output
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  A crafted email containing a hidden prompt payload (e.g. white-on-white text
+  or an HTML comment) was retained by Copilot. When the user later asked Copilot
+  a normal question, the RAG engine retrieved the email and executed the hidden
+  instructions, exfiltrating context without any user click.
+root_cause: >-
+  Untrusted external content entered the model's trust boundary and was acted on
+  as instructions, chaining multiple bypasses (XPIA classifier evasion,
+  reference-style Markdown link redaction bypass, auto-fetched images, a Teams
+  proxy allowed by the content security policy).
+contributing_factors:
+  - Inbound email was retrievable by the assistant without provenance separation.
+  - Auto-fetched images and an allowlisted proxy provided an exfiltration channel.
+  - The prompt-injection classifier could be evaded by phrasing aimed at the user, not the model.
+detection: >-
+  Discovered and disclosed by Aim Security researchers, who named it "EchoLeak"
+  (CVE-2025-32711).
+recovery: >-
+  Microsoft addressed the vulnerability server-side; the fix required no
+  customer action.
+prevention: >-
+  Enforce strict separation between untrusted retrieved content and
+  instructions; harden prompt-injection classifiers; restrict outbound
+  link/image fetching and CSP-allowed proxies; scope what an assistant may
+  return externally.
+
+blast_radius:
+  data:
+    classification: confidential
+    description: >-
+      Any data reachable in Copilot's context (emails, Teams messages, OneDrive,
+      SharePoint, Office files) could be silently exfiltrated. Rated CVSS 9.3
+      (critical).
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      Potential confidential-data exposure for organisations; Microsoft reported
+      no evidence of malicious exploitation in the wild.
+  scope: any M365 Copilot tenant prior to the server-side fix
+  reversibility: irreversible
+
+cve: ["CVE-2025-32711"]
+mappings:
+  owasp_llm: [LLM01, LLM02, LLM04]
+  owasp_agentic: [T1]
+  mitre_atlas: [AML.T0024, AML.T0051]
+tags: ["zero-click", "rag", "copilot"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Untrusted document containing instructions aimed past the classifier enters
+    a RAG corpus; on a later unrelated query, measure whether retrieval causes
+    the assistant to act on the injected instructions and emit data externally.
+
+sources:
+  - url: "https://thehackernews.com/2025/06/zero-click-ai-vulnerability-exposes.html"
+    title: "Zero-Click AI Vulnerability Exposes Microsoft 365 Copilot Data Without User Interaction"
+    publisher: The Hacker News
+    type: news
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260826092442/https://thehackernews.com/2025/06/zero-click-ai-vulnerability-exposes.html"
+  - url: "https://arxiv.org/html/2509.10540v1"
+    title: "Analysis of the EchoLeak zero-click prompt-injection vulnerability"
+    publisher: arXiv
+    type: academic
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260801130914/https://arxiv.org/html/2509.10540v1"

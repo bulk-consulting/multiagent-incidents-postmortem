@@ -1,0 +1,174 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-053",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Travis CI's OS X build environment had a significant period of instability and outage on August 4, 2015. After a vSphere password rotation, the vsphere-janitor cleanup service could not authenticate, and over 6000 build VMs leaked. Builds were paused, the leaked VMs were deleted and builds resumed at reduced capacity; on August 6 the CPU reservation configuration was changed, and load testing then booted more VMs than the previous maximum.",
+    "data_incidente": "2015-08-04",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "OS X build environment (open source and private repositories)"
+    ],
+    "tecnologias": [
+      "vSphere 6.0",
+      "EMC SAN",
+      "Xserve",
+      "vsphere-janitor"
+    ],
+    "categoria_causa": "credential-auth",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The team became aware of higher than normal re-queue rates for OS X builds, leading to a large backlog.",
+        "trechos": [
+          "We became aware of higher than normal re-queue rates for builds on our OS X platform, which were leading to a large backlog of OS X builds."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "On July 31 the passwords of the vSphere account used by the services were rotated, in response to vSphere's default 90-day password expiration policy.",
+      "trechos": [
+        "we had rotated the passwords for the vSphere account that our services use to authentication with the vSphere API, on the previous Friday, July 31st, in response to vSphere's default 90 day password expiration policy."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "When the password was rotated, the vsphere-janitor configuration was not updated, so the service could not authenticate and could not clean up build VMs, which leaked from July 31 to August 4: over 6000 VMs, against no more than 200 at normal peak.",
+        "trechos": [
+          "When the rotation happened,  the configuration for the *vsphere-janitor* service did not get updated. This resulted in the service being unable to authenticate and so it was unable to cleanup any build VMs.",
+          "We then began *leaking* VMs, from 2015-07-31 to 2015-08-04 when we discovered the configuration issue.",
+          "we discovered we had over **6000** virtual machines on the Xserve cluster. During normal peak build times, this number shouldn't be more than **200**."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "A defect in vsphere-janitor kept reporting the last detected VM count when it could not authenticate. The existing alerts fired only if the VM count dropped below expected minimums or spiked above peak, so they did not trigger.",
+        "trechos": [
+          "This also revealed a defect in our *vsphere-janitor* service.",
+          "Which was that it will continue to report the last detected number of total VMs to our metrics storage, when it is unable authenticate, instead of reporting 0.",
+          "We had existing alerting which was configured to alert us if the number of VMs either dropped below expected low traffic minimums or spiked above what we should see during peak usage.",
+          "the alerts did not trigger because the metric kept being reporting at a number which was within our *good* range."
+        ]
+      },
+      {
+        "texto": "The number of leaked VMs was too high for the cleanup process to handle with other builds running, and part of them were in a state the normal cleanup skipped, so a more aggressive cleanup required pausing all builds.",
+        "trechos": [
+          "we realized that the number of *leaked VMs* was simply too high for our cleanup process to handle with other builds running and that a portion of the very abnormally high number of *leaked VMs* were in an unexpected state.",
+          "They were in a state that caused our cleanup to skip them, because they had been *leaked* due to a failure to power-on and not because they were ready to be deleted as part of the normal build VM lifecycle.",
+          "In order to clean them up we needed to be able to run our cleanup in a mode that would also terminate new build VMs, so at 22:10 UTC we paused all builds again and initiated the more aggressive cleanup."
+        ]
+      },
+      {
+        "texto": "A second mechanism: the CPU Reservations configured for build VMs did not allow booting the configured maximum number of builds. Power-on failures continued after the leaked VMs were deleted, and the limit was only reached because of the backlog.",
+        "trechos": [
+          "The cleanup proceeded successfully and quickly deleted all *6326* VMs.",
+          "At 22:56 UTC, when we began resuming builds we discovered, and very quickly started to see power-on failures for new build VMs, due to errors about a lack of the ability to satisfy the resource reservations of the new VMs.",
+          "the way we had configured CPU Reservations for our build VMs resulted in a situation where when we tried to run the maximum number of builds we'd configured and assumed that we had capacity for, we were actually unable to actually boot that many VMs, because there were not enough CPU cycles available on the cluster.",
+          "It was only because of the large backlog that this incident had accrued, that we actually hit the maximum for the first time and uncovered this configuration limitation."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "The password of the vSphere account used by the services was rotated, and the vsphere-janitor service configuration was not updated with it.",
+        "trechos": [
+          "we had rotated the passwords for the vSphere account that our services use to authentication with the vSphere API",
+          "When the rotation happened,  the configuration for the *vsphere-janitor* service did not get updated."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "All OS X builds were paused at 18:46 UTC.",
+          "trechos": [
+            "At 18:46 UTC, we paused all OS X builds in order to stop all work on the infrastructure"
+          ]
+        },
+        {
+          "texto": "The vsphere-janitor configuration was fixed and the service restarted; it began cleaning up part of the leaked VMs.",
+          "trechos": [
+            "Once we realized the configuration issue, we fixed it, restarted the service, and it began cleaning up some of the backlog of build VMs."
+          ]
+        },
+        {
+          "texto": "At 22:10 UTC all builds were paused again and a more aggressive cleanup deleted all 6326 VMs.",
+          "trechos": [
+            "at 22:10 UTC we paused all builds again and initiated the more aggressive cleanup.",
+            "The cleanup proceeded successfully and quickly deleted all *6326* VMs."
+          ]
+        },
+        {
+          "texto": "After new power-on failures, the team reached out to MacStadium at 23:28 UTC, tested a reduced build rate, and re-enabled .com and .org builds at reduced capacity at 00:13 UTC. The entire backlog was then processed at the reduced rate, with things remaining stable.",
+          "trechos": [
+            "We once again paused all builds and at 23:28 UTC we reached out to our infrastructure provider to help investigate these boot failures.",
+            "While beginning the process of working with MacStadium, we also began testing to determine if there was a reduced rate of build throughput that would let us continue to run OS X builds",
+            "We determined we were able to operate at a reduced capacity and enabled both **.com** and **.org** builds, with the reduced capacity, at 00:13 UTC.",
+            "We operated at a reduced build rate and were able to successfully process the entire build backlog, with things remaining stable."
+          ]
+        },
+        {
+          "texto": "On August 6, 2015 at 03:43 UTC builds were briefly paused and the CPU reservation configuration was changed as recommended: MacStadium advised not using vSphere's resource reservation system and relying on VM resource sizing instead.",
+          "trechos": [
+            "MacStadium was able to help us understand that for our workload, we did not actually want to use the resource reservation system that vSphere implements but could just rely on the virtual machine resource sizing to sufficiently guarantee resources for each build VM.",
+            "So on Aug 06, 2015 - 03:43 UTC, we briefly paused all OS X builds and implemented the recommended configuration changes to the CPU reservations."
+          ]
+        },
+        {
+          "texto": "Load testing on the evening of August 6 (Pacific time) booted and ran more build VMs than the previous configured maximum, with the infrastructure stable.",
+          "trechos": [
+            "We performed the load testing on Thurs, Aug 6th during the evening hours in Pacific time, and we were able to boot and run more build VMs than the previously configured maximum throughput.",
+            "were very happy with both how stable the infrastructure remained and how quickly the backlog was processed."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Prepare plans for more well-defined load tests of the OS X infrastructure, with build jobs representing common customer repositories and more detailed metrics.",
+          "trechos": [
+            "We are preparing plans for more well defined load tests of our OS X infrastructure.",
+            "This testing will include multiple build jobs that represent the common types of repositories we see customers building and we will have better and more detailed metrics that we'll gather during these load tests."
+          ]
+        },
+        {
+          "texto": "Improve the metrics collected when build VMs are created, run and deleted, and how they are reported under failure conditions, to build better alerts.",
+          "trechos": [
+            "We are going to make improvements to what metrics we collect when we create, run, and delete build VMs on the OS X infrastructure.",
+            "We will also improve how these metrics are reported under failure conditions.",
+            "These metrics improvements will help us build better alerts to help us avoid these kinds of issues in the future."
+          ]
+        },
+        {
+          "texto": "Improve how builds are globally stopped, started and re-queued, through improvements to the build agent software, to reduce impact on running builds.",
+          "trechos": [
+            "in particular how we do a global stop/start of builds, and how they are re-queued, will be improved in ways that will result in less impact to running builds.",
+            "These will happen as we build and ship some fundamental improvements to our build agent software."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "causa_raiz: the text describes two mechanisms (VM leak from the authentication failure, and the CPU reservation limit that kept blocking boots after cleanup) and does not make clear which one started the impact; the leak was kept because the post centers the incident on it.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2"
+  }
+}

@@ -1,0 +1,112 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-github-copilot-autoapprove-rce
+title: "GitHub Copilot could be prompt-injected into disabling its own approvals, enabling RCE (CVE-2025-53773)"
+summary: >-
+  A prompt injection planted in source code, web pages, GitHub issues, or tool
+  responses could instruct GitHub Copilot in VS Code to edit its own
+  .vscode/settings.json and set chat.tools.autoApprove (the experimental
+  auto-approve / "YOLO mode"), disabling all user confirmations so it would run
+  shell commands without approval — remote code execution (CVE-2025-53773).
+date: "2025-08-12"
+incident_type: hazard
+status: final
+confidence: confirmed
+severity: critical
+severity_rationale: >-
+  Remote code execution on a developer's machine (CVE-2025-53773, reported CVSS
+  9.6) reachable through indirect prompt injection in a very widely used tool.
+  Patched; no confirmed in-the-wild exploitation.
+
+system:
+  framework: GitHub Copilot (VS Code)
+  models: []
+  tools: ["vscode", "shell", "github-copilot"]
+  vendor: Microsoft / GitHub
+  autonomy_level: human-in-the-loop
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: indirect
+  - class: excessive-agency
+    subclass: missing-approval-gate
+  - class: unsafe-action
+    subclass: unauthorized-write
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  A prompt injection embedded in untrusted content the agent processed (source
+  code, a web page, a GitHub issue, or a tool response) instructed Copilot to
+  add "chat.tools.autoApprove": true to .vscode/settings.json. That experimental
+  setting disables all confirmation prompts, after which the agent could run
+  shell commands and other actions without approval, yielding code execution.
+root_cause: >-
+  The agent was able to modify its own configuration — the very setting that
+  governs whether its actions require human approval — from untrusted input.
+  Self-modification of the approval boundary let a single injection escalate to
+  unattended command execution.
+contributing_factors:
+  - An experimental auto-approve setting could remove all human confirmation for agent actions.
+  - The agent could write to its own settings file from untrusted, injected content.
+  - Untrusted content was treated with the same authority as user instructions.
+detection: >-
+  Discovered by researcher Johann Rehberger (wunderwuzzi) and independently by
+  Markus Vervier and Ari Marzuk; reported to Microsoft on 2025-06-29.
+recovery: >-
+  Microsoft confirmed it was tracking the issue and shipped a fix in the August
+  2025 Patch Tuesday release.
+prevention: >-
+  Never allow an agent to change its own approval/permission settings from
+  untrusted input; gate security-relevant configuration behind explicit,
+  out-of-band user action; treat retrieved content as untrusted; keep
+  destructive/auto-approve modes off by default and clearly flagged.
+
+blast_radius:
+  data:
+    classification: internal
+    description: >-
+      Exploitation allowed arbitrary shell-command execution on the developer's
+      machine via the agent, once confirmations were disabled.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      A disclosed vulnerability with a released fix; no confirmed in-the-wild
+      exploitation was reported.
+  scope: GitHub Copilot + VS Code users before the August 2025 fix
+  reversibility: reversible
+
+cve: ["CVE-2025-53773"]
+cwe: ["CWE-94"]
+mappings:
+  owasp_llm: [LLM01, LLM06]
+  owasp_agentic: [T3]
+  mitre_atlas: [AML.T0051]
+tags: ["prompt-injection", "rce", "copilot", "auto-approve", "self-modification", "cve"]
+related_incidents:
+  - "2025-github-mcp-private-repo-leak"
+  - "2025-echoleak-m365-copilot"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Agent processes untrusted content that instructs it to modify its own
+    configuration to disable approval prompts; measure whether the agent will
+    change its own approval/permission settings from untrusted input.
+
+sources:
+  - url: "https://embracethered.com/blog/posts/2025/github-copilot-remote-code-execution-via-prompt-injection/"
+    title: "GitHub Copilot: Remote Code Execution via Prompt Injection (CVE-2025-53773)"
+    publisher: Embrace The Red (Johann Rehberger)
+    type: primary-research
+    date_accessed: "2026-08-31"
+    archive_url: "https://web.archive.org/web/20260809081152/https://embracethered.com/blog/posts/2025/github-copilot-remote-code-execution-via-prompt-injection/"
+  - url: "https://nvd.nist.gov/vuln/detail/CVE-2025-53773"
+    title: "CVE-2025-53773 — GitHub Copilot / Visual Studio Code remote code execution"
+    publisher: NVD
+    type: other
+    date_accessed: "2026-08-31"
+    archive_url: "https://web.archive.org/web/20260804083240/https://nvd.nist.gov/vuln/detail/cve-2025-53773"

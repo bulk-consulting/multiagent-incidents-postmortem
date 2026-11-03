@@ -1,0 +1,196 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-164",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On January 31, 2017, GitLab.com was down for about 18 hours and lost database changes made between 17:20 and 23:30 UTC. Under high load, PostgreSQL replication broke and had to be rebuilt manually; during this, the primary's data directory was removed instead of the secondary's. Backups were not usable, and the service was restored from a 6-hour-old LVM snapshot copied from staging.",
+    "data_incidente": "2017-01-31",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "GitLab.com"
+    ],
+    "tecnologias": [
+      "PostgreSQL 9.6",
+      "pg_basebackup",
+      "pg_dump",
+      "WAL",
+      "LVM snapshots",
+      "Azure disk snapshots",
+      "Amazon S3",
+      "Omnibus",
+      "DMARC"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "equipe_interna",
+      "descricao": {
+        "texto": "The engineer noticed the removal was running on the primary and stopped it within a second or two, after about 300 GB had been removed.",
+        "trechos": [
+          "The engineer terminated the process a second or two after noticing their mistake, but at this point around 300 GB of data had already been removed."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "While trying to restore replication, the PostgreSQL data directory was wiped on the primary instead of the secondary.",
+      "trechos": [
+        "Trying to restore the replication process, an engineer proceeds to wipe the PostgreSQL database directory, errantly thinking they were doing so on the secondary.",
+        "Unfortunately this process was executed on the primary instead."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Increased load made the primary remove WAL segments before the secondary replicated them, breaking replication; rebuilding the secondary required manual, non-automated and poorly documented work, during which the wrong host was wiped.",
+        "trechos": [
+          "The replication failed as WAL segments needed by the secondary were already removed from the primary.",
+          "Restoring this required manual work as this was not automated, nor was it documented properly."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "WAL archiving was not used, so the secondary had to be re-synchronised manually.",
+        "trechos": [
+          "As GitLab.com was not using WAL archiving, the secondary had to be re-synchronised manually."
+        ]
+      },
+      {
+        "texto": "The pg_dump backups failed silently because they used PostgreSQL 9.2 against a 9.6 database.",
+        "trechos": [
+          "This procedure failed silently because it was using PostgreSQL 9.2, while GitLab.com runs on PostgreSQL 9.6."
+        ]
+      },
+      {
+        "texto": "Backup failure emails were rejected because DMARC was not enabled for cronjob emails.",
+        "trechos": [
+          "Unfortunately DMARC was not enabled for the cronjob emails, resulting in them being rejected by the receiver."
+        ]
+      },
+      {
+        "texto": "Azure disk snapshots were not enabled for the database servers.",
+        "trechos": [
+          "While enabled for the NFS servers, these snapshots were not enabled for any of the database servers as we assumed that our other backup procedures were sufficient enough."
+        ]
+      },
+      {
+        "texto": "No one owned or regularly tested the backup procedure.",
+        "trechos": [
+          "Because there was no ownership, as a result nobody was responsible for testing this procedure."
+        ]
+      },
+      {
+        "texto": "Restoring from staging was slow: copying data from staging to production took around 18 hours on throttled disks.",
+        "trechos": [
+          "Copying the data from the staging to the production host took around 18 hours."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Chose the LVM snapshot taken 6 hours before the outage to minimize data loss.",
+          "trechos": [
+            "To recover GitLab.com we decided to use the LVM snapshot created 6 hours before the outage"
+          ]
+        },
+        {
+          "texto": "Copied the PostgreSQL data directory from staging to production.",
+          "trechos": [
+            "Since copying over and restoring the data directory would be easier we decided to go with this solution."
+          ]
+        },
+        {
+          "texto": "Incremented all database sequences by 100,000 to avoid reusing IDs.",
+          "trechos": [
+            "Increment all database sequences by 100,000 so one can't re-use IDs that might have been used before the outage."
+          ]
+        },
+        {
+          "texto": "Restored the database without webhooks on February 1 at 17:00 UTC.",
+          "trechos": [
+            "On February 1st at 17:00 UTC we managed to restore the GitLab.com database without webhooks."
+          ]
+        },
+        {
+          "texto": "Restored webhooks from a separate staging database and confirmed operation around 18:00 UTC.",
+          "trechos": [
+            "Restoring webhooks was done by creating a separate staging database using the LVM snapshot, but without triggering the removal of webhooks.",
+            "Around 18:00 UTC we finished the final restoration procedures such as restoring the webhooks and confirming everything was operating as expected."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Make the shell prompt clearly differentiate hosts and environments.",
+          "trechos": [
+            "Update PS1 across all hosts to more clearly differentiate between hosts and environments (#1094)"
+          ]
+        },
+        {
+          "texto": "Monitor backups with Prometheus.",
+          "trechos": [
+            "Prometheus monitoring for backups (#1095)"
+          ]
+        },
+        {
+          "texto": "Take hourly LVM snapshots of production databases.",
+          "trechos": [
+            "Hourly LVM snapshots of the production databases (#1098)"
+          ]
+        },
+        {
+          "texto": "Automate testing of PostgreSQL backup restores.",
+          "trechos": [
+            "Automated testing of recovering PostgreSQL database backups (#1102)"
+          ]
+        },
+        {
+          "texto": "Improve PostgreSQL replication documentation and runbooks.",
+          "trechos": [
+            "Improve PostgreSQL replication documentation/runbooks (#1103)"
+          ]
+        },
+        {
+          "texto": "Assign an owner for data durability.",
+          "trechos": [
+            "Assign an owner for data durability"
+          ]
+        },
+        {
+          "texto": "Improve the abuse reporting and response system.",
+          "trechos": [
+            "Finally, we're looking into improving our abuse reporting and response system."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 1080,
+      "trechos": [
+        "GitLab.com was down for about 18 hours."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v1"
+  }
+}

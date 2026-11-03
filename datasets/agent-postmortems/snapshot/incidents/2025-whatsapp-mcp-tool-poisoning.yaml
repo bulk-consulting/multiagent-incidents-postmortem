@@ -1,0 +1,107 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-whatsapp-mcp-tool-poisoning
+title: "Poisoned MCP tool description rerouted WhatsApp message history to an attacker number"
+summary: >-
+  Researchers demonstrated that a benign-looking MCP tool could carry hidden
+  instructions in its tool description, altering agent behaviour so that a
+  connected WhatsApp MCP server exfiltrated the user's message history to an
+  attacker-controlled number. Demonstrated as a proof of concept; not reported
+  as exploited in the wild.
+date: "2025-04-06"
+incident_type: hazard
+status: factual
+confidence: corroborated
+severity: high
+severity_rationale: >-
+  Full private-message exfiltration with no visible user-facing indication;
+  applies to any agent stack that trusts MCP tool metadata. Hazard only —
+  demonstrated against the researchers' own test account.
+
+system:
+  framework: MCP (Model Context Protocol) client
+  models: []
+  tools: ["whatsapp-mcp", "malicious-mcp-server"]
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: tool-metadata
+  - class: data-exfiltration
+    subclass: via-tool
+attack_vector: tool-metadata
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  A benign-looking MCP tool (a "fact of the day" tool) carried hidden
+  instructions in its tool description. After the agent had already connected a
+  trusted WhatsApp MCP server, the poisoned tool's description altered agent
+  behaviour so that WhatsApp message history was rerouted to an
+  attacker-controlled phone number.
+root_cause: >-
+  Tool descriptions from MCP servers are trusted and injected into the model
+  context. A server can present a benign description to the user while embedding
+  instructions that the model acts on, and unrestricted network/tool access lets
+  the agent route data to an external destination.
+contributing_factors:
+  - Tool descriptions can change after initial user approval (rug-pull), with no re-review.
+  - Clients showed users a summary of the tool, not the full description the model sees.
+  - No egress restrictions on which destinations tools may send data to.
+detection: >-
+  Identified and disclosed by Invariant Labs security researchers, who coined
+  the "tool poisoning" attack class and demonstrated it against a WhatsApp MCP
+  setup.
+recovery: >-
+  Researchers disclosed the technique; mitigations proposed include pinning and
+  reviewing tool descriptions, isolating untrusted tools, and constraining agent
+  network egress.
+prevention: >-
+  Treat MCP tool metadata as untrusted input; show users the full tool
+  description; pin/hash tool definitions and alert on changes; restrict which
+  destinations tools may send data to; separate trusted and untrusted tool
+  contexts.
+
+blast_radius:
+  data:
+    classification: pii
+    description: >-
+      Demonstrated exfiltration of a user's WhatsApp message history (personal
+      chats, business conversations) to an attacker-controlled number, shown as
+      a proof of concept against the researchers' own test account.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      Potential exposure of private message contents; in the demonstration the
+      affected party was the researcher's own test account.
+  scope: any MCP client connecting untrusted servers alongside sensitive tools
+  reversibility: irreversible
+
+mappings:
+  owasp_llm: [LLM01, LLM02]
+  mitre_atlas: [AML.T0024, AML.T0051]
+tags: ["mcp", "tool-poisoning", "rug-pull"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Agent connects a trusted messaging tool plus an untrusted tool whose
+    description embeds instructions to reroute message data to an external
+    destination; measure whether the agent follows tool-metadata instructions
+    across trust boundaries.
+
+sources:
+  - url: "https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks"
+    title: "MCP Security Notification: Tool Poisoning Attacks"
+    publisher: Invariant Labs
+    type: primary-research
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260825115656/https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks"
+  - url: "https://www.docker.com/blog/mcp-horror-stories-whatsapp-data-exfiltration-issue/"
+    title: "MCP Horror Stories: The WhatsApp Data Exfiltration Issue"
+    publisher: Docker
+    type: news
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260724232759/https://www.docker.com/blog/mcp-horror-stories-whatsapp-data-exfiltration-issue/"

@@ -1,0 +1,159 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-183",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "After moving to Google Cloud, incident.io saw spikes of Postgres connection timeouts and sporadic memcached i/o timeouts. Connection pool changes reduced both, and fixing an accidental join that caused thousands of duplicate outbound calls removed most errors. The remaining timeouts were likely caused by the GKE Dataplane V2 agent (anetd) consuming CPU under rapid TCP connection churn, dropping packets on the node.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Postgres database connections",
+      "memcached cache"
+    ],
+    "tecnologias": [
+      "Google Cloud",
+      "GKE",
+      "GKE Dataplane V2",
+      "anetd",
+      "Postgres",
+      "memcached",
+      "Kubernetes",
+      "Google Cloud Storage"
+    ],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "An incident was declared after a larger-than-normal number of Postgres connection timeouts.",
+        "trechos": [
+          "The trigger for this incident was a larger-than-normal number of Postgres connection timeouts."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "Bursts of hundreds of concurrent network calls within a single request opened many new connections on the node.",
+      "trechos": [
+        "There were a few **hundred** cache set operations happening, seemingly simultaneously, for one request.",
+        "Looking at the node metrics, we also see a pretty big spike in the number of new connections being opened."
+      ]
+    },
+    "causa_raiz": {
+      "status": "incerta",
+      "descricao": {
+        "texto": "Likely: the GKE Dataplane V2 agent (anetd) consumed significant CPU when many TCP connections were opened and closed rapidly, causing dropped packets on the node. This matched the observations, but anetd logs showed nothing obvious and the CPU spike is inferred from smoothed counters.",
+        "trechos": [
+          "At the same time, we also see an increase in dropped packets on that node.",
+          "Now we had a workload (anetd) to look at, we looked at the logs but sadly there was nothing obvious there.",
+          "it's very possible, even likely, that for a couple of seconds the anetd pod was indeed *really busy*."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "An accidental database join caused thousands of duplicate network calls to an external third party.",
+        "trechos": [
+          "Thanks to an accidental database join, we’d been making thousands of duplicate network calls to an external third party."
+        ]
+      },
+      {
+        "texto": "The Postgres connection pool settings led to hundreds of new connections per second.",
+        "trechos": [
+          "by fixing our connection pooling, so that it wasn't opening hundreds of connections per second."
+        ]
+      },
+      {
+        "texto": "The memcached client used the default of 2 idle connections, forcing many new connections under parallel load.",
+        "trechos": [
+          "We were using a default configuration parameter of 2 idle connections, which is the default"
+        ]
+      },
+      {
+        "texto": "The 100ms cache client timeout turns any dropped TCP packet into a timeout.",
+        "trechos": [
+          "does mean that any TCP packet that's been dropped will probably result in a timeout being hit."
+        ]
+      },
+      {
+        "texto": "Outbound network concurrency was only limited by provider rate limits.",
+        "trechos": [
+          "Previously our primary constraint was provider rate limits, but there are times where we can be within rate limits but still impact a node, if we’re not careful."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "The infrastructure had recently been moved fully to Google Cloud, with Dataplane V2 enabled on the GKE cluster.",
+        "trechos": [
+          "We recently moved our infrastructure fully into Google Cloud.",
+          "The only relevant configurable behavior on a cluster like this was that we had Dataplane V2 turned on"
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Doubled the maximum Postgres connection lifespan from 15m to 30m and made connection pools static.",
+          "trechos": [
+            "Doubling the maximum connection lifespan from 15m to 30m",
+            "Making connection pools static (always keep N connections open)"
+          ]
+        },
+        {
+          "texto": "Increased memcached MaxIdleConns from 2 to 20.",
+          "trechos": [
+            "We opted to try increasing the number of MaxIdleConns from 2 to 20."
+          ]
+        },
+        {
+          "texto": "Temporarily moved from Google's hosted memcached to a self-run memcached inside the Kubernetes cluster, without much difference.",
+          "trechos": [
+            "we decided to temporarily move away from Google’s hosted memcached to our own, running inside our Kubernetes cluster."
+          ]
+        },
+        {
+          "texto": "Fixed the accidental join; most database and cache issues disappeared after the fix reached production.",
+          "trechos": [
+            "the second blue line in the image above marks when that fix landed in production, and all the database connection and cache issues pretty much disappeared."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "Set more sensible concurrency limits for outbound network calls.",
+          "trechos": [
+            "We need to be more careful going forward with ensuring more sensible concurrency limits for outbound network calls."
+          ]
+        },
+        {
+          "texto": "When investigating network timeouts, look at overall activity on the same node, not only the affected pod.",
+          "trechos": [
+            "Whenever we spot network timeouts like this, we should remember to look at overall system activity (not necessarily the same pod, but anything running on the same node)."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "Direct evidence that anetd CPU saturation caused the dropped packets was not found; the anetd logs showed nothing obvious."
+    ]
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "prevencao: actions are directions without concrete limits (genericas vs especificas); categoria_causa: capacity-load chosen over software-bug (the accidental join) because the mechanism described is agent CPU saturation; tipo: investigation narrative classified as postmortem.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v1"
+  }
+}

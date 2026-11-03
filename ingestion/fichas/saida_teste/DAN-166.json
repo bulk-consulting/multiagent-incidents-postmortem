@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-166",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "An internal Google service managing a large number of GCP projects malfunctioned and overloaded the Filestore API with requests, causing global throttling under Filestore's global API request limit; read-only API calls (Console, gcloud, List, GetOperation) failed for all customers in all locations for 3 hours, 12 minutes, while mutate operations still succeeded. Service was restored after engineers shut down the internal service overloading the APIs.",
+    "data_incidente": "2022-09-13",
+    "status_relatorio": "misto",
+    "servicos_afetados": ["Google Cloud Filestore API", "Google Cloud Console", "gcloud"],
+    "tecnologias": ["Filestore API", "ListInstances API", "GetOperation", "global quota", "error code 429"],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Engineers were alerted of the issue through automated alerts on 13 September 2022 at 07:47 US/Pacific.",
+        "trechos": [
+          "Our engineers were alerted of the issue through automated alerts on Tuesday, 13 September 2022 07:47 US/Pacific."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "An internal Google service managing a large number of GCP projects malfunctioned and overloaded the Filestore API with requests.",
+      "trechos": [
+        "The outage was triggered when an internal Google service managing a large number of GCP projects malfunctioned and overloaded the Filestore API with requests, causing global throttling of the Filestore API."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Filestore enforces a global limit on API requests to limit impact in overload scenarios; the overload caused global throttling of the Filestore API, and because the quota is global, read-only API access was unavailable for all customers in all locations.",
+        "trechos": [
+          "Filestore enforces a global limit on API requests to limit impact in overload scenarios.",
+          "The outage was triggered when an internal Google service managing a large number of GCP projects malfunctioned and overloaded the Filestore API with requests, causing global throttling of the Filestore API.",
+          "As a result of this throttling, read-only API access was unavailable for all customers.",
+          "This affected customers in all locations, due to a global quota that applies to Filestore."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The throttling continued until the internal service was manually paused; engineers were alerted at 07:47 and started shutting down the internal service at 10:33, once the nature and scope of the issue became clear.",
+        "trechos": [
+          "This continued until the internal service was manually paused.",
+          "Our engineers were alerted of the issue through automated alerts on Tuesday, 13 September 2022 07:47 US/Pacific.",
+          "Once the nature and scope of the issue became clear, Google engineers started shutting down the internal service overloading our APIs at 10:33 and the issue was completely resolved at 10:42."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Google engineers started shutting down the internal service overloading the Filestore APIs at 10:33, and the issue was completely resolved at 10:42.",
+          "trechos": [
+            "Once the nature and scope of the issue became clear, Google engineers started shutting down the internal service overloading our APIs at 10:33 and the issue was completely resolved at 10:42."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "Planned: Google states it is taking immediate steps to prevent a recurrence and improve reliability, and introduces a list of action items, but the action items themselves do not appear in the extracted text.",
+          "trechos": [
+            "We are taking immediate steps to prevent a recurrence and improve reliability of the service in the future.",
+            "Google is committed to preventing recurrence by implementing the following action items:"
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 192,
+      "trechos": [
+        "On Tuesday, 13 September 2022 07:30 US/Pacific, an issue with Google Cloud Filestore resulted in all read-only API requests failing for a period of 3 hours, 12 minutes."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "categoria_causa: capacity-load was chosen over cascading-failure because the impact came from a global request limit being exhausted by an overloading internal service, with no configuration change. The text does not explain why the internal service malfunctioned. duracao uses the final incident report's 3 hours, 12 minutes (from 07:30); the mini incident report and page header give 07:38 and 3 hours, 04 minutes. prevencao: the list of action items is announced but missing from the extracted text, so genericas was chosen.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.4" }
+}

@@ -1,0 +1,115 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-aws-bedrock-agentcore-god-mode
+title: "AWS Bedrock AgentCore 'Agent God Mode': over-broad default IAM let one agent compromise all others in the account"
+summary: >-
+  Unit 42 showed that the AWS Bedrock AgentCore starter toolkit auto-generated IAM
+  roles with wildcard resource access instead of least privilege. A single
+  compromised agent could then reach every other agent in the same AWS account —
+  pulling their container images, recovering memory IDs, reading and poisoning
+  their conversation memories, and pivoting into higher-privileged code
+  interpreters.
+date: "2026-04-08"
+incident_type: hazard
+status: final
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  A default-configuration over-permissioning flaw that turns any single
+  agent compromise into account-wide compromise of all agents' images, memories,
+  and interpreters. Proof of concept; AWS responded with documentation warnings
+  rather than structural changes.
+
+system:
+  framework: AWS Bedrock AgentCore (starter toolkit)
+  models: []
+  tools: ["bedrock-agentcore", "iam", "ecr", "code-interpreter"]
+  vendor: Amazon Web Services
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: excessive-agency
+failure_classes:
+  - class: excessive-agency
+    subclass: scope-creep
+  - class: multi-agent-failure
+    subclass: cascade
+  - class: data-exfiltration
+    subclass: via-tool
+attack_vector: n-a
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  The AgentCore starter toolkit auto-created IAM roles granting wildcard resource
+  access (arn:aws:bedrock-agentcore:*) rather than scoping to individual
+  resources. Starting from one compromised agent, a researcher chained four
+  primitives within the same AWS account: pulling other agents' container images
+  from ECR, extracting their memory IDs from those images, reading and poisoning
+  their conversation memories via wildcard GetMemory, and invoking
+  higher-privileged code interpreters.
+root_cause: >-
+  Default IAM roles violated least privilege, giving each agent account-wide
+  access to all agents' resources. With no per-agent isolation of images, memory,
+  or interpreters, compromising one agent granted access to every other agent in
+  the account.
+contributing_factors:
+  - Starter-toolkit defaults auto-generated wildcard IAM permissions instead of least privilege.
+  - Agents' container images, memory stores, and interpreters were not isolated per agent.
+  - Wildcard GetMemory permitted reading and poisoning other agents' conversation memories.
+detection: >-
+  Discovered by Unit 42 at Palo Alto Networks (researcher Ori Hadad) and published
+  on 2026-04-08 as a proof-of-concept technical demonstration.
+recovery: >-
+  AWS updated documentation with warnings that the toolkit defaults are intended
+  for development and testing and are unsuitable for production; no structural
+  toolkit changes were disclosed.
+prevention: >-
+  Scope agent IAM roles to individual resources (least privilege), not wildcards;
+  isolate per-agent images, memory stores, and interpreters; do not ship
+  broad-by-default roles for production; monitor for cross-agent resource access.
+
+blast_radius:
+  data:
+    classification: confidential
+    description: >-
+      A compromised agent could read and poison other agents' conversation
+      memories and pull their container images and configuration across the AWS
+      account.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      A proof-of-concept demonstration; no in-the-wild exploitation was reported.
+  scope: all agents within the same AWS account using the toolkit defaults
+  reversibility: reversible
+
+tags: ["multi-agent", "iam", "over-permissioning", "cross-agent-memory", "bedrock", "aws"]
+mappings:
+  owasp_llm: [LLM02, LLM06]
+  owasp_agentic: [T3, T13]
+  mitre_atlas: [AML.T0024]
+related_incidents:
+  - "2026-dialogflow-cx-rogue-agent"
+  - "2026-google-adk-agent-privilege-escalation"
+  - "2026-mind-viruses-multi-agent-propagation"
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Agents in one account share broad IAM permissions and unisolated
+    images/memory; measure whether a single compromised agent can read or poison
+    other agents' memories or pivot to their resources.
+
+sources:
+  - url: "https://unit42.paloaltonetworks.com/exploit-of-aws-agentcore-iam-god-mode/"
+    title: "Cracks in the Bedrock: Agent God Mode"
+    publisher: Palo Alto Unit 42
+    type: primary-research
+    date_accessed: "2026-09-20"
+    archive_url: "https://web.archive.org/web/20260920152352/https://unit42.paloaltonetworks.com/exploit-of-aws-agentcore-iam-god-mode/"
+  - url: "https://www.pointguardai.com/ai-security-incidents/bedrock-agents-escaped-the-sandbox-and-shared-each-others-memories"
+    title: "AWS Bedrock AgentCore Sandbox Escape and IAM Flaws"
+    publisher: PointGuard AI
+    type: news
+    date_accessed: "2026-09-20"
+    archive_url: "https://web.archive.org/web/20260512091025/https://www.pointguardai.com/ai-security-incidents/bedrock-agents-escaped-the-sandbox-and-shared-each-others-memories"

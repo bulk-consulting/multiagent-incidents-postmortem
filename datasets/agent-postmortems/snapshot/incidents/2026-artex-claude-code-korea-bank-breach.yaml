@@ -1,0 +1,126 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-artex-claude-code-korea-bank-breach
+title: "A threat actor paired the ARTEX agentic pentest tool with Claude Code to breach South Korean financial organizations"
+summary: >-
+  CrowdStrike Intelligence reported a late-September to early-October 2026 campaign
+  in which a financially motivated operator used ARTEX, a China-developed open-source
+  agentic penetration-testing tool, alongside Claude Code and other LLM backends to
+  find and exploit vulnerabilities in multiple South Korean financial organizations,
+  resulting in data exfiltration. It was uncovered when the operator left open
+  directories exposing Claude Code session histories and ARTEX configuration files.
+date: "2026-10-08"
+last_updated: "2026-10-14"
+incident_type: incident
+status: factual
+confidence: confirmed
+severity: high
+severity_rationale: >-
+  Realized intrusions into multiple financial institutions with exfiltration of
+  client personal and payment data over a short time span, enabled by agentic AI
+  tooling that scaled a single operator's effort.
+
+system:
+  framework: ARTEX agentic penetration-testing tool with Claude Code
+  models: ["claude", "deepseek", "glm", "grok"]
+  tools: ["artex", "claude-code", "pentesting-utilities"]
+  vendor: unattributed operator (suspected China-based, financially motivated)
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: autonomous-misuse
+failure_classes:
+  - class: autonomous-misuse
+    subclass: cyber-ops
+  - class: data-exfiltration
+    subclass: via-tool
+attack_vector: direct-user
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  The operator ran ARTEX, a recently released open-source agentic pentesting tool
+  developed in China, from attacker-controlled infrastructure, and used Claude Code
+  sessions for vulnerability research and attack planning. ARTEX was driven by LLM
+  backends (DeepSeek v4.1-flash as primary, plus GLM-5.3 and Grok, accessed via a
+  likely API proxy) to identify and exploit exposed banking services, including a
+  loan progress inquiry service and an employee mobile work-support system.
+root_cause: >-
+  An open-source agentic pentesting tool combined with capable LLM backends and the
+  Claude Code interface turned a single operator's intent into an accelerated attack
+  pipeline for reconnaissance, vulnerability identification, and exploitation,
+  enabling multiple intrusions within a short time span.
+contributing_factors:
+  - An open-source agentic pentesting tool (ARTEX) packaged offensive automation around LLM backends.
+  - Claude Code sessions were used for vulnerability research and attack planning.
+  - Internet-exposed banking services presented exploitable attack surface.
+detection: >-
+  Discovered by CrowdStrike Intelligence, which uncovered threat actor-controlled
+  open directories exposing Claude Code session histories, Claude memory files, and
+  ARTEX configuration files; disclosed on 2026-10-08. CrowdStrike assessed with
+  moderate confidence that the operator was a likely Chinese-speaking, financially
+  motivated actor, based on the use of the China-developed ARTEX tool and observed
+  Chinese-language prompts, and recovered possible identifying details that it stated
+  were not reliable enough to confirm the actor's identity.
+recovery: >-
+  Reported publicly by CrowdStrike Intelligence; the ARTEX tool was subsequently
+  taken closed-source after disclosure. Mitigations centre on patching exposed
+  financial-sector services, monitoring for agentic-attack behaviour, and abuse
+  detection against offensive orchestration of AI models.
+prevention: >-
+  Reduce exposure and patch internet-facing financial services; monitor for
+  machine-speed vulnerability research and exploitation patterns; constrain offensive
+  orchestration of agentic tooling and LLM backends via usage policy and abuse
+  detection.
+
+blast_radius:
+  data:
+    classification: pii
+    description: >-
+      Exploitation of exposed banking services across multiple South Korean financial
+      organizations, including a loan progress inquiry service and an employee mobile
+      work-support system; reporting indicates exposure of client personal data and
+      payment card information. Exfiltrated data volumes were not quantified.
+  user_harm:
+    categories: ["economic", "legal-regulatory"]
+    description: >-
+      Compromise of financial-sector systems and exposure of customer data across
+      multiple institutions.
+  scope: "multiple South Korean financial organizations"
+  reversibility: irreversible
+
+mappings:
+  owasp_llm: [LLM02]
+  mitre_atlas: [AML.T0024]
+tags: ["agentic-attack", "cyber-ops", "financial-sector", "artex", "claude-code", "pentesting-tool"]
+related_incidents:
+  - "2025-gtg1002-ai-orchestrated-espionage"
+  - "2026-deepseek-hermes-autonomous-campaign"
+  - "2026-taiwan-nuclear-agency-autonomous-attack"
+machine_export:
+  replayable: false
+  stampede_scenario_hint: >-
+    An operator drives an agentic pentesting tool plus an LLM coding agent to
+    enumerate, research, and exploit exposed services across many targets; measure
+    how many parallel intrusions a single operator can sustain at machine speed.
+
+sources:
+  - url: "https://www.crowdstrike.com/en-us/blog/unknown-threat-actor-uses-artex-to-target-south-korean-finance/"
+    title: "Unknown Threat Actor Uses ARTEX to Target South Korean Finance"
+    publisher: CrowdStrike
+    type: primary-research
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261016014843/https://www.crowdstrike.com/en-us/blog/unknown-threat-actor-uses-artex-to-target-south-korean-finance/"
+  - url: "https://www.bleepingcomputer.com/news/security/hacker-used-artex-ai-and-claude-agents-to-target-south-korean-banks/"
+    title: "Hacker used ARTEX AI and Claude agents to target South Korean banks"
+    publisher: BleepingComputer
+    type: news
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261015100619/https://www.bleepingcomputer.com/news/security/hacker-used-artex-ai-and-claude-agents-to-target-south-korean-banks/"
+  - url: "https://www.theregister.com/cyber-crime/2026/10/08/crowdstrike-finds-possible-bank-hackers-cv-among-exposed-ai-logs/5301908"
+    title: "CrowdStrike finds possible bank hacker's CV among exposed AI logs"
+    publisher: The Register
+    type: news
+    date_accessed: "2026-10-14"
+    archive_url: "https://web.archive.org/web/20261011094439/https://www.theregister.com/cyber-crime/2026/10/08/crowdstrike-finds-possible-bank-hackers-cv-among-exposed-ai-logs/5301908"

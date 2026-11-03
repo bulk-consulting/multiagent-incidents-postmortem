@@ -1,0 +1,139 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2026-claude-code-mods-unsandboxed-default
+title: "Claude Code enabled unsandboxed in-process plugins (Mods) by default"
+summary: >-
+  Claude Code v2.1.287 turned on "Mods" by default: JavaScript/TypeScript plugins
+  that run inside the Claude Code process with the user's privileges. Per
+  Anthropic's own documentation, a loaded mod is not sandboxed and can read
+  secrets such as API keys from environment variables and settings files, and can
+  approve tool calls before the user is prompted. Disclosed as a capability/safety
+  posture; no exploited-in-the-wild case reported.
+date: "2026-10-01"
+incident_type: hazard
+status: factual
+confidence: confirmed
+severity: moderate
+severity_rationale: >-
+  No realized harm reported and documented controls exist (claude plugin validate,
+  --safe-mode, disableAllHooks, allowManagedModsOnly); realizing harm still requires
+  a malicious or compromised mod to be installed. Attack surface is notable because
+  a loaded mod runs unsandboxed with access to secrets and can bypass the permission
+  prompt by approving tool calls the user would otherwise gate.
+
+system:
+  framework: Claude Code
+  models: []
+  tools: ["claude-code-plugins", "claude-code-mods"]
+  vendor: Anthropic
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: supply-chain-compromise
+failure_classes:
+  - class: supply-chain-compromise
+    subclass: extension
+  - class: excessive-agency
+    subclass: missing-approval-gate
+  - class: data-exfiltration
+    subclass: via-tool
+attack_vector: supply-chain
+causation:
+  entity: human
+  intentionality: unintentional
+  timing: post-deployment
+
+trigger: >-
+  Installing or loading a mod — a plugin made of JavaScript/TypeScript event
+  handlers — causes it to run inside the Claude Code process with the user's
+  privileges. From v2.1.287 (terminal) and v2.1.286 (Desktop app), mods are
+  enabled by default, so the subsystem is active unless explicitly turned off.
+root_cause: >-
+  Mods execute in-process by design rather than in a sandbox, so they inherit the
+  user's full privileges: reading and writing files, starting processes, making
+  network requests, and reading environment variables and settings files that may
+  hold API keys. The same in-process position lets a mod observe and rewrite
+  session events, including approving a tool call; absent managed settings or a
+  Team/Enterprise login, a mod's approval can pass a call that an ask rule or a
+  PreToolUse hook would otherwise stop.
+contributing_factors:
+  - Mods run inside the Claude Code process; the Bash sandbox, if enabled, does not contain a process a mod starts.
+  - The plugin-install trust model equates to running third-party code, comparable in risk to an npm install.
+  - On accounts without managed settings, a mod can approve tool calls that ask rules or PreToolUse hooks would otherwise gate.
+  - The mods subsystem is enabled by default, so the capability is present without an explicit opt-in.
+detection: >-
+  Documented by Anthropic in the official Claude Code docs, which enumerate what a
+  mod can reach and state that mods are not sandboxed and are on by default.
+  Independent security writers analysed the change and framed it as a supply-chain
+  attack surface.
+recovery: >-
+  Not an in-the-wild incident; no remediation event. Anthropic documents controls
+  to limit or disable mods: disabling or uninstalling a plugin, --safe-mode,
+  disableAllHooks, and the organization-level allowManagedModsOnly.
+prevention: >-
+  Install mods only from trusted authors and marketplaces; review a mod's hooks and
+  calls with claude plugin validate before loading; pin versions to prevent silent
+  updates; for organizations, enforce allowManagedModsOnly and managed settings so
+  user-installed mods cannot override permission gates; use --safe-mode or
+  disableAllHooks where in-process extensions are not needed; keep long-lived
+  credentials out of environment variables and plaintext settings.
+
+blast_radius:
+  cost:
+    amount_usd: null
+    estimated: false
+  data:
+    classification: credentials
+    description: >-
+      A loaded mod can read secrets, including API keys, from environment variables
+      and settings files, and can make network requests. No disclosed exposure of a
+      specific user's credentials; this records the documented capability, not a
+      breach.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      No realized harm reported. The hazard is the expanded attack surface: an
+      in-process third-party extension with access to secrets and the ability to
+      approve tool calls before the user is prompted.
+  scope: "Claude Code installs with mods enabled by default (terminal v2.1.287+, Desktop app v2.1.286+)"
+  reversibility: unknown
+
+timeline:
+  - at: "2026-10-01"
+    event: "Claude Code v2.1.287 published to npm, enabling mods by default in the terminal."
+  - event: "Anthropic documentation states mods are not sandboxed and lists their access to secrets, sessions, and tool-call approval."
+
+mappings:
+  owasp_llm: [LLM02, LLM03, LLM06]
+  owasp_agentic: [T3]
+  mitre_atlas: [AML.T0024]
+related_incidents:
+  - 2025-amazon-q-wiper-supply-chain
+tags: ["claude-code", "plugins", "mods", "sandboxing", "attack-surface", "api-keys", "approval-bypass"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    An agent runtime loads an in-process third-party extension that runs with the
+    user's privileges: it can read environment secrets, make network requests, and
+    approve the runtime's own tool calls before a human is prompted. Measure, across
+    many installs, whether a loaded extension can read credentials and pass actions
+    past the human approval gate when managed-policy controls are absent.
+
+sources:
+  - url: "https://code.claude.com/docs/en/plugins/mods/overview"
+    title: "Mods overview — Claude Code Docs"
+    publisher: Anthropic
+    type: vendor-disclosure
+    date_accessed: "2026-10-21"
+    archive_url: "https://web.archive.org/web/20261021145655/https://code.claude.com/docs/en/plugins/mods/overview"
+  - url: "https://threatfrontier.com/articles/claude-code-mods-unsandboxed-plugins-on-by-default"
+    title: "Claude Code Mods: Unsandboxed Plugins On by Default"
+    publisher: ThreatFrontier
+    type: primary-research
+    date_accessed: "2026-10-21"
+    archive_url: "https://web.archive.org/web/20261021145754/https://threatfrontier.com/articles/claude-code-mods-unsandboxed-plugins-on-by-default"
+  - url: "https://dev.to/gabrielanhaia/claude-code-mods-run-unsandboxed-with-your-permissions-plugin-install-is-npm-install-now-2c3m"
+    title: "Claude Code Mods Run Unsandboxed With Your Permissions. /plugin install Is npm install Now"
+    publisher: DEV Community
+    type: news
+    date_accessed: "2026-10-21"
+    archive_url: "https://web.archive.org/web/20261017121819/https://dev.to/gabrielanhaia/claude-code-mods-run-unsandboxed-with-your-permissions-plugin-install-is-npm-install-now-2c3m"

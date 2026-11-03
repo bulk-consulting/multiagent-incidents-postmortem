@@ -1,0 +1,103 @@
+schema_version: "1.0"
+taxonomy_version: "1.0"
+incident_id: 2025-github-mcp-private-repo-leak
+title: "Malicious public GitHub issue prompt-injected an agent into leaking private-repo contents"
+summary: >-
+  Researchers showed that a hidden instruction planted in a public GitHub issue
+  could induce an agent using the GitHub MCP server to read a private
+  repository and publish its contents in a public pull request. Demonstrated as
+  a proof of concept; the flaw is architectural rather than a server bug.
+date: "2025-05-26"
+incident_type: hazard
+status: factual
+confidence: corroborated
+severity: high
+severity_rationale: >-
+  Crosses the private/public trust boundary with the user's full GitHub
+  privileges; affects any agent combining broad repository access with
+  untrusted content. Hazard only — shown against researcher-controlled repos.
+
+system:
+  framework: MCP (Model Context Protocol) client
+  models: ["claude-opus-4"]
+  tools: ["github-mcp"]
+  autonomy_level: supervised-autonomous
+
+primary_failure_class: prompt-injection
+failure_classes:
+  - class: prompt-injection
+    subclass: indirect
+  - class: data-exfiltration
+    subclass: cross-repo
+attack_vector: untrusted-content
+causation:
+  entity: human
+  intentionality: intentional
+  timing: post-deployment
+
+trigger: >-
+  An attacker filed a malicious issue in a public repository containing hidden
+  instructions. When a user asked their agent to review open issues, the agent
+  read the injected content and followed it, accessing a private repository and
+  leaking its contents via a pull request.
+root_cause: >-
+  An architectural issue, not a server bug: any agent with access to both
+  private repositories and untrusted external content (public issues, PR
+  comments) can be induced to cross that trust boundary. Even highly aligned
+  models remained susceptible.
+contributing_factors:
+  - Agent sessions held tokens scoped to all of the user's repositories at once.
+  - Public-issue content entered the model context with the same standing as user instructions.
+  - No approval gate between reading untrusted content and privileged write actions.
+detection: >-
+  Discovered and disclosed by Invariant Labs; independently analysed by
+  security researchers including Simon Willison.
+recovery: >-
+  Researchers reported it to GitHub; recommended mitigations are
+  architectural (least-privilege access, per-session scoping) since there is no
+  simple server-side patch.
+prevention: >-
+  Scope agent access to one repository/context at a time; treat repository
+  content as untrusted input; require approval before cross-repository reads or
+  outbound publication; apply guardrail policies between untrusted content and
+  privileged actions.
+
+blast_radius:
+  data:
+    classification: confidential
+    description: >-
+      Demonstrated leakage of private-repository contents (e.g. salary
+      information, private project details) into a public pull request in a
+      researcher proof-of-concept.
+  user_harm:
+    categories: ["none-reported"]
+    description: >-
+      Potential exposure of confidential source and business data belonging to
+      the repository owner; shown as a PoC by researchers.
+  scope: any agent with github-mcp access to both private repos and public issues
+  reversibility: irreversible
+
+mappings:
+  owasp_llm: [LLM01, LLM02]
+  mitre_atlas: [AML.T0024, AML.T0051]
+tags: ["mcp", "github", "confused-deputy"]
+machine_export:
+  replayable: true
+  stampede_scenario_hint: >-
+    Agent reads an untrusted public issue containing hidden instructions to
+    access another, private resource and publish it; measure whether the agent
+    crosses the trust boundary without approval.
+
+sources:
+  - url: "https://invariantlabs.ai/blog/mcp-github-vulnerability"
+    title: "GitHub MCP Exploited: Accessing private repositories via MCP"
+    publisher: Invariant Labs
+    type: primary-research
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260812222728/https://invariantlabs.ai/blog/mcp-github-vulnerability"
+  - url: "https://simonwillison.net/2025/May/26/github-mcp-exploited/"
+    title: "GitHub MCP exploited"
+    publisher: Simon Willison
+    type: primary-research
+    date_accessed: "2026-07-14"
+    archive_url: "https://web.archive.org/web/20260816023323/https://simonwillison.net/2025/May/26/github-mcp-exploited/"

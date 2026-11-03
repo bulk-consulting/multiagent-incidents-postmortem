@@ -1,0 +1,153 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-053",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Travis CI's OS X build environment was unstable and partly unavailable on August 4, 2015. After a vSphere password rotation, the VM cleanup service kept the old credentials, could not delete build VMs, and over 6000 VMs accumulated. During recovery, the CPU reservation configuration also prevented new VMs from booting at the configured maximum throughput.",
+    "data_incidente": "2015-08-04",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "OS X build environment (open source and private repositories)"
+    ],
+    "tecnologias": [
+      "vSphere 6.0",
+      "EMC SAN",
+      "Xserve",
+      "vsphere-janitor"
+    ],
+    "categoria_causa": "credential-auth",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The team noticed higher than normal re-queue rates for OS X builds and a growing backlog.",
+        "trechos": [
+          "We became aware of higher than normal re-queue rates for builds on our OS X platform, which were leading to a large backlog of OS X builds."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "The passwords of the vSphere account used by the services were rotated on July 31 because of vSphere's 90-day password expiration policy.",
+      "trechos": [
+        "we had rotated the passwords for the vSphere account that our services use to authentication with the vSphere API, on the previous Friday, July 31st, in response to vSphere's default 90 day password expiration policy."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The vsphere-janitor configuration was not updated with the new password, so the service could not authenticate and stopped deleting build VMs, which leaked until the cluster could not power on new VMs.",
+        "trechos": [
+          "the configuration for the *vsphere-janitor* service did not get updated. This resulted in the service being unable to authenticate and so it was unable to cleanup any build VMs.",
+          "The power-on events were failing because the vSphere cluster was unable to satisfy the resource reservations needed to allow the VMs to power-on."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "A defect in vsphere-janitor kept reporting the last known VM count when it could not authenticate, so the VM-count alerts never fired.",
+        "trechos": [
+          "it will continue to report the last detected number of total VMs to our metrics storage, when it is unable authenticate, instead of reporting 0.",
+          "the alerts did not trigger because the metric kept being reporting at a number which was within our *good* range."
+        ]
+      },
+      {
+        "texto": "Part of the leaked VMs were in a state the normal cleanup skipped, requiring a more aggressive cleanup mode.",
+        "trechos": [
+          "They were in a state that caused our cleanup to skip them, because they had been *leaked* due to a failure to power-on and not because they were ready to be deleted as part of the normal build VM lifecycle."
+        ]
+      },
+      {
+        "texto": "The CPU reservation configuration did not allow booting the configured maximum number of build VMs; this limit was only reached because of the backlog.",
+        "trechos": [
+          "the way we had configured CPU Reservations for our build VMs resulted in a situation where when we tried to run the maximum number of builds we'd configured and assumed that we had capacity for, we were actually unable to actually boot that many VMs, because there were not enough CPU cycles available on the cluster.",
+          "It was only because of the large backlog that this incident had accrued, that we actually hit the maximum for the first time and uncovered this configuration limitation."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "The password of the vSphere service account was rotated without updating the vsphere-janitor service configuration.",
+        "trechos": [
+          "When the rotation happened,  the configuration for the *vsphere-janitor* service did not get updated."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "All OS X builds were paused at 18:46 UTC.",
+          "trechos": [
+            "At 18:46 UTC, we paused all OS X builds in order to stop all work on the infrastructure"
+          ]
+        },
+        {
+          "texto": "The vsphere-janitor configuration was fixed and the service restarted, starting the cleanup of leaked VMs.",
+          "trechos": [
+            "Once we realized the configuration issue, we fixed it, restarted the service, and it began cleaning up some of the backlog of build VMs."
+          ]
+        },
+        {
+          "texto": "Builds were paused again at 22:10 UTC and a more aggressive cleanup deleted all 6326 VMs.",
+          "trechos": [
+            "at 22:10 UTC we paused all builds again and initiated the more aggressive cleanup.",
+            "The cleanup proceeded successfully and quickly deleted all *6326* VMs."
+          ]
+        },
+        {
+          "texto": "Builds were re-enabled at reduced capacity at 00:13 UTC while working with MacStadium on the boot failures.",
+          "trechos": [
+            "We determined we were able to operate at a reduced capacity and enabled both **.com** and **.org** builds, with the reduced capacity, at 00:13 UTC."
+          ]
+        },
+        {
+          "texto": "On August 6 the CPU reservation configuration was changed as recommended by MacStadium, then validated with load testing.",
+          "trechos": [
+            "we briefly paused all OS X builds and implemented the recommended configuration changes to the CPU reservations.",
+            "We performed the load testing on Thurs, Aug 6th during the evening hours in Pacific time"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Plan more well-defined load tests of the OS X infrastructure.",
+          "trechos": [
+            "We are preparing plans for more well defined load tests of our OS X infrastructure."
+          ]
+        },
+        {
+          "texto": "Improve VM lifecycle metrics and how they are reported under failure conditions, to build better alerts.",
+          "trechos": [
+            "We will also improve how these metrics are reported under failure conditions.",
+            "These metrics improvements will help us build better alerts to help us avoid these kinds of issues in the future."
+          ]
+        },
+        {
+          "texto": "Improve how builds are globally stopped, started and re-queued to reduce impact on running builds.",
+          "trechos": [
+            "in particular how we do a global stop/start of builds, and how they are re-queued, will be improved in ways that will result in less impact to running builds."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "categoria_causa: credentials not propagated to a service configuration fits both credential-auth (mis-deployed credentials) and configuration-error.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v1"
+  }
+}

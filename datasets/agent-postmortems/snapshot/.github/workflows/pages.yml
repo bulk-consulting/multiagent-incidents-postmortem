@@ -1,0 +1,49 @@
+name: pages
+
+# Build the static site from incidents/*.yaml and deploy to GitHub Pages.
+# Requires Pages to be enabled once: Settings → Pages → Source → GitHub Actions.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "incidents/**"
+      - "scripts/build_site.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push supersedes an in-flight build.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  # Change to a custom domain (e.g. https://agent-postmortems.dev) if configured.
+  SITE_BASE_URL: https://swarmproof.github.io/agent-postmortems
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Build site
+        run: uv run scripts/build_site.py
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
