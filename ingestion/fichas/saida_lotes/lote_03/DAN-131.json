@@ -1,0 +1,192 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-131",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "seguranca",
+    "seguranca": "ataque",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Malware undetected by antivirus on a CircleCI engineer's laptop let an attacker steal a 2FA-backed SSO session and, using the employee's privileges, access production and exfiltrate customer environment variables, tokens and keys on December 22, 2022. CircleCI shut down the employee's access and most production access, rotated all potentially exposed production hosts, revoked or rotated customer tokens, and asked customers to rotate secrets.",
+    "data_incidente": "2022-12",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "CircleCI production systems",
+      "customer environment variables, tokens and keys stored in CircleCI",
+      "GitHub OAuth tokens",
+      "Project API Tokens",
+      "Personal API Tokens",
+      "Bitbucket tokens"
+    ],
+    "tecnologias": [
+      "SSO",
+      "2FA",
+      "GitHub OAuth",
+      "antivirus",
+      "MDM",
+      "Bitbucket",
+      "AWS"
+    ],
+    "categoria_causa": "credential-auth",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "On December 29, 2022, a customer alerted CircleCI to suspicious GitHub OAuth activity, which started a deeper review by CircleCI's security team with GitHub; on December 30 CircleCI learned that customer's GitHub OAuth token had been compromised.",
+        "trechos": [
+          "On December 29, 2022, we were alerted to suspicious GitHub OAuth activity by one of our customers.",
+          "This notification kicked off a deeper review by CircleCI’s security team with GitHub.",
+          "On December 30, 2022, we learned that this customer’s GitHub OAuth token had been compromised by an unauthorized third party."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "An unauthorized third party deployed malware to a CircleCI engineer's laptop, compromised on December 16, 2022, used session cookie theft to steal a valid, 2FA-backed SSO session and impersonate the employee; unauthorized access is seen on December 19 and data exfiltration on December 22, 2022.",
+      "trechos": [
+        "To date, we have learned that an unauthorized third party leveraged malware deployed to a CircleCI engineer’s laptop in order to steal a valid, 2FA-backed SSO session.",
+        "This machine was compromised on December 16, 2022.",
+        "Our investigation indicates that the malware was able to execute session cookie theft, enabling them to impersonate the targeted employee in a remote location and then escalate access to a subset of our production systems.",
+        "We see unauthorized third-party access on December 19, 2022, with exfiltration of data occurring on December 22, 2022."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Two conditions existed before the attack: the malware was not detected by the antivirus software, and the targeted employee had privileges to generate production access tokens as part of regular duties, so the attacker could escalate access and exfiltrate data from a subset of databases and stores, including customer environment variables, tokens and keys.",
+        "trechos": [
+          "The malware was not detected by our antivirus software.",
+          "Because the targeted employee had privileges to generate production access tokens as part of the employee’s regular duties, the unauthorized third party was able to access and exfiltrate data from a subset of databases and stores, including customer environment variables, tokens, and keys."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Although all exfiltrated data was encrypted at rest, the attacker extracted encryption keys from a running process, enabling them to potentially access the encrypted data.",
+        "trechos": [
+          "Though all the data exfiltrated was encrypted at rest, the third party extracted encryption keys from a running process, enabling them to potentially access the encrypted data."
+        ]
+      },
+      {
+        "texto": "The rotation of all customers' GitHub OAuth tokens, started on December 31, 2022, took time despite working with GitHub to increase API rate limits; it was completed on January 7, 2023.",
+        "trechos": [
+          "Although that customer was able to quickly resolve the issue, out of an abundance of caution, on December 31, 2022, we proactively initiated the process of rotating all GitHub OAuth tokens on behalf of our customers.",
+          "Despite working with GitHub to increase API rate limits, the rotation process took time.",
+          "On January 7, 2023, at 07:30 UTC, we completed the rotation of GitHub OAuth tokens that we began on December 31, 2022, at 04:00 UTC."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "On December 31, 2022, CircleCI began rotating all GitHub OAuth tokens on behalf of customers (completed January 7, 2023, at 07:30 UTC).",
+          "trechos": [
+            "Although that customer was able to quickly resolve the issue, out of an abundance of caution, on December 31, 2022, we proactively initiated the process of rotating all GitHub OAuth tokens on behalf of our customers.",
+            "On January 7, 2023, at 07:30 UTC, we completed the rotation of GitHub OAuth tokens that we began on December 31, 2022, at 04:00 UTC."
+          ]
+        },
+        {
+          "texto": "On January 4, 2023, at 16:35 UTC, all access for the compromised employee account was shut down, and at 18:30 UTC production access was shut down for nearly all employees.",
+          "trechos": [
+            "On January 4, 2023, at 16:35 UTC, we shut down all access for the employee whose account was compromised.",
+            "On January 4, 2023, at 18:30 UTC, we shut down production access to nearly all employees, limiting access to an extremely small group for operational issues."
+          ]
+        },
+        {
+          "texto": "On January 4, 2023, at 22:30 UTC, all potentially exposed production hosts were rotated to ensure clean production machines.",
+          "trechos": [
+            "On January 4, 2023, at 22:30 UTC, we rotated all potentially exposed production hosts to ensure clean production machines."
+          ]
+        },
+        {
+          "texto": "All Project API Tokens were revoked on January 5, 2023, at 03:26 UTC, and all Personal API Tokens created before 00:00 UTC on January 5 were revoked on January 6 at 05:00 UTC.",
+          "trechos": [
+            "On January 5, 2023, at 03:26 UTC, we revoked all Project API Tokens.",
+            "On January 6, 2023, at 05:00 UTC, we revoked all Personal API Tokens that had been created prior to 00:00 UTC on January 5, 2023."
+          ]
+        },
+        {
+          "texto": "With Atlassian, all Bitbucket tokens were rotated on behalf of customers on January 6, 2023 (06:40 to 10:15 UTC).",
+          "trechos": [
+            "On January 6, 2023, at 06:40 UTC we began work with our partners at Atlassian to rotate all Bitbucket tokens on behalf of our customers.",
+            "This work was completed on January 6, 2023, at 10:15 UTC."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: added detection and blocking through the MDM and antivirus solutions for the specific behaviors exhibited by the malware.",
+          "trechos": [
+            "Added detection and blocking through our MDM and A/V solutions for the specific behaviors exhibited by the malware used in this attack."
+          ]
+        },
+        {
+          "texto": "Already done: restricted production access to a very limited number of employees, and added step-up authentication steps and controls for those who retain it, to help prevent unauthorized production access even with a stolen 2FA-backed SSO session.",
+          "trechos": [
+            "Restricted access to production environments to a very limited number of employees as we implement additional security measures.",
+            "For the employees who retain production access, we have added additional step-up authentication steps and controls.",
+            "This will help us prevent possible unauthorized production access, even in the case of a stolen 2FA-backed SSO session."
+          ]
+        },
+        {
+          "texto": "Already done: implemented monitoring and alerting for the specific behavior patterns identified in this scenario, across multiple triggers and third-party vendors.",
+          "trechos": [
+            "Implemented monitoring and alerting for the specific behavior patterns we identified in this scenario, across multiple triggers and via a variety of third-party vendors."
+          ]
+        },
+        {
+          "texto": "Planned: periodic automatic OAuth token rotation for all customers, a shift from OAuth to GitHub apps for more granular token permissions, and a comprehensive analysis of all tooling configurations including a third-party review.",
+          "trechos": [
+            "To start, we will initiate periodic automatic OAuth token rotation for all customers.",
+            "Our plans also include a shift from OAuth to GitHub apps, enabling us to enforce more granular permissions within tokens.",
+            "We also plan to complete a comprehensive analysis of all of our tooling configurations, including a third-party review."
+          ]
+        },
+        {
+          "texto": "Planned: expanding alerting, reducing session trust, adding authentication factors, performing more regular access rotations, and making system permissions more ephemeral.",
+          "trechos": [
+            "We’re continuing to take additional steps including expanding alerting, reducing session trust, adding additional authentication factors, and performing more regular access rotations.",
+            "Finally, we will be making our system permissions more ephemeral, severely restricting the target value of any tokens gained from a similar incident."
+          ]
+        },
+        {
+          "texto": "Planned: make it easier for customers to adopt security features such as OIDC and IP ranges, and explore automatic token expiration and notifications for unused secrets; optimize the configuration of existing security tools to add layers of defense.",
+          "trechos": [
+            "It must be easier for customers to seamlessly adopt the latest and most advanced security features available, including OIDC and IP ranges.",
+            "There are also additional proactive steps we are exploring, for example, automatic token expiration and notifications for unused secrets.",
+            "we will be optimizing the configuration of our existing tools to create additional layers of defense."
+          ]
+        },
+        {
+          "texto": "Recommendation to customers: use OIDC tokens to avoid storing long-lived credentials, use IP ranges to limit inbound connections, use Contexts to consolidate and restrict shared secrets, and consider runners for privileged access.",
+          "trechos": [
+            "Use OIDC tokens wherever possible to avoid storing long-lived credentials in CircleCI.",
+            "Take advantage of IP ranges to limit inbound connections to your systems to only known IP addresses.",
+            "Use Contexts to consolidate shared secrets and restrict access to secrets to specific projects, which can then be rotated automatically via API.",
+            "For privileged access and additional controls, you may choose to use runners, which allow you to connect the CircleCI platform to your own compute and environments, including IP restrictions and IAM management."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "CircleCI states there is no way for it to know whether exfiltrated customer secrets were used for unauthorized access to third-party systems."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "data_incidente uses the month: the laptop was compromised on December 16, 2022, reconnaissance is believed to have occurred on December 19, and exfiltration on December 22, 2022. At the time of publishing, fewer than 5 customers had reported unauthorized access to third-party systems. The text lists indicators of compromise (IP addresses, VPN providers, malicious files, a domain) for customer investigations, and released tools for customers (secret-finding script, API changes, audit logs for all plans). Communication: on January 5, 2023 at 02:30 UTC CircleCI sent disclosure emails and published notices recommending that all customers rotate their secrets; the forensic investigation was continuing with external investigators at the time of writing.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.9"
+  }
+}

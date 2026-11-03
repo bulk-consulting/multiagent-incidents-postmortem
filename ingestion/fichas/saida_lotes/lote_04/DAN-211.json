@@ -1,0 +1,252 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-211",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Roblox had a 73-hour outage after its central Consul cluster became unhealthy: a newly enabled Consul streaming feature caused excessive contention under very high read and write load, and a pathological BoltDB freelist issue slowed some Consul leaders; because services, Nomad and Vault depend on Consul, the whole system went down. Service was restored by disabling streaming, keeping slow leaders from staying elected, redeploying the caching system, restarting services and readmitting players gradually through DNS steering.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Roblox",
+      "Vault",
+      "Consul",
+      "Roblox caching system"
+    ],
+    "tecnologias": [
+      "Consul",
+      "Consul 1.10",
+      "Nomad",
+      "Vault",
+      "BoltDB",
+      "Raft",
+      "Go channels",
+      "NUMA",
+      "iptables",
+      "DNS steering",
+      "bbolt"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "On the afternoon of October 28th (13:37), Vault performance was degraded and a single Consul server had high CPU load; players were not yet impacted.",
+        "trechos": [
+          "### Initial Detection (10/28 13:37)",
+          "On the afternoon of October 28th, Vault performance was degraded and a single Consul server had high CPU load. Roblox engineers began to investigate. At this point players were not impacted."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A relatively new Consul streaming feature, enabled on October 27th at 14:00 on the backend service responsible for traffic routing, caused excessive contention under unusually high read and write load: streaming uses fewer concurrency control elements (Go channels) than long polling, so contention on a single Go channel caused blocking during writes and high CPU on Consul servers. Because Roblox services, Nomad and Vault rely on Consul, which was a single point of failure, the system failed.",
+        "trechos": [
+          "Enabling a relatively new streaming feature on Consul under unusually high read and write load led to excessive contention and poor performance.",
+          "On October 27th at 14:00, one day before the outage, we enabled this feature on a backend service that is responsible for traffic routing.",
+          "However through analysis of perf reports and flame graphs from Consul servers, we saw evidence of streaming code paths being responsible for the contention causing high CPU usage.",
+          "HashiCorp explained that, while streaming was overall more efficient, it used fewer concurrency control elements (Go channels) in its implementation than long polling.",
+          "Under very high load – specifically, both a very high read load and a very high write load – the design of streaming exacerbates the amount of contention on a single Go channel, which causes blocking during writes, making it significantly less efficient.",
+          "In short, the system failed because Consul was a single point of failure, and Consul was not healthy."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "A second, mostly unrelated issue: Roblox's workload triggered a pathological performance issue in BoltDB, which Consul uses to store Raft logs; the BoltDB freelist grew to 7.8MB and was written to disk on every log append, causing slow leaders with two-second Raft writes. HashiCorp determined this only in the days after the outage.",
+        "trechos": [
+          "In addition, our particular load conditions triggered a pathological performance issue in BoltDB.",
+          "Consul uses a popular open-source persistence library named BoltDB to store Raft logs.",
+          "Typically, write latency is not meaningfully impacted by the time it takes to update the freelist, but Roblox’s workload exposed a pathological performance issue in BoltDB that made freelist maintenance extremely expensive.",
+          "That means, for every log append (each Raft write after some batching), a new 7.8MB freelist was also being written out to disk even though the actual raw data being appended was 16kB or less.",
+          "Further analysis of the slow leader problem also uncovered the key cause of the two-second Raft data writes and cluster consistency issues.",
+          "We did not figure this out during the incident, but HashiCorp engineers determined the root cause in the days after the outage."
+        ]
+      },
+      {
+        "texto": "A single Consul cluster supported multiple workloads and all Roblox backend services, which exacerbated the impact.",
+        "trechos": [
+          "A single Consul cluster supporting multiple workloads exacerbated the impact of these issues.",
+          "Running all Roblox backend services on one Consul cluster left us exposed to an outage of this nature."
+        ]
+      },
+      {
+        "texto": "Critical monitoring and telemetry systems depended on Consul (a circular dependency), so telemetry was missing while Consul was unhealthy, severely hampering triage; challenges diagnosing the two issues were largely responsible for the extended downtime.",
+        "trechos": [
+          "Critical monitoring systems that would have provided better visibility into the cause of the outage relied on affected systems, such as Consul. This combination severely hampered the triage process.",
+          "There was a circular dependency between our telemetry systems and Consul, which meant that when Consul was unhealthy, we lacked the telemetry data that would have made it easier for us to figure out what was wrong.",
+          "Challenges in diagnosing these two primarily unrelated issues buried deep in the Consul implementation were largely responsible for the extended downtime."
+        ]
+      },
+      {
+        "texto": "Replacing the Consul nodes with 128-core machines during the incident did not help and potentially hurt stability: those dual-socket NUMA servers made the contention on shared resources worse.",
+        "trechos": [
+          "Faster hardware hadn’t helped and, as we learned later, potentially hurt stability.",
+          "This behavior also explained the effect of higher core-count servers: those servers were dual socket architectures with a NUMA memory model.",
+          "The additional contention on shared resources thus got worse under this architecture."
+        ]
+      },
+      {
+        "texto": "Redeploying the caching system ran into issues: internal scheduling data in the Consul KV were incorrect, likely due to the earlier snapshot reset; an unhealthy node was seen by the job scheduler as open; and the automated deployment tool was not built to bootstrap a large cluster from scratch.",
+        "trechos": [
+          "Likely due to the Consul cluster snapshot reset that had been performed earlier on, internal scheduling data that the cache system stores in the Consul KV were incorrect.",
+          "It turned out that there was an unhealthy node that the job scheduler saw as completely open rather than unhealthy.",
+          "The caching system’s automated deployment tool was built to support incremental adjustments to large scale deployments that were already handling traffic at scale, not iterative attempts to bootstrap a large cluster from scratch."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "Enabling the Consul streaming feature (introduced with the upgrade from Consul 1.9 to 1.10) on the backend service responsible for traffic routing on October 27th at 14:00, together with a 50% increase in traffic routing nodes.",
+        "trechos": [
+          "In the months leading up to the October incident, Roblox upgraded from Consul 1.9 to Consul 1.10 to take advantage of a new streaming feature.",
+          "On October 27th at 14:00, one day before the outage, we enabled this feature on a backend service that is responsible for traffic routing.",
+          "As part of this rollout, in order to prepare for the increased traffic we typically see at the end of the year, we also increased the number of nodes supporting traffic routing by 50%."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Earlier attempts did not restore health: replacing Consul nodes with 128-core machines, resetting the cluster from a snapshot behind an iptables block, disabling non-essential Consul usage, and moving back to 64-core servers; after reduced usage Consul again became unhealthy, showing overall usage was not the only factor.",
+          "trechos": [
+            "These new machines had 128 cores (a 2x increase) and newer, faster NVME SSD disks.",
+            "By 19:00, the team migrated most of the cluster to the new machines but the cluster was still not healthy.",
+            "The team decided to shut down the entire Consul cluster and reset its state using a snapshot from a few hours before – the beginning of the outage.",
+            "To address this concern, we configured iptables on the cluster to block access.",
+            "The reset went smoothly, and initially, the metrics looked good.",
+            "We assembled an exhaustive list of services that use Consul and rolled out config changes to disable all non-essential usage.",
+            "At this point, it was clear that overall Consul usage was not the only contributing factor to the performance degradation that we first noticed on the 28th.",
+            "The team then transitioned the Consul cluster back to 64 CPU Core servers, but this change did not help."
+          ]
+        },
+        {
+          "texto": "The streaming feature was disabled for all Consul systems, including the traffic routing nodes; when the config change finished propagating at 15:51, the 50th percentile for Consul KV writes dropped to 300ms.",
+          "trechos": [
+            "We disabled the streaming feature for all Consul systems, including the traffic routing nodes.",
+            "The config change finished propagating at 15:51, at which time the 50th percentile for Consul KV writes lowered to 300ms."
+          ]
+        },
+        {
+          "texto": "As a workaround for slow leaders, the team prevented the problematic leaders from staying elected, after which Consul was consistently stable.",
+          "trechos": [
+            "Without any obvious clues pointing to the root cause of the slow leader problem, and with evidence that the cluster was healthy as long as certain servers were not elected as the leaders, the team made the pragmatic decision to work around the problem by preventing the problematic leaders from staying elected.",
+            "With streaming disabled and a process in place to prevent slow leaders from staying elected, Consul was now consistently stable."
+          ]
+        },
+        {
+          "texto": "The caching system was redeployed and its deployment issues addressed; by 05:00 on October 31 the Consul cluster and caching system were healthy.",
+          "trechos": [
+            "Since our caches store transient data that can easily repopulate from the underlying databases, the easiest way to bring the caching system back into a healthy state was to redeploy it.",
+            "The team worked through the night to identify and address these issues, ensure cache systems were properly deployed, and verify correctness.",
+            "At 05:00 on October 31, 61 hours since the start of the outage, we had a healthy Consul cluster and a healthy caching system."
+          ]
+        },
+        {
+          "texto": "Services shut down during the outage were restarted at correct capacity levels and verified by 10:00.",
+          "trechos": [
+            "The team needed to restart these services at correct capacity levels and verify that they were functioning correctly. This went smoothly, and by 10:00, we were ready to open up to players."
+          ]
+        },
+        {
+          "texto": "DNS steering admitted a percentage of randomly selected players, increased in roughly 10% increments while checking database load, cache performance and stability; at 16:45 Sunday, 73 hours after the start, 100% of players had access.",
+          "trechos": [
+            "To avoid a flood, we used DNS steering to manage the number of players who could access Roblox.",
+            "This allowed us to let in a certain percentage of randomly selected players while others continued to be redirected to our static maintenance page.",
+            "Every time we increased the percentage, we checked database load, cache performance, and overall system stability.",
+            "Work continued throughout the day, ratcheting up access in roughly 10% increments.",
+            "At 16:45 Sunday, 73 hours after the start of the outage, 100% of players were given access and Roblox was fully operational."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: HashiCorp and Roblox developed and deployed a process using existing BoltDB tooling to compact the database, which resolved the performance issues.",
+          "trechos": [
+            "HashiCorp and Roblox have developed and deployed a process using existing BoltDB tooling to “compact” the database, which resolved the performance issues."
+          ]
+        },
+        {
+          "texto": "Already done: removed the circular dependency between telemetry systems and Consul; telemetry no longer depends on the systems it monitors.",
+          "trechos": [
+            "We have removed this circular dependency. Our telemetry systems no longer depend on the systems that they are configured to monitor."
+          ]
+        },
+        {
+          "texto": "Already done: extended telemetry for Consul and BoltDB performance, with targeted alerts for signs of approaching the state that caused the outage, and more visibility into traffic between Roblox services and Consul.",
+          "trechos": [
+            "We have extended our telemetry systems to provide better visibility into Consul and BoltDB performance.",
+            "We now receive highly targeted alerts if there are any signs that the system is approaching the state that caused this outage.",
+            "We have also extended our telemetry systems to provide more visibility into the traffic patterns between Roblox services and Consul."
+          ]
+        },
+        {
+          "texto": "Already done: built servers and networking for an additional, geographically distinct data center; in progress: moving to multiple availability zones within these data centers.",
+          "trechos": [
+            "We have already built out the servers and networking for an additional, geographically distinct data center that will host our backend services.",
+            "We have efforts underway to move to multiple availability zones within these data centers; we have made major modifications to our engineering roadmap and our staffing plans in order to accelerate these efforts."
+          ]
+        },
+        {
+          "texto": "Already done: split some critical services into their own dedicated Consul clusters and deleted obsolete KV data; in progress: migrating data stored directly in Consul's KV store to a more appropriate storage system.",
+          "trechos": [
+            "We have reviewed how our services use Consul’s KV store and health checks, and have split some critical services into their own dedicated clusters, reducing load on our central Consul cluster to a safer level.",
+            "We discovered a large amount of obsolete KV data. Deleting this obsolete data improved Consul performance.",
+            "We are in the process of migrating this data to a more appropriate storage system."
+          ]
+        },
+        {
+          "texto": "Planned: deploy a new Consul version that replaces BoltDB with bbolt, which does not have unbounded freelist growth; being tested and expected to complete in Q1.",
+          "trechos": [
+            "We are working closely with HashiCorp to deploy a new version of Consul that replaces BoltDB with a successor called bbolt that does not have the same issue with unbounded freelist growth.",
+            "The upgrade is being tested now and will complete in Q1."
+          ]
+        },
+        {
+          "texto": "In progress: redesigned cache deployment mechanisms to bring up the cache system quickly from a standing start; planned: Nomad enhancements for turning up large jobs after long unavailability in the next Nomad upgrade; already done: mechanisms for faster machine configuration changes.",
+          "trechos": [
+            "In particular, we have redesigned our cache deployment mechanisms to ensure we can quickly bring up our cache system from a standing start. Implementation of this is underway.",
+            "These enhancements will be deployed as part of our next Nomad upgrade, scheduled for later this month.",
+            "We worked with HashiCorp to identify several Nomad enhancements that will make it easier for us to turn up large jobs after a long period of unavailability.",
+            "We have developed and deployed mechanisms for faster machine configuration changes."
+          ]
+        },
+        {
+          "texto": "In progress (HashiCorp): new laboratory benchmarks to reproduce the contention issue, additional scale tests, and improving the streaming design to avoid contention under extreme load; streaming will be reintroduced only after a new implementation is tested at Roblox's scale.",
+          "trechos": [
+            "The HashiCorp engineering team is creating new laboratory benchmarks to reproduce the specific contention issue and performing additional scale tests.",
+            "HashiCorp is also working to improve the design of the streaming system to avoid contention under extreme load and ensure stable performance in such conditions.",
+            "Once a new implementation has been tested at our scale with our workload, we expect to carefully reintroduce it to our systems."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 4380,
+      "trechos": [
+        "- The outage lasted 73 hours."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "causa_raiz vs fatores_contribuintes: the text names two root-cause issues (streaming contention and the BoltDB freelist problem) and does not make clear which one started the impact; the definition says 'If the text does not make clear which one started the impact, that is a judgment call'. Streaming was placed in causa_raiz because it is listed first and disabling it was the recovery breakthrough, while the text also says BoltDB caused the two-second Raft writes.",
+  "observacoes": "The text gives October 28th-31st and a Sunday but no year. All times are PST per the footnote. The players' impact began at 16:35 on October 28th (online players dropped to 50%), after the initial degradation at 13:37; the stated 73-hour outage duration was used. Unhealthy Consul blocked service discovery, container scheduling (Nomad) and secret retrieval (Vault). gatilho is null: streaming had been enabled on October 27th and worked well for a day before the incident, and the text does not say what started the first impact.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.10"
+  }
+}

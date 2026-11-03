@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-236",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "secundaria",
+    "tipo": "outro",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "comentarios",
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "A Linux user moved ~/.local/share/steam to another drive and symlinked it; after Steam crashed and reinstalled itself, everything owned by the user was deleted recursively from the root directory, including a mounted external backup drive. Commenters suspect the steam.sh line rm -rf \"$STEAMROOT/\"* ran with an empty $STEAMROOT. The text does not describe a fix or how the issue was resolved.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Steam desktop client for Linux",
+      "user files on the local system and mounted drives"
+    ],
+    "tecnologias": [
+      "steam.sh",
+      "Bash",
+      "Ubuntu 14.04",
+      "NTFS",
+      "symlink",
+      "SELinux"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "The user noticed, after Steam re-installed itself, that everything owned by the user had been deleted recursively from the root directory, including a 3tb external backup drive mounted under /media.",
+        "trechos": [
+          "It re-installed itself and everything looked great. Until I looked and saw that steam had apparently deleted everything owned by my user recursively from the root directory. Including my 3tb external drive I back everything up to that was mounted under /media."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "The user moved the Steam folder to a drive mounted under /media/user/BLAH, symlinked the old location to it and launched Steam, which could not find it, crashed, and was restarted.",
+      "trechos": [
+        "I moved the folder in the title to a drive mounted under /media/user/BLAH and symlinked /home/user/.local/steam to the new location.",
+        "I launched steam. It did not launch, it offered to let me browse, and still could not find it when I pointed to the new location. Steam crashed. I restarted it."
+      ]
+    },
+    "causa_raiz": {
+      "status": "incerta",
+      "descricao": {
+        "texto": "Commenters suspect a bug in steam.sh: the line rm -rf \"$STEAMROOT/\"* could be evaluated as rm -rf \"/\"* if $STEAMROOT is empty, and $STEAMROOT, computed with STEAMROOT=\"$(cd \"${0%/*}\" && echo $PWD)\", probably returned empty; the line lacks an exists and not-null check for $STEAMROOT.",
+        "trechos": [
+          "edit1: I suspect steam.sh got some bugs(does not check own variables) and when it tried to do scary things it crapped himself.",
+          "line 359 `rm -rf \"$STEAMROOT/\"*` could be evaluated as `rm -rf \"/\"*` if `$STEAMROOT` is empty",
+          "STEAMROOT=\"$(cd \"${0%/*}\" && echo $PWD)\"",
+          "This probably returns as empty which mean: `rm -rf \"$STEAMROOT/\"*` is the same ass `rm -rf \"/\"*`.",
+          "I agree, that line minimally requires an exists and not null check for $STEAMROOT"
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "The user moved ~/.local/share/steam to a drive mounted under /media/user/BLAH and symlinked the original location to it.",
+        "trechos": [
+          "# Moved \\~/.local/share/steam. Ran steam. It deleted everything on system owned by user. #3671",
+          "I moved the folder in the title to a drive mounted under /media/user/BLAH and symlinked /home/user/.local/steam to the new location."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "ausente",
+      "passos": []
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Recommendation to Valve (from a commenter): the rm -rf line minimally requires an exists and not-null check for $STEAMROOT.",
+          "trechos": [
+            "I agree, that line minimally requires an exists and not null check for $STEAMROOT"
+          ]
+        },
+        {
+          "texto": "Recommendation to Valve (from the reporter): throw an error instead of trying to point to other locations when the Steam folder has moved, or let the user pick an install directory initially as on Windows.",
+          "trechos": [
+            "If there is the chance that moving your steam folder can result in recursively deleting *everything* in the directory tree you should probably just throw up an error instead of trying to point to other stuff. Or you know, allow the user to pick an install directory initially like on windows."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "What exactly triggers the deletion; the reporter asks others to help figure out what triggers it.",
+      "What code path reaches the rm without the --reset option."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "This is a GitHub issue thread written by a user, not Valve; comments are dated from Jan 15, 2015 to 2021, but the original report has no date. A commenter says the rm line was introduced on Sep 10, 2013 in a commit of a third-party mirror (indrora/steam_latest). A later comment says the issue was still happening in 2021, and a Valve account replied that the investigation had concluded several years earlier. All prevention items are recommendations from users, not Valve commitments. Commenters report that the deletion path is also reachable without the --reset option (reset_steam is also invoked when INITIAL_LAUNCH is removed). mudanca_causadora is especifica: the user's move and symlink of the Steam folder is a stated persistent change that set off the problem, while the latent steam.sh bug is the root cause. status_relatorio is final: the report was written after the deletion and does not present itself as preliminary, although the thread keeps investigating.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.10"
+  }
+}

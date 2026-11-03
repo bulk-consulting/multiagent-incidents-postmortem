@@ -1,5 +1,5 @@
 <!--
-Prompt de extração da ficha (peça 2). Versão: v2.9.
+Prompt de extração da ficha (peça 2). Versão: v2.11.
 v1 guardada em prompt_extracao_v1.md. Mudanças da v2 (revisão do piloto, ver FICHA.md):
 regra 2 (trechos sustentam todo detalhe do texto), regras 3 e 4 novas (causalidade e plano x feito),
 gatilho x causa raiz, categoria pela causa raiz, detecção, resumo com desfecho, mitigação com a correção concreta.
@@ -17,11 +17,15 @@ v2.8 (revisão do lote 01, 23 ERRADOS em 9 fichas): checklist de confiança; dur
 tentado não é feito; fator não é impacto nem mecanismo nem comunicação; ataque por mecanismo; documento com vários incidentes; autoria do time.
 v2.9 (revisão do lote 02, 21 ERRADOS em 10 fichas, metade de trecho que não prova o texto): passo de verificação detalhe a detalhe;
 motivo de baixa precisa dizer por que a regra não decide; mitigação só até o fim do impacto.
+v2.10 (revisão do lote 03, 15 ERRADOS em 10 fichas): mitigação sem passos de resposta; fator sem funcionamento normal nem mitigação repetida;
+rodape_marketing inclui rodapé de lista de e-mail e de site.
+v2.11 (revisão do lote 04, 14 ERRADOS em 9 fichas): pedido a outra equipe não é feito; detecção sem resposta; fator não é sobre pessoa;
+cabeçalho no texto vale para a data; verificação detalhe a detalhe também em cada passo da mitigação.
 Escrito em inglês de propósito (ver FICHA.md, seção "Idioma").
 A parte entre ===== INPUT ===== é preenchida para cada documento.
 -->
 
-# Post-mortem extraction — prompt v2.9
+# Post-mortem extraction — prompt v2.11
 
 You are extracting a structured record ("ficha") from one public incident post-mortem. The record will be used by an incident-diagnosis assistant that must **never state anything the source does not say**. Your job is to organize what the text says, with proof. You are not writing a post-mortem, summarizing for readers, or judging the company.
 
@@ -35,7 +39,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
    - **The `trechos` of a claim must support every detail of its `texto` on their own**: names, dates, times, numbers, who did or recommended something, and results. A reader must not need any other part of the document to check the claim. If a detail is not in the `trechos`, add the passage that states it or remove the detail.
    - If a `trecho` refers back with "this", "these metrics", "it", "the change", "at this point", "something", "that fix", add the passage that says what it refers to. A number or a name in the `texto` (a TTL value, a version, who recommended something) must appear in a `trecho` of that same claim.
 3. **No causal links the text does not state.** Do not connect two facts with "so", "which caused", "until", "because" unless the document states that link. "At the same time" or "we then noticed" is not "because". "X happened, and eventually they identified Y" is not "Y caused X": write it in the text's order. If the document only suggests a link, keep its wording ("the authors consider it likely that…").
-4. **Done is not planned.** Keep apart what was done from what was planned or proposed ("this process would involve", "we will", "we are looking into", "we figured it was worth trying"). A planned step is described as planned, never as done. The other way round too: an action already done that appears among future actions is marked "Already done:". If the passage you found only proposes a step, add the passage that confirms it was carried out ("shortly after making those changes…", "the downgrade was successful"). **Tried is not achieved either**: "focused on recovering", "worked to", "tried to", "devised a fix", "scheduled" describe effort or intent; write them that way, never as a result ("recovered", "fixed", "deployed").
+4. **Done is not planned.** Keep apart what was done from what was planned or proposed ("this process would involve", "we will", "we are looking into", "we figured it was worth trying"). A planned step is described as planned, never as done. The other way round too: an action already done that appears among future actions is marked "Already done:". If the passage you found only proposes a step, add the passage that confirms it was carried out ("shortly after making those changes…", "the downgrade was successful"). **Tried is not achieved either**: "focused on recovering", "worked to", "tried to", "devised a fix", "scheduled", "asked the data center team to reboot", "called X to" describe effort, intent or a request; write them that way; write them that way, never as a result ("recovered", "fixed", "deployed").
 5. **Keep the certainty of the source.** If the text says "we believe", "likely", "appears", "we suspect", "still investigating", your `texto` must keep that uncertainty. Never turn a hypothesis into a fact.
 6. **Neutral and blameless.** Describe systems and conditions, not people. No judgment words (careless, negligent, terrible, etc.). Do not name individuals.
 7. **When in doubt, choose the weaker option** (e.g. `incerta` over `concreta`, `generica` over `especifica`). If, after applying every rule below, two values still fit a field, choose the weaker one and set `confianca` to `baixa` (see `confianca`).
@@ -47,7 +51,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
 2. Fill `triagem` (what kind of document this is).
 3. If `catalogo` is `nao` or `nao_verificavel`: set the four other classification fields to `null`, set `incidente` to `null`, and stop.
 4. Otherwise fill `incidente`, field by field, finding the `trechos` first and writing `texto` from them.
-5. **Detail check, claim by claim (mandatory).** For each `texto`, list every name, number, date, time, place, actor and result it states (e.g. "20:50 UTC", "mrsync", "the main MySQL database", "brought the app back up", "the next morning"). For each item, find the `trecho` of **that same claim** that contains it. If none does, add the passage that states it (a timeline row with its timestamp, the sentence that names the tool, the sentence that confirms the result) or remove the detail. A detail you cannot find anywhere in the document must be removed.
+5. **Detail check, claim by claim (mandatory).** For each `texto`, list every name, number, date, time, place, actor and result it states (e.g. "20:50 UTC", "mrsync", "the main MySQL database", "brought the app back up", "the next morning"). For each item, find the `trecho` of **that same claim** that contains it. If none does, add the passage that states it (a timeline row with its timestamp, the sentence that names the tool, the sentence that confirms the result) or remove the detail. A detail you cannot find anywhere in the document must be removed. Do this for **every step of `mitigacao` and every action of `prevencao`** too: in long documents these steps gather details (hardware sizes, percentages, who was asked, what was checked) from several paragraphs, and each one needs its own `trecho`.
 6. Check, claim by claim: remove any causal link the text does not state (rule 3); check that nothing planned or merely attempted is written as done (rule 4); every enum value is from the lists below; uncertainty is preserved ("may have" stays "may have", also in `resumo`).
 7. Check `confianca` with the checklist in that section.
 8. Output the JSON.
@@ -79,13 +83,13 @@ You are extracting a structured record ("ficha") from one public incident post-m
 
 **`seguranca`** — `nao`: no data exposure and no malicious action. `exposicao_dados`: user data exposed by a failure, without an attack. `ataque`: there was a malicious action (then `dominio` should be `seguranca`).
 
-**`problemas_texto`** — list (possibly empty) of problems in the extracted text: `sem_conteudo` (only menus, navigation, page chrome), `comentarios` (reader comments included), `rodape_marketing` (footer, ads, job calls, newsletter prompts), `pdf_embaralhado` (columns or order of a PDF mixed up).
+**`problemas_texto`** — list (possibly empty) of problems in the extracted text: `sem_conteudo` (only menus, navigation, page chrome), `comentarios` (reader comments included), `rodape_marketing` (footer, ads, job calls, newsletter prompts, mailing-list footers, calls to contribute or sign up, site footer links such as "advertising" or "careers"), `pdf_embaralhado` (columns or order of a PDF mixed up).
 
 ## `incidente`
 
 **`resumo`** — 1 to 3 neutral sentences (max 600 characters): what failed, impact, **and how service was restored** (or that the text does not say). No `trechos` needed, but it must not say anything the other fields do not support, and rules 3 and 4 apply.
 
-**`data_incidente`** — `YYYY-MM-DD`, `YYYY-MM` or `YYYY`, only if the text states it. Otherwise `null`. The year may come from a publication date written in the extracted text when the event is described as days before it (say so in `observacoes`); never from the page title or the URL.
+**`data_incidente`** — `YYYY-MM-DD`, `YYYY-MM` or `YYYY`, only if the text states it. Otherwise `null`. The year may come from a publication date written in the extracted text when the event is described as days before it (say so in `observacoes`); never from the page title or the URL. A heading **inside the extracted text** that dates the incident (e.g. "# 2014-01-28 Outage Postmortem") is part of the text and may be used; "page title" means the metadata title that does not appear in the extracted text.
 
 **`status_relatorio`** — the stage of the text, not the certainty of the cause.
 - `final`: written after the incident ended and not presented as preliminary. Points the text says are still pending (e.g. forensics not completed) do not change this; they go to `perguntas_em_aberto`.
@@ -109,7 +113,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
 - For **attacks** (`seguranca: ataque`), classify the mechanism of the root cause: a DDoS that floods the network → `capacity-load`; stolen or reused credentials → `credential-auth`; a tampered package → `supply-chain` only when the root cause is the tampering itself, not how the attacker got access.
 - `other`: none of the above.
 
-**`deteccao`** — how the problem was **first noticed**, not what was done next. "The team was triaging within 2 minutes" or "we began investigating" is response, not detection. `forma`: `alerta_automatico` (monitoring/alerting fired), `usuarios_clientes` (users or customers reported), `equipe_interna` (staff noticed without an alert), `terceiros` (another company, press), `nao_informada`. `descricao`: what was first noticed (the symptom, e.g. "higher than normal re-queue rates", "a larger-than-normal number of Postgres connection timeouts") and, if the text says it, how; claim + `trechos`. `null` only if the text says neither. The symptom can be filled while `forma` is `nao_informada`.
+**`deteccao`** — how the problem was **first noticed**, not what was done next. "The team was triaging within 2 minutes", "we began investigating", "an incident was raised", "a team was assembled" are response, not detection; leave them out of `descricao`. `forma`: `alerta_automatico` (monitoring/alerting fired), `usuarios_clientes` (users or customers reported), `equipe_interna` (staff noticed without an alert), `terceiros` (another company, press), `nao_informada`. `descricao`: what was first noticed (the symptom, e.g. "higher than normal re-queue rates", "a larger-than-normal number of Postgres connection timeouts") and, if the text says it, how; claim + `trechos`. `null` only if the text says neither. The symptom can be filled while `forma` is `nao_informada`.
 
 **Cause fields.** Four fields describe the cause; decide them together.
 - **`causa_raiz`** always holds the failure that produced the impact, as the text states it.
@@ -132,7 +136,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
   - `vaga`: only a category or generic term ("a network issue", "an upstream provider").
   - `ausente`: the text does not say why it happened → `descricao` = `null`.
 
-**`fatores_contribuintes`** — up to 6 conditions that made it worse, delayed detection or slowed recovery (e.g. retries amplifying load, missing alerts, circular dependency in monitoring, a second technical mechanism). **Not factors:** the impact itself (emails sent to the wrong users, data exposed), a step of the root-cause mechanism already in `causa_raiz` (the cache that carried the wrong data), and delays in communicating with customers (a late status page or tweet); put a useful one in `observacoes`. Each is a claim + `trechos`. Choose the ones that matter most for diagnosing a similar incident; merge closely related ones. Empty list if none.
+**`fatores_contribuintes`** — up to 6 conditions that made it worse, delayed detection or slowed recovery (e.g. retries amplifying load, missing alerts, circular dependency in monitoring, a second technical mechanism). **Not factors:** the impact itself (emails sent to the wrong users, data exposed), a step of the root-cause mechanism already in `causa_raiz` (the cache that carried the wrong data), delays in communicating with customers (a late status page or tweet), the normal behaviour of the system when it is not what made things worse ("each connection starts by gossiping"), mitigation steps restated as a factor ("recovery required clearing state, which took hours"), and statements about a person ("the developer did not realize the mistake"; describe the system condition instead, if the text gives one); put a useful one in `observacoes`. Each is a claim + `trechos`. Choose the ones that matter most for diagnosing a similar incident; merge closely related ones. Empty list if none.
 
 **`mudanca_causadora`** — the persistent change (configuration, code, version, parameter, policy) that set off the problem.
 - `especifica`: the exact item is named (a parameter, file, version, rule).
@@ -140,7 +144,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
 - `ausente`: the text says a change happened but **nothing about what or where** ("a recent change introduced the problem") → `descricao` = `null`.
 - `nao_se_aplica`: the problem was not set off by a persistent change (hardware failure, load, attack, a latent bug with no change, a one-off operator command) → `descricao` = `null`. Running a command is not a change. An earlier change of environment (a migration, a new cluster) counts only if the text says it set off the problem; "we hadn't seen this before the migration" is context for `fatores_contribuintes`.
 
-**`mitigacao`** — what was done **during** the incident to restore service, in order, **up to the end of the impact**. Actions after the impact ended (reverting the change in the code repository, re-enabling automation, cleanup) are not mitigation; put them in `prevencao` as "Already done:" if they prevent recurrence (rule 4: only what was done; steps the text gives only as a plan do not go here at all). Do not copy the full timeline; it stays in the original text. Include failed attempts only when they reveal something about the cause. **When the text names the actual fix** (what was changed, and to what), the step must include it; "the recommended changes were applied" is not enough if the text says what they were.
+**`mitigacao`** — what was done **during** the incident to restore service, in order, **up to the end of the impact**. Actions after the impact ended (reverting the change in the code repository, re-enabling automation, cleanup) are not mitigation; put them in `prevencao` as "Already done:" if they prevent recurrence. **Response steps are not mitigation either**: opening an incident, assembling a team, investigating, detecting the cause (e.g. drift detection finding the change), communicating with customers. A step goes here only if it changed something in the system to restore service (rule 4: only what was done; steps the text gives only as a plan do not go here at all). Do not copy the full timeline; it stays in the original text. Include failed attempts only when they reveal something about the cause. **When the text names the actual fix** (what was changed, and to what), the step must include it; "the recommended changes were applied" is not enough if the text says what they were.
 - `especifica`: at least one step says what was changed or acted on and in which component ("bypassed the automated control system and brought generators online manually", "took the misconfigured network device out of service").
 - `generica`: every step is only a generic action ("we rolled back", "we restarted", "we applied a fix"), even if the component is named.
 - `ausente`: the text does not say how service came back → `passos` = `[]`.
@@ -198,7 +202,7 @@ Return **only** one JSON object, no comments, no Markdown fences, matching this 
   "confianca": "alta" | "baixa",
   "motivo_confianca_baixa": "..."   (only when confianca is "baixa"),
   "observacoes": "..."              (optional),
-  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.9" }
+  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.11" }
 }
 
 ===== INPUT =====

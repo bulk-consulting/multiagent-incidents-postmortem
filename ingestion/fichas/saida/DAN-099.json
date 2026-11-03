@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-099",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "relatorio_periodico",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "During the final rename step of a schema migration on a large MySQL table, a significant portion of GitHub's MySQL read replicas entered a semaphore deadlock and a crash-recovery state, overloading healthy replicas until there were not enough to serve production, degrading core GitHub services. Service returned after production traffic was removed from broken replicas until they processed the table rename and they were moved back into production.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "GitHub Actions",
+      "API Requests",
+      "Codespaces",
+      "Git Operations",
+      "Issues",
+      "GitHub Packages",
+      "GitHub Pages",
+      "Pull Requests",
+      "Webhooks"
+    ],
+    "tecnologias": [
+      "MySQL"
+    ],
+    "categoria_causa": "database-storage",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A novel failure mode occurred while processing a schema migration on a large MySQL table: during the final step, a rename to move the updated table into place, a significant portion of the MySQL read replicas entered a semaphore deadlock.",
+        "trechos": [
+          "We encountered a novel failure mode when processing a schema migration on a large MySQL table.",
+          "The final step in a migration is to perform a rename to move the updated table into the correct place.",
+          "During the final step of this migration a significant portion of our MySQL read replicas entered a semaphore deadlock."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The deadlocked read replicas entered a crash-recovery state, increasing load on healthy read replicas; due to this cascade, there were not enough active read replicas to handle production requests.",
+        "trechos": [
+          "The read replicas that hit the deadlock entered a crash-recovery state causing an increased load on healthy read replicas.",
+          "Due to the cascading nature of this scenario, there were not enough active read replicas to handle production requests which impacted the availability of core GitHub services."
+        ]
+      },
+      {
+        "texto": "Read replicas serving production traffic would temporarily recover from crash-recovery only to crash again due to load.",
+        "trechos": [
+          "We also observed that read replicas serving production traffic would temporarily recover from their crash-recovery state only to crash again due to load."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A schema migration on a large MySQL table, whose final step is a rename moving the updated table into place; the table is not named.",
+        "trechos": [
+          "We encountered a novel failure mode when processing a schema migration on a large MySQL table.",
+          "The final step in a migration is to perform a rename to move the updated table into the correct place.",
+          "During the final step of this migration a significant portion of our MySQL read replicas entered a semaphore deadlock."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "To increase capacity, all available healthy internal replicas were promoted into the production path; this was not sufficient for full recovery.",
+          "trechos": [
+            "During the incident mitigation, in an effort to increase capacity, we promoted all available internal replicas that were in a healthy state into the production path; however, the shift was not sufficient for full recovery."
+          ]
+        },
+        {
+          "texto": "Given the crash-recovery loop, production traffic was proactively removed from broken replicas until they could successfully process the table rename, prioritizing data integrity over site availability.",
+          "trechos": [
+            "Based on this crash-recovery loop, we chose to prioritize data integrity over site availability by proactively removing production traffic from broken replicas until they were able to successfully process the table rename."
+          ]
+        },
+        {
+          "texto": "Once the replicas recovered, they were moved back into production, restoring enough capacity to return to normal operations.",
+          "trechos": [
+            "Once the replicas recovered, we were able to move them back into production and restore enough capacity to return to normal operations."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Continuing to prioritize functional partitioning of the cluster, so migrations can be run in canary mode on a single shard, reducing the potential impact of this failure mode.",
+          "trechos": [
+            "To address this class of failure and reduce time to recover in the future, we continue to prioritize our functional partitioning efforts.",
+            "Partitioning the cluster adds resiliency given migrations can then be run in canary mode on a single shard—reducing the potential impact of this failure mode."
+          ]
+        },
+        {
+          "texto": "Actively updating internal procedures to increase the amount each cluster is over-provisioned.",
+          "trechos": [
+            "Additionally, we are actively updating internal procedures to increase the amount each cluster is over-provisioned."
+          ]
+        },
+        {
+          "texto": "Already done: schema migrations have been paused until more is known about safeguarding against this issue.",
+          "trechos": [
+            "As next steps, we’re continuing to investigate the specific failure scenario, and have paused schema migrations until we know more on safeguarding against this issue."
+          ]
+        },
+        {
+          "texto": "Classifying opportunities to improve the migration tooling during such scenarios while continuing to test it.",
+          "trechos": [
+            "As we continue to test our migration tooling, we are classifying opportunities to improve it during such scenarios."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "GitHub is continuing to investigate the specific failure scenario that led to the semaphore deadlock."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The text says write operations remained healthy throughout and that there was no data corruption. The month (November) is stated but no year appears in the extracted text, so data_incidente is null. The document is a monthly availability report containing a single incident.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.9"
+  }
+}

@@ -1,0 +1,197 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-109",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A brief network disruption in US-East made many DynamoDB storage servers request their membership data at once; membership lists enlarged by rapid GSI adoption pushed metadata service processing past the storage servers' time limit, servers removed themselves from service and kept retrying, and the customer error rate stabilized around 55%, also affecting SQS, EC2 Auto Scaling, CloudWatch and the Console. After pausing requests to the metadata service and adding capacity, requests were re-enabled and storage servers returned; by 7:10am PDT error rates were low enough for most customers.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Amazon DynamoDB (US-East)",
+      "Amazon SQS",
+      "EC2 Auto Scaling",
+      "Amazon CloudWatch Metrics",
+      "AWS Console"
+    ],
+    "tecnologias": [
+      "DynamoDB",
+      "Global Secondary Indexes (GSIs)",
+      "DynamoDB metadata service"
+    ],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "At 2:19am PDT on Sunday, a brief network disruption impacted a portion of DynamoDB's storage servers, which then simultaneously requested their membership data from the metadata service.",
+      "trechos": [
+        "On Sunday, at 2:19am PDT, there was a brief network disruption that impacted a portion of DynamoDB’s storage servers.",
+        "So, when the network disruption occurred on Sunday morning, and a number of storage servers simultaneously requested their membership data, the metadata service was processing some membership lists that were now large enough that their processing time was near the time limit for retrieval."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Rapid customer adoption of Global Secondary Indexes on very large tables significantly increased the size of some storage servers' membership lists, so metadata service processing time for those requests approached the storage servers' retrieval time allowance, and the metadata service lacked capacity for these heavier requests. Multiple simultaneous requests for large memberships slowed processing until it exceeded the time limit; storage servers failed to renew membership, became unavailable for requests, and retried.",
+        "trechos": [
+          "With rapid adoption of GSIs by a number of customers with very large tables, the partitions-per-table ratio increased significantly.",
+          "This, in turn, increased the size of some storage servers’ membership lists significantly.",
+          "With a larger size, the processing time inside the metadata service for some membership requests began to approach the retrieval time allowance by storage servers.",
+          "We did not have detailed enough monitoring for this dimension (membership size), and didn’t have enough capacity allocated to the metadata service to handle these much heavier requests.",
+          "Multiple, simultaneous requests for these large memberships caused processing to slow further and eventually exceed the allotted time limit.",
+          "This resulted in the disrupted storage servers failing to complete their membership renewal, becoming unavailable for requests, and retrying these requests."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Unavailable storage servers continued to retry membership requests, maintaining high load on the metadata service; storage servers not involved in the original disruption also became unavailable, and healthy servers had subsequent renewals fail.",
+        "trechos": [
+          "Unavailable servers continued to retry requests for membership data, maintaining high load on the metadata service.",
+          "With the metadata service now under heavy load, it also no longer responded as quickly to storage servers uninvolved in the original network disruption, who were checking their membership data in the normal cadence of when they retrieve this information.",
+          "Many of those storage servers also became unavailable for handling customer requests.",
+          "Though many storage servers’ renewal requests were succeeding, healthy storage servers that had successfully processed a membership request previously were having subsequent renewals fail and were transitioning back to an unavailable state."
+        ]
+      },
+      {
+        "texto": "There was not detailed enough monitoring of membership size.",
+        "trechos": [
+          "We did not have detailed enough monitoring for this dimension (membership size), and didn’t have enough capacity allocated to the metadata service to handle these much heavier requests."
+        ]
+      },
+      {
+        "texto": "Capacity could not initially be added to the metadata service because its high load prevented the required administrative requests from succeeding; several attempts failed.",
+        "trechos": [
+          "Initially, we were unable to add capacity to the metadata service because it was under such high load, preventing us from successfully making the requisite administrative requests.",
+          "After several failed attempts at adding capacity, at 5:06am PDT, we decided to pause requests to the metadata service."
+        ]
+      },
+      {
+        "texto": "After the main recovery, a low overall error rate of 0.15%-0.25% hid disproportionately high error rates for some customers; the issue was a metadata partition still not taking its full traffic, restored and closed out on Monday.",
+        "trechos": [
+          "After we resolved the key issue on Sunday, we were left with a low error rate, hovering between 0.15%-0.25%.",
+          "We did not realize soon enough that this low overall error rate was giving some customers disproportionately high error rates.",
+          "The issue turned out to be a metadata partition that was still not taking the amount of traffic that it should have been taking.",
+          "The team worked carefully and diligently to restore that metadata partition to its full traffic volume, and closed this out on Monday."
+        ]
+      },
+      {
+        "texto": "Dependent services were affected through internal tables stored in DynamoDB: SQS could not refresh its queue metadata caches, EC2 Auto Scaling, which stores its groups and launch configurations in an internal DynamoDB table, built a large backlog of scaling activities that took until 10:52am PDT to complete, and a very long timeout on a DynamoDB-dependent API call blocked Console logins for tens of seconds.",
+        "trechos": [
+          "Amazon SQS uses an internal table stored in DynamoDB to store information describing its queues.",
+          "Auto Scaling stores information about its groups and launch configurations in an internal table in DynamoDB.",
+          "When DynamoDB finished disabling traffic at 5:45am PDT (to enable the metadata service to recover), the Simple Queue Service was unable to read this data to refresh caches, resulting in significantly elevated error rates.",
+          "Throughout the event, a very large amount of pending activities built up in this job scheduler and it took until 10:52am PDT to complete all of these tasks.",
+          "This was due to a very long timeout being set on an API call that relied on DynamoDB.",
+          "The API call did not have to complete successfully to allow login to proceed but, with the long timeout, it blocked progress for tens of seconds while it waited to finish."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "After several failed attempts to add capacity to the metadata service, at 5:06am PDT the team decided to pause requests to the metadata service; DynamoDB finished disabling traffic at 5:45am PDT, and the action decreased retry activity, relieving much of the load.",
+          "trechos": [
+            "After several failed attempts at adding capacity, at 5:06am PDT, we decided to pause requests to the metadata service.",
+            "When DynamoDB finished disabling traffic at 5:45am PDT (to enable the metadata service to recover), the Simple Queue Service was unable to read this data to refresh caches, resulting in significantly elevated error rates.",
+            "This action decreased retry activity, which relieved much of the load on the metadata service."
+          ]
+        },
+        {
+          "texto": "With the metadata service able to respond to administrative requests, significant capacity was added to it.",
+          "trechos": [
+            "With the metadata service now able to respond to administrative requests, we were able to add significant capacity."
+          ]
+        },
+        {
+          "texto": "Requests to the metadata service were reactivated, storage servers were put back into the customer request path, and normal load was allowed back; at 7:10am PDT error rates were low enough for most customers and dependent AWS services to resume normal operations.",
+          "trechos": [
+            "Once these adjustments were made, we were able to reactivate requests to the metadata service, put storage servers back into the customer request path, and allow normal load back on the metadata service.",
+            "At 7:10am PDT, DynamoDB was restored to error rates low enough for most customers and AWS services dependent on DynamoDB to resume normal operations."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: significantly increased the capacity of the metadata service.",
+          "trechos": [
+            "First, we have already significantly increased the capacity of the metadata service."
+          ]
+        },
+        {
+          "texto": "Instrumenting stricter monitoring on performance dimensions such as membership size, to plan capacity proactively.",
+          "trechos": [
+            "Second, we are instrumenting stricter monitoring on performance dimensions, such as the membership size, to allow us to thoroughly understand their state and proactively plan for the right capacity."
+          ]
+        },
+        {
+          "texto": "Reducing the rate at which storage nodes request membership data and lengthening the time allowed to process queries.",
+          "trechos": [
+            "Third, we are reducing the rate at which storage nodes request membership data and lengthening the time allowed to process queries."
+          ]
+        },
+        {
+          "texto": "Longer term, segmenting DynamoDB so that many instances of the metadata service each serve only portions of the storage server fleet.",
+          "trechos": [
+            "Finally and longer term, we are segmenting the DynamoDB service so that it will have many instances of the metadata service each serving only portions of the storage server fleet."
+          ]
+        },
+        {
+          "texto": "SQS will adjust its metadata caching so send and receive operations continue without prolonged access to the metadata table; Auto Scaling will repartition work for more parallelism, prune superseded scaling activities and increase processing capacity; CloudWatch will adjust its caching of DynamoDB group membership data.",
+          "trechos": [
+            "In addition to the actions being taken by the DynamoDB service, we will be adjusting our SQS metadata caching to ensure that send and receive operations continue even without prolonged access to the metadata table.",
+            "In addition to the actions taken by the DynamoDB team, to ensure we can recover quickly when a large backlog of scaling activities accumulate, we will adjust the way we partition work on the fleet of Auto Scaling servers to allow for more parallelism in processing these jobs, integrate mechanisms to prune older scaling activities that have been superseded, and increase the capacity available to process scaling activities.",
+            "To further increase the resilience of CloudWatch, we will adjust our caching strategy for the DynamoDB group membership data and only require refresh for the smallest possible set of metrics."
+          ]
+        },
+        {
+          "texto": "The Console login API call timeout, already changed in a version of the login code in testing but not yet rolled out during the event, will be reduced in the coming days.",
+          "trechos": [
+            "The timeout had already been changed in a version of the login code that has entered our test process.",
+            "Unfortunately it wasn’t yet rolled out when the event happened.",
+            "We will make this change in the coming days.",
+            "The reduced timeout will mitigate any impact of latency in the API call on the Console."
+          ]
+        },
+        {
+          "texto": "Faster CloudWatch metrics delivery through write-through caching is being developed, which would present metrics before persisting them and add protection during an event.",
+          "trechos": [
+            "We also have been developing faster metrics delivery through write-through caching.",
+            "This cache will provide the ability to present metrics directly before persisting them and will, as a side benefit, provide additional protection during an event."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 291,
+      "trechos": [
+        "On Sunday, at 2:19am PDT, there was a brief network disruption that impacted a portion of DynamoDB’s storage servers.",
+        "At 7:10am PDT, DynamoDB was restored to error rates low enough for most customers and AWS services dependent on DynamoDB to resume normal operations."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives \"Sunday, September 20\" without a year, so data_incidente is null. Duration is computed from 2:19am PDT to 7:10am PDT for DynamoDB; a residual low error rate affecting some customers lasted until Monday, EC2 Auto Scaling backlog until 10:52am PDT, and CloudWatch recovered at 7:29am PDT. The text says the dashboard notice on Monday should have been posted sooner.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.9"
+  }
+}

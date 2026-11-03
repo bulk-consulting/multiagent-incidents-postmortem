@@ -1,6 +1,6 @@
 # Ficha de post-mortem — formulário
 
-**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.9
+**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.11
 
 Cada documento do danluu vira uma ficha `DAN-xxx.json`. A ficha **não substitui** o texto original: o RAG continua indexando e citando o original. A ficha organiza o que o texto diz, para triagem, metadados e chunking.
 
@@ -124,6 +124,8 @@ Regra do IPA mantida: **classificar pela origem, não pelo efeito**. A categoria
 - **v2.7** (2º teste às cegas, 93%, quase toda a diferença na confiança): `deteccao.descricao` inclui o sintoma notado mesmo sem dizer como; `human-error` quando a ação do operador é o gatilho e a causa é a condição que a permitiu; exemplo de ataque no gatilho; `prevencao` `especificas` só se uma ação diz o mecanismo e onde (mesmo critério da mitigação).
 - **v2.8** (revisão do lote 01: 23 ERRADOS procedentes em 9 fichas; 8 de 8 `baixa` sem dúvida real): checklist antes de marcar `baixa`; duração declarada só vale se medir o impacto; trechos com referência ao contexto ("at this point", "something"); tentado/concebido/agendado não é resultado; fator contribuinte não é impacto, mecanismo nem atraso de comunicação; ataques classificados pelo mecanismo (DDoS → `capacity-load`); catálogo que descreve vários incidentes → causa comum, gatilho `null`; autoria `primaria` para quem era do time responsável.
 - **v2.9** (revisão do lote 02: 21 ERRADOS em 10 fichas, metade de trecho que não prova o texto; 4 de 5 `baixa` sem dúvida real): passo obrigatório de verificação detalhe a detalhe (todo nome, número, hora e resultado do texto aponta para um trecho da mesma afirmação); `motivo_confianca_baixa` precisa dizer por que a definição do campo não decide; mitigação só até o fim do impacto (o que vem depois vai para prevenção como "Already done").
+- **v2.10** (revisão do lote 03: 15 ERRADOS em 10 fichas; 0 `baixa`, nenhuma dúvida escondida): passos de resposta (abrir incidente, montar equipe, investigar, detectar, comunicar) não são mitigação; funcionamento normal do sistema e mitigação repetida não são fator contribuinte; `rodape_marketing` inclui rodapé de lista de e-mail e de site.
+- **v2.11** (revisão do lote 04: 14 ERRADOS em 9 fichas; 4 de 5 `baixa` com dúvida legítima): pedido a outra equipe ("asked X to") não é feito; detecção sem passos de resposta; fator contribuinte não é afirmação sobre pessoa; cabeçalho dentro do texto extraído vale para a data; verificação detalhe a detalhe também em cada passo de mitigação e ação de prevenção.
 
 ## Validação
 

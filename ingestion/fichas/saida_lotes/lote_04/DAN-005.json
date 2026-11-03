@@ -1,0 +1,156 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-005",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A Flowspec router rule meant to drop DDoS packets between 99,971 and 99,985 bytes long was relayed to CloudFlare's Juniper edge routers, which consumed all their RAM and crashed due to a bug, taking all of CloudFlare's services, including DNS and the web proxy, off the Internet. The team removed the rule and had data center operations teams physically hard-reboot unresponsive routers; all services were restored by 10:49 UTC.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "DNS",
+      "web proxy",
+      "CloudFlare.com",
+      "sites on CloudFlare's network"
+    ],
+    "tecnologias": [
+      "Juniper",
+      "Junos",
+      "Flowspec",
+      "Anycast",
+      "BGP",
+      "DNS"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "The ops and network teams were aware of the incident immediately through internal and external monitors run on the network; it was clear that packets could not find a route to the network.",
+        "trechos": [
+          "CloudFlare's ops and network teams were aware of the incident immediately because of both internal and external monitors we run on our network.",
+          "While it wasn't initially clear the reason the routers had crashed, it was clear that it was an issue caused by an inability for packets to find a route to our network."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "During a DDoS attack against a customer's DNS servers, an ops team member took the attack profiler's output and added a rule to drop packets between 99,971 and 99,985 bytes long; Flowspec accepted the rule and relayed it to the edge network.",
+      "trechos": [
+        "The attack specifically targeted the customer's DNS servers.",
+        "As is normal practice for us, one of our ops team members took the output from the profiler and added a rule based on its output to drop packets that were between 99,971 and 99,985 bytes long.",
+        "Flowspec accepted the rule and relayed it to our edge network."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A bug caused the Juniper edge routers, on encountering the rule, to consume all their RAM until they crashed, causing all routers to fail network wide, even though no packet should have matched the rule.",
+        "trechos": [
+          "However, this morning we encountered a bug that caused all of our routers to fail network wide.",
+          "What should have happened is that no packet should have matched that rule because no packet was actually that large.",
+          "What happened instead is that the routers encountered the rule and then proceeded to consume all their RAM until they crashed.",
+          "We are largely a Juniper shop at CloudFlare and all the edge routers that were affected were from Juniper."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Many routers crashed in a way that prevented the automatic reboot by the monitoring process, and their management ports could not be accessed.",
+        "trechos": [
+          "In all cases, we run a monitoring process that reboots the routers automatically when they crash.",
+          "Unfortunately, many of the routers crashed in such a way that they did not reboot automatically and we were not able to access the routers' management ports."
+        ]
+      },
+      {
+        "texto": "Some data centers that came back online initially fell over again because all the traffic across the entire network hit them and overloaded their resources.",
+        "trechos": [
+          "Even though some data centers came back online initially, they fell back over again because all the traffic across our entire network hit them and overloaded their resources."
+        ]
+      },
+      {
+        "texto": "The 23 data centers span 14 countries, so the response took some time; within about 30 minutes restoration of the network and services began.",
+        "trechos": [
+          "CloudFlare's 23 data centers span 14 countries so the response took some time but within about 30 minutes we began to restore CloudFlare's network and services."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "A Flowspec router rule (route 173.X.X.X/32-DNS-DROP) matching destination port 53 with packet-length [ 99971 99985 ] and action discard.",
+        "trechos": [
+          "+    route 173.X.X.X/32-DNS-DROP {",
+          "+            port 53;",
+          "+            packet-length [ 99971 99985 ];",
+          "+        then discard;",
+          "Flowspec accepted the rule and relayed it to our edge network."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "After seeing on accessible routers that they crashed when encountering the bad rule, the team removed the rule.",
+          "trechos": [
+            "We were able to access some routers and see that they were crashing when they encountered this bad rule.",
+            "We removed the rule and then called the network operations teams in the data centers where our routers were unresponsive to ask them to physically access the routers and perform a hard reboot."
+          ]
+        },
+        {
+          "texto": "The team called the network operations teams in data centers with unresponsive routers and asked them to physically access the routers and perform a hard reboot; by 10:49 UTC all services were restored.",
+          "trechos": [
+            "We removed the rule and then called the network operations teams in the data centers where our routers were unresponsive to ask them to physically access the routers and perform a hard reboot.",
+            "By 10:49 UTC, all of CloudFlare's services were restored."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: more extensive testing of Flowspec provisioned filters.",
+          "trechos": [
+            "We will be doing more extensive testing of Flowspec provisioned filters and evaluating whether there are ways we can isolate the application of the rules to only those data centers that need to be updated, rather than applying the rules network wide."
+          ]
+        },
+        {
+          "texto": "Planned: evaluating whether rule application can be isolated to only the data centers that need to be updated rather than applied network wide.",
+          "trechos": [
+            "We will be doing more extensive testing of Flowspec provisioned filters and evaluating whether there are ways we can isolate the application of the rules to only those data centers that need to be updated, rather than applying the rules network wide."
+          ]
+        },
+        {
+          "texto": "Planned: put more controls in place to eliminate problems like this in the future.",
+          "trechos": [
+            "We let our customer down this morning, but we will learn from the incident and put more controls in place to eliminate problems like this in the future."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 62,
+      "trechos": [
+        "This morning at 09:47 UTC CloudFlare effectively dropped off the Internet.",
+        "By 10:49 UTC, all of CloudFlare's services were restored."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Whether the router behaviour is a known Juniper bug or something unique to CloudFlare's setup and traffic at the time.",
+      "Some edge cases where people are still seeing outages remain under investigation (in nearly all cases attributed to cached bad DNS responses)."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives no year for the incident. Duration computed from the 09:47 UTC start and the 10:49 UTC full restoration.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.10"
+  }
+}

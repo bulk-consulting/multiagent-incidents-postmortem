@@ -1,0 +1,153 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-004",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On April 4, 2025, a manually modified WAF rule blocked legitimate traffic to CircleCI services, leaving customers unable to access the CircleCI UI or start new builds for about 1 hour and 33 minutes. Automated Terraform drift detection surfaced the out-of-band WAF change, and service recovered after the rule was reverted from both affected CloudFront distributions.",
+    "data_incidente": "2025-04-04",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "CircleCI UI",
+      "build triggering",
+      "api.circleci.com",
+      "circleci.com"
+    ],
+    "tecnologias": [
+      "WAF",
+      "CloudFront",
+      "Terraform",
+      "IAM",
+      "GitHub webhooks",
+      "CORS"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Monitoring systems detected degraded performance across multiple services between 00:26 and 00:52 UTC, while teams were concluding another unrelated incident; customers also began reporting they could not access the UI or start builds.",
+        "trechos": [
+          "**00:26 - 00:52**: Our monitoring systems detected degraded performance across multiple services.",
+          "This occurred just as our teams were concluding another unrelated incident, which initially caused some confusion about whether the issues might be connected.",
+          "Customers began reporting inability to access the CircleCI UI or initiate new builds, and our teams pivoted to investigate these new symptoms."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "While investigating routine security monitoring, an operator manually modified the WAF configuration, believing they were taking read-only actions; at 00:16 UTC the resulting WAF rule began blocking legitimate traffic.",
+      "trechos": [
+        "As a result, while investigating routine security monitoring, an operator manually modified WAF configuration, believing they were taking read-only actions.",
+        "**00:16**: A WAF rule was inadvertently introduced that began blocking legitimate traffic to CircleCI services."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A misconfiguration in IAM controls allowed a specific role to make changes to infrastructure (including WAF) without using the Terraform infrastructure-as-code tooling; the manual WAF change made through it blocked legitimate traffic to api.circleci.com and circleci.com CloudFront distributions.",
+        "trechos": [
+          "While we manage all our infrastructure, including WAF, almost entirely with Terraform, we discovered during this incident a misconfiguration in IAM controls that allowed a specific role to make changes without using our infrastructure-as-code tooling.",
+          "The resulting change blocked legitimate traffic to our services.",
+          "This discovery revealed that a WAF rule had been changed outside of our standard Terraform deployment process, and was blocking legitimate traffic to api.circleci.com and circleci.com CloudFront distributions."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Responders did not prioritize investigating the WAF configuration because they expected any change to have gone through the Terraform pipeline, and there was no record of such a change.",
+        "trechos": [
+          "Based on the same assumptions, those investigating the incident did not prioritize investigating WAF configuration expecting that any changes would have gone through our Terraform pipeline and there was no record of such changes."
+        ]
+      },
+      {
+        "texto": "The diverse symptoms (CORS errors, frontend-to-backend connectivity issues, a drop in GitHub webhooks) and the timing shortly after a separate, unrelated incident led to time spent on fruitless paths, including recent deployments and infrastructure changes.",
+        "trechos": [
+          "The diverse symptoms produced across our platform combined with the occurrence shortly after a separate, unrelated incident, led to time spent on paths of inquiry that ultimately proved fruitless.",
+          "**01:15:** Initial investigation revealed broad connectivity issues between the frontend and our backing APIs, including CORS (Cross-Origin Resource Sharing) errors.",
+          "The team explored multiple potential causes, including recent deployments and infrastructure changes, but the cause remained unclear.",
+          "The team noted a drop in GitHub webhooks and widespread connectivity issues between our frontend and backend services, spending time to ensure these weren’t aftereffects of the previous incident."
+        ]
+      },
+      {
+        "texto": "Nearly 80 minutes passed between the initial WAF change and its identification by the automated drift detection process.",
+        "trechos": [
+          "While this safeguard was invaluable, it was nearly 80 minutes between the initial change and the detection.",
+          "Eventually, our automated drift detection process ran and identified the issue."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A WAF rule was changed manually outside the standard Terraform deployment process on the CloudFront distributions for api.circleci.com and circleci.com; the exact rule is not named.",
+        "trechos": [
+          "This discovery revealed that a WAF rule had been changed outside of our standard Terraform deployment process, and was blocking legitimate traffic to api.circleci.com and circleci.com CloudFront distributions."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 01:41 UTC the problematic WAF rule was reverted from both affected CloudFront distributions; at 01:49 monitoring confirmed error rates decreased across all affected services.",
+          "trechos": [
+            "**01:41**: The problematic WAF rule was reverted from both affected CloudFront distributions.",
+            "**01:49**: Our monitoring confirmed that error rates decreased across all affected services as traffic was properly routed again."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: stricter IAM policies were implemented that prevent direct modification of infrastructure managed by the infrastructure-as-code pipeline.",
+          "trechos": [
+            "1. We have implemented stricter IAM policies that prevent direct modification of infrastructure managed by our infrastructure-as-code pipeline."
+          ]
+        },
+        {
+          "texto": "Enhancing Terraform drift detection to provide faster alerts when critical infrastructure components deviate from their expected state, and adding technical guardrails so all configuration management follows this approach.",
+          "trechos": [
+            "We are enhancing these capabilities to provide faster alerts when critical infra components deviate from their expected state.",
+            "2. Terraform’s drift detection was instrumental in identifying the root cause of this incident.",
+            "We are also adding technical guardrails to ensure all configuration management follows this approach, which helps prevent human error and provides better visibility into changes."
+          ]
+        },
+        {
+          "texto": "Establishing better protocols for implementing and testing WAF rules before they reach production, and adding monitoring specifically for WAF behavior and traffic patterns.",
+          "trechos": [
+            "3. Specifically, we’re establishing better protocols for implementing and testing WAF rules before they reach production environments.",
+            "Additionally, we are adding monitoring specifically for WAF behavior and traffic patterns to detect potential issues more quickly."
+          ]
+        },
+        {
+          "texto": "Investigating additional technical controls through Security Control Policies (SCPs) that provide organization-wide restrictions on IAM roles and hard boundaries on actions on critical systems like the WAFs.",
+          "trechos": [
+            "4. We’re investigating additional technical controls through Security Control Policies (SCPs) that provide organization-wide restrictions on IAM roles, reducing the risk of accidental misconfigurations.",
+            "These policies create hard boundaries on what actions can be performed on critical systems like our WAFs, adding an extra layer of protection against unintended changes."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 93,
+      "trechos": [
+        "On April 4, 2025, from 00:16 to 01:49 UTC (approximately 1 hour and 33 minutes), CircleCI experienced a service disruption affecting both our user interface and build capabilities."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Full service restoration was confirmed at 01:55 UTC and the incident closed at 02:59 UTC; the stated impact window (00:16-01:49) is used for duracao. The text says the report concerns an incident that occurred as teams were concluding a separate, unrelated incident.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.9"
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-108",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A maintenance process inadvertently run against production ELB state data in US-East logically deleted part of it, made possible by developer access that was persistent instead of requiring per-access approval. The ELB control plane then had API errors and misconfigured load balancers it modified, impacting up to 6.8% of running load balancers. The team disabled control plane workflows, restored a snapshot of the state data, merged later changes and gradually re-enabled workflows; almost all load balancers were restored by 10:30 AM PST on December 25th.",
+    "data_incidente": "2012-12-24",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Amazon Elastic Load Balancing (ELB) in US-East",
+      "ELB APIs",
+      "customer applications using affected ELB load balancers"
+    ],
+    "tecnologias": [
+      "ELB control plane",
+      "ELB state data"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The first symptom was high latency and error rates for ELB control plane API calls to manage load balancers, while running load balancers were initially unaffected.",
+        "trechos": [
+          "After this data was deleted, the ELB control plane began experiencing high latency and error rates for API calls to manage ELB load balancers.",
+          "In this initial part of the service disruption, there was no impact to the request handling functionality of running ELB load balancers because the missing ELB state data was not integral to the basic operation of running load balancers."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 12:24 PM PST on December 24th, a maintenance process was inadvertently run against the production ELB state data by a developer with access to that environment, logically deleting a portion of the data.",
+      "trechos": [
+        "The service disruption began at 12:24 PM PST on December 24th when a portion of the ELB state data was logically deleted.",
+        "The data was deleted by a maintenance process that was inadvertently run against the production ELB state data.",
+        "This process was run by one of a very small number of developers who have access to this production environment."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Additional access to production ELB state data granted to a small number of developers was incorrectly set to be persistent rather than requiring per-access approval, so the per-incident Change Management protection was not enabled for this data. Lacking the deleted state data, the ELB control plane improperly configured load balancers it modified (on user changes or scaling), causing degraded performance and errors for applications using them.",
+        "trechos": [
+          "The ELB service had authorized additional access for a small number of developers to allow them to execute operational processes that are currently being automated.",
+          "This access was incorrectly set to be persistent rather than requiring a per access approval.",
+          "This is a protection that we use across all of our services that has prevented this sort of problem in the past, but was not appropriately enabled for this ELB state data.",
+          "When a user modifies a load balancer configuration or a load balancer needs to scale up or down, the ELB control plane makes changes to the load balancer configuration.",
+          "During this event, because the ELB control plane lacked some of the necessary ELB state data to successfully make these changes, load balancers that were modified were improperly configured by the control plane.",
+          "This resulted in degraded performance and errors for customer applications using these modified load balancers."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "For the next couple of hours the team focused on API errors and was puzzled because many APIs succeeded (new load balancers could be created and managed, existing ones could not); the missing state data was identified as the root cause only when the team dug into the degraded load balancers.",
+        "trechos": [
+          "Over the next couple hours, our technical teams focused on the API errors.",
+          "The team was puzzled as many APIs were succeeding (customers were able to create and manage new load balancers but not manage existing load balancers) and others were failing.",
+          "It was when the ELB technical team started digging deeply into these degraded load balancers that the team identified the missing ELB state data as the root cause of the service disruption."
+        ]
+      },
+      {
+        "texto": "The initial method used to restore the ELB state data consumed several hours and failed to provide a usable snapshot, delaying recovery until an alternate recovery process was found.",
+        "trechos": [
+          "Unfortunately, the initial method used by the team to restore the ELB state data consumed several hours and failed to provide a usable snapshot of the data.",
+          "This delayed recovery until an alternate recovery process was found."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 5:02 PM PST, several ELB control plane workflows, including scaling and descaling, were disabled to prevent more running load balancers from being affected.",
+          "trechos": [
+            "At 5:02 PM PST, the team disabled several of the ELB control plane workflows (including the scaling and descaling workflows) to prevent additional running load balancers from being affected by the missing ELB state data."
+          ]
+        },
+        {
+          "texto": "Some affected running load balancers were manually recovered on Monday night.",
+          "trechos": [
+            "The team was able to manually recover some of the affected running load balancers on Monday night, and worked through the night to try to restore the missing ELB state data to allow the rest of the affected load balancers to recover (and to open all of the ELB APIs back up)."
+          ]
+        },
+        {
+          "texto": "At 2:45 AM PST on December 25th, using an alternate process, the team restored a snapshot of the ELB state data to a time just before the deletion, then merged it with later system state changes; the merge was completed and verified by 5:40 AM PST.",
+          "trechos": [
+            "At 2:45 AM PST on December 25th, the team successfully restored a snapshot of the ELB state data to a time just before the data was deleted.",
+            "The team then began merging this restored data with the system state changes that happened between this snapshot and the current time.",
+            "By 5:40 AM PST, this data merge had been completed and the new ELB state data had been verified."
+          ]
+        },
+        {
+          "texto": "The team slowly re-enabled ELB service workflows and APIs; the majority were re-enabled by 8:15 AM PST and almost all affected load balancers were restored to full operation by 10:30 AM PST.",
+          "trechos": [
+            "The team then began slowly re-enabling the ELB service workflows and APIs.",
+            "The system began recovering the remaining affected load balancers, and by 8:15 AM PST, the team had re-enabled the majority of APIs and backend workflows.",
+            "By 10:30 AM PST, almost all affected load balancers had been restored to full operation."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: modified access controls on production ELB state data and reverted the persistent-access configuration, so all access to production ELB data requires a per-incident Change Management approval.",
+          "trechos": [
+            "First, we have modified the access controls on our production ELB state data to prevent inadvertent modification without specific Change Management (CM) approval.",
+            "We have reverted this incorrect configuration and all access to production ELB data will require a per-incident CM approval."
+          ]
+        },
+        {
+          "texto": "Already done: modified the data recovery process to reflect what was learned, with the authors confident ELB state data could be recovered significantly faster in a similar event.",
+          "trechos": [
+            "We have also modified our data recovery process to reflect the learning we went through in this event.",
+            "We are confident that we could recover ELB state data in a similar event significantly faster (if necessary) for any future operational event."
+          ]
+        },
+        {
+          "texto": "Planned: the authors believe they can reprogram ELB control plane workflows to reconcile central service data with current load balancer state, allowing automatic recovery from logical data loss or corruption without manual data restoration.",
+          "trechos": [
+            "We believe that we can reprogram our ELB control plane workflows to more thoughtfully reconcile the central service data with the current load balancer state.",
+            "This would allow the service to recover automatically from logical data loss or corruption without needing manual data restoration."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 1326,
+      "trechos": [
+        "The service disruption began at 12:24 PM PST on December 24th when a portion of the ELB state data was logically deleted.",
+        "By 10:30 AM PST, almost all affected load balancers had been restored to full operation."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration computed from 12:24 PM PST on December 24th to 10:30 AM PST on December 25th, when the text says the service was substantially recovered; the team communicated that the service was operating normally at 12:05 PM PST. At the peak, 6.8% of running ELB load balancers were impacted; the rest could not scale or be modified but operated correctly.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.10"
+  }
+}

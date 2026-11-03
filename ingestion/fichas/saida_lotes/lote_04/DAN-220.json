@@ -1,0 +1,182 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-220",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "After the rollout of Spotify's Discovery feature added an unnoticed dependency of the Bartender service on the underprovisioned Popcount service, Popcount was overwhelmed; Popcount request queues and excessive error logging then made most Accesspoints unreachable or extremely slow, while desktop clients retried without backoff, causing high playback latency and login failures for many European users for a few hours. Service recovered after Accesspoints were hard-reset where needed and firewalled off, triggering client exponential backoff, and the blocks were removed.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "music playback",
+      "login",
+      "Popcount",
+      "Accesspoints"
+    ],
+    "tecnologias": [
+      "Popcount",
+      "Bartender",
+      "Accesspoints",
+      "desktop client",
+      "syslog",
+      "IRC"
+    ],
+    "categoria_causa": "cascading-failure",
+    "deteccao": {
+      "forma": "equipe_interna",
+      "descricao": {
+        "texto": "On the night of April 27th, engineers online on IRC discovered that Popcount was unhealthy again.",
+        "trechos": [
+          "## The night of April 27th",
+          "Some of our engineers were online on IRC, and discovered that Popcount was unhealthy again."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "A few days earlier, the new Discovery feature began rolling out to a percentage of users, unknowingly adding a dependency of the Discovery service (Bartender) on Popcount, which it called directly to display playlist counts.",
+      "trechos": [
+        "A few days earlier we started rolling out our new cool Discovery feature to a percentage of our users.",
+        "We had unknowingly added a dependency between our Discovery service (Bartender is our internal name) and Popcount.",
+        "Some of the content we display in our discovery page display playlist counts, hence the Bartender service was fetching data directly from Popcount."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A dependency between the Discovery service (Bartender) and Popcount had been added unknowingly, and Popcount was underprovisioned: it received more requests than it could handle, which its fast-fail logic did not prevent.",
+        "trechos": [
+          "We had unknowingly added a dependency between our Discovery service (Bartender is our internal name) and Popcount.",
+          "The fast fail logic we introduced before did not help much: the service was getting more requests than it could handle.",
+          "We realized too late that Popcount was underprovisioned."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Legacy desktop client code retried fetching Popcount information for every timed-out request with no backoff logic, and this wrong retry behavior made things worse during the outage.",
+        "trechos": [
+          "That particular code caused our clients to retry fetching Popcount information for every request that timed out.",
+          "To make matters worse, the legacy implementation had no backoff logic at all.",
+          "Their I/O responsiveness was nonexistent and the wrong retry behavior in our desktop clients was making things worse and worse."
+        ]
+      },
+      {
+        "texto": "After an earlier Popcount incident two months before, the fix for the client retry bug was not given proper priority; the team focused on the mitigation (fast-fail behavior in Popcount) and thought it would be enough.",
+        "trechos": [
+          "In this particular case, we focussed in the mitigations (fast fail behavior in Popcount) instead of in the root cause (the client bug).",
+          "We did not set the proper priority for the bugfix, and, guess what…",
+          "We thought having the fast fail mechanism in place would be enough to keep the service up in case we experienced high latencies."
+        ]
+      },
+      {
+        "texto": "Saturday night is usually a very busy night for the servers.",
+        "trechos": [
+          "Saturday night is usually a very busy night for our servers, and that did not help either."
+        ]
+      },
+      {
+        "texto": "A hotfix removing the Bartender dependency, expected to solve the problem, did not: by the time it was applied, Popcount request queues had built up in the Accesspoints and excessive error logging, made more verbose on purpose for debugging, left their I/O responsiveness nonexistent, so most Accesspoints became unreachable or extremely slow.",
+        "trechos": [
+          "By the time we applied the fix, the Popcount request queues in our Accesspoints (the servers our clients connect to) had built up and some excessive logging in the Accesspoints making them die like flies.",
+          "We intentionally had added more verbose logging of errors for debugging purposes, and we managed to shoot ourselves in the foot with it.",
+          "Their I/O responsiveness was nonexistent and the wrong retry behavior in our desktop clients was making things worse and worse.",
+          "By that time our service was notably degraded and we were in a situation where most of our Accesspoints were unreachable or responding extremely slowly.",
+          "Our Site Reliability and Infrastructure teams thought that removing that dependency via a hotfix would solve the problem. But we were wrong."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "The rollout of the new Discovery feature, which added a direct dependency of the Bartender service on Popcount.",
+        "trechos": [
+          "A few days earlier we started rolling out our new cool Discovery feature to a percentage of our users.",
+          "We had unknowingly added a dependency between our Discovery service (Bartender is our internal name) and Popcount."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "A hotfix removing the Bartender dependency on Popcount was applied, but it did not solve the problem.",
+          "trechos": [
+            "Our Site Reliability and Infrastructure teams thought that removing that dependency via a hotfix would solve the problem. But we were wrong.",
+            "By the time we applied the fix, the Popcount request queues in our Accesspoints (the servers our clients connect to) had built up and some excessive logging in the Accesspoints making them die like flies."
+          ]
+        },
+        {
+          "texto": "The Accesspoints were firewalled off, some after a hard reset because they were too unresponsive; a few minutes later they were responsive, the firewall blocks were removed and the service worked as usual. Offlining the servers triggered the clients' exponential backoff on disconnection.",
+          "trechos": [
+            "We needed to do something to allow them to start breathing and the only possible solution was firewalling them off.",
+            "Some of them were so unresponsive that we had to perform a hard reset before applying the necessary firewall rules.",
+            "A few minutes later, things were responsive again. We removed the firewall blocks and the service started working smoothly as usual.",
+            "They have an exponential backoff logic and offlining those servers for a while triggered the backoff that helped us make forward progress."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: all data served by the discovery service is to be statically cached with a TTL.",
+          "trechos": [
+            "We came up with a list of remediations, all of them are in place now. Some of them:",
+            "- All the data served by our discovery service should be statically cached with a TTL."
+          ]
+        },
+        {
+          "texto": "Already done: fix the faulty retry behavior for Popcount in the desktop client.",
+          "trechos": [
+            "We came up with a list of remediations, all of them are in place now. Some of them:",
+            "- Fix the faulty retry behavior for Popcount in our desktop client."
+          ]
+        },
+        {
+          "texto": "Already done: move valuable Accesspoint log messages into a separate log so non-important messages can be discarded, and rate-limit those messages.",
+          "trechos": [
+            "We came up with a list of remediations, all of them are in place now. Some of them:",
+            "- Move valuable Accesspoint log messages into a separate log. In case we hit a similar IO problem in the future, we can easily discard non important messages. We also introduced rate limiting for those messages."
+          ]
+        },
+        {
+          "texto": "Already done: syslog fixes to prevent too frequent flushes to disk.",
+          "trechos": [
+            "We came up with a list of remediations, all of them are in place now. Some of them:",
+            "- Implement some syslog fixes to prevent too frequent flushes to disk."
+          ]
+        },
+        {
+          "texto": "Already done: a post-mortem meeting was held with the entire Technology and Product departments invited; educating the company on why and how the failure happened was itself listed as a remediation for this incident.",
+          "trechos": [
+            "After the outage (infamously known as OPS-6000 in our incident tracking system), we held a post-mortem meeting where we invited the entire Technology and Product departments.",
+            "Educating the company on why and how we failed is just as important as the fixes (it was even a remediation for this incident)."
+          ]
+        },
+        {
+          "texto": "Lesson stated by the authors: spend more time testing extreme cases (high latency, low bandwidth) for backend systems.",
+          "trechos": [
+            "We should spend more time testing extreme cases (high latency, low bandwidth) for our backend systems"
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "categoria_causa: 'cascading-failure' and 'capacity-load' both fit. Popcount was underprovisioned for the extra requests ('capacity-load': 'load, limits or capacity exhausted without a configuration change'), and its degradation propagated into the Accesspoints through request queues and logging ('cascading-failure': 'one component's degradation propagated through dependencies'); the definitions do not say which to use when both are part of the stated mechanism.",
+  "observacoes": "The text describes an earlier Popcount incident two months before as a precursor; it was used only as a contributing factor. The text gives April 27th (a Saturday) but no year. The impact lasted 'a few hours', which is not a usable duration. The post also covers Spotify's post-mortem practice; it was classified as a post-mortem because it centres on this one incident.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.10"
+  }
+}

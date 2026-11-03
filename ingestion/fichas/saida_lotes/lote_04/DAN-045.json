@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-045",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A change to simplify npm's Varnish VCL config on Fastly introduced a bug that sent all requests to Manta instead of CouchDB, so requests such as /pkgname returned 403 Forbidden, and because Fastly does not cache error codes a thundering herd followed. The text does not say how service was restored.",
+    "data_incidente": "2014-01-28",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "npm requests that should have gone to CouchDB (e.g. /pkgname)"
+    ],
+    "tecnologias": [
+      "Fastly",
+      "Varnish",
+      "VCL",
+      "Manta",
+      "CouchDB"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Requests that should have gone to CouchDB, such as /pkgname, went to Manta and returned 403 Forbidden responses; the text does not say how the problem was noticed.",
+        "trechos": [
+          "Since Manta doesn’t know how to handle requests like `/pkgname`, these all returned `403 Forbidden` responses."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A change to the Varnish VCL config on Fastly set req.backend in a vcl_fetch function and then called restart to re-parse the rules; restart resets req.backend to the first backend in the list, which was Manta rather than the load-balanced CouchDB servers, so all requests went to Manta, which returned 403 Forbidden for requests like /pkgname.",
+        "trechos": [
+          "While making a change to simplify the Varnish VCL config on Fastly, we added a bug that caused *all* requests to go to Manta, including those that should have gone to CouchDB.",
+          "The issue is that we were setting the `req.backend` in a `vcl_fetch` function, and then calling `restart` to re-parse the rules.",
+          "However, calling `restart` will reset the `req.backend` to the first backed in the list, which in this case happened to be Manta, rather than the load balanced CouchDB servers.",
+          "Since Manta doesn’t know how to handle requests like `/pkgname`, these all returned `403 Forbidden` responses."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Fastly was configured not to cache error codes, so the proliferation of 403 responses led to a thundering herd that took a bit of time to get under control.",
+        "trechos": [
+          "Because Fastly is configured to not cache error codes, this proliferation of 403 responses led to a thundering herd which took a bit of time to get under control."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "A change to simplify the Varnish VCL config on Fastly that set req.backend in vcl_fetch and then called restart.",
+        "trechos": [
+          "While making a change to simplify the Varnish VCL config on Fastly, we added a bug that caused *all* requests to go to Manta, including those that should have gone to CouchDB.",
+          "The issue is that we were setting the `req.backend` in a `vcl_fetch` function, and then calling `restart` to re-parse the rules."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "ausente",
+      "passos": []
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Future changes to the Fastly VCL config will always explicitly set req.backend in the vcl_recv function, even after a restart.",
+          "trechos": [
+            "Future changes to our Fastly VCL config will take this into account, and always explicitly set the `req.backend` in the `vcl_recv` function, even after a `restart`."
+          ]
+        },
+        {
+          "texto": "In progress: setting up a separate Varnish instance to stage changes like this one.",
+          "trechos": [
+            "Also, we are setting up a separate Varnish instance to stage changes like this, so that we can avoid being surprised by errors in our VCL configuration."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The incident date comes from the post heading in the extracted text ('2014-01-28 Outage Postmortem'). The root cause was identified with help from the Fastly support team. The extracted text begins with a notice that the npm blog has been discontinued.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.10"
+  }
+}

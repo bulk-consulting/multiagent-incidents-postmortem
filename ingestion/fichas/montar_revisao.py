@@ -50,6 +50,9 @@ Regras do prompt que costumam ser esquecidas na revisão (não marque como erro 
   mecanismos de cada incidente em fatores_contribuintes;
 - mitigação "generica" quando todos os passos são ações genéricas (reiniciar, reverter), mesmo com o componente nomeado;
 - notas que não são dúvida de classificação ficam em "observacoes" e não baixam a confiança.
+- duracao: quando o texto diz que o serviço foi substancialmente recuperado num horário, esse é o fim do impacto
+  (não exija null); null só quando o texto não diz quando o serviço voltou;
+- data_incidente pode vir de um cabeçalho dentro do texto extraído (não do título da página).
 
 FORMATO DA RESPOSTA (siga à risca, seja breve):
 1. Uma tabela só com os campos que têm problema: | campo | ERRADO ou DISCUTÍVEL | problema em 1 ou 2 frases | trecho do documento que mostra o problema |

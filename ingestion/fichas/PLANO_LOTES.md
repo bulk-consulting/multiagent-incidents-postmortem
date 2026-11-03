@@ -14,6 +14,7 @@ Lista completa em [`lotes/lotes.csv`](lotes/lotes.csv): **169 documentos em 17 l
 Observações:
 - `precisa_limpeza` (7) entra: são textos repetidos em outro idioma ou trechos repetidos, que a ficha resolve (o extrator cita a parte em inglês; ver DAN-063). DAN-002 está só em coreano.
 - DAN-216 tem 2 palavras e o inventário a marcou `ok` por engano; o esperado é `catalogo: nao_verificavel`.
+- DAN-210 tem 4.501 palavras, mas são só menus, cabeçalhos de comentários e rodapé do Reddit; saiu `nao_verificavel` no lote 03. DAN-156 (lote 04) trouxe só a página do Hacker News com um comentário. A contagem de palavras do inventário não detecta páginas sem artigo: as três vão para a reextração.
 
 ## Cada lote
 
@@ -25,7 +26,9 @@ Observações:
 5. **Conferência no GPT (primeiros lotes)**: `montar_revisao.py NN` gera `revisao/lote_NN/`. Um chat novo por ficha, com 2 anexos (`prompt_extracao.md` e `DAN-xxx_revisao.md`) e a frase: *"Siga as instruções do arquivo DAN-xxx_revisao.md."* André cola as respostas; Claude separa o que procede, corrige a ficha e, se for falha de regra, propõe ajuste no prompt.
 6. **Aceitar**: fichas conferidas e corrigidas são copiadas para `saida/`.
 
-**Até quando conferir tudo no GPT:** nos primeiros lotes, todas as 10. Quando dois lotes seguidos tiverem no máximo 1 ERRADO procedente no lote inteiro, passar a conferir só as `baixa` + 2 `alta` sorteadas por lote.
+**Até quando conferir tudo no GPT:** decidido após o lote 03 (ERRADOS procedentes por ficha: 2,6 no lote 01, 2,1 no 02, 1,5 no 03): conferir todas as fichas até o lote 05. Se os lotes 04 e 05 ficarem abaixo de 1 ERRADO procedente por ficha, passar a conferir só as `baixa` + 4 `alta` sorteadas por lote, voltando a conferir tudo se a amostra piorar.
+
+**Fichas vazias:** documentos que saem `nao_verificavel` (só menus ou rodapé) não precisam de conferência; entram na lista de reextração.
 
 **Mudança de prompt no meio:** se um lote levar a uma nova versão do prompt, os lotes seguintes usam a nova; as fichas já aceitas não são refeitas (o `versao_prompt` registra com qual foram geradas). Antes de seguir, rodar o lote 00 de novo se a mudança for grande.
 

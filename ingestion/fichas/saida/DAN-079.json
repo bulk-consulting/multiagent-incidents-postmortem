@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-079",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "relatorio_periodico",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "While reprovisioning ZooKeeper nodes, new hosts were introduced too quickly and a second ZooKeeper leader was elected; a Kafka broker of the background job system connected to the second cluster and became controller; two distinct Kafka clusters then served conflicting cluster state, which caused write failures for about 10% of background jobs, degrading issues, pull requests, webhooks, GitHub Actions and GitHub Pages. Traffic and worker capacity were migrated to the secondary job processing system; no jobs were lost.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "issues",
+      "pull requests",
+      "webhooks",
+      "GitHub Actions",
+      "GitHub Pages",
+      "background job service"
+    ],
+    "tecnologias": [
+      "ZooKeeper",
+      "Kafka"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "While reprovisioning ZooKeeper nodes during routine upgrades, new hosts were introduced too quickly, resulting in the election of a second leader and a logically distinct second ZooKeeper cluster. A single Kafka broker of the background job system connected to the second ZooKeeper cluster and elected itself controller, so two Kafka clusters served conflicting cluster state to clients, causing write failures for approximately 10% of requests to the background job service.",
+        "trechos": [
+          "While reprovisioning ZooKeeper nodes as a part of routine upgrades, new hosts were introduced too quickly, which resulted in the election of a second leader, effectively introducing a logically distinct second ZooKeeper cluster where there should have been only one.",
+          "While the ZooKeeper hosts were in this state, a single Kafka broker in the cluster that powers our internal background job system connected to the newly-formed second ZooKeeper cluster and elected itself as the Kafka controller.",
+          "At this point, there were two distinct Kafka clusters that were serving conflicting cluster state information to clients.",
+          "This incorrect state caused write failures for approximately 10% of the requests to our background job service, resulting in a backup of jobs as we migrated traffic and worker capacity to our secondary job processing system."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "Reprovisioning of ZooKeeper nodes as part of routine upgrades, introducing new hosts into the cluster.",
+        "trechos": [
+          "While reprovisioning ZooKeeper nodes as a part of routine upgrades, new hosts were introduced too quickly, which resulted in the election of a second leader, effectively introducing a logically distinct second ZooKeeper cluster where there should have been only one."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Traffic and worker capacity were migrated to the secondary job processing system, with a backup of jobs during the migration.",
+          "trechos": [
+            "This incorrect state caused write failures for approximately 10% of the requests to our background job service, resulting in a backup of jobs as we migrated traffic and worker capacity to our secondary job processing system."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: updated the ZooKeeper provisioning checklist.",
+          "trechos": [
+            "To avoid this class of failure in the future, we have updated our ZooKeeper provisioning checklist and plan on introducing automation to perform ZooKeeper and Kafka cluster maintenance."
+          ]
+        },
+        {
+          "texto": "Planned: introduce automation to perform ZooKeeper and Kafka cluster maintenance.",
+          "trechos": [
+            "To avoid this class of failure in the future, we have updated our ZooKeeper provisioning checklist and plan on introducing automation to perform ZooKeeper and Kafka cluster maintenance."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "mudanca_causadora.nivel: 'generica' and 'nao_se_aplica' both fit. Introducing new ZooKeeper hosts while reprovisioning is a change whose kind and place the text gives ('generica': 'the text says what kind of change and where'), but the text attributes the failure to the hosts being introduced too quickly, an operator procedure ('nao_se_aplica': 'a one-off operator command'); the definitions do not say whether adding hosts to a cluster counts as a persistent change.",
+  "observacoes": "This is a monthly availability report that contains only this incident. The text says 'In October' but gives no year, and no impact duration. The text says no background jobs were lost and that client retry behaviour and redundant queueing systems mitigated the queue backups.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.10"
+  }
+}

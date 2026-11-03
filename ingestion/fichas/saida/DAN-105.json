@@ -1,0 +1,138 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-105",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A handful of internal Amazon S3 server-state messages had a single bit corrupted; with no checksum on that state information, the corruption went undetected and spread through the gossip protocol, leaving servers spending almost all their time gossiping or failing, so very few customer requests succeeded in all S3 datacenters. S3 shut down all server-to-server communication and request processing, cleared the system state, then restored communication and reactivated request processing; error rates returned to normal in the EU at 3:10pm and in the US by 4:58pm PDT.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Amazon S3"
+    ],
+    "tecnologias": [
+      "gossip protocol",
+      "MD5 checksums"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 8:40am PDT, error rates in all Amazon S3 datacenters began to climb quickly and alarms went off.",
+        "trechos": [
+          "At 8:40am PDT, error rates in all Amazon S3 datacenters began to quickly climb and our alarms went off."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "On Sunday morning, a handful of messages had a single bit corrupted such that each message was still intelligible but the system state information was incorrect.",
+      "trechos": [
+        "More specifically, we found that there were a handful of messages on Sunday morning that had a single bit corrupted such that the message was still intelligible, but the system state information was incorrect."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Amazon S3 used MD5 checksums to protect customer objects but had no equivalent protection to detect corruption of this internal state information; the corruption went undetected and spread throughout the system via the gossip protocol, so a large number of servers spent almost all their time gossiping or failed while gossiping and could not process customer requests.",
+        "trechos": [
+          "We use MD5 checksums throughout the system, for example, to prevent, detect, and recover from corruption that can occur during receipt, storage, and retrieval of customers' objects.",
+          "However, we didn't have the same protection in place to detect whether this particular internal state information had been corrupted.",
+          "As a result, when the corruption occurred, we didn't detect it and it spread throughout the system causing the symptoms described above.",
+          "As background information, Amazon S3 uses a gossip protocol to quickly spread server state information throughout the system.",
+          "On Sunday, we saw a large number of servers that were spending almost all of their time gossiping and a disproportionate amount of servers that had failed while gossiping.",
+          "With a large number of servers gossiping and failing while gossiping, Amazon S3 wasn't able to successfully process many customer requests."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The team had not encountered server-to-server communication issues of this scale before, so it took some time during the event to diagnose and recover; the server communication problem was determined at 9:41am PDT.",
+        "trechos": [
+          "We hadn't encountered server-to-server communication issues of this scale before and, as a result, it took some time during the event to diagnose and recover from it.",
+          "At 9:41am PDT, we determined that servers within Amazon S3 were having problems communicating with each other."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "While investigating, the team tried to restore system health by reducing system load in several stages; this had no impact.",
+          "trechos": [
+            "While we began investigating several possible causes, we tried to restore system health by taking several actions to reduce system load.",
+            "We reduced system load in several stages, but it had no impact on restoring system health."
+          ]
+        },
+        {
+          "texto": "At 10:32am PDT the team decided to shut down all communication between S3 servers, shut down all request processing components, clear the system's state, and reactivate request processing; by 11:05am PDT communication was stopped, components shut down and state cleared.",
+          "trechos": [
+            "At 10:32am PDT, after exploring several options, we determined that we needed to shut down all communication between Amazon S3 servers, shut down all components used for request processing, clear the system's state, and then reactivate the request processing components.",
+            "By 11:05am PDT, all server-to-server communication was stopped, request processing components shut down, and the system's state cleared."
+          ]
+        },
+        {
+          "texto": "By 2:20pm PDT internal communication between all S3 servers was restored and request processing components began reactivating concurrently in the US and EU; the EU began completing requests at 2:57pm PDT and the US at 4:02pm PDT.",
+          "trechos": [
+            "By 2:20pm PDT, we'd restored internal communication between all Amazon S3 servers and began reactivating request processing components concurrently in both the US and EU.",
+            "At 2:57pm PDT, Amazon S3's EU location began successfully completing customer requests.",
+            "At 4:02pm PDT, Amazon S3's US location began successfully completing customer requests, and request rates and error rates had returned to normal by 4:58pm PDT."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: deployed several changes to Amazon S3 that significantly reduce the time required to completely restore system-wide state and restart customer request processing.",
+          "trechos": [
+            "Here are the actions that we're taking: (a) we've deployed several changes to Amazon S3 that significantly reduce the amount of time required to completely restore system-wide state and restart customer request processing;"
+          ]
+        },
+        {
+          "texto": "Already done: deployed a change to how Amazon S3 gossips about failed servers that reduces the amount of gossip.",
+          "trechos": [
+            "(b) we've deployed a change to how Amazon S3 gossips about failed servers that reduces the amount of gossip and helps prevent the behavior we experienced on Sunday;"
+          ]
+        },
+        {
+          "texto": "Already done: added additional monitoring and alarming of gossip rates and failures.",
+          "trechos": [
+            "(c) we've added additional monitoring and alarming of gossip rates and failures; and, (d) we're adding checksums to proactively detect corruption of system state messages so we can log any such messages and then reject them."
+          ]
+        },
+        {
+          "texto": "Adding checksums to proactively detect corruption of system state messages so such messages can be logged and rejected.",
+          "trechos": [
+            "(c) we've added additional monitoring and alarming of gossip rates and failures; and, (d) we're adding checksums to proactively detect corruption of system state messages so we can log any such messages and then reject them."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 498,
+      "trechos": [
+        "At 8:40am PDT, error rates in all Amazon S3 datacenters began to quickly climb and our alarms went off.",
+        "At 4:02pm PDT, Amazon S3's US location began successfully completing customer requests, and request rates and error rates had returned to normal by 4:58pm PDT."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives \"Sunday, July 20th\" without a year, so data_incidente is null. Duration computed from 8:40am PDT (error rates climb) to 4:58pm PDT (US request and error rates back to normal); the EU returned to normal earlier, by 3:10pm PDT.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.9"
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-138",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A surge of requests from a single customer in AWS us-east-1 for cached objects generated response traffic that saturated Cloudflare's peering links with AWS, causing high latency, packet loss and origin failures for traffic between Cloudflare and AWS us-east-1; AWS BGP withdrawals moved traffic to other links that also saturated. Congestion was relieved by rate limiting the customer and traffic engineering actions, AWS then normalized its BGP announcements, and impact ended at 20:18 UTC.",
+    "data_incidente": "2025-08-21",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "traffic between Cloudflare and AWS us-east-1",
+      "customers with origins in AWS us-east-1"
+    ],
+    "tecnologias": [
+      "BGP",
+      "PNI (Private Network Interconnect)",
+      "Data Center Interconnect (DCI)",
+      "edge routers",
+      "AWS us-east-1"
+    ],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 16:44 UTC the network team was alerted to internal congestion in Ashburn (IAD).",
+        "trechos": [
+          "| 2025-08-21 16:44 UTC | Network team is alerted to internal congestion in Ashburn (IAD) |"
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At approximately 16:27 UTC a single customer started sending many requests from AWS us-east-1 for objects in Cloudflare's cache, doubling total traffic from Cloudflare to AWS.",
+      "trechos": [
+        "At approximately 16:27 UTC on August, 21, 2025, a customer started sending many requests from AWS us-east-1 to Cloudflare for objects in Cloudflare’s cache.",
+        "| 2025-08-21 16:27 UTC | Traffic surge for single customer begins, doubling total traffic from Cloudflare to AWSIMPACT START |"
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The outage was due to insufficient network congestion management during an unusual high-traffic event: some edge router links to an AWS peering switch had insufficient capacity for the surge, the response traffic saturated all available direct peering connections between Cloudflare and AWS, and router queues grew and dropped packets.",
+        "trechos": [
+          "Customers accessing AWS us-east-1 through Cloudflare experienced an outage due to insufficient network congestion management during an unusual high-traffic event.",
+          "The majority of Cloudflare’s network links were operating normally, but some edge router links to an AWS peering switch had insufficient capacity to handle this particular surge.",
+          "These requests generated a volume of response traffic that saturated all available direct peering connections between Cloudflare and AWS.",
+          "The congestion in the network caused network queues on the routers to grow significantly and begin dropping packets."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "AWS, trying to alleviate the congestion, withdrew some BGP advertisements to Cloudflare over congested links, which rerouted traffic to peering links via an offsite network interconnection switch that also became saturated, worsening the degradation.",
+        "trechos": [
+          "This initial saturation became worse when AWS, in an effort to alleviate the congestion, withdrew some BGP advertisements to Cloudflare over some of the congested links.",
+          "This action rerouted traffic to an additional set of peering links connected to Cloudflare via an offsite network interconnection switch, which subsequently also became saturated, leading to significant performance degradation."
+        ]
+      },
+      {
+        "texto": "One of the direct peering links was operating at half-capacity due to a pre-existing failure.",
+        "trechos": [
+          "The impact became worse for two reasons: One of the direct peering links was operating at half-capacity due to a pre-existing failure, and the Data Center Interconnect (DCI) that connected Cloudflare’s edge routers to the offsite switch was due for a capacity upgrade."
+        ]
+      },
+      {
+        "texto": "The Data Center Interconnect (DCI) connecting Cloudflare's edge routers to the offsite switch was due for a capacity upgrade.",
+        "trechos": [
+          "The impact became worse for two reasons: One of the direct peering links was operating at half-capacity due to a pre-existing failure, and the Data Center Interconnect (DCI) that connected Cloudflare’s edge routers to the offsite switch was due for a capacity upgrade."
+        ]
+      },
+      {
+        "texto": "While evaluating response options, the network team found AWS prefixes unavailable on non-congested paths because of AWS's withdrawals.",
+        "trechos": [
+          "| 2025-08-21 16:45 UTC | Network team is evaluating options for response, but AWS prefixes are unavailable on paths that are not congested due to their withdrawals |"
+        ]
+      },
+      {
+        "texto": "After congestion was alleviated, both AWS and Cloudflare were normalizing the adjusted prefix advertisements, which caused a long tail of latency that may have impacted some customers.",
+        "trechos": [
+          "After the congestion was alleviated, there was a brief period where both AWS and Cloudflare were attempting to normalize the prefix advertisements that had been adjusted to attempt to mitigate the congestion.",
+          "That caused a long tail of latency that may have impacted some customers, which is why you see the packet drops resolve before the customer latencies are restored."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 19:05 UTC, rate limiting of the single customer causing the traffic surge decreased congestion.",
+          "trechos": [
+            "| 2025-08-21 19:05 UTC | Rate limiting of single customer causing traffic surge decreases congestion |"
+          ]
+        },
+        {
+          "texto": "At 19:27 UTC, additional traffic engineering actions by the network team fully resolved the congestion.",
+          "trechos": [
+            "| 2025-08-21 19:27 UTC | Network team additional traffic engineering actions fully resolve congestionIMPACT DECREASE |"
+          ]
+        },
+        {
+          "texto": "At Cloudflare's request, AWS began reverting its BGP withdrawals at 19:45 UTC and finished normalizing BGP prefix announcements over the IAD PNIs at 20:07 UTC; impact ended at 20:18 UTC.",
+          "trechos": [
+            "| 2025-08-21 19:45 UTC | AWS begins reverting BGP withdrawals as requested by Cloudflare |",
+            "| 2025-08-21 20:07 UTC | AWS finishes normalizing BGP prefix announcements to Cloudflare over IAD PNIs |",
+            "| 2025-08-21 20:18 UTC | IMPACT END |"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "In progress: developing a mechanism to selectively deprioritize a customer's traffic if it begins to congest the network to a degree that impacts others.",
+          "trechos": [
+            "- We are developing a mechanism to selectively deprioritize a customer’s traffic if it begins to congest the network to a degree that impacts others."
+          ]
+        },
+        {
+          "texto": "In progress: expediting the Data Center Interconnect (DCI) upgrades to provide significantly more network capacity.",
+          "trechos": [
+            "- We are expediting the Data Center Interconnect (DCI) upgrades which will provide network capacity significantly above what it is today."
+          ]
+        },
+        {
+          "texto": "In progress: working with AWS so that their and Cloudflare's BGP traffic engineering actions do not conflict in the future.",
+          "trechos": [
+            "- We are working with AWS to make sure their and our BGP traffic engineering actions do not conflict with one another in the future."
+          ]
+        },
+        {
+          "texto": "Planned (long term): a new traffic management system that allots network resources per customer with a budget that, once exceeded, prevents that customer's traffic from degrading service for others, and automates many of the manual actions taken in this incident.",
+          "trechos": [
+            "Looking further ahead, our long-term solution involves building a new, enhanced traffic management system.",
+            "This system will allot network resources on a per-customer basis, creating a budget that, once exceeded, will prevent a customer's traffic from degrading the service for anyone else on the platform.",
+            "This system will also allow us to automate many of the manual actions that were taken to attempt to remediate the congestion seen during this incident."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 231,
+      "trechos": [
+        "Customers with origins in AWS us-east-1 began experiencing impact at 16:27 UTC.",
+        "The impact was substantially reduced by 19:38 UTC, with intermittent latency increases continuing until 20:18 UTC."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration computed from impact start (16:27 UTC) to impact end (20:18 UTC); the text says impact was substantially reduced by 19:38 UTC. The text states the event was network congestion, not an attack or a BGP hijack, and that global Cloudflare services were not affected.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.10"
+  }
+}

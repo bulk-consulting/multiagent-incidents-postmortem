@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-023",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During routine maintenance, a command meant to assess global backbone capacity took down all connections in Facebook's backbone network, disconnecting its data centers from each other and the internet; DNS servers then withdrew their BGP advertisements and became unreachable. Engineers were sent onsite to the data centers to debug and bring the backbone back online, after which services were brought back while carefully managing the increasing load.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Facebook platforms",
+      "internal tools"
+    ],
+    "tecnologias": [
+      "backbone routers",
+      "DNS",
+      "BGP",
+      "authoritative name servers",
+      "audit tool"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "During a routine maintenance job, a command was issued with the intention of assessing the availability of global backbone capacity; it unintentionally took down all the connections in the backbone network, disconnecting Facebook data centers globally.",
+      "trechos": [
+        "During one of these routine maintenance jobs, a command was issued with the intention to assess the availability of global backbone capacity, which unintentionally took down all the connections in our backbone network, effectively disconnecting Facebook data centers globally."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The systems are designed to audit commands like this one to prevent such mistakes, but a bug in that audit tool prevented it from properly stopping the command.",
+        "trechos": [
+          "Our systems are designed to audit commands like these to prevent mistakes like this, but a bug in that audit tool prevented it from properly stopping the command."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "DNS servers are designed to disable their BGP advertisements when they cannot speak to the data centers; with the backbone removed, they declared themselves unhealthy and withdrew the advertisements, so the DNS servers became unreachable even though they were still operational, making it impossible for the rest of the internet to find Facebook's servers.",
+        "trechos": [
+          "To ensure reliable operation, our DNS servers disable those BGP advertisements if they themselves can not speak to our data centers, since this is an indication of an unhealthy network connection.",
+          "In the recent outage the entire backbone was removed from operation, making these locations declare themselves unhealthy and withdraw those BGP advertisements.",
+          "The end result was that our DNS servers became unreachable even though they were still operational.",
+          "This made it impossible for the rest of the internet to find our servers."
+        ]
+      },
+      {
+        "texto": "Responders could not access the data centers through normal means because their networks were down (primary and out-of-band network access were both down), and the total loss of DNS broke many internal tools normally used to investigate and resolve outages.",
+        "trechos": [
+          "And as our engineers worked to figure out what was happening and why, they faced two large obstacles: first, it was not possible to access our data centers through our normal means because their networks were down, and second, the total loss of DNS broke many of the internal tools we’d normally use to investigate and resolve outages like this.",
+          "Our primary and out-of-band network access was down, so we sent engineers onsite to the data centers to have them debug the issue and restart the systems."
+        ]
+      },
+      {
+        "texto": "The data centers' high physical and system security made onsite work slow: activating the secure access protocols needed to get people onsite and able to work on the servers took extra time, and the hardware and routers are designed to be difficult to modify even with physical access.",
+        "trechos": [
+          "They’re hard to get into, and once you’re inside, the hardware and routers are designed to be difficult to modify even when you have physical access to them.",
+          "So it took extra time to activate the secure access protocols needed to get people onsite and able to work on the servers."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "Because primary and out-of-band network access was down, engineers were sent onsite to the data centers to debug the issue and restart the systems.",
+          "trechos": [
+            "Our primary and out-of-band network access was down, so we sent engineers onsite to the data centers to have them debug the issue and restart the systems."
+          ]
+        },
+        {
+          "texto": "After the secure access protocols were activated and engineers could work on the servers, they confirmed the issue and brought the backbone back online; once backbone connectivity was restored across data center regions, everything came back up with it.",
+          "trechos": [
+            "Only then could we confirm the issue and bring our backbone back online.",
+            "So it took extra time to activate the secure access protocols needed to get people onsite and able to work on the servers.",
+            "Once our backbone network connectivity was restored across our data center regions, everything came back up with it."
+          ]
+        },
+        {
+          "texto": "Services were brought back online while carefully managing the increasing loads, drawing on experience from \"storm\" drills, to avoid a new round of crashes from a traffic surge; services came back without further systemwide failures.",
+          "trechos": [
+            "Experience from these drills gave us the confidence and experience to bring things back online and carefully manage the increasing loads.",
+            "But the problem was not over — we knew that flipping our services back on all at once could potentially cause a new round of crashes due to a surge in traffic.",
+            "Helpfully, this is an event we’re well prepared for thanks to the “storm” drills we’ve been running for a long time now.",
+            "In the end, our services came back up relatively quickly without any further systemwide failures."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "Facebook will be looking for ways to simulate events like this (a storm drill simulating the global backbone being taken offline), which it had never run before.",
+          "trechos": [
+            "And while we’ve never previously run a storm that simulated our global backbone being taken offline, we’ll certainly be looking for ways to simulate events like this moving forward."
+          ]
+        },
+        {
+          "texto": "An extensive review process is already underway, and the stated goal is to strengthen testing, drills, and overall resilience.",
+          "trechos": [
+            "After every issue, small and large, we do an extensive review process to understand how we can make our systems more resilient.",
+            "That process is already underway.",
+            "From here on out, our job is to strengthen our testing, drills, and overall resilience to make sure events like this happen as rarely as possible."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text refers to \"yesterday's outage\" but gives no date in the extracted text, so data_incidente is null. The text calls the command \"this change\", but it describes a one-off command, so mudanca_causadora is nao_se_aplica. Prevention is stated as intentions (\"looking for ways to simulate\", \"strengthen our testing, drills\"), hence genericas.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.9"
+  }
+}

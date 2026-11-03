@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-196",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "Polish users could not type the letter Ś in Medium's editor: code added to suppress the browser save dialog blocked any Ctrl+S, and on Windows the Right Alt+S used to type Ś is mapped internally to Ctrl+Alt+S. The fix changed the code to block Ctrl+S only if the Alt key was not pressed.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Medium editor"
+    ],
+    "tecnologias": [
+      "Microsoft Windows",
+      "Polish programmer's keyboard layout",
+      "metaKey"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "A user reported that, while writing an article in Polish, every letter could be typed except Ś, which did not appear when its key was pressed, and only on Medium.",
+        "trechos": [
+          "A few weeks ago, someone reported this to us at Medium:",
+          "“I just started an article in Polish. I can type in every letter, except Ś. When I press the key for Ś, the letter just doesn’t appear. It only happens on Medium.”"
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Medium's editor code intercepted S pressed with Command (metaKey) or Ctrl to trigger a save and prevent the default action (the browser save dialog). In Poland, Ś is typed with Right Alt+S, and Windows maps Right Alt internally to Ctrl+Alt, so Right Alt+S appeared as Ctrl+Alt+S and was blocked, making Ś impossible to type.",
+        "trechos": [
+          "It translates to: if S happens to be pressed with Command (*metaKey,* used by Macintoshes) or Ctrl (used by Windows or Linux PCs), first: prompt our editor to save what it’s doing (even though we’d autosave it soon anyway), and second: prevent anything else that would normally happen… in this case the annoying browser save dialog.",
+          "1. Through historical circumstance, people in Poland use Right Alt+S to type in Ś.",
+          "Right Alt in Windows was internally mapped as a rarely-used combination of Ctrl and Alt pressed together.",
+          "2. Because of an obscure technical decision, Right Alt+S is mapped internally to Ctrl+Alt+S.",
+          "4. Medium was overriding whatever default action happened when you pressed Ctrl+S, thinking it’s just a browser save dialog it was canceling… and never realizing it could be something else: *a letter Ś.*",
+          "And so, typing Ś became impossible."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "Code added to the Medium editor to suppress the browser save dialog: on S pressed with Command (metaKey) or Ctrl, save and prevent the default action, without checking whether Alt was pressed.",
+        "trechos": [
+          "However, at some point we added a little bit of code to our editor to make the save dialog go away:",
+          "It translates to: if S happens to be pressed with Command (*metaKey,* used by Macintoshes) or Ctrl (used by Windows or Linux PCs), first: prompt our editor to save what it’s doing (even though we’d autosave it soon anyway), and second: prevent anything else that would normally happen… in this case the annoying browser save dialog."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The editor code was patched to block Ctrl+S only if the Alt key was not pressed; the fix was made the week before the article.",
+          "trechos": [
+            "Instead of blindly blocking Ctrl+S, we could block Ctrl+S *only if Alt key was not pressed.*",
+            "We fixed this last week, and it wasn’t a lot of work."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "ausentes",
+      "acoes": []
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The article is a narrative by a Medium engineer; the report came \"a few weeks ago\" and the fix \"last week\", with no dates in the extracted text. The page ends with a call for ambassadors (recruiting footer). The conditional in Medium's codebase is now copiously commented so that people coming later understand it; the text gives this as documentation, not as a measure against recurrence.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.9"
+  }
+}
