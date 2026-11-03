@@ -1,0 +1,162 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-178",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "relatorio_periodico",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "From September to early October, Honeycomb declared five public incidents amid over 20 operational issues, which the authors attribute mostly to a 40% ingest growth over a few weeks that made multiple components hit limits at once (Kafka network throttling, beagle consumer contention, an overloaded dogfood pipeline, a retriever scale-up that crashed beagle and delayed SLO processing). Service was restored through component-specific actions such as moving Kafka partitions to bigger instances, tuning consumer buffers and backfilling SLO data.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Honeycomb",
+      "SLO processing",
+      "dogfood environment",
+      "data ingestion"
+    ],
+    "tecnologias": [
+      "Kafka",
+      "AWS",
+      "S3",
+      "Lambda",
+      "Terraform",
+      "EKS",
+      "RDS",
+      "Linux",
+      "EXT4",
+      "Sarama",
+      "beagle",
+      "retriever"
+    ],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Multiple components alerted across environments with no clear reason, and beagle warned when it was falling behind.",
+        "trechos": [
+          "Since then, we had a few cases where multiple components would alert across environments, but with no clear reason.",
+          "Previously, when beagle would warn of falling behind, we’d manually scale it up, which fixed the problem with minimal effort."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "vaga",
+      "descricao": {
+        "texto": "Most of the challenges came from accelerated growth and scale, with data ingested growing by 40% over a few weeks, when multiple components hit inflection points at the same time; most significant issues were related to increased load.",
+        "trechos": [
+          "Most of the challenges come from a pattern of accelerated growth and scale (the amount of data ingested by Honeycomb grew by 40% over a few weeks), when multiple components hit inflection points, at the same time, on multiple dimensions.",
+          "Most of our significant issues, however, were related to increased load."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "On September 16, costly customer queries reading billions of files generated S3 access logs; the under-provisioned dogfood ingestion pipeline built back-pressure that delayed ingestion and crashed production Kafka metrics reporters, making it look like a production outage to alerting.",
+        "trechos": [
+          "On September 16, some large customer issued multiple costly queries, which read billions of files (petabytes) in a short time. Each of these in turn generated S3 access logs.",
+          "Our dogfood ingestion pipeline was under-provisioned for this spike. The back-pressure caused ingestion delays and crashed production Kafka metrics reporters, making it *look* like a production outage to our redundant alerting systems."
+        ]
+      },
+      {
+        "texto": "Kafka brokers were being throttled over network allowances by AWS, and some beagle processing delays were due to the rebalancer failing without being noticed.",
+        "trechos": [
+          "Some of the beagle processing delays were due to the rebalancer failing without us noticing, but others were hard to explain. We discovered that our Kafka brokers were being throttled over network allowances by AWS:"
+        ]
+      },
+      {
+        "texto": "Beagle auto-scales on CPU usage, which can be a poor proxy for its workload because of partition imbalance, SLO definitions imbalance and network throughput.",
+        "trechos": [
+          "Beagle analyzes input streams for SLO data and auto-scales based on CPU usage.",
+          "Partition imbalance, service-level objective (SLO) definitions imbalance, and network throughput are all different things that can contribute to CPU being a poor proxy metric for its workload."
+        ]
+      },
+      {
+        "texto": "Manual balancing helped briefly, then delays got worse again: when the same leading broker had several of its partitions assigned to a single beagle, consuming performance faltered; the Sarama library opens a single connection per leader, which can create contention in connection buffers.",
+        "trechos": [
+          "We tried some manual balancing—consumers started to catch up, but surprise! Delays got worse again.",
+          "Whenever the same leading broker got some of its partitions assigned to a single beagle two or three times, its consuming performance faltered.",
+          "In the Sarama library, Kafka consumer groups open only a single connection to any leader, regardless of how many partitions are going to be fed from it. This can create contention where the connection buffers bottleneck traffic."
+        ]
+      },
+      {
+        "texto": "A retriever scale-up, rushed because the team guessed the new partitions were empty, followed a runbook whose beagle steps had never been tried in production; the runbook inserted records in the beagle SLO database with a wrong topic name (underscore instead of dash), not noticed through review and first audits, and beagle crashed in a loop, causing an SLO processing delay outage.",
+        "trechos": [
+          "We followed a runbook written when beagle did not exist. The steps for it were added later and never tried in production.",
+          "We guessed this was because the new partitions were empty and, consequently, rushed things.",
+          "We made mistakes, one of which was that the runbook was telling us to introduce records in the beagle SLO database:",
+          "The actual topic was “honeycomb-prod.retriever-mutation” with a –, not a \\_.",
+          "We didn’t notice this when writing the runbook, crafting the queries, reviewing them, applying them, and when doing the first audits of the table after things were going bad.",
+          "Beagle struggled and crashed in a loop, causing anSLO processing delay outage."
+        ]
+      },
+      {
+        "texto": "Smaller issues added to the operational burden: the Kafka auto-balancer kept getting stuck, a Linux bug caused EXT4 corruptions and crashes on retriever instances, and the main RDS instance got too small for the workload.",
+        "trechos": [
+          "Our Kafka cluster’s auto-balancer kept getting stuck and causing imbalances, which required time to figure out and then to monitor and manually restart.",
+          "The Linux version we were using had a bug causing EXT4 file system corruptions and crashes on our retriever instances (our main column store and query engine).",
+          "Our main RDS instance got too small for our workload and needed to be scaled up."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The Kafka cluster was scaled vertically for more network capacity: the most impacted partitions were fast-tracked to bigger instances and the rest moved over days, keeping the user-visible data delay at around 5 minutes at worst.",
+          "trechos": [
+            "We needed to scale our cluster vertically to get more network capacity.",
+            "As beagle delays kept happening, we fast-tracked the migration of the most impacted partitions by shifting them to bigger instances and then move the rest slowly over days.",
+            "We posted a public status for this since it was customer-impacting, but kept the delay at around 5 minutes for the worst of it."
+          ]
+        },
+        {
+          "texto": "Various settings were tried over a few days to increase buffers and throughput of the Kafka consumers, which seemed to hold up.",
+          "trechos": [
+            "We tried various settings to increase buffers and throughput over a few days, which at this point seemed to hold up."
+          ]
+        },
+        {
+          "texto": "After the beagle SLO processing outage, once processing caught up, the SLO data was backfilled and customers' service was reestablished.",
+          "trechos": [
+            "Once we caught up, we backfilled the SLO data and all customers’ service were reestablished properly."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "Plan growth adaptation in a combinatorial approach, considering where future scaling plans run into each other and reach limits.",
+          "trechos": [
+            "The upcoming challenge we’re about to face is having to consider when our future scaling plans run into each other and reach limits.",
+            "September and early October have sent us the clearest signals yet about where a lot of our limits lie and where we need to plan growth adaptation in a combinatorial approach."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "Terraform deleted one of the Lambda deploy artifacts for no known reason."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The document is a retrospective of multiple incidents and issues over September to early October; the record covers the whole period as described by the catalog. The year is not stated in the text. The text refers to a long form report and to charts that are not included. Because the catalog describes a set of incidents, causa_raiz holds the shared cause the authors state (growth and load, status vaga as a general term), gatilho is null (no single triggering event), and the individual mechanisms are contributing factors.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.7"
+  }
+}

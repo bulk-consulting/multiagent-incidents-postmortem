@@ -1,6 +1,6 @@
 # Ficha de post-mortem — formulário
 
-**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.7
+**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.9
 
 Cada documento do danluu vira uma ficha `DAN-xxx.json`. A ficha **não substitui** o texto original: o RAG continua indexando e citando o original. A ficha organiza o que o texto diz, para triagem, metadados e chunking.
 
@@ -122,6 +122,8 @@ Regra do IPA mantida: **classificar pela origem, não pelo efeito**. A categoria
 - **v2.5** (teste às cegas, 97% de concordância): `postmortem` inclui blog narrativo da própria empresa; status pages são `atualizacoes_status`; `status_relatorio` é a fase do texto (pendências vão para `perguntas_em_aberto`); `incerta` só quando o texto põe em dúvida o que falhou; duração declarada prevalece sobre a calculada.
 - **v2.6** (leitura do prompt inteiro pelo GPT): consolidação. Campo `observacoes`, separado da confiança; `confianca` passa a medir só escolhas que as regras não resolvem; bloco causal reescrito como um todo (gatilho só com condição prévia; ação de operador sem condição → `causa_raiz` `human-error`); `mudanca_causadora` `generica` (tipo e lugar da mudança) × `ausente` (nada sobre o quê); `catalogo: parcial` extrai só o incidente do catálogo; mitigação `especifica` se um passo diz o que mudou e onde; duração é a do impacto.
 - **v2.7** (2º teste às cegas, 93%, quase toda a diferença na confiança): `deteccao.descricao` inclui o sintoma notado mesmo sem dizer como; `human-error` quando a ação do operador é o gatilho e a causa é a condição que a permitiu; exemplo de ataque no gatilho; `prevencao` `especificas` só se uma ação diz o mecanismo e onde (mesmo critério da mitigação).
+- **v2.8** (revisão do lote 01: 23 ERRADOS procedentes em 9 fichas; 8 de 8 `baixa` sem dúvida real): checklist antes de marcar `baixa`; duração declarada só vale se medir o impacto; trechos com referência ao contexto ("at this point", "something"); tentado/concebido/agendado não é resultado; fator contribuinte não é impacto, mecanismo nem atraso de comunicação; ataques classificados pelo mecanismo (DDoS → `capacity-load`); catálogo que descreve vários incidentes → causa comum, gatilho `null`; autoria `primaria` para quem era do time responsável.
+- **v2.9** (revisão do lote 02: 21 ERRADOS em 10 fichas, metade de trecho que não prova o texto; 4 de 5 `baixa` sem dúvida real): passo obrigatório de verificação detalhe a detalhe (todo nome, número, hora e resultado do texto aponta para um trecho da mesma afirmação); `motivo_confianca_baixa` precisa dizer por que a definição do campo não decide; mitigação só até o fim do impacto (o que vem depois vai para prevenção como "Already done").
 
 ## Validação
 

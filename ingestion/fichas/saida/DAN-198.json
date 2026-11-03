@@ -1,0 +1,171 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-198",
+  "triagem": {
+    "catalogo": "parcial",
+    "autoria": "primaria",
+    "tipo": "artigo_tecnico",
+    "dominio": "fora_de_ti",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During the Apollo 11 powered descent, a phase mismatch in the rendezvous radar interface made the CDUs increment LGC counters at maximum rate, stealing about 13% of computer time; with less margin than that, the Executive ran out of core sets or VAC areas and issued 1201/1202 alarms and software restarts. Restarts shed load during P63, mission control called \"go\", and the commander's switch to ATT HOLD and P66 eased the burden until landing.",
+    "data_incidente": "1969-07-20",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Lunar Module Guidance Computer (LGC)",
+      "Apollo 11 lunar landing guidance"
+    ],
+    "tecnologias": [
+      "LGC",
+      "AGC",
+      "rendezvous radar",
+      "coupling data units (CDUs)",
+      "ATCA",
+      "PGNS",
+      "Executive",
+      "SERVICER",
+      "READACCS",
+      "BAILOUT",
+      "DSKY",
+      "LUMINARY",
+      "core sets",
+      "VAC areas",
+      "800-Hz resolver excitation"
+    ],
+    "categoria_causa": "other",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "A program alarm was reported; alarm code 1202, issued when the computer was overloaded, appeared on the DSKY.",
+        "trechos": [
+          "Then we heard the words \"program alarm\".",
+          "He quickly keyed in Verb 5 Noun 9. Alarm code 1202 appeared on the DSKY.",
+          "This was an alarm issued when the computer was overloaded — when it had more work to do than it had time for."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "Crew procedures had the rendezvous radar switched on just before P63 and kept in SLEW or AUTO mode throughout the landing; the author states these switch settings should not, by themselves, have caused any problem.",
+      "trechos": [
+        "It turned out that the rendezvous radar could also be operated during the powered descent, and this was done during Apollo 11.",
+        "Crew procedures called for the RR to be switched on just before P63 was selected, and to be kept in SLEW or AUTO mode throughout the landing maneuver.",
+        "In fact, the RR switch settings on Apollo 11 should not have caused any problem."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The interface control document required the PGNS and ATCA 800-Hz voltages to be frequency locked but not phase synchronized, so their phase angle was random. With the RR mode in SLEW or AUTO, the CDUs incremented or decremented the LGC counters nearly constantly at 6400 pulses per second per angle, consuming roughly 13-15% of computation time (TLOSS); with a margin of 10% the LGC lacked CPU time, and the Executive called BAILOUT with 1201 or 1202 alarms when it could not schedule jobs.",
+        "trechos": [
+          "The ICD specified that the 28-volt 800-Hz voltages in the two systems be \"frequency locked\", but did *not* say, \"phase synchronized\".",
+          "However, the phase angle between the two signals was completely random, depending on the instant at which the LGC, which was always powered up *after* the ATCA, began sending the first frequency sync signal.",
+          "Because they were based on a separately controlled excitation voltage, the resolver signals as received by the CDUs indicated no known angle.",
+          "The response of the CDUs was to increment or decrement the counters in the LGC, nearly constantly, at the maximum rate of 6400 pulses per seconds for each angle.",
+          "This phenomenon occurred whenever the RR mode was in SLEW or AUTO, regardless of whether the rendezvous radar itself was powered up.",
+          "Moving at their maximum rate, the RR CDU counters consumed approximately 15% of the available computation time.",
+          "At the time, conservatively, we assumed the time drain (called TLOSS) was about 13%, which was consistent with the behavior that was observed.",
+          "With a 10% margin and a 13% drain, the LGC simply did not have enough CPU time to perform all the functions that were required.",
+          "When the next request was made the Executive, unable to comply, called BAILOUT with a 1201 or 1202 alarm code."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The 800-Hz phasing problem had been detected and documented during launch site testing of LM-3 but was never corrected.",
+        "trechos": [
+          "The 800-Hz phasing problem was detected during launch site testing of LM-3 and documented — but it was never corrected."
+        ]
+      },
+      {
+        "texto": "After landing radar acquisition the extra conversion computations lowered the duty-cycle margin to perhaps 13%, and adding a monitor display such as Verb 16 Noun 68 shrank it to 10% or less.",
+        "trechos": [
+          "After the radar acquired, the extra computations involved in converting the body-referenced radar data to the navigation coordinate system lowered the margin to perhaps 13%.",
+          "When a monitor display such as Verb 16 Noun 68 was added, the margin shrank again, to 10% or less."
+        ]
+      },
+      {
+        "texto": "SERVICER, the long, lowest-priority job, did not finish before being scheduled again; each unfinished instance held its core set and VAC area, so the Executive exhausted its supply.",
+        "trechos": [
+          "Having a relatively low priority because of its size, SERVICER got last crack at the available computation time.",
+          "Because it had not reached its end, the earlier SERVICER had not released its core set and VAC area — so the next time READACCS called FINDVAC to schedule SERVICER the Executive assigned a new core set and VAC area.",
+          "After a short span of such operation the Executive exhausted its supply of core sets and/or VAC areas."
+        ]
+      },
+      {
+        "texto": "In P64 the landing site redesignation processing left the essential software with a duty-cycle margin under 10%; three alarms occurred within 40 seconds and restarts flushed the Executive queue but could not shed load.",
+        "trechos": [
+          "Added to the regular guidance equations was new processing that provided the capability to redesignate the landing site.",
+          "With this addition, the essential software by itself left a duty-cycle margin of less than 10%.",
+          "There were three 1201 and 1202 alarms within 40 seconds. Each time, the software restart flushed the Executive queue but could not shed load."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "During P63 the software restarts reconstructed only the most recent SERVICER job, flushed accumulated uncompleted SERVICER instances and terminated non-critical functions such as the Verb 16 Noun 68 DELTAH monitor, shedding load.",
+          "trechos": [
+            "The software restart reconstructed only the most recent incarnation of the SERVICER job, and flushed the uncompleted SERVICER \"stubs\" that had accumulated.",
+            "In addition, it terminated functions that had not been restart protected because they were not deemed critical — including the DELTAH monitor Verb 16 Noun 68."
+          ]
+        },
+        {
+          "texto": "At MET 102:43:08 the autopilot was switched from AUTO to ATT HOLD, easing the computational burden, and then to semi-manual mode P66, where the burden was lighter; after 2 minutes 20 seconds in P66 without alarms the LM landed.",
+          "trechos": [
+            "At MET 102:43:08, forestalling the next alarm, Armstrong switched the autopilot from AUTO to ATT HOLD mode, easing the computational burden, and then entered semi-manual mode P66, where the burden was still lighter.",
+            "After 2 minutes and 20 seconds spent maneuvering in P66 without alarms, the LM landed."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the rendezvous radar mode switch was placed in LGC for ascent, and the descent checklist was changed for future missions.",
+          "trechos": [
+            "The rendezvous radar mode switch was placed in LGC for ascent.",
+            "For future missions the descent checklist was changed."
+          ]
+        },
+        {
+          "texto": "Already done: logic was added to LUMINARY to check the rendezvous radar mode and, if not in LGC, send a signal to zero the rendezvous radar counters.",
+          "trechos": [
+            "Meanwhile we added logic to LUMINARY to check the rendezvous radar mode, and if it was not in LGC, send a signal to zero the rendezvous radar counters\\[24\\]."
+          ]
+        },
+        {
+          "texto": "Klumpp found that with intermittent TLOSS, interrupted SERVICER jobs could be resumed later and issue inappropriate attitude commands to the autopilot; in time for Apollo 13 he devised a fix that drops an occasional whole SERVICER job to catch up. The text does not say when the fix was deployed.",
+          "trechos": [
+            "He discovered that under conditions in which TLOSS occurred intermittently, or when the level of computer activity fluctuated in the presence of TLOSS, it was possible for incomplete SERVICER jobs that had been interrupted during the issuance of attitude commands, but had not yet been flushed by a software restart, to be resumed at a later time — with the possibility that inappropriate attitude commands could be issued to the autopilot.",
+            "In time for Apollo 13 Klumpp devised a fix in which an occasional whole SERVICER job would be dropped to catch up, if necessary."
+          ]
+        },
+        {
+          "texto": "A \"variable SERVICER\" letting the guidance period stretch was made to work in an offline version of LUMINARY and shown immune to very high TLOSS, but it never flew.",
+          "trechos": [
+            "We developed a concept we called \"variable SERVICER\", in which the guidance period was allowed to stretch if it needed to.",
+            "We got variable SERVICER working in an offline version of LUMINARY, and demonstrated its immunity to very high levels of TLOSS\\[25\\].",
+            "Neither variable SERVICER nor P66 LPD ever flew."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The paper also covers the LM-1 delta-V monitor shutdown, the Apollo 11/12 throttle oscillation ('throttle castellation') problem, which the author states was independent of the 1202 alarms, and the Apollo 14 abort switch issue; only the Apollo 11 rendezvous radar/Executive overload incident is extracted. Grumman tests later estimated maximum TLOSS at 13.36%. autoria is primaria: the author was on the MIT team that developed the LGC software, the provider responsible for the system, although the paper was written decades later. categoria_causa is other: the root cause is an interface specification that required frequency lock but not phase synchronization, with no hardware failure. Mission control called 'go' after each alarm, based on a review that had deemed 1202 a 'go'; this is a decision to continue, not a mitigation step.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.7"
+  }
+}

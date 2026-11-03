@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-022",
+  "triagem": {
+    "catalogo": "parcial",
+    "autoria": "primaria",
+    "tipo": "artigo_tecnico",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "comentarios"
+    ]
+  },
+  "incidente": {
+    "resumo": "While testing a multicast rsync tool (mrsync) to replicate Solr search indexes in production, the multicast traffic saturated the CPU on Etsy's core switches, making the entire site unreachable for several minutes. The text does not say how service was restored.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Etsy"
+    ],
+    "tecnologias": [
+      "mrsync",
+      "multicast UDP",
+      "rsync",
+      "Solr",
+      "core switches"
+    ],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "equipe_interna",
+      "descricao": {
+        "texto": "At 15:25 a team member announced in the team chat a test of multi-rsyncing indexes in production; at 15:31 another asked whether the site was down. The multicast rsync took the whole site down for several minutes.",
+        "trechos": [
+          "[15:25] <gio> patrick: i'm gonna test multi-rsyncing some indexes",
+          "[15:31] <keyur> is the site down?",
+          "Multicast rsync caused an epic failure for our network, killing the entire site for several minutes."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Multicast traffic from a production test of a multicast-UDP rsync implementation (mrsync) saturated the CPU on the core switches, making all of Etsy unreachable.",
+        "trechos": [
+          "We found an implementation of rsync which used multicast UDP to transfer the bits.",
+          "The mrsync tool looked very promising: we could transfer the entire index in our development environment in under 3 minutes.",
+          "So we thought we would give it a shot in production.",
+          "The multicast traffic saturated the CPU on our core switches causing all of Etsy to be unreachable."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "ausente",
+      "passos": []
+    },
+    "prevencao": {
+      "nivel": "ausentes",
+      "acoes": []
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "categoria_causa: capacity-load (multicast traffic saturating switch CPU) vs human-error (an operator-run production test with no other stated condition) both fit the text.",
+  "observacoes": "The incident is a short episode in an article about Solr index replication with BitTorrent; the article later moved to BitTorrent for replication, but this is not presented as a prevention action for the outage. The duration is only given as 'several minutes'. The document includes reader comments.",
+  "extracao": {
+    "modelo": "Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.8"
+  }
+}

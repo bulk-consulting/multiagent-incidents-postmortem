@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-190",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "All of Kickstarter's MySQL replicas stopped updating when a later unsafe query triggered row-based replication over data that had silently become inconsistent between master and replicas; the inconsistency came from a sequencing query whose ORDER BY was sometimes ignored by a MySQL bug while transactions had committed out of order. The text says the team kept the site stable and recovered, without detailing how.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Kickstarter",
+      "MySQL replicas"
+    ],
+    "tecnologias": [
+      "MySQL",
+      "Amazon RDS",
+      "MIXED replication",
+      "statement-based replication",
+      "row-based replication",
+      "InnoDB",
+      "binlog"
+    ],
+    "categoria_causa": "database-storage",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The MySQL replicas, which serve most of Kickstarter's traffic, had quit updating, on all replicas, with a replication error.",
+        "trechos": [
+          "Most of Kickstarter’s traffic is served from replicated copies of the MySQL database, and those replicas had quit updating.",
+          "The problem wasn’t on one replica that we could easily replace; it was on *all* the replicas."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "A later unsafe query caused MySQL's mixed mode to switch to row-based replication, at which point replication broke.",
+      "trechos": [
+        "In this mode, MySQL favors efficient statement-based replication until it recognizes an unsafe query. Then it temporarily switches to row-based replication.",
+        "It wasn’t until a later unsafe query triggered *row-based replication* that replication broke."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Backer sequence data was inconsistent between master and replicas: a background job assigned sequences with a user-defined counter and an ORDER BY clause, but transactions that hung waiting for locks finished out of order, and a MySQL bug that sometimes ignores ORDER BY made master and replicas use their own implicit order and fall out of sync.",
+        "trechos": [
+          "In an effort to avoid race conditions and unnecessary rollbacks/retries from duplicate keys, we opted for a background job that updates recent sequences for a given project using a user-defined counter variable.",
+          "Somehow that query had given backings a *different sequence* on the replicas.",
+          "We found evidence that in the timeframe when the data became inconsistent, a set of transactions hung while waiting for locks after writing to the backings table.",
+          "Then, the transactions finished, but out of order.",
+          "Puzzling on this led us to discover the final piece of the puzzle: a bug where MySQL will sometimes ignore the `ORDER BY` clause.",
+          "Without that clause, the master and the replicas relied on their own versions of the implicit order, ran the sequencing, and fell out of sync."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The inconsistent data had existed for days, with some over a month old, before replication broke.",
+        "trechos": [
+          "But this particular data had been inconsistent for days, and when we expanded our search, we found some inconsistent data over a month old."
+        ]
+      },
+      {
+        "texto": "Amazon RDS's default MIXED replication mode uses statement-based replication, in which non-deterministic queries may not replay the same on each replica.",
+        "trechos": [
+          "We rely on Amazon RDS for managed MySQL, and their default replication mode is `MIXED`.",
+          "The downside is that some queries may not be deterministic: they may not replay the same on each replica."
+        ]
+      },
+      {
+        "texto": "MySQL flushes a transaction's queries to the binlog on COMMIT, so the master's on-disk write order differed from the order replicas used when replaying the binlog.",
+        "trechos": [
+          "Since MySQL flushes a transaction’s queries to the binlog on `COMMIT`, this means that the order in which records were written to disk on the master was different than the order in which the replicas wrote to disk when replaying the binlog."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "Over the next few hours the team kept the site stable, minimized the effects of stale replicas, communicated with users and recovered; the cycle then repeated.",
+          "trechos": [
+            "Over the next few hours we kept the site stable, minimized the effects of stale replicas, communicated the issue to users, recovered, sounded the all clear, and then watched as the whole cycle repeated itself."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "ausentes",
+      "acoes": []
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The year is not stated in the text. The post focuses on diagnosing the MySQL bug; the response and the repeated cycle are explicitly left as 'a different story'.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.7"
+  }
+}

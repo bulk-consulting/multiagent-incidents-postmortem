@@ -1,0 +1,158 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-182",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "On 18 November 2022 incident.io had 13 minutes of downtime over 32 minutes as its Go monolith on Heroku repeatedly crashed: a Pub/Sub event for welcome messages made the code fail, and the panic occurred in a goroutine started by the Pub/Sub client that had no recover, crashing the whole app. Service was kept up with manual dyno restarts and stopped crashing after purging Pub/Sub subscriptions with unacked messages.",
+    "data_incidente": "2022-11-18",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "incident.io app",
+      "Slack interactions",
+      "web dashboard"
+    ],
+    "tecnologias": [
+      "Go",
+      "Heroku",
+      "Heroku Postgres",
+      "GCP Pub/Sub",
+      "Corologix",
+      "Sentry",
+      "PagerDuty"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "The on-call engineer was paged due to an \"H10 - App crashed\" error code from Heroku, meaning the app had terminated.",
+        "trechos": [
+          "Twenty minutes before our end-of-week team debrief, our on-call engineer was paged due to an \"H10 - App crashed\" error code from Heroku, which means the app has terminated."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "Processing a bad event in the Pub/Sub subscription that generates a welcome message when people first enter an incident channel; for a very small subset of customers this code would fail. The team concluded the original crash was probably the first time this event was processed.",
+      "trechos": [
+        "The subscription responsible was used for generating a welcome message whenever people first enter an incident channel.",
+        "From looking at the code, we determined that for a very small subset of our customers we'd do this in a way which would cause the code to fail.",
+        "We conclude the original crash was probably the first time we processed this bad event, and start looking at all subscriptions with unacked messages from around the time we first went down."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The generic event consumer for async workers applied recover() in its own function, but the Google Cloud Pub/Sub client's sub.Receive runs the handler in new goroutines, which do not benefit from the parent's recover; a panic there was unhandled and crashed the whole app.",
+        "trechos": [
+          "The generic receiver did apply a recover, but we’d missed that the implementation of `sub.Receive` – which is in the Google Cloud Pub/Sub client – starts several new goroutines to handle the anonymous function we provide to the `Receive` method.",
+          "If your child goroutine panics, it won’t benefit from the parent goroutine having applied a recover: it’s an unhandled panic, and your whole app would crash."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The app ran as a single binary with web, worker and cron threads, so the crashing async workers also took down web requests; the physical split had been started but not completed.",
+        "trechos": [
+          "Our application runs as a single binary running web, worker and cron threads.",
+          "In our case (3) is what we care about, as had we separated async work from web traffic then even if workers had died, we would continue to serve requests for Slack interactions and our web dashboard.",
+          "We had begun the process of splitting these work types before this incident, and the app already had a clear logical separation between web, async workers and crons."
+        ]
+      },
+      {
+        "texto": "Printing stacktraces of ~300 goroutines on panic caused Heroku to buffer and drop log lines, and Heroku's log rate limiting also hid logs just before each crash, so the original stacktrace and the problematic event could not be seen.",
+        "trechos": [
+          "As our application runs with \\~300 goroutines, printing the stacktrace of each goroutine caused Heroku to buffer and drop these log lines, preventing us from seeing the original crashing stacktrace.",
+          "Finally, Heroku’s rate limiting of the logs was even impacting the logs that came just prior to a crash, so we couldn’t even see when we began to process the problematic event."
+        ]
+      },
+      {
+        "texto": "Because Go exits immediately on an unhandled panic, Sentry error reporting was also terminated, so the crash could not be inspected in the exception tracker.",
+        "trechos": [
+          "Then due to Go immediately exiting upon any unhandled panic, even the parts of our app with panic handlers – such as our Sentry error reporting – were terminated, meaning we couldn’t inspect the crash in our exception tracker."
+        ]
+      },
+      {
+        "texto": "Heroku's dyno crash restart policy applies a cool-off period of up to 20 minutes after a second crash; from previous incidents the team had learned that manually restarting dynos is a sensible response to an H10 that does not recover immediately, so one person watched for crashes and restarted dynos manually.",
+        "trechos": [
+          "If the dyno crashes again, it will be subject to a cool-off period (up-to 20m) before a restart is attempted.",
+          "From previous incidents, we’ve learned that manually restarting dynos via the Heroku console is a sensible response whenever an H10 occurs that we don’t immediately recover from.",
+          "As mentioned, one person watching for crashes and manually restarting Dynos."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "A manual dyno reboot at 15:42 brought the app back up, and an engineer was assigned to watch for further crashes and manually restart dynos.",
+          "trechos": [
+            "We could see from our monitoring that we hadn’t immediately recovered, suggesting we’d crashed quickly after the first restart, so we triggered a manual reboot at 15:42.",
+            "The manual reboot brought the app back up, which meant our PagerDuty automation activated (see our response flow) and we get an incident.io incident channel for this incident.",
+            "As we begin to investigate, we get paged again: the app is down due to – presumably – the same error, and we assign an engineer to watch for subsequent crashes so we can quickly trigger a manual start, which we know brings the app back up."
+          ]
+        },
+        {
+          "texto": "All Pub/Sub subscriptions with unacked messages from around the time of the first crash were purged, and several non-critical features triggering async work were turned off; at 16:12, after purging several subscriptions, the app stopped crashing.",
+          "trechos": [
+            "For all subscriptions that match this criteria, we purge the subscription, removing all the events from the queue.",
+            "We also turn off several non-critical parts of the app that trigger async work, prioritising core incident functionality over features such as incident nudges (”It’s been a while since you last updated the incident, would you like to make an update?”).",
+            "At 16:12, after purging several subscriptions that matched our criteria, the app stopped crashing and remained stable, without any further intervention."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: a recover was applied to the Pub/Sub message handler in the generic event consumer, deployed at 16:48, covering all current and future subscriptions.",
+          "trechos": [
+            "So our first mitigation was to apply a recover to this handler, which we deployed at 16:48.",
+            "Since this is a common piece of code used by all our event handlers, this mitigates the issue which caused this incident but it also removes this entire problem class for all other current and future subscriptions too."
+          ]
+        },
+        {
+          "texto": "Already done: the application was physically split by work type by adding a new 'worker' Dyno tier on Heroku, running in production by 17:24.",
+          "trechos": [
+            "So after confirming we were happy with the approach, we implemented the physical split by adding a new ‘worker’ Dyno tier to Heroku and tweaking each entrypoint:",
+            "By 17:24, this change was running in production."
+          ]
+        },
+        {
+          "texto": "Already done: knowledge shared internally about Heroku dyno restart policies and manual reboots, the uncaught-goroutine edge case, and incident communications.",
+          "trechos": [
+            "Heroku Dyno restart policies, and how to manually reboot if they go wrong, for those outside of the primary on-call team who hadn’t yet encountered this.",
+            "An easy-to-miss edge-case for our static tooling where a third-party library could run our code in an uncaught goroutine.",
+            "Best-practice incident comms for our current organisation, given we’ve grown significantly since our last major incident."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 13,
+      "trechos": [
+        "On Friday 18th November 2022 we experienced 13 minutes of downtime over a period of 32 minutes from 15:40 to 16:12 GMT."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The 13 minutes of downtime occurred intermittently over a 32-minute period (15:40 to 16:12 GMT). The text includes related-article and marketing content at the end.",
+  "extracao": {
+    "modelo": "Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.8"
+  }
+}

@@ -23,7 +23,7 @@ As 10 fichas desta pasta foram **revisadas**: cada uma foi conferida por outro m
 | `gatilho: null` | 024, 027, 183 |
 | `perguntas_em_aberto` preenchido | 063 |
 
-Desde a v2.6, 8 têm `confianca: alta` e 2 têm `baixa` (024 e 053): `baixa` só quando as regras deixam dois valores possíveis num campo. As notas que não são escolhas ficam em `observacoes`.
+Desde a v2.7, 9 têm `confianca: alta` e 1 tem `baixa` (024): `baixa` só quando as regras deixam dois valores possíveis num campo. As notas que não são escolhas ficam em `observacoes`.
 
 ## Uso: teste de regressão
 

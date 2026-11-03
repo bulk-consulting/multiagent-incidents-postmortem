@@ -1,0 +1,154 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-098",
+  "triagem": {
+    "catalogo": "parcial",
+    "autoria": "primaria",
+    "tipo": "relatorio_periodico",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On February 9, a core GitHub database cluster supporting authentication and user management became overloaded when write volume from a shortened user-settings cache TTL (12 to 2 hours) combined with a more-than-tenfold read increase from two client applications at peak load; services depending on authentication and user management were impacted. The text does not say how service was restored.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "authentication",
+      "user management",
+      "services depending on authentication and user management"
+    ],
+    "tecnologias": [
+      "database cluster",
+      "user settings cache",
+      "TTL"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "On February 9, three things compounded: the regular peak load, many customers updating to the new version of the client apps at the start of their week, and another new model release.",
+      "trechos": [
+        "Three things then compounded on February 9: our regular peak load, many customers updating to the new version of the client apps as they were starting their week, and another new model release."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Two conditions set up before February 9 combined to overwhelm the database cluster that supports authentication and user management: on February 7 the refresh TTL of a cache storing user settings was changed from 12 to 2 hours, increasing write volume, and two client applications released in early February had unintentional changes driving a more-than-tenfold increase in read traffic.",
+        "trechos": [
+          "On Monday, February 9, we experienced a high‑impact incident due to a core database cluster that supports authentication and user management becoming overloaded.",
+          "On Saturday, February 7, we deployed a new model.",
+          "While trying to get it to customers as quickly as possible, we changed a refresh TTL on a cache storing user settings from 12 to 2 hours.",
+          "In early February, two very popular client-side applications that make a significant amount of API calls against our servers were released, with unintentional changes driving a more-than-tenfold increase in read traffic they generated.",
+          "At this point, the write volume due to the increased TTL and the read volume from the client apps combined to overwhelm the database cluster."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "After the TTL change on the weekend, operation was normal because weekend load is lower, and there were no sufficiently granular alarms to detect the looming issue.",
+        "trechos": [
+          "While trying to get it to customers as quickly as possible, we changed a refresh TTL on a cache storing user settings from 12 to 2 hours.",
+          "At this point, everything was operating normally because the weekend load is significantly lower, and we didn’t have sufficiently granular alarms to detect the looming issue."
+        ]
+      },
+      {
+        "texto": "While the TTL change was quickly identified as a culprit, it took much longer to understand why the read load kept increasing, which prolonged the incident.",
+        "trechos": [
+          "While the TTL change was quickly identified as a culprit, it took much longer to understand why the read load kept increasing, which prolonged the incident."
+        ]
+      },
+      {
+        "texto": "Because of interactions between services after the cluster was overwhelmed, extra load had to be blocked further up the stack, and there were no sufficiently granular switches to identify which traffic to block at that level.",
+        "trechos": [
+          "Further, due to the interaction between different services after the database cluster became overwhelmed, we needed to block the extra load further up the stack, and we didn’t have sufficiently granular switches to identify which traffic we needed to block at that level."
+        ]
+      },
+      {
+        "texto": "The user-settings storage in this cluster was designed for simplicity when there were very few models and policies; per-user data grew from a few bytes to kilobytes, which was not caught because the load was visible only during new model or policy rollouts and was masked by the TTL.",
+        "trechos": [
+          "The investigation for the February 9 incident raised a lot of important questions about why the user settings were stored in this particular database cluster and in this particular way.",
+          "The architecture was originally selected for simplicity at a time when there were very few models and very few governance controls and policies related to those models.",
+          "But over time, something that was a few bytes per user grew into kilobytes.",
+          "We didn’t catch how dangerous that was because the load was visible only during new model or policy rollouts and was masked by the TTL."
+        ]
+      },
+      {
+        "texto": "Because the cluster houses authentication and user management data, any services depending on these were impacted.",
+        "trechos": [
+          "Since this database cluster houses data for authentication and user management, any services that depend on these were impacted."
+        ]
+      },
+      {
+        "texto": "The increase in client app usage appeared gradually as users upgraded, so it did not become evident right away.",
+        "trechos": [
+          "Because these applications end up being updated by the users over time, the increase in usage doesn’t become evident right away; it appears as enough users upgrade."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "On Saturday, February 7, while deploying a new model, the refresh TTL on a cache storing user settings was changed from 12 to 2 hours.",
+        "trechos": [
+          "On Saturday, February 7, we deployed a new model.",
+          "While trying to get it to customers as quickly as possible, we changed a refresh TTL on a cache storing user settings from 12 to 2 hours."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "ausente",
+      "passos": []
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Redesigning the user cache system, which hosts model policies, to accommodate significantly higher volume in a segmented database cluster.",
+          "trechos": [
+            "Redesigning our user cache system, which hosts model policies and more, to accommodate significantly higher volume in a segmented database cluster."
+          ]
+        },
+        {
+          "texto": "Expediting capacity planning and completing a full audit of fundamental health for critical data and compute infrastructure.",
+          "trechos": [
+            "Expediting capacity planning and completing a full audit of fundamental health for critical data and compute infrastructure to address urgent growth."
+          ]
+        },
+        {
+          "texto": "Further isolating key dependencies so that critical systems like GitHub Actions and Git are not impacted by shared infrastructure issues, by removing or handling dependency failures or isolating dependencies.",
+          "trechos": [
+            "Further isolate key dependencies so that critical systems like GitHub Actions and Git will not be impacted by any shared infrastructure issues, reducing cascade risk.",
+            "This is being done through a combination of removing or handling dependency failures where possible or isolating dependencies."
+          ]
+        },
+        {
+          "texto": "Protecting downstream components during spikes while prioritizing critical traffic loads.",
+          "trechos": [
+            "Protecting downstream components during spikes to prevent cascading failures while prioritizing critical traffic loads."
+          ]
+        },
+        {
+          "texto": "Migrating infrastructure to Azure (12.5% of traffic served from Azure Central US at the time of writing, on track for 50% by July) and breaking apart the monolith into more isolated services and data domains, including localized decisions about shedding traffic.",
+          "trechos": [
+            "Migrating our infrastructure to Azure to accommodate rapid growth, enabling both vertical scaling within regions and horizontal scaling across regions.",
+            "As of today, 12.5% of all GitHub traffic is served from our Azure Central US region, and we are on track to serving 50% of all GitHub traffic by July.",
+            "Breaking apart the monolith into more isolated services and data domains as appropriate, so we can scale independently, enable more isolated change management, and implement localized decisions about shedding traffic when needed."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The document covers three incidents (February 2, February 9, March 5); only the February 9 incident matching the catalog is extracted. The prevention actions are presented as responses to all recent incidents. The year is not stated in the text. The catalog's list of affected services (github.com, API, Actions, etc.) is not given in the text. mitigacao is ausente: the text says extra load needed to be blocked further up the stack but does not say it was done or how service came back. The post also lists cross-incident causes (architectural coupling, inability to shed load, insufficient isolation) that apply to all three incidents.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.7"
+  }
+}

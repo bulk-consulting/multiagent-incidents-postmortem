@@ -1,0 +1,175 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-181",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On July 25th, 2023, Honeycomb had a total outage of all user-facing components from 1:40 p.m. to 2:48 p.m. UTC, during which no data could be processed or accessed. A feature flag implementation bug left Retriever hosts not writing the timestamps the ingest schema cache depends on after a cluster switch; with the cache undermined, database reads rose, the MySQL database hit an internal deadlock and ran out of connections. Service was restored by circuit-breaking ingest, failing the database over to a replica, manually reloading the cache and restarting hosts.",
+    "data_incidente": "2023-07-25",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Honeycomb",
+      "Shepherd (ingest)",
+      "querying",
+      "alerting"
+    ],
+    "tecnologias": [
+      "Retriever",
+      "Shepherd",
+      "MySQL",
+      "RDS",
+      "feature flag"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Hours after the cluster switch, the internal SLO for Shepherd (the ingest service) started slowly burning; the text does not say how this was noticed, and it was judged a minor issue to investigate in the morning.",
+        "trechos": [
+          "Hours later, our internal SLO for Shepherd (our ingest service) started slowly burning.",
+          "The engineers decided that since the problem was just a marginally slow, inconsistent performance burn with a lack of good explanation, this was a minor issue that could be investigated in the morning."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "Late on July 24th the team switched between two Retriever clusters to avoid a subtle bug, after which the ingest SLO started slowly burning; later, thinking the cluster's writes were wrong, they flipped only the writes back to the other cluster by toggling a feature flag, and this most recent flip fully stopped the remaining writes.",
+      "trechos": [
+        "Late on July 24th, we switched between two clusters of Retriever (our storage and query engine) to avoid a subtle bug.",
+        "Thinking something was wrong with the cluster’s writes, we flipped *only* the writes back to the other cluster by toggling a feature flag—a flag we had used often without issues—so we could update the stamps *and* bypass the bug we still had to address.",
+        "The most recent flip had fully stopped any remaining writes that kept the system alive."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A feature flag implementation bug: any host told to stop writing never tried again even if the flag was switched back, so a full reboot was required. Retriever therefore stopped writing the 'last received data' records used by the cache to keep dataset schemas warm for the ingest service, undermining the ingest cache.",
+        "trechos": [
+          "We eventually noticed a subtle implementation bug: whenever we switched the flag, any host that was told to stop never tried again even if the flag was switched back.",
+          "A full reboot was required for writes to migrate over to a cluster whose cache writes had previously been turned off.",
+          "They are sent when Retriever updates the records containing the last time we received data for any field or dataset.",
+          "This is used by our caching mechanism to know which dataset schemas we needed to refresh and keep warm for the ingest service.",
+          "The query engine cluster somehow failed to write them after the switch, which undermined the ingest cache, explaining the performance issues:"
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "With the cache mostly not working, database reads overloaded the database, and a few normal writes seemingly triggered a rare race condition in MySQL internals; the deadlock locked thread after thread, the database ran out of connections, and services died. The authors think the deadlock is non-deterministic and more likely under load.",
+        "trechos": [
+          "As our cache mostly stopped working, the amount of reads (in purple) shot up, overloaded the database, and then a few writes (in orange)—nothing abnormal—seemingly triggered a rare race condition in the MySQL internals, locking thread after thread of the database, until operations piled up.",
+          "The database ran out of connections, and our services died when they were unable to get the information they needed.",
+          "There’s no clear path on how we specifically got there, but since this is a concurrency issue, we think it’s non-deterministic, and the more loaded the database is, the higher the likelihood of hitting these rare bugs."
+        ]
+      },
+      {
+        "texto": "The flag bug was present all along but hidden by the deployment mechanism restarting hosts; deployments were suspended during the investigation, which prevented restarts that could have accidentally made the flags work.",
+        "trechos": [
+          "The flaw was present all along, but was hidden by our deployment mechanism often running in parallel with migrations and restarting hosts.",
+          "We suspended deployments during the investigation, which prevented restarts accidentally making the feature flags work."
+        ]
+      },
+      {
+        "texto": "The main MySQL database (user accounts, permissions, data schemas) is protected by the schema cache, which needs ingestion to stay warm, creating a web of indirect dependencies.",
+        "trechos": [
+          "We run multiple MySQL databases via RDS.",
+          "Although we have many, there’s a “main” database that contains data such as user accounts, permissions, and data schemas—to name the most critical ones.",
+          "Our schema cache protects this database, and the ingestion of data is required to keep the cache warm.",
+          "This creates a web of indirect dependencies, and things going wrong in one end of the environment can end up degrading service for another."
+        ]
+      },
+      {
+        "texto": "Database recovery was slowed because prior near-misses led the team to believe a failover would hurt performance for longer than observed.",
+        "trechos": [
+          "Recovery on the database was slowed down by prior near-misses making us believe performance would suffer for longer than observed."
+        ]
+      },
+      {
+        "texto": "The slow SLO burn was judged a minor issue and left to be investigated in the morning.",
+        "trechos": [
+          "The engineers decided that since the problem was just a marginally slow, inconsistent performance burn with a lack of good explanation, this was a minor issue that could be investigated in the morning."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A switch between two Retriever clusters, followed by toggling a feature flag to move only the writes back to the other cluster.",
+        "trechos": [
+          "Late on July 24th, we switched between two clusters of Retriever (our storage and query engine) to avoid a subtle bug.",
+          "Thinking something was wrong with the cluster’s writes, we flipped *only* the writes back to the other cluster by toggling a feature flag—a flag we had used often without issues—so we could update the stamps *and* bypass the bug we still had to address."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Circuit-breakers were set up to deny all Shepherd traffic with a 5xx error to protect the database.",
+          "trechos": [
+            "We set up circuit-breakers and denied all Shepherd traffic with a 5xx error to protect the database."
+          ]
+        },
+        {
+          "texto": "The database host was hard locked, so the database was failed over to a replica, which brought it and its dependent services back up.",
+          "trechos": [
+            "We then tried to save the database host, but it was hard locked.",
+            "We had to fail over to a replica instead, which brought the database back up, along with all services that depend on it."
+          ]
+        },
+        {
+          "texto": "The 'last written' timestamp of all schemas with traffic in the last day was manually set to now so the schema store reloaded the cache; this introduced incorrect data-freshness information in parts of the UI.",
+          "trechos": [
+            "We then manually updated the ‘last written’ timestamp of all schemas that had seen traffic in the last day and marked it as “now” so the schema store would reload it all—manually reloading all data in the cache.",
+            "This introduced incorrect data in parts of our UI that tell you how fresh data is."
+          ]
+        },
+        {
+          "texto": "Ingest was brought back by removing the circuit-breaker, and full querying capacity restored after extra restarts of some hosts.",
+          "trechos": [
+            "We then brought ingest back fully by removing the circuit-breaker, and restored full querying capacity given some hosts required extra restarts—the database faults made them fail some internal checks."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the cluster migration is complete and all code that could disable writes behind the cache has been removed.",
+          "trechos": [
+            "In the short term, the chances of an incident happening with this specific failure mode have been drastically reduced: our migration is complete and we have already removed all code that could disable writes behind the cache."
+          ]
+        },
+        {
+          "texto": "Exploring ways to strengthen the cache, lower database contention during update storms from new schemas, and stabilize the performance costs of some operations, along with instrumentation or experimentation to detect such edge cases.",
+          "trechos": [
+            "We are looking at ways to strengthen the cache further, mechanisms to lower the amount of contention we put on our database during “update” storms from new schemas, and to stabilize the performance costs of some operations within our system.",
+            "We are studying them along with other measures, including those related to instrumentation or experimentation to better detect and handle such edge cases, in order to find the better trade-offs."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 68,
+      "trechos": [
+        "It impacted all user-facing components from 1:40 p.m. UTC to 2:48 p.m. UTC, during which no data could be processed or accessed."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "How the database specifically reached the MySQL internal deadlock is not clear."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "Data not buffered by users during the outage could not be ingested and is lost. The authors note the expected response would likely be faster in future since a database failover proved fastest for such lockups. deteccao.forma is nao_informada: the SLO burn is the symptom, and the text does not say whether an alert fired.",
+  "extracao": {
+    "modelo": "Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.8"
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-088",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "secundaria",
+    "tipo": "outro",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "Linux systems crashed around the 2008-2009 New Year leap second. A mailing-list participant reproduced the crash and, hedging, attributes it to a deadlock: the leap second code runs from the timer interrupt holding xtime_lock and calls printk, which wakes klogd, and the scheduler may then try to get the time and wait on xtime_lock. The text does not say how affected systems were restored.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Linux kernel"
+    ],
+    "tecnologias": [
+      "Linux kernel",
+      "xtime_lock",
+      "printk",
+      "klogd",
+      "NTP",
+      "hrtimer",
+      "scheduler",
+      "Fedora 8",
+      "kernel-2.6.26.6-49.fc8.x86_64",
+      "RHEL 4 kernel 2.6.9-67.0.7.EL"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Crashes were reported around the New Year 2008-2009 leap second.",
+        "trechos": [
+          "Re: Bug: Status/Summary of slashdot leap-second crash on new years 2008-2009",
+          "Below follows a summary of the reported crashes."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "The leap second at New Year 2008-2009; in the author's reproduction, triggering the leap second on a busy system makes the system die most of the time.",
+      "trechos": [
+        "Re: Bug: Status/Summary of slashdot leap-second crash on new years 2008-2009",
+        "and then trigger the leap second in another, and the system dies most of the time.",
+        "I can only reproduce this if the system is busy."
+      ]
+    },
+    "causa_raiz": {
+      "status": "incerta",
+      "descricao": {
+        "texto": "The author, describing their reading as untrained, attributes the crash to a deadlock: the leap second code is called from the timer interrupt handler, which holds xtime_lock, and does a printk; printk tries to wake up klogd, and under some conditions the scheduler attempts to get the current time, which tries to get xtime_lock. The author reproduced the crash with a stack trace on Fedora 8 with kernel-2.6.26.6-49.fc8.x86_64.",
+        "trechos": [
+          "Basically (to my untrained eye), the leap second code is called from the timer interrupt handler, which holds xtime\\_lock.",
+          "The leap second code does a printk to notify about the leap second.",
+          "The printk code tries to wake up klogd (I assume to prioritize kernel messages), and (under some conditions), the scheduler attempts to get the current time, which tries to get xtime\\_lock => deadlock.",
+          "I have reproduced this and got a stack trace (this is with Fedora 8 and kernel kernel-2.6.26.6-49.fc8.x86\\_64):"
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The author could only reproduce the crash when the system was busy; they guess that on an idle system the scheduler does not try to get the time at the timer interrupt.",
+        "trechos": [
+          "I can only reproduce this if the system is busy.",
+          "If the system is otherwise idle at the timer interrupt, I guess the scheduler doesn't try to get the time."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "ausente",
+      "passos": []
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Recommendation by the author (no addressee named): a quick fix would be to not printk while holding xtime_lock (the author thinks the NTP code is the only thing that does), though the author suggests another fix that keeps the leap second notification would be better.",
+          "trechos": [
+            "In any case, the quick-n-dirty fix would be to not try to printk while holding xtime\\_lock (I think the NTP code is the only thing that does).",
+            "However, it would be nice to still get the leap second notification, so some other fix would be better I guess."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "The author had a crash on a RHEL 4 kernel 2.6.9-67.0.7.EL system but has not found the path to the deadlock in that kernel's scheduler."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The document is a single mailing-list reply by a systems administrator, not by the kernel maintainers. The only prevention content is the author's suggested fix, a recommendation rather than a commitment. The incident date is given only as 'new years 2008-2009' in the subject line, so data_incidente is null. The text escapes underscores with backslashes (e.g. 'xtime\\_lock'). status_relatorio is final: the post was written after the leap second (2 Jan 2009) and does not present itself as preliminary, although it contributes to an investigation still going on in the thread.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.7"
+  }
+}

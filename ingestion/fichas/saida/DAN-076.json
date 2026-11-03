@@ -1,0 +1,144 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-076",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "After the release of EVE Online: Trinity on 5 December, the Classic to Premium graphics content upgrade deleted the Windows system startup file C:\\boot.ini on players' computers, in some cases leaving the computer unable to start, because the installer script's Delete command without a full path deletes from the drive root. The faulty upgrade was pulled a few hours later and a fixed upgrade that overwrites the files instead of deleting them was released after a fix on 6 December at 06:08 GMT.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "EVE Online: Trinity Classic to Premium graphics content upgrade",
+      "players' Windows computers"
+    ],
+    "tecnologias": [
+      "Windows",
+      "boot.ini",
+      "installer script",
+      "LZMA"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "Shortly after the release, reports came in that the graphics content upgrade was deleting C:\\boot.ini, a Windows system startup file.",
+        "trechos": [
+          "Shortly after releasing **EVE Online: Trinity** at 22:04 GMT on Wednesday, 5 December, we started receiving reports that the Classic to Premium graphics content upgrade was causing problems to players by deleting the file C:\\boot.ini, which is a Windows system startup file."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The installer script set the output path to the install directory and then ran Delete \"boot.ini\" without a full path, assuming it would delete from the working directory; the Delete function must be given a full path, otherwise the file is deleted from the drive root, so the Windows boot.ini was deleted.",
+        "trechos": [
+          "the mistake was to assume that the file would be deleted from the current working directory without giving the full path.",
+          "In fact, this is the code in the installer script that caused the problems:",
+          "SetOutPath \"$INSTDIR\"\n\nDelete \"boot.ini\"",
+          "The assumption was that by setting *SetOutPath \"$INSTDIR\"* then all commands that followed would use that working directory.",
+          "The documentation for the *Delete* function says the file *should* be specified with a full path but in fact it *must* be specified with a full path, like so:",
+          "Otherwise, it is assumed that the file should be deleted from the root."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "For legacy reasons the game has used a file with the same name as the Windows system startup file (boot.ini) for over 6 years.",
+        "trechos": [
+          "Why do you have a file with the same name as a Windows system startup file?",
+          "The answer is really \"legacy\"; it has been like that since 2001 when the file was introduced on the server and later migrated over to the client in 2002, so this file has been with us for over 6 years."
+        ]
+      },
+      {
+        "texto": "The error was not caught in code review: the installer scripting language is not easy to read, and the team had been working very hard for many weeks before release.",
+        "trechos": [
+          "The installer scripting language is not easy to read.",
+          "We had been working very hard for many weeks prior to release, evenings and weekends, and this error slipped by us."
+        ]
+      },
+      {
+        "texto": "Testing did not catch it: there was not enough time to test the upgrade thoroughly, and test setups lacked hardware and operating system variation, since Windows recovers if it is on the first partition of the boot drive, as on most computers at the company.",
+        "trechos": [
+          "It's partly the reason above, not enough time to test the graphics content upgrade thoroughly to notice it removed this file.",
+          "We also discovered that we didn't have enough variation in our hardware and operating system setups since Windows will recover if it's on the first partition of the boot drive.",
+          "It seems that most computers at CCP are set up this way and this was my personal experience in the evening of the release."
+        ]
+      },
+      {
+        "texto": "The upgrade had been switched late in the development cycle from the patching technology to an installer technology with better compression.",
+        "trechos": [
+          "Initially we had planned to use our third-party patching technology to create the graphics content upgrade file; however, we realized late in the development cycle that while it was suitable for creating small update patches for files that already existed on the computer, it did poorly in compressing new files.",
+          "we decided to switch to our third-party installer technology that had superior compression, LZMA, enabling us to shrink the download from about 866 MB to 584 MB."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "A new installer script for the graphics content upgrade, added to source control on 30 November, containing Delete \"boot.ini\" after SetOutPath \"$INSTDIR\"; the build using it was released on Tranquility on 5 December.",
+        "trechos": [
+          "The script to create the graphics content upgrade installer file was added to our source code management system on 30 November at 14:59 GMT.",
+          "The first graphics content upgrade to use the installer technology was released on Singularity on Sunday, 2 December, and then a version for the final build, 45017, was released on Tranquility at 22:04 GMT on 5 December when the server was opened.",
+          "SetOutPath \"$INSTDIR\"\n\nDelete \"boot.ini\""
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The faulty upgrade was pulled from Tranquility at around 03:40 GMT, a few hours after the problem was discovered.",
+          "trechos": [
+            "The faulty upgrade had been pulled from Tranquility a few hours after the problem was discovered, at around 03:40 GMT."
+          ]
+        },
+        {
+          "texto": "On 6 December at 06:08 GMT the installer script was fixed to overwrite the two files implicitly instead of deleting them, and a fixed graphics content upgrade was released shortly after.",
+          "trechos": [
+            "The fix we made to the installer script was not to explicitly delete these two files but rather implicitly overwrite them.",
+            "That fix was made in the early morning after the release, on 6 December at 06:08 GMT, and a fixed graphics content upgrade was released shortly thereafter."
+          ]
+        },
+        {
+          "texto": "Affected customers were helped through phone support and arrangements with external support technicians.",
+          "trechos": [
+            "Since then we have been working hard around the clock helping our customers that were affected by this problem, quickly establishing phone support and even making arrangements for external support technicians, such as Geek Squad, to assist our customers when necessary."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Under way: all filenames are being reviewed and any file that conflicts with Windows is being renamed.",
+          "trechos": [
+            "We are reviewing all filenames and changing the name of any file that conflicts with Windows."
+          ]
+        },
+        {
+          "texto": "Already done: testing procedures were revised.",
+          "trechos": [
+            "Needless to say, we have already revised our testing procedures to make sure this does not happen again."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The year is not stated in the text. The faulty upgrade was available from 22:04 GMT on 5 December until it was pulled at around 03:40 GMT, but affected computers needed individual repair, so no impact duration is given. Fewer than 215 users contacted the company about being affected.",
+  "extracao": {
+    "modelo": "Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.8"
+  }
+}

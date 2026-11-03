@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-179",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Honeycomb had incidents impacting query performance and alerting via triggers and SLOs when AWS Lambda capacity, shared by query paths, was consumed largely by an SLO backfill relaunched every minute for one customer SLO whose SLI never returned valid results, while future-stamped data also made triggers use Lambda. Impact was stopped by fixing the SLO on behalf of the customer.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "query performance",
+      "triggers",
+      "SLOs"
+    ],
+    "tecnologias": [
+      "AWS Lambda",
+      "S3",
+      "Basset",
+      "BubbleUp"
+    ],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "The SLO measuring trigger runs started alerting; trigger runs became spaced apart, taking longer or failing.",
+        "trechos": [
+          "During the first week of August, our SLO measuring trigger runs started blaring.",
+          "Around 11:35 a.m. ET, runs become spaced apart, taking longer or failing."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Much of the Lambda burden came from Basset evaluating SLOs: one SLI of a large customer's SLO never returned valid results, so no cache line was created; Basset assumed an SLO with no cache line needed a backfill over up to 60 days of cold data, and a check relaunched the backfill every minute, consuming the Lambda capacity.",
+        "trechos": [
+          "It took another engineer—one who wasn’t on call, wasn’t tied to the ongoing context—investigating to notice that, in fact, while triggers’ Lambda usage was higher than usual, much of the burden came from Basset evaluating SLOs:",
+          "We noticed that this was due to one SLI that never returned valid results (true, false, or null).",
+          "Whenever Basset encountered an SLO with no cache line, it assumed that a backfill was required, which may have looked at as much as 60 days worth of cold data.",
+          "Since it had no valid results, it wouldn’t create a cache line.",
+          "Every minute, another check would relaunch the backfill.",
+          "*That* was where all the Lambda capacity was going."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "A customer's telemetry contained a few events with timestamps far in the future, so short trigger queries consistently looked into cold storage via Lambda, tying triggers to Lambda capacity and coupling trigger performance to other query types.",
+        "trechos": [
+          "A week before the incidents, we noticed one of our enterprise customers had inaccurate timestamps in their telemetry data, containing few events very far in the future.",
+          "Short trigger queries started consistently looking into cold storage via Lambda, which tied triggers to Lambda capacity, and coupled trigger performance to other query types."
+        ]
+      },
+      {
+        "texto": "Various query paths relied on a shared pool of resources.",
+        "trechos": [
+          "Various query paths relying on a shared pool of resources."
+        ]
+      },
+      {
+        "texto": "The future-stamps tripped usage alerts and hid the customer's broken SLOs.",
+        "trechos": [
+          "Known issues with future stamps suddenly being used by a customer, which tripped usage alerts and hid their broken SLOs."
+        ]
+      },
+      {
+        "texto": "Responders assumed Lambda usage was due to future-stamps in triggers, a framing that most alert signals validated; the mismatch between trigger Lambda usage and overall Lambda usage went unnoticed and red herrings slowed investigation.",
+        "trechos": [
+          "This led to a key unquestioned assumption: Lambda usage was assumed to be due to future-stamps in triggers, but the bulk of it came from the backfill issue.",
+          "Most alert signals even *validated* this assumption.",
+          "The volume of Lambda usage for triggers did not fully match the overall Lambda usage on the platform, but that went unnoticed.",
+          "Red herrings making investigation and resolution more challenging."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Believing triggers were exhausting Lambda capacity, responders tweaked query timeouts and other internal flags to try to mitigate the impact.",
+          "trechos": [
+            "We believed triggers were exhausting Lambda capacity and tried mitigating the impact, but we ran into a lot of red herrings.",
+            "We tweaked query timeouts and other internal flags to bring it all under control."
+          ]
+        },
+        {
+          "texto": "To stop the impact, the team fixed the customer's SLO on their behalf, with the customer looped in.",
+          "trechos": [
+            "To stop the bleeding, we fixed the SLO on behalf of the customer, who was looped in."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: constraints added at ingest time to restrict how much triggers may depend on Lambda.",
+          "trechos": [
+            "As a solution, we added constraints at ingest time to restrict how much triggers may depend on Lambda."
+          ]
+        },
+        {
+          "texto": "Already done: SLO behavior for failures corrected, and the default policy changed to clamp down on future-stamps more aggressively.",
+          "trechos": [
+            "Since the incident, the SLO behavior for failures has been corrected, and we’re thinking of new ways to communicate these issues to customers directly.",
+            "We’ve changed the default policy to clamp down on future-stamps more aggressively."
+          ]
+        },
+        {
+          "texto": "Under consideration: new ways to communicate these issues to customers directly, increasing on-call engineers' ability to search and categorize feature flags, and better support for the Incident Commander role to prevent cognitive overload.",
+          "trechos": [
+            "Since the incident, the SLO behavior for failures has been corrected, and we’re thinking of new ways to communicate these issues to customers directly.",
+            "We’re also looking for other patterns, such as increasing our on-call engineers’ ability to search and categorize feature flags when operating components without being familiar with them, and we’re looking for better ways to support the role of Incident Commanders to prevent cognitive overload."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text says the incident and its direct investigation spanned roughly 9 hours, and the worst of its impact lasted 4 hours; duracao is null because neither measures the full impact. The year is not stated (only 'the first week of August'). The authors state there were strictly speaking no bugs; the failure came from a convergence of factors.",
+  "extracao": {
+    "modelo": "Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.8"
+  }
+}

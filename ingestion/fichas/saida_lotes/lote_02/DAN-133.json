@@ -1,0 +1,207 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-133",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Between March 26 and April 10, 2019, CircleCI had a series of incidents in which jobs and workflows could not move through the system and public APIs degraded, primarily due to issues with the MongoDB datastore backing the builds queue, including stalls from index re-declaration locks and WiredTiger ticket exhaustion. Each incident was handled with scaling, restarts, replica restarts or a failover; unnecessary index creation was removed and MongoDB capacity work and TCMalloc tuning followed.",
+    "data_incidente": "2019-03-26",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "CircleCI jobs and workflows",
+      "builds queue",
+      "CircleCI public APIs"
+    ],
+    "tecnologias": [
+      "MongoDB",
+      "WiredTiger",
+      "JVM",
+      "Docker",
+      "TCMalloc",
+      "Datadog Agent",
+      "Honeycomb.io"
+    ],
+    "categoria_causa": "database-storage",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "On March 26, 2019 at 21:29 UTC delays in workflow processing were seen; the text does not say how they were noticed.",
+        "trechos": [
+          "On March 26, 2019 at 21:29 UTC we saw delays in workflow processing."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The incidents were primarily due to issues with the MongoDB datastore backing the builds queue. The jobs replica set experienced complete stalls: services re-declared all indexes at startup (about one hundred times per API deploy), and checking an existing index requires a database-level lock; together with exhausted WiredTiger read/write tickets, which block new commands and queries, stalls were frequent and pervasive.",
+        "trechos": [
+          "Between March 26 and April 10, 2019, our platform experienced instability and downtime primarily due to issues with the datastore backing our builds queue.",
+          "With the help of the MongoDB support team, we were able to determine that our jobs replica set was not only slow but experiencing complete stalls.",
+          "We run a large fleet of service instances so, for example, a deploy of our API would redeclare every index roughly one hundred times.",
+          "It turned out that checking the index requires a database level lock which, while only held for a short period, can cause significant contention.",
+          "Our instructions to create indexes were starving the “tickets” on their WiredTiger storage backend.",
+          "Without the available tickets, new commands and queries would block.",
+          "The combination of database locks from index creation and ticket unavailability meant stalls were frequent and pervasive."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Around the same time, a minor JVM upgrade enabled Docker-awareness by default, which inadvertently reduced thread and connection pool sizes for most services and constrained throughput; it was unclear how much impact came from the JVM upgrade versus MongoDB, and the team initially believed the JVM upgrade was the bigger issue.",
+        "trechos": [
+          "Around the same time, we updated many services to a new minor version of the JVM to pick up security changes.",
+          "This update also included improvements for docker-awareness enabled by default.",
+          "For most of our services, this inadvertently reduced the size of thread and connection pools and constrained throughput.",
+          "While we knew MongoDB was experiencing some slowdowns, we were unclear how much impact was coming from the JVM upgrade.",
+          "We continued work to scale up MongoDB, but we believed the JVM upgrade was the bigger issue."
+        ]
+      },
+      {
+        "texto": "On April 4, two read-only MongoDB replicas were unresponsive (about 10 and 42 minutes); they accepted requests without responding, so queries backed up and slowed the calling services.",
+        "trechos": [
+          "We found two of our read-only replicas for MongoDB were unresponsive: one for approximately 10 minutes and the other for 42 minutes.",
+          "The unresponsive replicas were accepting requests, but not responding, thus causing queries targeted to these systems to back up, thus slowing down the calling services."
+        ]
+      },
+      {
+        "texto": "On April 10 the MongoDB primary showed decreased free memory, more failed cache evictions (\"application evicted pages\") and increased time acquiring shared database-level locks; tickets alone could not explain the degradation.",
+        "trechos": [
+          "This incident gave us a clear signal that tickets alone could not explain our performance challenges, though some degradation in tickets correlated with our degradation.",
+          "We could clearly correlate this incident with several metrics from our primary: a decrease in free memory, more failed cache evictions, and a relatively small but visible increase in time spent acquiring shared database level locks.",
+          "Most concerning was the appearance of “application evicted pages,” which indicate that MongoDB is having trouble evicting data."
+        ]
+      },
+      {
+        "texto": "On April 5 the MongoDB primary experienced total saturation for several periods, likely due to high contention.",
+        "trechos": [
+          "The primary in our MongoDB cluster experienced total saturation for several periods, likely due to high contention."
+        ]
+      },
+      {
+        "texto": "On April 10 application-level metrics did not reveal that the MongoDB primary remained degraded, and MongoDB monitoring showed nothing that explained the slowdown.",
+        "trechos": [
+          "Our application-level metrics did not reveal that the MongoDB primary remained degraded.",
+          "Our monitoring of MongoDB showed some issues, but nothing that explained the dramatic slowdown."
+        ]
+      },
+      {
+        "texto": "After the April 4 replicas were restarted, the job queue began to drain, but because the backlog was much larger than normal it took nearly an hour to complete.",
+        "trechos": [
+          "The job queue began to drain, but because the length of the backlog was much larger than normal, it took nearly an hour to complete."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "On March 26 the production environment and many services were scaled up, and work began on upsizing the MongoDB replica set.",
+          "trechos": [
+            "Our first course of action was to scale our production environment.",
+            "As we were attempting to resolve the incident, we scaled up many of our services in an effort to minimize the impact of slow query responses on the overall build throughput of the system.",
+            "Ultimately, we decided we needed more MongoDB capacity and began to work on upsizing that replica set."
+          ]
+        },
+        {
+          "texto": "From the following day, Docker detection was disabled and services tuned so thread and connection pools were appropriately sized, with more service instances in the meantime; threads per service instance rose 40% by the end of that week.",
+          "trechos": [
+            "Starting the following day (UTC) we disabled Docker detection while tuning our services to ensure our thread and connection pools were appropriately sized.",
+            "In the meantime, we scaled the number of service instances to compensate.",
+            "By the end of that week, we had a 40% increase in the number of threads per service instance."
+          ]
+        },
+        {
+          "texto": "On April 2 some sub-systems were scaled and non-responsive services restarted, and the incident was declared over once the queues returned to healthy levels; on April 3 the incident team got the queue moving again; on April 4 the unresponsive MongoDB replicas were restarted and traffic began to flow again.",
+          "trechos": [
+            "We scaled some of our sub-systems and restarted several services that were non-responsive.",
+            "Once we had processed enough jobs and workflows to return our queues to healthy levels, we declared the incident over.",
+            "Our incident team was able to get the queue moving again while SRE continued to investigate the underlying causes of these issues.",
+            "Once we restarted the replicas, traffic began to flow again."
+          ]
+        },
+        {
+          "texto": "After April 5, the unnecessary index creation was removed and work continued on increasing the hardware capacity of the MongoDB instances; changing to a local SSD-backed volume did not help.",
+          "trechos": [
+            "We quickly removed the unnecessary index creation and continued with increasing the hardware capacity of our MongoDB instances.",
+            "One of our attempts to remediate the MongoDB cluster saturation was to change to a local SSD backed volume, but that did not help with the issue."
+          ]
+        },
+        {
+          "texto": "On April 10 at approximately 15:00 UTC the database was failed over to a secondary instance, which processed more database operations. Two TCMalloc settings recommended by MongoDB support were subsequently applied (tcmallocEnableMarkThreadIdle set to false, TCMALLOC_AGGRESSIVE_DECOMMIT set to y).",
+          "trechos": [
+            "At approximately 15:00 UTC, we failed over to a secondary instance, which instantly began processing twice as many database operations and eventually grew to process twice that number again.",
+            "MongoDB support recommended two TCMalloc-related tuning parameter settings which we have subsequently applied.",
+            "The first was to set the MongoDB parameter `tcmallocEnableMarkThreadIdle` to false.",
+            "The second was to set the TCMalloc environment variable `TCMALLOC_AGGRESSIVE_DECOMMIT` to `y`."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: support added to the Datadog Agent to monitor the tcmalloc.spinlock_total_delay_ns MongoDB stat, used to track performance.",
+          "trechos": [
+            "Perhaps most importantly, MongoDB support pointed us at the `tcmalloc.spinlock_total_delay_ns` MongoDB stat.",
+            "We’ve added support into the Datadog Agent to monitor this field and have been using it to track performance."
+          ]
+        },
+        {
+          "texto": "Already done: when an instance shows symptoms of slowdown, failover to a healthy host and restart of the slow MongoDB process, preferably during low-traffic hours.",
+          "trechos": [
+            "When an instance begins to show symptoms of slowdown, we perform failover to a healthy host and restart the slow MongoDB process.",
+            "When possible, we complete the failover during low-traffic hours which minimizes the interruption to customers."
+          ]
+        },
+        {
+          "texto": "Already done: application-level improvements such as eliminating unnecessary operations and pulling subsets of fields rather than entire documents.",
+          "trechos": [
+            "We’ve also made improvements at the application level by, for example, eliminating unnecessary operations or pulling subsets of fields rather than entire documents."
+          ]
+        },
+        {
+          "texto": "Preparing for a minor version upgrade of the MongoDB replica sets, as recommended by MongoDB support.",
+          "trechos": [
+            "They also recommended upgrading our MongoDB version for additional performance optimizations.",
+            "In the short term, we’re continuing to engage with MongoDB support and preparing for a minor version upgrade of our MongoDB replica sets."
+          ]
+        },
+        {
+          "texto": "Already done: increased metrics gathering and observability throughout the system to detect failure before it is customer-visible.",
+          "trechos": [
+            "We’ve also increased our metrics gathering and observability capabilities (thank you Honeycomb.io and DataDog) throughout the system to gain more insight into what specifically about a workload is causing the issues, and detect failure before it’s customer-visible."
+          ]
+        },
+        {
+          "texto": "Planned: refactoring the way portions of the data set are stored and accessed in MongoDB to reduce load.",
+          "trechos": [
+            "Ultimately, refactoring the way we store and access portions of our data set in MongoDB will reduce load.",
+            "Improving our data access and storage at the application level is one of our next steps."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The document covers a series of incidents (March 26, April 2, 3, 4, 5 and 10, 2019); data_incidente is the start of the series. No single impact duration is given. causa_raiz is concreta: the lock and ticket mechanism is stated as fact; the authors add that tickets alone could not explain the April 10 degradation (contributing factor). Following the rule for a catalog that describes a series, the incident-specific mechanisms (unresponsive replicas, primary saturation) are contributing factors.",
+  "extracao": {
+    "modelo": "Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.8"
+  }
+}

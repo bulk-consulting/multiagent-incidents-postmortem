@@ -1,0 +1,143 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-019",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On January 22, 2026, an automated routing policy change on a Cloudflare router in Miami left IPv6 export policies too permissive, leaking internally redistributed IPv6 prefixes to external BGP peers and providers for 25 minutes, causing backbone congestion, elevated loss and latency, and discarded traffic. Impact stopped when a network operator manually reverted the configuration change and paused automation for the router.",
+    "data_incidente": "2026-01-22",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Cloudflare customer IPv6 traffic",
+      "Cloudflare backbone between Miami and Atlanta",
+      "external networks whose prefixes were leaked"
+    ],
+    "tecnologias": [
+      "BGP",
+      "IPv6",
+      "JunOS",
+      "JunOS EVO",
+      "IBGP",
+      "HPE Juniper Networks"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "At 20:40 UTC the network team began investigating unintended route advertisements from Miami; the text does not say how they were first noticed.",
+        "trechos": [
+          "2026-01-22 20:40 UTC | Network team begins investigating unintended route advertisements from Miami"
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 20:25 UTC a change was pushed via the policy automation platform to remove the BGP announcements from Miami for the Bogotá data center; the timeline describes this change as one that ultimately triggers the routing policy bug.",
+      "trechos": [
+        "On January 22, 2026, at 20:25 UTC, we pushed a change via our policy automation platform to remove the BGP announcements from Miami for one of our data centers in Bogotá, Colombia.",
+        "A change that ultimately triggers the routing policy bug is merged in our network automation code repository"
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Removing only the BOG04 prefix lists left export policy terms matching \"route-type internal\", which in JunOS matches any non-external route such as IBGP routes; all IPv6 prefixes redistributed internally across the backbone were accepted and advertised to all BGP neighbors in Miami.",
+        "trechos": [
+          "While this policy change looks innocent at a glance, only removing the prefix lists containing BOG04 unicast prefixes resulted in a policy that was too permissive:",
+          "This is an issue because the “route-type internal” match in JunOS or JunOS EVO (the operating systems used by <u>HPE Juniper Networks</u> devices) will match any non-external route type, such as Internal BGP (IBGP) routes, which is what happened here.",
+          "As a result, all IPv6 prefixes that Cloudflare redistributes internally across the backbone were accepted by this policy, and advertised to all our BGP neighbors in Miami."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "The change removed \"prefix-list 6-BOG04-SITE-LOCAL\" from the IPv6 export policy statements (e.g. 6-TELIA-ACCEPT-EXPORT term ADV-SITELOCAL-GRE-RECEIVER) on the Miami router.",
+        "trechos": [
+          "[edit policy-options policy-statement 6-TELIA-ACCEPT-EXPORT term ADV-SITELOCAL-GRE-RECEIVER from]\n-      prefix-list 6-BOG04-SITE-LOCAL;",
+          "While this policy change looks innocent at a glance, only removing the prefix lists containing BOG04 unicast prefixes resulted in a policy that was too permissive:"
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 20:50 UTC a network operator manually reverted the bad configuration change on the router and automation was paused for that router so it could not run again.",
+          "trechos": [
+            "2026-01-22 20:50 UTC | The bad configuration change is manually reverted by a network operator, and automation is paused for the router, so it cannot run again"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done, after the impact ended at 20:50 UTC: at 21:47 UTC the change was reverted from the code repository, at 22:07 operators confirmed automation was healthy without the routing policy bug, and at 22:40 automation was unpaused on the Miami router.",
+          "trechos": [
+            "2026-01-22 21:47 UTC | The change that triggered the leak is reverted from our code repository",
+            "2026-01-22 22:07 UTC | Automation is confirmed by operators to be healthy to run again on the Miami router, without the routing policy bug",
+            "2026-01-22 22:40 UTC | Automation is unpaused on the single router in Miami"
+          ]
+        },
+        {
+          "texto": "Patching the failure in the routing policy automation that caused the route leak.",
+          "trechos": [
+            "Patching the failure in our routing policy automation that caused the route leak, and will mitigate this potential failure and others like it immediately"
+          ]
+        },
+        {
+          "texto": "Implementing BGP community-based safeguards in routing policies that explicitly reject routes received from providers and peers on external export policies.",
+          "trechos": [
+            "Implementing additional BGP community-based safeguards in our routing policies that explicitly reject routes that were received from providers and peers on external export policies"
+          ]
+        },
+        {
+          "texto": "Adding automatic routing policy evaluation to CI/CD pipelines that looks for empty or erroneous policy terms.",
+          "trechos": [
+            "Adding automatic routing policy evaluation into our CI/CD pipelines that looks specifically for empty or erroneous policy terms"
+          ]
+        },
+        {
+          "texto": "Improving early detection of issues with network configurations and the negative effects of automated changes.",
+          "trechos": [
+            "Improve early detection of issues with network configurations and the negative effects of an automated change"
+          ]
+        },
+        {
+          "texto": "Validating routing equipment vendors' implementation of RFC9234 (BGP roles and the Only-to-Customer Attribute) in preparation for rolling out the feature.",
+          "trechos": [
+            "Validating routing equipment vendors' implementation of <u>RFC9234</u> (BGP roles and the Only-to-Customer Attribute) in preparation for our rollout of the feature, which is the only way *independent of routing policy* to prevent route leaks caused at the *local* Autonomous System (AS)"
+          ]
+        },
+        {
+          "texto": "Encouraging long-term adoption of RPKI Autonomous System Provider Authorization (ASPA).",
+          "trechos": [
+            "Encouraging the long term adoption of RPKI <u>Autonomous System Provider Authorization (ASPA)</u>, where networks could automatically reject routes that contain anomalous AS paths"
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 25,
+      "trechos": [
+        "The route leak lasted 25 minutes, causing congestion on some of our backbone infrastructure in Miami, elevated loss for some Cloudflare customer traffic, and higher latency for traffic across these links."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The timeline times (impact start 20:25 UTC, impact stop 20:50 UTC) are consistent with the stated 25-minute duration. At peak around 12Gbps of traffic for leaked prefixes was discarded by firewall filters on the Miami router.",
+  "extracao": {
+    "modelo": "Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.8"
+  }
+}

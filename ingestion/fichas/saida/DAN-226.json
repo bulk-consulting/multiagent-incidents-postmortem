@@ -1,0 +1,114 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-226",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On January 24, 2017 the primary SQL Server (NY-SQL02) triggered a bugcheck on the SQL Server process; the Stack Exchange network went read-only for about 5 minutes and then offline for 12 minutes because application-level failovers were disabled by a bug. Why the bugcheck occurred is unknown, though logs indicate a potential bad DIMM. Restarting the SQL service on NY-SQL02 brought the network back read-only, and read-write mode was restored after a sanity check.",
+    "data_incidente": "2017-01-24",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Stack Overflow",
+      "Stack Exchange network"
+    ],
+    "tecnologias": [
+      "SQL Server",
+      "SQL Server 2016 SP1 CU1",
+      "DIMM"
+    ],
+    "categoria_causa": "database-storage",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "System degradation (read-only mode) starting at 17:53 UTC was noticed within 2 minutes; the text does not say how.",
+        "trechos": [
+          "On January 24, 2017 starting at 17:53 UTC, we experienced system degradation (read only) followed by a site outage.",
+          "It took us 2 minutes to notice the issue, 5 minutes to locate the source of the issue and 10 minutes to get service restored."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The primary SQL Server (NY-SQL02) triggered a bugcheck on the SQL Server process, initially putting it into a read-only state. Why the bugcheck happened is not known; logs indicate a potential bad DIMM.",
+        "trechos": [
+          "The cause of the issue was our primary SQL Server (NY-SQL02) triggering a bugcheck on the SQL Server process.",
+          "This initially put the SQL server into a read-only state.",
+          "Currently we do not know why SQL Server caused a bugcheck, however logs indicate a potential bad DIMM."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Automatic SQL Server failovers are not permitted; application-level logic is meant to keep sites online by querying standby servers read-only, but due to a bug application-level failovers were disabled, so the network went offline completely when the primary failed.",
+        "trechos": [
+          "We do not permit automatic SQL Server failovers, instead opting for application-level logic to keep the sites online by querying the standby SQL servers in read-only mode.",
+          "However, due to a bug, application-level failovers were disabled, so Stack Overflow and the rest of the Stack Exchange network went offline completely when the primary SQL server failed."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "A restart of the SQL service on NY-SQL02 brought the network back online in read-only mode, without waiting for the memory dump to complete.",
+          "trechos": [
+            "A restart of the SQL service on NY-SQL02 brought the network back online in read only mode.",
+            "At our memory capacity (384GB), we opted to bring the network online rather than waiting for the memory dump to complete."
+          ]
+        },
+        {
+          "texto": "After a sanity check on SQL health, the sites were put back into read-write mode.",
+          "trechos": [
+            "Once a sanity check on the SQL health was done, the sites were put back into read-write mode."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: NY-SQL02 was taken out of production for testing, including a memory test; NY-SQL01 handles all normal load.",
+          "trechos": [
+            "We have since taken NY-SQL02 out of production and have it down for testing (including a memory test).",
+            "All of the normal load is being handled by NY-SQL01."
+          ]
+        },
+        {
+          "texto": "Already done: the SQL cluster was brought up to 2016 SP1 CU1.",
+          "trechos": [
+            "We also took this opportunity to bring this SQL cluster up to 2016 SP1 CU1."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 17,
+      "trechos": [
+        "The Stack Exchange network went into read-only mode for approximately 5 minutes before being offline for 12 minutes."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Why SQL Server caused a bugcheck is not known; logs indicate a potential bad DIMM, and NY-SQL02 is down for testing including a memory test."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "Duration is the stated read-only period (about 5 minutes) plus the offline period (12 minutes); the text also says it took 2 minutes to notice, 5 to locate the source and 10 to restore service. Approximately 3.5 seconds of data may have been lost as uncommitted transactions were rolled back. dominio, categoria_causa and causa_raiz.status follow the stated failure (a SQL Server bugcheck); the possible bad DIMM is only indicated by logs and stays an open question.",
+  "extracao": {
+    "modelo": "Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.8"
+  }
+}

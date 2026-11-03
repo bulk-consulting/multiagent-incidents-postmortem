@@ -1,0 +1,228 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-125",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "After Buildkite downgraded its RDS PostgreSQL database to a smaller instance to cut AWS costs, the database maxed out its CPU under load; database-dependent health checks removed dashboard servers and replacement servers failed their health checks, so no one could log in, view build logs or read documentation. Servers were moved from the Agent API pool to the dashboard ELB, then the database was upgraded, new servers with fixed self-deploys were rolled out and the centralized pgbouncer was removed.",
+    "data_incidente": "2016-08-22",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "buildkite.com",
+      "Buildkite Dashboard",
+      "login",
+      "build logs",
+      "documentation",
+      "REST API",
+      "Agent API"
+    ],
+    "tecnologias": [
+      "AWS",
+      "RDS PostgreSQL",
+      "m4.10xlarge",
+      "r3.2xlarge",
+      "pgbouncer",
+      "Elastic Load Balancers",
+      "Auto Scaling Groups",
+      "AMI",
+      "Redis",
+      "Memcache",
+      "EC2",
+      "IAM",
+      "S3",
+      "aws-cli",
+      "PagerDuty",
+      "New Relic",
+      "Pingdom",
+      "Datadog",
+      "Calibre",
+      "CloudWatch"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "The team, asleep when the outage started, woke at 21:00 UTC, almost 4 hours after going offline, to phones full of emails, tweets and Slack messages saying Buildkite was down; the expected PagerDuty phone call did not happen.",
+        "trechos": [
+          "We woke up at 21:00 UTC almost 4 hours after we went offline to see our phones full of emails, tweets and Slack messages letting us know Buildkite was down.",
+          "Usually if this happens our primary on-call person would get a phone call from PagerDuty letting them know that Buildkite is having problems, but due to mis-configured settings on PagerDuty and our phones being on “silent”, that didn’t happen."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The production database was downgraded from an m4.10xlarge to an r3.2xlarge Multi-AZ RDS PostgreSQL instance without checking whether it would perform under heavy load; around 16:00 UTC it could not keep up and its CPU maxed out, which started a cascade of other issues.",
+        "trechos": [
+          "The main culprit was our *m4.10xlarge Multi-AZ RDS PostgreSQL* database. We looked at some graphs and decided to downgrade to a more affordable *r3.2xlarge Multi-AZ RDS PostgreSQL* instance.",
+          "The downgrade was successful and everything was looking great.",
+          "Since we felt pressure to get these changes out sooner rather than later, we didn’t do our due diligence to figure out if this new database would perform under heavy load.",
+          "At around 16:00 UTC the database started struggling. It couldn’t keep up and its CPU started maxing out. These performance problems started a cascade of other issues."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Health check endpoints checked database connectivity; when the database struggled they returned HTTP 500, and the dashboard ELB, with a lower failed-check threshold, automatically removed its servers.",
+        "trechos": [
+          "Our health check endpoints hit our 2 SQL databases along with our Redis and Memcache servers to ensure the application is running smoothly.",
+          "When the database performance problems started, the health check endpoints started returning HTTP 500 errors that it couldn’t connect to the database.",
+          "The failed health check threshold is much lower for the ELB servicing dashboard requests, so it automatically started removing servers."
+        ]
+      },
+      {
+        "texto": "Replacement servers determined the deployed revision by calling an endpoint on buildkite.com; with the site down they ran the code baked into the AMI, whose health check referenced a decommissioned database, so all health checks failed and servers launched and terminated in a cycle for hours.",
+        "trechos": [
+          "Our first version of “how do we find out what Git revision is deployed to production” was to cURL a special endpoint that we created that returned the current revision: https://buildkite.com/\\_secret/version",
+          "Since it couldn’t grab the latest version, it just rolled with what ever version of the codebase that was baked into the AMI.",
+          "The health check in this version referenced an old database `Job::Log::Chunk::Shard::One` which has since been decommissioned. This meant all health checks failed against new servers and they never got added to the ELB.",
+          "Over the course of a few hours, this caused a cycle of new servers to launch and terminate instantly due to failing health checks."
+        ]
+      },
+      {
+        "texto": "The on-call engineer's PagerDuty \"Immediately phone me\" rule had been dropped, so alerts arrived only as silent push notifications, and other team members' phones were on silent, so escalation did not wake anyone.",
+        "trechos": [
+          "I still haven’t figured out how this happened, but the “Immediately phone me” rule was somehow dropped as a “Notification” from my settings.",
+          "Since I didn’t get a phone call (just push notifications which don’t make any sound) I didn’t get woken up.",
+          "The other team members had their phones on “silent” since they weren’t designated as the primary “on-call”, so they didn’t get woken up either."
+        ]
+      },
+      {
+        "texto": "IAM issues at AWS prevented upgrading the database and launching the new AMI through the AWS Console.",
+        "trechos": [
+          "We logged into the AWS Console and tried upgrading the database, but due to IAM issues AWS was experiencing, the interface wouldn’t let us make the changes.",
+          "When we tried to launch it, we discovered the IAM role selector wasn’t working either."
+        ]
+      },
+      {
+        "texto": "Because servers had kept coming up, failing health checks and going down, the EC2 request limit was reached, and the team had to wait it out before launching new servers.",
+        "trechos": [
+          "Because servers had kept coming up, failing health checks, and going down again, we had reached out EC2 request limit. Our only option here was to wait it out."
+        ]
+      },
+      {
+        "texto": "Neither the new database nor the centralized pgbouncer setup, introduced to reduce per-connection memory overhead, was load tested.",
+        "trechos": [
+          "Since the new database didn’t have as much memory as the old one, we also moved to a centralised pgbouncer to pool connections across all of our servers in hopes to reduce the per-connection memory overhead.",
+          "Due to the tight time constraints before the next AWS bill, we didn’t load test the new database or the centralized pgbouncer setup."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "Downgrade of the database from an m4.10xlarge Multi-AZ RDS PostgreSQL instance to an r3.2xlarge Multi-AZ RDS PostgreSQL instance during a weekend maintenance window, together with a move to a centralised pgbouncer.",
+        "trechos": [
+          "The main culprit was our *m4.10xlarge Multi-AZ RDS PostgreSQL* database. We looked at some graphs and decided to downgrade to a more affordable *r3.2xlarge Multi-AZ RDS PostgreSQL* instance.",
+          "We scheduled a maintenance window on the weekend to downgrade the database.",
+          "The downgrade was successful and everything was looking great.",
+          "Since the new database didn’t have as much memory as the old one, we also moved to a centralised pgbouncer to pool connections across all of our servers in hopes to reduce the per-connection memory overhead."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Servers were taken from the Agent API and added to the dashboard ELB, bringing buildkite.com back online with slow requests while the database was still under heavy load.",
+          "trechos": [
+            "At this point we stole some servers from the Agent API and added them to the ELB that services requests for the dashboard.",
+            "This allowed us to bring buildkite.com back online — although requests were slow due to the database still being under heavy load."
+          ]
+        },
+        {
+          "texto": "After hitting EC2 request limits, the Auto Scaling Groups were changed to EC2 health checks and desired counts were locked in.",
+          "trechos": [
+            "When we hit ours we changed the Auto Scaling Groups to EC2 health checks and locked in desired counts."
+          ]
+        },
+        {
+          "texto": "Using the aws-cli, the database was upgraded to an instance type that could handle the load and new servers that fixed self-deploys were rolled out.",
+          "trechos": [
+            "After some time we were eventually able to upgrade the database to an instance type that could handle the load and roll out new servers that fixed self deploys.",
+            "We had to use the aws-cli to do these last steps since the AWS Console was still having issues."
+          ]
+        },
+        {
+          "texto": "The centralized pgbouncer server was removed and the setup reverted to pgbouncer installed on each host.",
+          "trechos": [
+            "Along with upgrading the database, we also took this opportunity to remove the centralized pgbouncer server.",
+            "We previously used to have pgbouncer installed on each host and pool from there."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Keep an eye on AWS credits so as not to be rushed into significant infrastructure changes in a short period of time.",
+          "trechos": [
+            "Keep an eye on AWS credits so you’re not rushed to make significant infrastructure changes in a short period of time."
+          ]
+        },
+        {
+          "texto": "Already done: the health check now returns OK if it can reach the app and no longer checks database connectivity; a separate Pingdom endpoint checking the database and dependent services is being considered.",
+          "trechos": [
+            "We’ve switched it now to just return “OK” if it can hit the app. We don’t check database connectivity in this request anymore.",
+            "We’re also considering adding another health check endpoint that Pingdom can hit which makes sure the application can connect to the database and any dependent services."
+          ]
+        },
+        {
+          "texto": "Already done: the latest deployed revision is stored as a file on S3 and referenced when new servers self-deploy.",
+          "trechos": [
+            "We’ve now switched to storing the latest deployed revision as file on S3 and we reference that when newly launched servers need to self-deploy."
+          ]
+        },
+        {
+          "texto": "Do load testing after significant infrastructure changes; planning for how to do it has started.",
+          "trechos": [
+            "**Lesson #2:** Do load testing after significant infrastructure changes.",
+            "We’ve already started planning how this could work and ways we can do it without impacting others using the system."
+          ]
+        },
+        {
+          "texto": "Already done: all team members manually tested that PagerDuty calls get through. Planned: investigate regular company-wide tests and ask PagerDuty about calling members when they go on-call or requiring an \"Immediately phone\" rule.",
+          "trechos": [
+            "We’ve all done manual tests to ensure calls are getting through.",
+            "We’d like to investigate whether or not we can trigger company-wide tests to make sure everyone’s setup is correct on a regular basis.",
+            "Another idea is to have PagerDuty call team members when they go “on-call” — or have a requirement that all Notification Rules contain a “Immediately phone” rule.",
+            "We haven’t looked into whether or not PagerDuty supports this out of the box, but we’ll be reaching out to them to see what we can do."
+          ]
+        },
+        {
+          "texto": "When seeing high churn in AWS, stop health check and autoscaling rules (e.g. suspend Auto Scaling processes) to avoid hitting EC2 request limits.",
+          "trechos": [
+            "**Lesson #6:** When you see high churn issues in AWS make sure to stop your health check and autoscaling rules so that you don’t run into future EC2 request limits.",
+            "As part of writing this postmortem, we discovered you can “Suspend and Resume Auto Scaling Processes” directly from within AWS — which would have been very useful if we’d had known about it:"
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 349,
+      "trechos": [
+        "On the 22nd of August 2016 at 17:21 UTC, Buildkite suffered a severe unplanned outage.",
+        "We finally recovered at 23:10 UTC and spent the rest of the day working on making sure this doesn’t happen again."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "The author has not figured out how the PagerDuty \"Immediately phone me\" rule was dropped from their notification settings.",
+      "Whether the new centralised pgbouncer setup was working had not been investigated; the previous setup was restored until there was capacity to investigate it."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "Duration computed from the outage start (17:21 UTC) to recovery (23:10 UTC); buildkite.com came partially back online at 22:28 UTC after temporary fixes. The database began struggling around 16:00 UTC, before the outage start. categoria_causa is configuration-error: the instance downgrade was a configuration change (capacity-load requires no configuration change). deteccao.forma is usuarios_clientes: PagerDuty notifications were generated, but the team first learned of the outage from emails, tweets and Slack messages.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.7"
+  }
+}

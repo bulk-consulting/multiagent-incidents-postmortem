@@ -33,24 +33,31 @@ ignore o bloco INPUT no final) e este arquivo, que traz o documento original e a
 Revise a ficha contra o documento, seguindo as regras do prompt. Já foi verificado
 por programa que todos os "trechos" existem literalmente no documento; não precisa conferir isso.
 
-Para cada campo, diga se está CORRETO, DISCUTÍVEL ou ERRADO, e por quê:
-- lendo SÓ os "trechos" daquela afirmação, dá para confirmar todo detalhe do "texto"
-  (nomes, datas, números, quem fez, resultados)?
+Procure só PROBLEMAS, nestes pontos:
+- lendo SÓ os "trechos" de uma afirmação, algum detalhe do "texto" fica sem prova
+  (nome, data, número, quem fez, resultado)?
 - o "texto" liga fatos com relação de causa que o documento não afirma?
-- algo que o documento apresenta como plano ou proposta está escrito como feito?
-- a incerteza do original foi mantida?
-- os valores escolhidos (status, nivel, categoria_causa, forma, tipo...) seguem as definições do prompt?
-- gatilho e causa raiz seguem as definições do prompt?
-- confianca: se "baixa", os campos citados em motivo_confianca_baixa têm de fato dois valores
-  possíveis pelas regras? se "alta", algum campo deveria ter sido marcado como dúvida?
+- algo tentado, planejado ou proposto está escrito como feito ou concluído?
+- alguma incerteza do original foi perdida?
+- algum valor (status, nivel, categoria_causa, forma, tipo, gatilho...) contraria as definições do prompt?
+- confianca: se "baixa", os campos citados têm de fato dois valores possíveis pelas regras?
+  se "alta", algum campo deveria ter sido marcado como dúvida?
+- falta algo importante do documento (fator, passo de mitigação, ação de prevenção, pergunta em aberto)?
+  A timeline completa fica no texto original, não na ficha.
 
-Depois, liste o que o documento diz de importante e ficou fora da ficha
-(fatores, passos de mitigação, ações de prevenção, perguntas em aberto).
-Lembre que o prompt diz que a timeline completa fica no texto original, não na ficha.
+Regras do prompt que costumam ser esquecidas na revisão (não marque como erro o que as segue):
+- documento cujo catálogo descreve vários incidentes: causa_raiz com a causa comum, gatilho null,
+  mecanismos de cada incidente em fatores_contribuintes;
+- mitigação "generica" quando todos os passos são ações genéricas (reiniciar, reverter), mesmo com o componente nomeado;
+- notas que não são dúvida de classificação ficam em "observacoes" e não baixam a confiança.
 
-Não avalie o bloco "extracao" (modelo, data, versão). Não reescreva a ficha.
-Responda em português, citando o trecho do documento quando apontar um problema.
-No fim, dê uma linha de resumo: "ERRADOS: n | DISCUTÍVEIS: n".
+FORMATO DA RESPOSTA (siga à risca, seja breve):
+1. Uma tabela só com os campos que têm problema: | campo | ERRADO ou DISCUTÍVEL | problema em 1 ou 2 frases | trecho do documento que mostra o problema |
+   Não liste campos corretos.
+2. Omissões importantes: até 3 itens, 1 frase cada, com o trecho. Se não houver, escreva "nenhuma".
+3. Última linha: "ERRADOS: n | DISCUTÍVEIS: n".
+Sem introdução, sem conclusão, sem repetir a ficha. Não avalie o bloco "extracao". Não reescreva a ficha.
+Responda em português.
 
 ---
 

@@ -1,0 +1,135 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-204",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "exposicao_dados",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A bug in the Asyncio redis-py client for Redis Cluster, exposed by a server change that spiked Redis request cancellations, left connections corrupted so that some ChatGPT users could see other active users' chat titles; the same bug may have made payment-related information of 1.2% of ChatGPT Plus subscribers active in a nine-hour window visible. ChatGPT was taken offline, the bug was patched, and the service and later chat history were restored, except a few hours of history.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "ChatGPT",
+      "ChatGPT chat history",
+      "ChatGPT Plus subscription management",
+      "subscription confirmation emails"
+    ],
+    "tecnologias": [
+      "Redis",
+      "Redis Cluster",
+      "redis-py",
+      "Python",
+      "Asyncio"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Some users could see titles from another active user's chat history.",
+        "trechos": [
+          "We took ChatGPT offline earlier this week due to a bug in an open-source library which allowed some users to see titles from another active user’s chat history."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 1 a.m. Pacific time on Monday, March 20, a change was inadvertently introduced to the server that caused a spike in Redis request cancellations, creating a small probability for each connection to return bad data.",
+      "trechos": [
+        "At 1 a.m. Pacific time on Monday, March 20, we inadvertently introduced a change to our server that caused a spike in Redis request cancellations.",
+        "This created a small probability for each connection to return bad data."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "In the Asyncio redis-py client for Redis Cluster, which uses a shared, recycled connection pool, a request canceled after being pushed onto the incoming queue but before its response was popped left the connection corrupted, so the next response dequeued for an unrelated request could receive data left behind in it; when that data matched the expected type, cached data belonging to another user was returned as valid.",
+        "trechos": [
+          "The library maintains a shared pool of connections between the server and the cluster, and recycles a connection to be used for another request once done.",
+          "If a request is canceled after the request is pushed onto the incoming queue, but before the response popped from the outgoing queue, we see our bug: the connection thus becomes corrupted and the next response that’s dequeued for an unrelated request can receive data left behind in the connection.",
+          "But in some cases the corrupted data happens to match the data type the requester was expecting, and so what gets returned from the cache appears valid, even if it belongs to another user.",
+          "This bug only appeared in the Asyncio redis-py client for Redis Cluster, and has now been fixed."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A change to OpenAI's server, introduced at 1 a.m. Pacific time on Monday, March 20, caused a spike in Redis request cancellations; the change itself is not described.",
+        "trechos": [
+          "At 1 a.m. Pacific time on Monday, March 20, we inadvertently introduced a change to our server that caused a spike in Redis request cancellations."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "ChatGPT was taken offline.",
+          "trechos": [
+            "We took ChatGPT offline earlier this week due to a bug in an open-source library which allowed some users to see titles from another active user’s chat history."
+          ]
+        },
+        {
+          "texto": "The bug was patched, with a patch sent to the Redis maintainers, and the ChatGPT service and later its chat history feature were restored, except for a few hours of history.",
+          "trechos": [
+            "As soon as we identified the bug, we reached out to the Redis maintainers with a patch to resolve the issue.",
+            "The bug is now patched. We were able to restore both the ChatGPT service and, later, its chat history feature, with the exception of a few hours of history."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: extensively tested the fix to the underlying bug.",
+          "trechos": [
+            "Extensively tested our fix to the underlying bug."
+          ]
+        },
+        {
+          "texto": "Already done: added redundant checks to ensure data returned by the Redis cache matches the requesting user.",
+          "trechos": [
+            "Added redundant checks to ensure the data returned by our Redis cache matches the requesting user."
+          ]
+        },
+        {
+          "texto": "Already done: programmatically examined logs to make sure all messages are only available to the correct user, and correlated data sources to identify and notify affected users.",
+          "trechos": [
+            "Programatically examined our logs to make sure that all messages are only available to the correct user.",
+            "Correlated several data sources to precisely identify the affected users so that we can notify them."
+          ]
+        },
+        {
+          "texto": "Already done: improved logging to identify when this happens and confirm it has stopped.",
+          "trechos": [
+            "Improved logging to identify when this is happening and fully confirm it has stopped."
+          ]
+        },
+        {
+          "texto": "Already done: improved the robustness and scale of the Redis cluster to reduce the likelihood of connection errors at extreme load.",
+          "trechos": [
+            "Improved the robustness and scale of our Redis cluster to reduce the likelihood of connection errors at extreme load."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "Whether a small number of subscription confirmation emails were incorrectly addressed before March 20 has not been confirmed.",
+      "Whether another user's payment details could have been visible under 'Manage my subscription' before March 20 has not been confirmed."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The year is not stated in the text. duracao is null: the nine-hour window (1 a.m. to 10 a.m. Pacific time on March 20) is when payment-related information may have been visible, and the text does not say how long ChatGPT was offline or when it was fully restored. Full credit card numbers were not exposed. Besides in-app visibility, some subscription confirmation emails generated in that window were sent to the wrong users, with another user's card type and last four digits.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.7"
+  }
+}

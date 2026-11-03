@@ -1,0 +1,175 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-062",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A utility power loss caused by severe weather produced a long voltage sag; in one AWS Sydney facility, breakers isolating the DRUPS units did not open quickly enough, the DRUPS energy reserve drained into the grid and generators could not be connected, so many EC2 instances and EBS volumes in one Availability Zone lost power. Power was manually restored at 11:46 PM PDT; nearly all instances were recovered by 8 AM PDT, while a small number of EBS volumes (less than 0.01%) could not be recovered automatically.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "EC2",
+      "Elastic Block Store (EBS)",
+      "EC2 instance launch APIs",
+      "auto-scaling groups",
+      "Elastic Load Balancing (ELB)",
+      "internal DNS"
+    ],
+    "tecnologias": [
+      "diesel rotary uninterruptable power supply (DRUPS)",
+      "uninterruptable power supplies (UPSs)",
+      "breakers",
+      "generators",
+      "DNS",
+      "instance management software"
+    ],
+    "categoria_causa": "hardware-power",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "The utility provider lost power at a regional substation due to severe weather, causing a total loss of utility power to multiple AWS facilities; the failure took the form of an unusually long voltage sag rather than a complete outage.",
+      "trechos": [
+        "At 10:25 PM PDT on June 4th, our utility provider suffered a loss of power at a regional substation as a result of severe weather in the area.",
+        "This failure resulted in a total loss of utility power to multiple AWS facilities.",
+        "The specific signature of this weekend’s utility power failure resulted in an unusually long voltage sag (rather than a complete outage)."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "In one facility, several power delivery line-ups using DRUPS failed to transfer load to their generators: because of the unexpected voltage sag, breakers responsible for isolating the DRUPS from utility power failed to open quickly enough, the DRUPS energy reserve drained into the degraded grid, and the DRUPS shut down, so the started generators could not be connected to the racks. Affected instances lost both primary and secondary power.",
+        "trechos": [
+          "During this weekend’s event, the instances that lost power lost access to both their primary and secondary power as several of our power delivery line-ups failed to transfer load to their generators.",
+          "These particular power line-ups utilize a technology known as a diesel rotary uninterruptable power supply (DRUPS), which integrates a diesel generator and a mechanical UPS.",
+          "Because of the unexpected nature of this voltage sag, a set of breakers responsible for isolating the DRUPS from utility power failed to open quickly enough.",
+          "Instead, the DRUPS system’s energy reserve quickly drained into the degraded power grid.",
+          "The rapid, unexpected loss of power from DRUPS resulted in DRUPS shutting down, meaning the generators which had started up could not be engaged and connected to the datacenter racks."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "A latent bug in the instance management software led to a slower than expected recovery of the remaining instances, which had to be recovered manually.",
+        "trechos": [
+          "A latent bug in our instance management software led to a slower than expected recovery of the remaining instances.",
+          "The team worked over the next several hours to manually recover these remaining instances."
+        ]
+      },
+      {
+        "texto": "After power recovery, some instances experienced DNS resolution failures as the internal DNS hosts for the Availability Zone were brought back online and handled the recovery load.",
+        "trechos": [
+          "After power recovery, some instances in the Availability Zone experienced DNS resolution failures as the internal DNS hosts for that Availability Zone were brought back online and handled the recovery load."
+        ]
+      },
+      {
+        "texto": "During the power event, some storage servers suffered failed hard drives; where both replicas of an EBS volume were on failed servers, the volume could not be restored automatically, and manual recovery of damaged storage servers was slow.",
+        "trechos": [
+          "During the power event, a small number of storage servers suffered failed hard drives which led to a loss of the data stored on those servers.",
+          "In cases where both of the replicas were hosted on failed servers, we were unable to automatically restore the volume.",
+          "This is a slow process, which is why some volumes took much longer to return to service."
+        ]
+      },
+      {
+        "texto": "Customers experienced errors launching instances or scaling auto-scaling groups early in the event; after the APIs recovered, delays propagating state changes to describe API calls made some resources invisible or appear stuck and increased latency of adding instances to ELB load balancers.",
+        "trechos": [
+          "During the initial part of this event, customers experienced errors when trying to launch new instances, or when trying to scale their auto-scaling groups.",
+          "When the APIs initially recovered, our systems were delayed in propagating some state changes and making them available via describe API calls.",
+          "This meant that some customers could not see their newly launched resources, and some existing instances appeared as stuck in pending or shutting down when customers tried to make changes to their infrastructure in the affected Availability Zone.",
+          "These state delays also increased latency of adding new instances to existing Elastic Load Balancing (ELB) load balancers."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The team manually failed away from degraded services in the affected zone; at 11:42 PM PDT the failover was complete and customers could launch instances in unaffected Availability Zones.",
+          "trechos": [
+            "To remediate this, our team had to manually fail away from degraded services in the affected zone.",
+            "Starting at 11:42 PM PDT, the manual failover was complete and customers were able to launch instances in the unaffected Availability Zones."
+          ]
+        },
+        {
+          "texto": "On-site technicians, once they determined it was safe, manually re-engaged the power line-ups, and power was restored at 11:46 PM PDT.",
+          "trechos": [
+            "Once our on-site technicians were able to determine it was safe to manually re-engage the power line-ups, power was restored at 11:46PM PDT."
+          ]
+        },
+        {
+          "texto": "Automated systems brought EC2 instances and EBS volumes back online as power was restored; by 1:00 AM PDT over 80% of impacted instances and volumes were operational.",
+          "trechos": [
+            "As power was restored to the affected infrastructure, our automated systems began to bring customers’ EC2 instances and EBS volumes back online.",
+            "By 1:00 AM PDT, over 80% of the impacted customer instances and volumes were back online and operational."
+          ]
+        },
+        {
+          "texto": "The team manually recovered the remaining instances over several hours; by 8 AM PDT nearly all instances had been recovered. The EBS team then focused on manually recovering as many damaged storage servers as possible.",
+          "trechos": [
+            "The team worked over the next several hours to manually recover these remaining instances.",
+            "Instances were recovered continually during this time, and by 8AM PDT, nearly all instances had been recovered.",
+            "After the initial wave of automated recovery, the EBS team focused on manually recovering as many damaged storage servers as possible."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Adding additional breakers to break connections to degraded utility power more quickly, so generators can activate before the UPS systems are depleted.",
+          "trechos": [
+            "In order to prevent a recurrence of this correlated power delivery line-up failure, we are adding additional breakers to assure that we more quickly break connections to degraded utility power to allow our generators to activate before the UPS systems are depleted."
+          ]
+        },
+        {
+          "texto": "Fix the latent issue that prevented recovery systems from automatically recovering a subset of instances; the fix is in testing and planned for deployment over the coming days.",
+          "trechos": [
+            "The first is to fix the latent issue that led to our recovery systems not being able to automatically recover a subset of customer instances.",
+            "That fix is already in testing, and will be deployed over the coming days."
+          ]
+        },
+        {
+          "texto": "Start a program to regularly test recovery processes on unoccupied, long-running hosts in the fleet.",
+          "trechos": [
+            "We will also be starting a program to regularly test our recovery processes on unoccupied, long-running hosts in our fleet."
+          ]
+        },
+        {
+          "texto": "Working on changes to make the instance launch APIs more resilient to failure, which the authors believe will be rolled out to the Sydney Region in July.",
+          "trechos": [
+            "We know that it was problematic that for a period of time there were errors and delays for the APIs that launch instances.",
+            "We are working on changes that will assure our APIs are even more resilient to failure and believe these changes will be rolled out to the Sydney Region in July."
+          ]
+        },
+        {
+          "texto": "Recommendation to customers: run applications across multiple Availability Zones for the highest availability.",
+          "trechos": [
+            "For customers that need the highest availability for their applications, we continue to recommend running applications with this architecture.",
+            "For this event, customers that were running their applications across multiple Availability Zones in the Region were able to maintain availability throughout the event."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The extracted text repeats the body of the post-mortem (from 'Loss of Power' to the closing) twice. The year of the incident is not stated in the text. duracao is null: power was out from 10:25 PM to 11:46 PM PDT (81 minutes), but the impact continued until nearly all instances were recovered by 8 AM PDT, and some EBS volumes had no stated recovery time.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.7"
+  }
+}
