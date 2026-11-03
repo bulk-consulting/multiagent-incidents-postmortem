@@ -1,0 +1,224 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-134",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A RabbitMQ upgrade from 3.8.9 to 3.8.16 introduced a 15-minute acknowledgment timeout that, despite the changelog describing it as quorum-queue only, affected all queues; consumers of the VM destroyer queue dropped to zero, VMs stopped being deleted, and Docker, Machine executor and remote Docker jobs were delayed or blocked for about 12 hours. Recovery involved resetting the VM services deployment, scaling RDS databases, shedding load, blocking remote-docker jobs and bringing systems back one component at a time.",
+    "data_incidente": "2021-05-21",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Docker jobs",
+      "Machine executor (Windows, Mac, Arm, GPU)",
+      "remote Docker jobs",
+      "pipelines",
+      "VM service"
+    ],
+    "tecnologias": [
+      "RabbitMQ 3.8.9",
+      "RabbitMQ 3.8.16",
+      "RabbitMQ 3.8.15",
+      "Kubernetes",
+      "GCP",
+      "RDS",
+      "GP2"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "At 02:31 UTC on May 21 engineers were notified that a VM destroyer service queue had no consumers; after a pod restart, consumers dropped again at 03:10 unnoticed, an alert at 10:11 reported the VM destroy queue backing up without paging anyone, and at 13:00 engineers received pages about excessive delays starting jobs.",
+        "trechos": [
+          "At 02:31 on the 21st of May, our engineers were notified that one of our VM destroyer service queues had no consumers.",
+          "At 03:10, the VM destroyer service once again began to drop consumers from its queue, however, at the time this went unnoticed.",
+          "At 10:11, an alert was triggered informing us that one of the queues used to destroy VMs was backing up.",
+          "It also did not cause one of the engineers to be paged.",
+          "At 13:00, CircleCI engineers received the first series of pages alerting them to excessive delays starting jobs."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The RabbitMQ upgrade from 3.8.9 to 3.8.16 brought in a change (introduced in 3.8.15) applying a 15-minute acknowledgment timeout to consumers; it was documented as affecting only quorum queues but affected all queue types. Messages hit the timeout and the corresponding consumers' channels were closed, so consumers on the VM destroyer queue dropped over time to zero and VMs in a specific region stopped being deleted.",
+        "trechos": [
+          "On May 20th, we upgraded RabbitMQ from 3.8.9 to 3.8.16 as part of routine upgrades.",
+          "Quorum queue consumers that consume messages and do not acknowledge them will now have a 15 minute acknowledgment timeout applied to them by default.",
+          "On reviewing the GitHub issue and the code involved, we learned the change affected all queue types, not just quorum queues.",
+          "This upgrade therefore resulted in some messages hitting the acknowledgment timeout, and the RabbitMQ channel associated with the corresponding consumer to be closed.",
+          "This caused the number of consumers on one queue in particular to drop over time, eventually hitting zero consumers.",
+          "This queue is used to asynchronously clean up VMs in a specific region, and the loss of consumers meant we stopped deleting those VMs.",
+          "This change was introduced in RabbitMQ 3.8.15."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The changelog described the timeout change as applying only to quorum queues, which CircleCI does not use, so the team's changelog review did not flag it.",
+        "trechos": [
+          "As usual, the team checked the changelog to ensure there were no breaking changes listed and noted the ones that were.",
+          "There was a section describing a change to quorum queue behavior, which is not used by CircleCI applications:",
+          "Our engineers did note this in the changelog, however, the RabbitMQ documentation notes that this change only impacts quorum queues which we do not use."
+        ]
+      },
+      {
+        "texto": "The alert on the VM destroy queue was misconfigured: it notified only once when a threshold was reached, not as the queue continued to rise, and did not page an engineer.",
+        "trechos": [
+          "Unfortunately, this alert was misconfigured and only set to notify once a threshold was reached and not if the queue continued to rise.",
+          "It also did not cause one of the engineers to be paged."
+        ]
+      },
+      {
+        "texto": "Automated retries were the leading cause of hitting GCP quotas, which prevented starting VMs and recovery; the system became wedged in a cycle of creating VMs and not being able to remove them due to GCP quotas.",
+        "trechos": [
+          "We saw that our system was hitting CPU quotas within GCP which prevented us from starting VMs.",
+          "Further investigation revealed that automated retries were the leading cause of our GCP quotas being hit.",
+          "The system had become “wedged” and we had found ourselves in a vicious cycle of creating VMs and then not being able to remove them due to hitting our GCP quotas."
+        ]
+      },
+      {
+        "texto": "Coupling between the Docker executor fleet and the VM service caused slowdowns to Docker jobs as well.",
+        "trechos": [
+          "Coupling between our Docker executor fleet and the VM service resulted in slowdowns to Docker jobs as well."
+        ]
+      },
+      {
+        "texto": "The RDS-based databases exhausted their Burst Balance and later GP2 credits, substantially decreasing IO and causing database connections to time out and drop.",
+        "trechos": [
+          "This continued to work well until approximately 18:05, at which time our RDS-based databases had exhausted the allocated Burst Balance the result of which was a substantial decrease in IO and ultimately connections to the database began to time out and dropped.",
+          "We continued to observe a drop in our queues until we had exhausted our GP2 credits which once again led to the RDS instance running out of resources."
+        ]
+      },
+      {
+        "texto": "Remote-docker jobs were not the cause but exacerbated the issue by increasing the vm-create queues.",
+        "trechos": [
+          "As the database began to recover our engineers took steps to block remote-docker jobs from running as these jobs were causing our vm-create queues to increase.",
+          "While remote-docker was not the cause of the issues, the jobs running exacerbated the issue."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "RabbitMQ was upgraded from 3.8.9 to 3.8.16; the 15-minute consumer acknowledgment timeout was introduced in RabbitMQ 3.8.15.",
+        "trechos": [
+          "On the 20th of May at 08:37, CircleCI engineers performed routine maintenance on our RabbitMQ cluster and upgraded to version 3.8.16 from 3.8.9.",
+          "A look at various graphs showed that consumers of our RabbitMQ queues were being disconnected after a 15 minute period.",
+          "This change was introduced in RabbitMQ 3.8.15."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "A ticket was opened with Google Cloud at 13:26 UTC to increase CPU quotas; GCP increased the quotas at 14:37, but the system was unable to recover on its own.",
+          "trechos": [
+            "At 13:23, an incident was declared, and at 13:26, we opened a ticket with Google Cloud to increase these limits.",
+            "At 14:37, GCP increased our quotas, but the system was unable to recover on its own."
+          ]
+        },
+        {
+          "texto": "At 14:13 UTC further Linux machine jobs were manually blocked from entering the work queue; old VMs were deleted manually and, at 17:22, some workflows were cancelled to free up resources.",
+          "trechos": [
+            "At 14:13, we manually blocked further Linux machine jobs from entering the work queue entirely.",
+            "We began to formulate a plan to delete old VMs manually. As this manual deletion progressed, we investigated other ways to manually shed load.",
+            "At 17:22 we chose to cancel some workflows in an effort to free up resources and “unwedge” the platform as we worked to return things to an operational state."
+          ]
+        },
+        {
+          "texto": "At 16:25 UTC, after finding that the VM destroy queues had no consumers, the team reset the VM services deployment and the queues began to drain.",
+          "trechos": [
+            "At 16:25, engineers determined that the queues which account for destroying old VMs had no consumers.",
+            "In an effort to re-establish connectivity to the queues we reset the VM services deployment and the queues began to drain."
+          ]
+        },
+        {
+          "texto": "The database instance was rebooted to reset the burst balance and connections, without the desired effect; the RDS database was then scaled up at 18:20 UTC (with the VM provisioning service turned down), at 19:15 the decision was made to scale the database again, and by 19:45 burst balance and database resources had stabilized.",
+          "trechos": [
+            "The decision was made to reboot the database instance in an attempt to reset the burst balance and force a reset of all connections.",
+            "The database reboot did not have the desired effect as connections and IO were quickly exhausted due to the volume of DB queries.",
+            "At 18:20, our Infrastructure team scaled one of our RDS databases for the first time.",
+            "As the database scaled, we had to turn down the VM provisioning service such that it did not flood the database with connections as it returned to service.",
+            "At 19:15 the decision was made to scale the database as the increase in memory and CPU would give us additional resources to process transactions as well as increased burst protection.",
+            "At 19:45 our burst balance and database resources had stabilized, however VM provisioning times were once again on the rise."
+          ]
+        },
+        {
+          "texto": "To break the create/delete cycle, all pods that scaled new VMs and destroyed old ones were scaled down at 21:00 UTC; a revised distribution backend blocking remote-docker jobs from the provisioning queues was deployed at 21:57, and the provisioning system was scaled down at 22:21.",
+          "trechos": [
+            "In order to break out of this cycle, the team scaled down all the pods which scaled new VMs and destroyed old ones. This occurred at 21:00.",
+            "The revised distribution backend was deployed at 21:57 which blocked remote-docker jobs from entering our provisioning queues.",
+            "At 22:21, our engineers scaled down our provisioning system as the removal of remote-docker jobs afforded the system some room to begin flushing queues."
+          ]
+        },
+        {
+          "texto": "At 22:36 UTC the decision was made to slowly bring the system back online; over the next two hours provisioning and distribution systems were brought back one component at a time, by 00:39 all infrastructure was back online, and the incident was resolved at 01:18.",
+          "trechos": [
+            "At 22:36, the decision was made to slowly bring pieces of the system back online.",
+            "Over the course of the next two hours, our engineers brought provisioning and distribution systems back online one component at a time, ensuring the stability of each before moving to the next.",
+            "By 00:39 all pieces of the infrastructure had been brought back online and any code changes that were made to mitigate the outage were reversed.",
+            "At 01:00, the incident was moved to a monitoring state and resolved at 01:18"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Improve VM provisioning to make it more robust against changes in load and able to recover from thundering herds.",
+          "trechos": [
+            "Improving VM provisioning to make it more robust against changes in load to recover from thundering herds"
+          ]
+        },
+        {
+          "texto": "Make VM provisioning independent so that its failure does not impact Docker jobs.",
+          "trechos": [
+            "Making VM provisioning independent so that its failure does not impact Docker jobs"
+          ]
+        },
+        {
+          "texto": "Review and enhance observability around RabbitMQ and the production queues.",
+          "trechos": [
+            "Reviewing and enhancing observability around RabbitMQ and the various production queues"
+          ]
+        },
+        {
+          "texto": "Batch requests to avoid hitting GCP API rate limits.",
+          "trechos": [
+            "Batching requests to avoid hitting GCP API rate limits"
+          ]
+        },
+        {
+          "texto": "Enhance incident response to address longer running issues.",
+          "trechos": [
+            "Enhancing our incident response to address longer running issues"
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 708,
+      "trechos": [
+        "Starting on May 21, 2021, at 13:30, UTC CircleCI customers running Docker, Machine executor (which includes Windows, Mac, Arm, and GPU) and remote Docker jobs experienced delayed or blocked pipelines.",
+        "This incident lasted until May 22, 2021, at 01:18 UTC."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The leading cause was only discovered on May 24, three days after the incident. During the incident the team initially focused on an uptick in cryptomining-related platform abuse, which did not visibly mitigate impact. RabbitMQ confirmed the timeout affects all queue types and said a larger timeout and further documentation would come in the next release. At 02:31 on May 21, before customer impact, the VM service pods were restarted and systems returned to normal, before consumers began dropping again at 03:10. categoria_causa is configuration-error: the dependency upgrade changed a default setting (a new 15-minute acknowledgment timeout applying to all queue types, contrary to its documentation); the text does not describe a code defect.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.11"
+  }
+}

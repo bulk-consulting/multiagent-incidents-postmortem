@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-090",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Firefox add-ons stopped working because a certificate used by the signature-generating system expired; the responsible team had thought Firefox ignored expiration dates, and QA did not test certificate expiration. The fix was delivered through the Studies (Normandy) system, which required some users to enable Telemetry, followed by further fixes over the next weeks.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Firefox add-ons"
+    ],
+    "tecnologias": [
+      "certificates",
+      "Studies system (Normandy)",
+      "Telemetry",
+      "Balrog",
+      "system add-on"
+    ],
+    "categoria_causa": "credential-auth",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The certificate used by the system that generated add-on signatures was allowed to expire; the team responsible knew it was expiring but incorrectly thought Firefox ignored the expiration dates.",
+        "trechos": [
+          "At a high level, the story seems simple: we let the certificate expire.",
+          "This seems like a simple failure of planning, but upon further investigation it turns out to be more complicated: the team responsible for the system which generated the signatures knew that the certificate was expiring but thought (incorrectly) that Firefox ignored the expiration dates."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Part of the misunderstanding came from a previous incident in which end-entity certificate checking had been disabled, which led to confusion about the status of intermediate certificate checking.",
+        "trechos": [
+          "Part of the reason for this misunderstanding was that in a previous incident we had disabled end-entity certificate checking, and this led to confusion about the status of intermediate certificate checking."
+        ]
+      },
+      {
+        "texto": "The Firefox QA plan did not include testing for certificate expiration or how the browser behaves at future dates, so the problem was not detected beforehand.",
+        "trechos": [
+          "Moreover, the Firefox QA plan didn’t incorporate testing for certificate expiration (or generalized testing of how the browser will behave at future dates) and therefore the problem wasn’t detected."
+        ]
+      },
+      {
+        "texto": "The fast delivery channel (Studies) is coupled to Telemetry, so some users had to enable Telemetry to get the fix; the alternatives, dot releases and Balrog, are slower than Normandy (Balrog checks every 12 hours, Normandy every 6).",
+        "trechos": [
+          "Moreover, because Studies permission is coupled to Telemetry, this meant that some users needed to enable Telemetry in order to get the fix, leading to Mozilla temporarily over-collecting data that we didn’t actually want, which we then had to clean up.",
+          "Unfortunately, both of these are slower than Normandy: Balrog checks for updates every 12 hours (though there turns out to have been some confusion about whether this number was 12 or 24), whereas Normandy checks every 6."
+        ]
+      },
+      {
+        "texto": "Some fixes had defects that needed later patches; the technical report found that in some cases high urgency combined with a lack of available QA resources (or QA coordination issues) led to less thorough testing.",
+        "trechos": [
+          "In other cases it was a result of defects in an earlier fix, which we then had to patch up in subsequent work.",
+          "Of course, defects in software cannot be completely eliminated, but the technical report found that at least in some cases a high level of urgency combined with a lack of available QA resources (or at least coordination issues around QA) led to testing that was less thorough than we would have liked."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "Once a fix existed, the team decided to deliver it via the Studies system (part of Normandy); some users needed to enable Telemetry to get the fix, which led Mozilla to temporarily over-collect data that it then had to clean up.",
+          "trechos": [
+            "As I mentioned previously, once we had a fix, we decided to deliver it via the Studies system (this is one part of a system we internally call “Normandy”).",
+            "Moreover, because Studies permission is coupled to Telemetry, this meant that some users needed to enable Telemetry in order to get the fix, leading to Mozilla temporarily over-collecting data that we didn’t actually want, which we then had to clean up."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "Improve communication and documentation of these parts of the system and feed this information back into engineering and QA work.",
+          "trechos": [
+            "The lesson here is that: (1) we need better communication and documentation of these parts of the system and (2) this information needs to get fed back into our engineering and QA work to make sure we’re not missing things."
+          ]
+        },
+        {
+          "texto": "Build a mechanism, not coupled to Telemetry and Studies, that can quickly deploy updates to any user with automatic updates enabled; engineers are already working on it.",
+          "trechos": [
+            "The lesson here is that we need a mechanism that allows fast updates that isn’t coupled to Telemetry and Studies.",
+            "The property we want is the ability to quickly deploy updates to any user who has automatic updates enabled. This is something our engineers are already working on."
+          ]
+        },
+        {
+          "texto": "During incidents of this kind, ensure QA is available to test fixes, in addition to management, engineering and operations personnel.",
+          "trechos": [
+            "The lesson here is that during incidents of this kind we need to make sure that we not only recruit management, engineering, and operations personnel (which we did) but also to ensure that we have QA available to test the inevitable fixes."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "This text summarizes the post-mortem results and does not give the incident date, impact duration, or the technical content of the fix; it refers to a separate incident report and technical report for details. Over the following weeks eight versions of the system add-on and six dot releases were released; the text does not say whether these came before the end of the impact, so they are not listed as mitigation.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.11"
+  }
+}

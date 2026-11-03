@@ -1,0 +1,214 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-073",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "An EBS volume attached to the file server livefile1 had multiple component failures, blocking file access; this took down PythonAnywhere's own site and the websites and tasks of accounts stored on that server, and later caused brief outages for other sites. Service was restored by rebuilding the server's volumes from snapshots of its backup volumes, rebooting servers whose NFS mounts had timed out, and waiting for the new volumes to warm up.",
+    "data_incidente": "2020-07-07",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "PythonAnywhere site",
+      "hosted websites",
+      "scheduled tasks",
+      "always-on tasks",
+      "consoles",
+      "notebooks"
+    ],
+    "tecnologias": [
+      "EBS",
+      "LVM",
+      "DRBD",
+      "S3",
+      "NFS",
+      "AWS"
+    ],
+    "categoria_causa": "hardware-power",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "The monitoring system notified the support team of issues spread across multiple machines in the cluster; the symptom was that attempts to access files on livefile1 blocked and then timed out.",
+        "trechos": [
+          "Our monitoring system notified our support team of a number of issues spread across multiple machines in our cluster.",
+          "The symptom that we were seeing was that attempts to access files on that server blocked, and then timed out."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "An EBS storage volume attached to the file server livefile1 had multiple component failures, meaning a complete redundant array of disks stopped working, so the system was blocked on storage IO.",
+        "trechos": [
+          "This issue was caused by a failure at the first level of that redundancy hierarchy; an EBS volume had multiple component failures, essentially meaning that a complete redundant array of disks stopped working – something with a 0.1% - 0.2% chance of happening in any given year.",
+          "We were quickly able to identify the underlying cause as being an issue with the machine livefile1.",
+          "By this point we had become sure that the system was getting blocked on storage IO, but the problem did not seem to be the machine itself like the original indications had suggested."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The site's worker processes sometimes access file servers; because access to livefile1 was slow and timing out, all workers could end up blocking, so requests for unaffected data queued until the blocking workers timed out.",
+        "trechos": [
+          "Sometimes (for example, if you click on the “Files” page), they will need to access file servers.",
+          "Because access to livefile1 was slow and timing out, if many people performed actions that accessed it, it was possible for all of the workers to be blocking, which in turn meant that requests for data that was not directly affected were queued up until blocking workers timed out."
+        ]
+      },
+      {
+        "texto": "The processes on each web server that start or reload websites could all be blocking on access to livefile1, leaving none available to start sites stored on other file servers.",
+        "trechos": [
+          "This is due to a similar problem to our own site – there are a set of processes on each web server that start or reload websites, so it was possible for them to all be blocking on access to livefile1 leaving none available to start sites that would normally be unaffected."
+        ]
+      },
+      {
+        "texto": "Initial indications (kernel-level errors in syslog) pointed to server hardware, and the failed volume showed as working fine in the monitoring available to the company; the storage volume was not identified as the cause until 17:18, after AWS support saw problems from their administrative interface.",
+        "trechos": [
+          "Initial indications were that the problem was on the file server itself rather than its attached storage; there were kernel-level errors in syslog that looked very much like machine hardware problems.",
+          "While this volume was showing up as working fine in the monitoring provided to us, from their administrative interface they could see problems.",
+          "Clearly it’s not good that that the issue started at 16:06, but we did not know that the underlying cause was a failure in a storage volume until 17:18, more than an hour later."
+        ]
+      },
+      {
+        "texto": "The scripts to rebuild a file server's volumes from its backup server were put together in real time, which took almost an hour; determining how to generate the backup snapshots also took longer than it ideally would have.",
+        "trechos": [
+          "However, because we were putting scripts together (a combination of our normal backup scripts and the tools we use to recover backups when people accidentally delete files) in realtime, it took almost an hour.",
+          "Determining the right way to generate the backup snapshots took us longer than it ideally would have done."
+        ]
+      },
+      {
+        "texto": "The NFS mounts on servers accessing livefile1 had apparently timed out while it was down; since a reboot normally fixes this, a rolling reboot of all servers was done, during which accounts on other file servers saw brief outages.",
+        "trechos": [
+          "Investigation of the various servers that accessed files from livefile1 showed that they were still unable to access it; it appeared that the NFS mounts had timed out while the server was down.",
+          "A reboot normally fixes this, so we rebooted the specific web server where our own site runs as a test case.",
+          "It was over this period that the other accounts that were stored on other file servers saw brief outages, as the servers they were running on were rebooted."
+        ]
+      },
+      {
+        "texto": "Volumes created from snapshots on AWS start empty and copy data on demand, so the new volumes needed to warm up; slow file access made sites on livefile1 take time to start, showing errors meanwhile.",
+        "trechos": [
+          "We determined that this was a result of the new volumes needing to “warm up”.",
+          "As we understand it, when you create a volume from a snapshot on AWS, it is initially empty, and the data that it should hold is copied over from the snapshot on an as-needed basis as it is read.",
+          "What was happening was that the sites were being started up, but due to the slow filesystem access they were taking some time to become available.",
+          "In the period between the first access to the site (which was what triggered the startup) and the site finally starting up completely, anyone accessing it would see an error message."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Following the normal procedure for server hardware failure, the team stopped and restarted livefile1 to move it to new hardware; with AWS support it was provisioned onto new hardware and booting by 16:47, but the kernel errors remained and the attached storage was inaccessible.",
+          "trechos": [
+            "Computers fail much more often than the storage volumes, and our normal procedure for server hardware failure is to stop the machine and then start it up again.",
+            "They confirmed that the issue appeared to be hardware-related, and with their help we were able to get the machine provisioned onto new hardware and booting up by 16:47.",
+            "The kernel errors that we had seen before the re-provision were still present, and the attached storage was inaccessible."
+          ]
+        },
+        {
+          "texto": "After AWS support identified the failing volume, the team attempted various ways to revive it; AWS later reported it unrecoverable at 19:19.",
+          "trechos": [
+            "AWS support told us that there appeared to be a problem with one specific volume.",
+            "We attempted various ways to revive it.",
+            "(They finally reported that it was unrecoverable at 19:19, so it was good that we did not wait.)"
+          ]
+        },
+        {
+          "texto": "In parallel, the team took snapshots of the backup volumes, created new volumes from them and attached them to livefile1; after a full filesystem check the volumes were mounted with all files present and synchronization with the backup server completed.",
+          "trechos": [
+            "We could take a snapshot of the existing backup volumes, create new volumes from them, and then attach them to the existing file server in place of the ones it had, and attempt a resync.",
+            "We decided to go with the second option.",
+            "At this time, livefile1 had the new volumes attached, and we were logged in and checking everything out.",
+            "The server needed to do a full filesystem check before the storage was available, but within ten minutes we were able to see that the volumes were mounted and all files were there.",
+            "Synchronization with the backup server started, and within a minute or so everything was synced up, so we knew that whatever happened, we were back in a situation where a further volume failure would not cause data loss."
+          ]
+        },
+        {
+          "texto": "Because NFS mounts appeared to have timed out, the web server running PythonAnywhere's own site was rebooted as a test; at 18:53 it came back with all files available.",
+          "trechos": [
+            "A reboot normally fixes this, so we rebooted the specific web server where our own site runs as a test case.",
+            "Our own server came back with all files available from all file servers.",
+            "Our own site was unavailable or generating an excessive number of errors from 16:06 to 18:53 UTC."
+          ]
+        },
+        {
+          "texto": "A rolling reboot of all servers was performed and completed at 19:46, after which sites on unaffected file servers and all scheduled and always-on tasks were running normally.",
+          "trechos": [
+            "After thorough testing, we tweeted to say that our site was back, and that we were commencing a rolling reboot of all servers so that those accounts that were stored on livefile1 would be able to run their websites, scheduled tasks and always-on tasks again.",
+            "The rolling reboot had completed. By this stage, all sites that were on file servers that had not been affected by the outage were up and running normally again, and could be reloaded as normal.",
+            "Likewise all scheduled and always-on tasks were back up and running after their brief outages during the reboots.",
+            "Websites were unavailable in general from 16:06 to 19:46 UTC, with some taking until 21:24 UTC to be fully available."
+          ]
+        },
+        {
+          "texto": "The team monitored and tried various tricks to warm up the volumes and get busier sites running faster; some sites took until 21:24 UTC to be fully available, when all sites were up and running again.",
+          "trechos": [
+            "We monitored and tried various tricks to get the volumes warmed up, in parallel with attempts to get the busier sites up and running faster.",
+            "All sites were up and running again.",
+            "Websites were unavailable in general from 16:06 to 19:46 UTC, with some taking until 21:24 UTC to be fully available."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Idea under consideration: reduce the chance of such failures, for example by using fewer volumes per storage server.",
+          "trechos": [
+            "We do have some ideas about how to reduce it further – for example, by using fewer volumes per storage server."
+          ]
+        },
+        {
+          "texto": "Work on ways to limit the effects of one file server failing to the people whose data is stored on that server.",
+          "trechos": [
+            "We need to work on ways to improve things so that if one file server fails, the effects are limited to people whose data is stored on that server."
+          ]
+        },
+        {
+          "texto": "Look for a way, using root access to the machine, to find out whether a particular volume is hanging, to identify the underlying cause faster.",
+          "trechos": [
+            "We need to think hard to see if we can find a way to do this, however; while we don’t have the AWS team’s admin tools, we do have root access to the machine, so in theory there should be a way to find out if a particular volume is hanging."
+          ]
+        },
+        {
+          "texto": "Have a fully tested script ready to rebuild a file server's volumes from its backup server (e.g. replace_file_server_storage_with_backups.py).",
+          "trechos": [
+            "This is something we should have ready to go in a fully tested script so that we just need to run something like `python3 replace_file_server_storage_with_backups.py livefile1`"
+          ]
+        },
+        {
+          "texto": "Possibility under consideration, to be tested and profiled first: put the old backup volumes on the file server and give the backup server the unwarmed volumes created from snapshots, so file storage is warm as soon as it is used.",
+          "trechos": [
+            "One possibility would be to shut down the backup server, take the snapshots, but then put the old backup volumes on the file server, and start up the backup server with the unwarmed volumes that were created from the snapshots.",
+            "We would need to test and profile that carefully before doing it, though."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 318,
+      "trechos": [
+        "At 16:06 UTC on 7 July 2020, a storage volume failure on one of our storage servers caused a number of outages, starting with our own site and also with our users’ programs (including websites) that were dependent on that volume, and later spreading to other hosted sites.",
+        "Websites were unavailable in general from 16:06 to 19:46 UTC, with some taking until 21:24 UTC to be fully available."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Domain classified as infra_fisica_datacenter because the origin is a hardware failure of an EBS storage volume (multiple component failures). Duration computed from 16:06 UTC to 21:24 UTC, when all sites were fully available; the company's own site was affected from 16:06 to 18:53 UTC, and file access was completely normal only at 23:50 UTC after the volumes warmed up. Prevention items are mostly ideas and intentions; the text says some will be implemented over the coming months.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.11"
+  }
+}

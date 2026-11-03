@@ -1,0 +1,177 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-077",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "While the network vendor gathered forensic state by terminating an agent on one aggregation switch, the MLAG peer failed over using the disruptive method, blocking traffic between access switches for about a minute and a half. Fileserver high-availability pairs then exceeded heartbeat timeouts and issued STONITH commands, leaving many pairs with both nodes stopped. GitHub.com was put in maintenance mode, the switches were downgraded, and every fileserver pair was recovered before the site returned to service at 20:23 PST.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "GitHub.com",
+      "GitHub file storage infrastructure"
+    ],
+    "tecnologias": [
+      "MLAG",
+      "spanning tree",
+      "link aggregation",
+      "in-service software upgrade",
+      "Pacemaker",
+      "Heartbeat",
+      "DRBD",
+      "STONITH"
+    ],
+    "categoria_causa": "other",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "As a final forensic step after a switch software upgrade, the network vendor terminated the process of one of the agents running on an aggregation switch to gather its state.",
+      "trechos": [
+        "Beginning at 1215 PST, our network vendor began gathering some final forensic information from our switches so that they could attempt to discover the root cause for the issues we’d been seeing.",
+        "As a final step, they wanted to gather the state of one of the agents running on a switch. This involves terminating the process and causing it to write its state in a way that can be analyzed later.",
+        "When the agent was terminated on the first switch, the links between peers did not go down since the agent is unable to instruct the hardware to reset the links."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "When an MLAG switch agent is terminated, the links between peers do not go down until the agent restarts; the peer waits 5 seconds for the agent and, if it still sees active links, assumes an inconsistent state and falls back to standalone behaviour instead of a stateful takeover. With unlucky timing and the extra time to record the agent's state, the link stayed active long enough for this disruptive failover, forcing all aggregated links to be re-established and a spanning-tree reconvergence that blocked all traffic between access switches for roughly a minute and a half.",
+        "trechos": [
+          "When the agent on one of the switches is terminated, the peer has a 5 second timeout period where it waits to hear from it again.",
+          "If it does not hear from the peer, but still sees active links between them, it assumes that the other switch is still running but in an inconsistent state.",
+          "In this situation it is not able to safely takeover the shared resources so it defaults back to behaving as a standalone switch for purposes of link aggregation, spanning-tree, and other layer two protocols.",
+          "If the links do not recover, the switch assumes that its peer has died entirely and performs a stateful takeover of the MLAG resources.",
+          "They do not reset until the agent restarts and is again able to issue commands to the underlying switching hardware.",
+          "With unlucky timing and the extra time that is required for the agent to record its running state for analysis, the link remained active long enough for the peer switch to detect a lack of heartbeat messages while still seeing an active link and failover using the more disruptive method.",
+          "When this happened it caused a great deal of churn within the network as all of our aggregated links had to be re-established, leader election for spanning-tree had to take place, and all of the links in the network had to go through a spanning-tree reconvergence.",
+          "This effectively caused all traffic between access switches to be blocked for roughly a minute and a half."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "When the network froze, many fileserver pairs (Pacemaker, Heartbeat and DRBD, in different racks) exceeded their heartbeat timeouts and issued STONITH commands to their partners; some commands were not delivered, and when the network recovered both nodes of a number of pairs expected to be active, leading to a race in which the nodes terminated one another and both were stopped.",
+        "trechos": [
+          "Our fileserver architecture consists of a number of active/passive fileserver pairs which use Pacemaker, Heartbeat and DRBD to manage high-availability.",
+          "When the network froze, many of our fileservers which are intentionally located in different racks for redundancy, exceeded their heartbeat timeouts and decided that they needed to take control of the fileserver resources.",
+          "They issued STONITH commands to their partner nodes and attempted to take control of resources, however some of those commands were not delivered due to the compromised network.",
+          "When the network recovered and the cluster messaging between nodes came back, a number of pairs were in a state where both nodes expected to be active for the same resource.",
+          "This resulted in a race where the nodes terminated one another and we wound up with both nodes stopped for a number of our fileserver pairs."
+        ]
+      },
+      {
+        "texto": "Cluster communication between fileserver nodes relies on network infrastructure, which the text describes as a known problem for some time.",
+        "trechos": [
+          "The fact that the cluster communication between fileserver nodes relies on any network infrastructure has been a known problem for some time."
+        ]
+      },
+      {
+        "texto": "Recovery required that the previously active node of each stopped pair be brought back as active; this was determined from centralized log data, but in some cases the logs were inconclusive and one node had to be booted without fileserver resources to examine its local logs. The process took over five hours because the problem was widespread.",
+        "trechos": [
+          "When both nodes are stopped in this way it’s important that the node that was active before the failure is active again when brought back online, since it has the most up to date view of what the current state of the filesystem should be.",
+          "In some cases, though, the log information was inconclusive and we had to boot up one node in the pair without starting the fileserver resources, examine its local log files, and make a determination about which node should be active.",
+          "That process took over five hours to complete because of how widespread the problem was; we had to restart a large percentage of the the entire GitHub file storage infrastructure, validate that things were working as expected, and make sure that all of the pairs were properly replicating between themselves again."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "During the earlier instability after the upgrade, links between half of the aggregation switches and the access switches were disabled, which mitigated the problems while the cause was investigated with the network vendor, at the cost of redundancy.",
+          "trechos": [
+            "Disabling the links between half of the aggregation switches and the access switches allowed us to mitigate the problems while we continued to work with our network vendor to understand the cause of the instability.",
+            "This wasn’t ideal since it compromised our redundancy"
+          ]
+        },
+        {
+          "texto": "GitHub.com was put into maintenance mode.",
+          "trechos": [
+            "We put GitHub.com into maintenance mode."
+          ]
+        },
+        {
+          "texto": "Both aggregation switches were downgraded to the previous software version.",
+          "trechos": [
+            "We downgraded both aggregation switches to the previous software version."
+          ]
+        },
+        {
+          "texto": "For each stopped fileserver pair, the previously active node was identified (from centralized log data, or by booting one node without fileserver resources and examining its local logs) so it could be brought back as active.",
+          "trechos": [
+            "In most cases it was straightforward for us to determine which node was the active node when the fileserver pair went down by reviewing our centralized log data.",
+            "In some cases, though, the log information was inconclusive and we had to boot up one node in the pair without starting the fileserver resources, examine its local log files, and make a determination about which node should be active."
+          ]
+        },
+        {
+          "texto": "A large percentage of the file storage infrastructure was restarted, validated and checked for replication between pairs; the site was kept in maintenance mode until every pair was recovered and returned to service at 20:23 PST.",
+          "trechos": [
+            "This recovery was a very time consuming process and we made the decision to leave the site in maintenance mode until we had recovered every fileserver pair.",
+            "That process took over five hours to complete because of how widespread the problem was; we had to restart a large percentage of the the entire GitHub file storage infrastructure, validate that things were working as expected, and make sure that all of the pairs were properly replicating between themselves again.",
+            "This process, proceeded without incident and we returned the site to service at 20:23 PST."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "The network vendor plans to revisit the MLAG timeouts so that more time is given for link failure to be detected.",
+          "trechos": [
+            "While it behaved as designed, our vendor plans to revisit the respective timeouts so that more time is given for link failure to be detected to guard against this type of event."
+          ]
+        },
+        {
+          "texto": "Postpone software upgrades to the aggregation network until a functional duplicate of production exists in staging to test against (work already underway); meanwhile monitor for the MAC address learning problems and apply a workaround as necessary.",
+          "trechos": [
+            "We are postponing any software upgrades to the aggregation network until we have a functional duplicate of our production environment in staging to test against. This work was already underway.",
+            "In the mean time, we will continue to monitor for the MAC address learning problems that we discussed in our previous report and apply a workaround as necessary."
+          ]
+        },
+        {
+          "texto": "Place the fileservers' high availability software into maintenance mode, so it takes no automated failover actions, before any network change at the switching level.",
+          "trechos": [
+            "From now on, we will place our fileservers high availability software into maintenance mode before we perform any network changes, no matter how minor, at the switching level.",
+            "This allows the servers to continue functioning but will not take any automated failover actions."
+          ]
+        },
+        {
+          "texto": "Work with the hosting provider to address cluster communication between fileserver nodes relying on network infrastructure.",
+          "trechos": [
+            "The fact that the cluster communication between fileserver nodes relies on any network infrastructure has been a known problem for some time. We’re actively working with our hosting provider to address this."
+          ]
+        },
+        {
+          "texto": "Review all high availability configurations to make sure the failover behavior is appropriate.",
+          "trechos": [
+            "We are reviewing all of our high availability configurations with fresh eyes to make sure that the failover behavior is appropriate."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text dates the incident only as 'Saturday, December 22nd' without a year, so data_incidente is null. Duration is null because the text gives the end (20:23 PST) but not the exact start of the impact (forensic gathering began at 1215 PST; recovery took 'over five hours'). Domain classified as software_servicos because the failure was in switch failover logic (logical network), not physical links. categoria_causa is other: the failure is a layer-2 MLAG failover and spanning-tree reconvergence, not routing ('network-bgp: routing itself failed'). The network was monitored for about thirty minutes after the downgrade before recovery began.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.11"
+  }
+}

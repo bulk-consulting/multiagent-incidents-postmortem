@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-095",
+  "triagem": {
+    "catalogo": "parcial",
+    "autoria": "primaria",
+    "tipo": "relatorio_periodico",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "A foreign key for scoped tokens exceeded max INT32, causing high failure rates for GitHub Actions and GitHub Pages and preventing some GitHub API and git operations that used scoped tokens. It was mitigated with a long-running schema migration of the foreign key to INT64, followed by slowly removing invalid token records from the cache layer, after which API calls resumed working.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "GitHub Actions",
+      "GitHub Pages",
+      "GitHub API",
+      "git operations using scoped tokens"
+    ],
+    "tecnologias": [
+      "foreign key",
+      "INT32",
+      "INT64",
+      "cache layer",
+      "scoped tokens"
+    ],
+    "categoria_causa": "database-storage",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A foreign key for scoped tokens exceeded max INT32 (an integer overflow in the database).",
+        "trechos": [
+          "This incident was caused when a foreign key for scoped tokens exceeded max INT32, which resulted in high failure rates for GitHub Actions and GitHub Pages.",
+          "Alerting and linting are already in place to help prevent integer overflows in the database."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Existing alerting and linting for integer overflows in the database were not sufficient because the foreign key predated the linting.",
+        "trechos": [
+          "Alerting and linting are already in place to help prevent integer overflows in the database.",
+          "Unfortunately, these mechanisms were not sufficient in this case due to it being a foreign key that predated our linting."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "A long-running schema migration changed the foreign key from INT32 to INT64.",
+          "trechos": [
+            "We mitigated this with a long-running schema migration to change the foreign key to INT64.",
+            "Once the foreign key migration was successful, the internal engineering teams then worked to slowly remove token records stored in our cache layer that were considered invalid."
+          ]
+        },
+        {
+          "texto": "After the migration succeeded, token records in the cache layer considered invalid were slowly removed; newly created API tokens then generated new records and API calls resumed working.",
+          "trechos": [
+            "Once the foreign key migration was successful, the internal engineering teams then worked to slowly remove token records stored in our cache layer that were considered invalid.",
+            "After these cached records were removed, newly created API tokens were able to generate new records and API calls resumed working as expected."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Manually audit all INT32 columns and investigate further improvements to automation to help prevent such integer overflow issues.",
+          "trechos": [
+            "In response, we are manually auditing all our INT32 columns and investigating further improvements to our automation to help prevent these types of issues moving forward."
+          ]
+        },
+        {
+          "texto": "Under way: work on tooling to prevent database inconsistencies and improved alerting to allow faster remediation.",
+          "trechos": [
+            "This work includes tooling to prevent database inconsistencies and improved alerting to allow faster remediation."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The document is a monthly availability report covering two incidents; only the scoped-token INT32 overflow incident was extracted (the other, MySQL failures affecting the GitHub Container registry, was ignored). The text dates it only as 'May' with no year and gives no duration. Due to the overflow, a single GitHub Action on a single repository received unauthorized access grants for a short period; the grants were revoked and the company confirmed no unauthorized access was gained, so seguranca is nao.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.11"
+  }
+}

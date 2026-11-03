@@ -7,6 +7,12 @@ interno. Em cada chat novo anexam-se 2 arquivos: o prompt e o pacote da ficha.
 
 Uso (a partir da raiz do repositório):
     multiagent_env/bin/python ingestion/fichas/montar_revisao.py 01
+    multiagent_env/bin/python ingestion/fichas/montar_revisao.py 01 --colar   # também gera colar/: prompt
+                                                                               # + pacote num arquivo só, para
+                                                                               # colar como texto (sem anexos)
+    multiagent_env/bin/python ingestion/fichas/montar_revisao.py 06 --amostra  # só as fichas `baixa` + 3 `alta`
+                                                                               # sorteadas (semente = número do lote);
+                                                                               # fichas nao_verificavel ficam de fora
 
 Lê:
     ingestion/fichas/saida_lotes/lote_NN/DAN-xxx.json
@@ -17,6 +23,7 @@ Saída (a pasta é recriada):
 from __future__ import annotations
 
 import json
+import random
 import re
 import sys
 from pathlib import Path
@@ -84,22 +91,36 @@ source URL: {url}
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
+    args = sys.argv[1:]
+    colar = "--colar" in args
+    amostra = "--amostra" in args
+    args = [a for a in args if a not in ("--colar", "--amostra")]
+    if len(args) != 1:
         sys.exit(__doc__)
-    lote = sys.argv[1].zfill(2)
+    lote = args[0].zfill(2)
     origem = PASTA / "saida_lotes" / f"lote_{lote}"
     fichas = sorted(origem.glob("DAN-*.json"))
     if not fichas:
         sys.exit(f"Nenhuma ficha em {origem.relative_to(ROOT)}")
+    if amostra:
+        dados = {c: json.loads(c.read_text(encoding="utf-8")) for c in fichas}
+        baixas = [c for c in fichas if dados[c]["confianca"] == "baixa" and dados[c]["incidente"]]
+        altas = [c for c in fichas if dados[c]["confianca"] == "alta" and dados[c]["incidente"]]
+        sorteadas = sorted(random.Random(int(lote)).sample(altas, min(3, len(altas))))
+        fichas = sorted(baixas + sorteadas)
+        print("amostra: " + ", ".join(f"{c.stem} ({dados[c]['confianca']})" for c in fichas))
 
     destino = ROOT / "revisao" / f"lote_{lote}"
     destino.mkdir(parents=True, exist_ok=True)
-    for velho in destino.iterdir():
-        velho.unlink()
+    for velho in destino.rglob("*"):
+        if velho.is_file():
+            velho.unlink()
 
     prompt = (PASTA / "prompt_extracao.md").read_text(encoding="utf-8")
-    (destino / "prompt_extracao.md").write_text(
-        re.sub(r"\A<!--.*?-->\s*", "", prompt, flags=re.S), encoding="utf-8")
+    prompt = re.sub(r"\A<!--.*?-->\s*", "", prompt, flags=re.S)
+    (destino / "prompt_extracao.md").write_text(prompt, encoding="utf-8")
+    if colar:
+        (destino / "colar").mkdir(exist_ok=True)
 
     for caminho in fichas:
         ficha = json.loads(caminho.read_text(encoding="utf-8"))
@@ -113,6 +134,13 @@ def main() -> None:
             ficha=json.dumps(ficha, ensure_ascii=False, indent=2),
         )
         (destino / f"{cid}_revisao.md").write_text(texto, encoding="utf-8")
+        if colar:
+            junto = re.sub(r"Anexos: .*?traz o documento original e a ficha\.",
+                           "Esta mensagem traz, nesta ordem: este pedido, o documento original, a ficha e, por último,\n"
+                           "o `prompt_extracao.md` (regras e definições usadas para gerar a ficha; ignore o bloco INPUT no final).",
+                           texto, count=1, flags=re.S)
+            junto += "\n---\n\n## prompt_extracao.md\n\n" + prompt
+            (destino / "colar" / f"{cid}_colar.md").write_text(junto, encoding="utf-8")
     print(f"{len(fichas)} pacotes -> {destino.relative_to(ROOT)}/")
 
 

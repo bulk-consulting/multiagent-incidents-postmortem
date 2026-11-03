@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-128",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "In the EVE Online client, Stackless Python tasklets occasionally never woke up from sleep (e.g. the drone window stopped updating) because a freed channel object could be reused by a newly sleeping tasklet, so removing a killed tasklet's sleeper by channel pointer removed the wrong tasklet from the heap. The fix moved the Py_DECREF calls into Synchro::SleepWallclock so channel objects are not recycled prematurely.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": ["EVE Online client (drone window)"],
+    "tecnologias": ["Stackless Python", "tasklets", "C++", "PyStackless_RunWatchdogEx", "Synchro::SleepWallclock", "Synchro::Tick", "Synchro::RemoveSleeper", "Py_DECREF"],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The drone window sometimes stopped updating when drones were being recalled; added logging showed the window went to sleep and never woke up, so tasklets were occasionally not returning from sleep.",
+        "trechos": [
+          "an issue she had been looking into with the drone window, where it sometimes would stop updating when drones are being recalled.",
+          "After the last repro, it became clear that it was failing at the least expected line of code - the drone window simply started updating, then went to sleep for a bit, but never woke up again - it seemed that tasklets were on occasion simply not returning from their sleep."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The sleep channel object is freed by Py_DECREF in Synchro::Tick, making its memory available for reuse. A tasklet that goes to sleep on the same tick as a tasklet is killed exactly when it wanted to wake up can get the same channel pointer; RemoveSleeper, which finds the killed tasklet's sleeper by comparing channels, then removes the wrong tasklet from the heap and releases its channel, leaving it neither scheduled nor blocked.",
+        "trechos": [
+          "There are no references added, so the channel object is deleted in Tick when it calls Py\\_DECREF.",
+          "In RemoveSleeper, which is called after a tasklet has been killed we're comparing channel objects.",
+          "When a channel object is deleted, its memory is now free and available for reuse.",
+          "This implies that a tasklet that goes to sleep on the same tick as a tasklet is killed exactly when it wanted to wake up can get the same channel pointer as the killed tasklet.",
+          "RemoveSleeper will in that case remove the wrong tasklet (the one that just called SleepWallclock) from the heap, kill it's channel, leaving it in a non-scheduled, non-blocked state."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The bug was very difficult to reproduce; it did not reproduce in the authoring/debugging tool without the client, and related symptoms have been nearly impossible to reproduce though reported occasionally, especially after mass tests or heavy fights.",
+        "trechos": [
+          "The original bug was quite difficult to reproduce, but CCP karkur put together a script that generated 500,000 tasklets that simply sleep for some given time, with some tracking to identify tasklets that never finish.",
+          "My first attempts at reproducing the bug with CCP karkur's script were not successful - I was running in Jessica (our authoring/debugging tool) without the client and didn't seem to have any luck.",
+          "These bugs have always been nearly impossible to reproduce but nevertheless are reported occasionally, especially after mass tests or heavy fights on Tranquility."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The Py_DECREF calls were moved into Synchro::SleepWallclock so that channel objects are not recycled prematurely, resolving the bug.",
+          "trechos": [
+            "The fix is simple - move the Py\\_DECREF calls into SleepWallclock.",
+            "This ensures that channel objects are not recycled prematurely, and in my opinion is actually cleaner, keeping the reference counting localized in one function.",
+            "# Sleeping beauty - How one of the oldest bugs in EVE got hunted down and resolved"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "ausentes",
+      "acoes": []
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "This is a developer blog post about a long-standing client bug rather than a time-bounded outage, so there is no date or duration. The author mentions an intention to add unit tests for the sleeper heap code, but that code was ruled out as the cause, so it is not listed as prevention. The authors have reason to believe other bugs (the overview, or shield, armor and structure bars not updating) are symptoms of the same issue.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.11" }
+}

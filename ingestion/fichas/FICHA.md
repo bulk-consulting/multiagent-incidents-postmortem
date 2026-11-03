@@ -1,6 +1,6 @@
 # Ficha de post-mortem — formulário
 
-**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.11
+**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.12
 
 Cada documento do danluu vira uma ficha `DAN-xxx.json`. A ficha **não substitui** o texto original: o RAG continua indexando e citando o original. A ficha organiza o que o texto diz, para triagem, metadados e chunking.
 
@@ -126,6 +126,7 @@ Regra do IPA mantida: **classificar pela origem, não pelo efeito**. A categoria
 - **v2.9** (revisão do lote 02: 21 ERRADOS em 10 fichas, metade de trecho que não prova o texto; 4 de 5 `baixa` sem dúvida real): passo obrigatório de verificação detalhe a detalhe (todo nome, número, hora e resultado do texto aponta para um trecho da mesma afirmação); `motivo_confianca_baixa` precisa dizer por que a definição do campo não decide; mitigação só até o fim do impacto (o que vem depois vai para prevenção como "Already done").
 - **v2.10** (revisão do lote 03: 15 ERRADOS em 10 fichas; 0 `baixa`, nenhuma dúvida escondida): passos de resposta (abrir incidente, montar equipe, investigar, detectar, comunicar) não são mitigação; funcionamento normal do sistema e mitigação repetida não são fator contribuinte; `rodape_marketing` inclui rodapé de lista de e-mail e de site.
 - **v2.11** (revisão do lote 04: 14 ERRADOS em 9 fichas; 4 de 5 `baixa` com dúvida legítima): pedido a outra equipe ("asked X to") não é feito; detecção sem passos de resposta; fator contribuinte não é afirmação sobre pessoa; cabeçalho dentro do texto extraído vale para a data; verificação detalhe a detalhe também em cada passo de mitigação e ação de prevenção.
+- **v2.12** (revisão do lote 05: 15 ERRADOS em 10 fichas; taxa estável em ~1,5 por ficha desde o lote 03): objetivo ("to determine", "to ensure") não é resultado; "decided at X" numa timeline não é "did at X"; horário vindo de parágrafo de resumo entra como trecho; software de controle de sistemas físicos do data center é `infra_fisica_datacenter`; bug antigo sem queda delimitada tem duração `null` e a correção é a mitigação. A partir do lote 06, a sessão de extração faz uma autorrevisão ([`autorrevisao.md`](autorrevisao.md)) e a conferência no GPT passa a ser por amostra.
 
 ## Validação
 

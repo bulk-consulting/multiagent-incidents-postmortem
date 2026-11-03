@@ -1,0 +1,191 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-018",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A dashboard bug caused repeated, unnecessary calls to the Tenant Service API; together with a Tenant Service update this overwhelmed the service, and because it is part of API request authorization, many APIs and the Cloudflare Dashboard failed. Adding resources and rate limiting helped but were insufficient; availability returned to 100% after the problematic Tenant Service change was reverted.",
+    "data_incidente": "2025-09-12",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Tenant Service API",
+      "Cloudflare Dashboard",
+      "Cloudflare API"
+    ],
+    "tecnologias": [
+      "React",
+      "useEffect",
+      "GoLang",
+      "Kubernetes",
+      "Argo Rollouts"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "An increase in API usage was seen; the team noticed increased usage across the Tenant Service.",
+        "trechos": [
+          "We immediately saw an increase in our API usage but found it difficult to identify which requests were retries vs new requests.",
+          "In this case we noticed increased usage across our Tenant Service, so we focused on reducing the load and increasing the available resources."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A bug in a new dashboard version caused repeated, unnecessary calls to the Tenant Service API: a problematic object included in a React useEffect hook's dependency array was recreated on every state or prop change, so the useEffect re-ran each time and the API call executed many times during a single dashboard render instead of once.",
+        "trechos": [
+          "The incident’s impact stemmed from several issues, but the immediate trigger was a bug in the dashboard. This bug caused repeated, unnecessary calls to the Tenant Service API.",
+          "The API calls were managed by a React useEffect hook, but we mistakenly included a problematic object in its dependency array.",
+          "Because this object was recreated on every state or prop change, React treated it as “always new,” causing the useEffect to re-run each time.",
+          "As a result, the API call executed many times during a single dashboard render instead of just once.",
+          "A new version of the Cloudflare Dashboard is released which contains a bug that will trigger many more calls to the /organizations endpoint, including retries in the event of failure."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The dashboard behavior coincided with a service update to the Tenant Service API, compounding instability and ultimately overwhelming the service, which then failed to recover.",
+        "trechos": [
+          "This behavior coincided with a service update to the Tenant Service API, compounding instability and ultimately overwhelming the service, which then failed to recover.",
+          "2025-09-12 17:50 | A new version of the Tenant API Service is deployed."
+        ]
+      },
+      {
+        "texto": "The Tenant Service is part of the API request authorization logic; without it authorization cannot be evaluated and API requests return 5xx status codes, so its overload impacted other APIs and the dashboard.",
+        "trechos": [
+          "When the Tenant Service became overloaded, it had an impact on other APIs and the dashboard because Tenant Service is part of our API request authorization logic.",
+          "Without Tenant Service, API request authorization can not be evaluated. When authorization evaluation fails, API requests return 5xx status codes."
+        ]
+      },
+      {
+        "texto": "The Tenant Service was not allocated sufficient capacity to handle spikes in load like this.",
+        "trechos": [
+          "Finally, the Tenant Service was not allocated sufficient capacity to handle spikes in load like this."
+        ]
+      },
+      {
+        "texto": "When the Tenant Service was restarted, every dashboard began to re-authenticate with the API at once (a thundering herd), making the API unstable again; this was amplified by the dashboard bug.",
+        "trechos": [
+          "When we restarted the Tenant Service, everyone’s dashboard began to re-authenticate with the API. This caused the API to become unstable again causing issues with everyone’s dashboard.",
+          "This pattern is a common one often referred to as a Thundering Herd.",
+          "This is common, but was amplified by the bug in our dashboard logic."
+        ]
+      },
+      {
+        "texto": "It was difficult to tell retries from new requests, which made it harder to identify the issue as a loop in the dashboard.",
+        "trechos": [
+          "We immediately saw an increase in our API usage but found it difficult to identify which requests were retries vs new requests.",
+          "Had we known that we were seeing a sustained large volume of new requests, it would have made it easier to identify the issue as a loop in the dashboard."
+        ]
+      },
+      {
+        "texto": "The Tenant Service had not yet been migrated to Argo Rollouts, which automatically rolls back on detected errors; the authors state it would have automatically rolled back the second Tenant Service update, limiting the second outage.",
+        "trechos": [
+          "We use Argo Rollouts for releasing, which monitors deployments for errors and automatically rolls back that service on a detected error.",
+          "We’ve been migrating our services over to Argo Rollouts but have not yet updated the Tenant Service to use it. Had it been in place, we would have automatically rolled back the second Tenant Service update limiting the second outage."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A new version of the Cloudflare Dashboard was released containing a bug: a problematic object in the dependency array of the React useEffect hook that managed the Tenant Service API calls.",
+        "trechos": [
+          "2025-09-12 16:32 | A new version of the Cloudflare Dashboard is released which contains a bug that will trigger many more calls to the /organizations endpoint, including retries in the event of failure.",
+          "The API calls were managed by a React useEffect hook, but we mistakenly included a problematic object in its dependency array."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "More resources were provided to the Tenant API Service, including more pods; the Cloudflare API climbed to 98% availability but the dashboard did not recover.",
+          "trechos": [
+            "We increased the number of pods available as well to help improve throughput.",
+            "2025-09-12 18:17 | After providing more resources to the Tenant API Service, the Cloudflare API climbs to 98% availability, but the dashboard does not recover."
+          ]
+        },
+        {
+          "texto": "In an attempt to restore dashboard availability, some erroring codepaths were removed and a new Tenant Service version was released; this change caused API impact again.",
+          "trechos": [
+            "2025-09-12 18:58 | In an attempt to restore dashboard availability, some erroring codepaths were removed and a new version of the Tenant Service is released. This was ultimately a bad change and causes API Impact again."
+          ]
+        },
+        {
+          "texto": "A temporary global rate limiting rule was published on the Tenant Service to relieve traffic against it.",
+          "trechos": [
+            "We installed a global rate limit on the Tenant Service to help regulate the load.",
+            "2025-09-12 19:01 | In an effort to relieve traffic against the Tenant API Service, a temporary ratelimiting rule is published."
+          ]
+        },
+        {
+          "texto": "The problematic changes to the Tenant API Service were reverted, and Dashboard Availability returned to 100%.",
+          "trechos": [
+            "2025-09-12 19:12 | The problematic changes to the Tenant API Service are reverted, and Dashboard Availability returns to 100%."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Increase the priority of the already scheduled migration of the Tenant Service to Argo Rollouts, which automatically rolls back a service on a detected error.",
+          "trechos": [
+            "We’ve been migrating our services over to Argo Rollouts but have not yet updated the Tenant Service to use it.",
+            "We use Argo Rollouts for releasing, which monitors deployments for errors and automatically rolls back that service on a detected error.",
+            "This work had already been scheduled by the team and we’ve increased the priority of the migration."
+          ]
+        },
+        {
+          "texto": "Already done: a hotfix for the dashboard behavior was released shortly after the impact was over.",
+          "trechos": [
+            "The fix for this behavior has already been released via a hotfix shortly after the impact was over."
+          ]
+        },
+        {
+          "texto": "Introduce dashboard changes that include random delays to spread out retries and reduce contention.",
+          "trechos": [
+            "We’ll be introducing changes to the dashboard that include random delays to spread out retries and reduce contention as well."
+          ]
+        },
+        {
+          "texto": "Already done: substantially more resources were allocated to the Tenant Service; monitoring is being improved to alert proactively before the service hits capacity limits.",
+          "trechos": [
+            "We’ve allocated substantially more resources to this service, and are improving the monitoring so that we will be proactively alerted before this service hits capacity limits."
+          ]
+        },
+        {
+          "texto": "Add information to dashboard API calls, including whether a request is a retry or a new request.",
+          "trechos": [
+            "We are adding changes to how we call our APIs from our dashboard to include additional information, including if the request is a retry or new request."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 75,
+      "trechos": [
+        "2025-09-12 17:57 | The Tenant API Service becomes overwhelmed as new versions are deploying. Dashboard Availability begins to drop IMPACT START",
+        "2025-09-12 19:12 | The problematic changes to the Tenant API Service are reverted, and Dashboard Availability returns to 100%. IMPACT END"
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration computed from the timeline's IMPACT START (17:57 UTC) and IMPACT END (19:12 UTC). The text says the automatic alerting service identified the people to join the call, but not what first detected the problem, so detection form is nao_informada.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.11"
+  }
+}

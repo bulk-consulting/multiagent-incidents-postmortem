@@ -1,5 +1,5 @@
 <!--
-Prompt de extração da ficha (peça 2). Versão: v2.11.
+Prompt de extração da ficha (peça 2). Versão: v2.12.
 v1 guardada em prompt_extracao_v1.md. Mudanças da v2 (revisão do piloto, ver FICHA.md):
 regra 2 (trechos sustentam todo detalhe do texto), regras 3 e 4 novas (causalidade e plano x feito),
 gatilho x causa raiz, categoria pela causa raiz, detecção, resumo com desfecho, mitigação com a correção concreta.
@@ -21,11 +21,13 @@ v2.10 (revisão do lote 03, 15 ERRADOS em 10 fichas): mitigação sem passos de 
 rodape_marketing inclui rodapé de lista de e-mail e de site.
 v2.11 (revisão do lote 04, 14 ERRADOS em 9 fichas): pedido a outra equipe não é feito; detecção sem resposta; fator não é sobre pessoa;
 cabeçalho no texto vale para a data; verificação detalhe a detalhe também em cada passo da mitigação.
+v2.12 (revisão do lote 05, 15 ERRADOS em 10 fichas): objetivo não é resultado; "decided at X" não é "did at X"; horário de parágrafo de resumo;
+software de controle físico do data center; bug antigo sem queda delimitada.
 Escrito em inglês de propósito (ver FICHA.md, seção "Idioma").
 A parte entre ===== INPUT ===== é preenchida para cada documento.
 -->
 
-# Post-mortem extraction — prompt v2.11
+# Post-mortem extraction — prompt v2.12
 
 You are extracting a structured record ("ficha") from one public incident post-mortem. The record will be used by an incident-diagnosis assistant that must **never state anything the source does not say**. Your job is to organize what the text says, with proof. You are not writing a post-mortem, summarizing for readers, or judging the company.
 
@@ -39,7 +41,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
    - **The `trechos` of a claim must support every detail of its `texto` on their own**: names, dates, times, numbers, who did or recommended something, and results. A reader must not need any other part of the document to check the claim. If a detail is not in the `trechos`, add the passage that states it or remove the detail.
    - If a `trecho` refers back with "this", "these metrics", "it", "the change", "at this point", "something", "that fix", add the passage that says what it refers to. A number or a name in the `texto` (a TTL value, a version, who recommended something) must appear in a `trecho` of that same claim.
 3. **No causal links the text does not state.** Do not connect two facts with "so", "which caused", "until", "because" unless the document states that link. "At the same time" or "we then noticed" is not "because". "X happened, and eventually they identified Y" is not "Y caused X": write it in the text's order. If the document only suggests a link, keep its wording ("the authors consider it likely that…").
-4. **Done is not planned.** Keep apart what was done from what was planned or proposed ("this process would involve", "we will", "we are looking into", "we figured it was worth trying"). A planned step is described as planned, never as done. The other way round too: an action already done that appears among future actions is marked "Already done:". If the passage you found only proposes a step, add the passage that confirms it was carried out ("shortly after making those changes…", "the downgrade was successful"). **Tried is not achieved either**: "focused on recovering", "worked to", "tried to", "devised a fix", "scheduled", "asked the data center team to reboot", "called X to" describe effort, intent or a request; write them that way; write them that way, never as a result ("recovered", "fixed", "deployed").
+4. **Done is not planned.** Keep apart what was done from what was planned or proposed ("this process would involve", "we will", "we are looking into", "we figured it was worth trying"). A planned step is described as planned, never as done. The other way round too: an action already done that appears among future actions is marked "Already done:". If the passage you found only proposes a step, add the passage that confirms it was carried out ("shortly after making those changes…", "the downgrade was successful"). **Tried is not achieved either**: "focused on recovering", "worked to", "tried to", "devised a fix", "scheduled", "asked the data center team to reboot", "called X to" describe effort, intent or a request; write them that way. **A purpose is not a result**: "tested X to determine that it has no effect", "to ensure", "to check" state what the test was for, not what it found. **In timelines, "at 19:15 the decision was made to scale" is a decision**: write "decided at 19:15", and state that it was done only if another passage says so; write them that way, never as a result ("recovered", "fixed", "deployed").
 5. **Keep the certainty of the source.** If the text says "we believe", "likely", "appears", "we suspect", "still investigating", your `texto` must keep that uncertainty. Never turn a hypothesis into a fact.
 6. **Neutral and blameless.** Describe systems and conditions, not people. No judgment words (careless, negligent, terrible, etc.). Do not name individuals.
 7. **When in doubt, choose the weaker option** (e.g. `incerta` over `concreta`, `generica` over `especifica`). If, after applying every rule below, two values still fit a field, choose the weaker one and set `confianca` to `baixa` (see `confianca`).
@@ -51,7 +53,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
 2. Fill `triagem` (what kind of document this is).
 3. If `catalogo` is `nao` or `nao_verificavel`: set the four other classification fields to `null`, set `incidente` to `null`, and stop.
 4. Otherwise fill `incidente`, field by field, finding the `trechos` first and writing `texto` from them.
-5. **Detail check, claim by claim (mandatory).** For each `texto`, list every name, number, date, time, place, actor and result it states (e.g. "20:50 UTC", "mrsync", "the main MySQL database", "brought the app back up", "the next morning"). For each item, find the `trecho` of **that same claim** that contains it. If none does, add the passage that states it (a timeline row with its timestamp, the sentence that names the tool, the sentence that confirms the result) or remove the detail. A detail you cannot find anywhere in the document must be removed. Do this for **every step of `mitigacao` and every action of `prevencao`** too: in long documents these steps gather details (hardware sizes, percentages, who was asked, what was checked) from several paragraphs, and each one needs its own `trecho`.
+5. **Detail check, claim by claim (mandatory).** For each `texto`, list every name, number, date, time, place, actor and result it states (e.g. "20:50 UTC", "mrsync", "the main MySQL database", "brought the app back up", "the next morning"). For each item, find the `trecho` of **that same claim** that contains it. If none does, add the passage that states it (a timeline row with its timestamp, the sentence that names the tool, the sentence that confirms the result) or remove the detail. A detail you cannot find anywhere in the document must be removed. Times often appear only in a summary paragraph ("unavailable from 16:06 to 18:53 UTC") far from the step that uses them; add that summary sentence as a `trecho` of the step. Do this for **every step of `mitigacao` and every action of `prevencao`** too: in long documents these steps gather details (hardware sizes, percentages, who was asked, what was checked) from several paragraphs, and each one needs its own `trecho`.
 6. Check, claim by claim: remove any causal link the text does not state (rule 3); check that nothing planned or merely attempted is written as done (rule 4); every enum value is from the lists below; uncertainty is preserved ("may have" stays "may have", also in `resumo`).
 7. Check `confianca` with the checklist in that section.
 8. Output the JSON.
@@ -77,7 +79,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
 
 **`dominio`** — classify by the **origin** of the problem, not its effect.
 - `software_servicos`: software, configuration, deployment, database, logical network, cloud, dependencies.
-- `infra_fisica_datacenter`: power, cooling, hardware or physical network **inside a data center**.
+- `infra_fisica_datacenter`: power, cooling, hardware or physical network **inside a data center**, including the software that controls these physical systems (a cooling or power control system with a bug).
 - `seguranca`: the origin is a malicious action (intrusion, stolen credentials, malicious package, supply-chain attack).
 - `fora_de_ti`: not an IT system (public power grid, aviation, space, healthcare, ships, industrial plants). Embedded software in such systems is still `fora_de_ti`.
 
@@ -159,6 +161,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
 - **A duration the text states explicitly ("approximately an hour", "Duration: 3 hours") wins over one computed from times, but only if it measures the impact.** The length of the attack, of the power outage or of a window in which data may have been exposed is not the impact when service came back later. Compute only when no impact duration is stated, and then include both passages. If the text does not say when service came back, `null`.
 - If the text states two different durations, use the later or final report and note the other in `observacoes`.
 - Vague amounts ("several hours", "more than two hours") → `null`.
+- **A long-standing bug without a bounded outage** (it happened from time to time over months or years): `duracao` is `null`, and the code fix that ended it is the `mitigacao` step; do not repeat it in `prevencao`.
 
 **`perguntas_em_aberto`** — things the text **explicitly** says remain unknown or under investigation. Empty list if none. Do not add your own questions, and do not turn a hedged cause ("likely") into a question: that is already `causa_raiz.status = incerta`.
 
@@ -202,7 +205,7 @@ Return **only** one JSON object, no comments, no Markdown fences, matching this 
   "confianca": "alta" | "baixa",
   "motivo_confianca_baixa": "..."   (only when confianca is "baixa"),
   "observacoes": "..."              (optional),
-  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.11" }
+  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.12" }
 }
 
 ===== INPUT =====
