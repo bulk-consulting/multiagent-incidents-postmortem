@@ -1,0 +1,145 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-147",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "From 14:11 to 15:13 UTC on August 29th, 2018, Duo's DUO1 deployment had increased authentication latency and intermittent request timeouts: during an influx of requests, requests queued in the application while waiting for a database connection built up a backlog the database could not recover from, even after traffic subsided and request limits were applied. Flushing these queues on each application server stabilized the platform.",
+    "data_incidente": "2018-08-29",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "DUO1 deployment",
+      "Core Authentication Service",
+      "Push Delivery",
+      "Phone Call Delivery",
+      "SMS Message Delivery"
+    ],
+    "tecnologias": [],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The first status update reports an elevated level of slow or failed authentication requests on the DUO1 deployment, without saying how it was noticed.",
+        "trechos": [
+          "We are monitoring an elevated level of slow or failed authentication requests affecting our DUO1 deployment."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "An influx of inbound requests during a period of significantly increased traffic, with no recent software deployment.",
+      "trechos": [
+        "On August 29th, we experienced a similar capacity issue, but in this case we had not recently deployed new software.",
+        "In response to this issue, we applied request limits to our platform in an effort to manage an influx of inbound requests and stabilize the platform, but these efforts proved ineffective.",
+        "This increased usage is what has resulted in requests queueing up in periods of significantly increased traffic."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The application queues requests while waiting for a database connection, with no maximum queue size. With DUO1 overall usage still higher than acceptable, queued requests built up so that the database could not recover while processing the large backlog, even after traffic subsided and request limits were in place; the text describes this as a cascading failure resulting from the database getting backed up.",
+        "trechos": [
+          "After further debugging, we determined that limiting was ineffective because of the way our application queues requests while waiting for a database connection.",
+          "In this case, these queued requests had built up in such a way that the database could not recover as it tried to process this large backlog of requests, even after traffic subsided and the limits where in place.",
+          "On August 29th, we implemented a max limit to this queue.",
+          "This will help prevent the cascading failure scenario that is a result of the database getting backed up.",
+          "In addition, despite our best efforts to optimize things on DUO1, overall usage is still at higher than acceptable levels."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Analysis of the earlier August 20th outage found a combination of factors (types of requests, background jobs, inefficient queries, automatic retry mechanisms) contributing to capacity issues, while traffic and load on DUO1 continued to grow.",
+        "trechos": [
+          "From that point, the DUO1 deployment was stable but traffic and load continued to grow.",
+          "After further review of the data surrounding the incident, it was determined that the outage was not solely the result of the software release in question, but ultimately a combination of factors (types of requests, background jobs, inefficient queries, automatic retry mechanisms, etc.) all contributing to capacity issues."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Request limits were applied to the platform to manage the influx of requests, but proved ineffective.",
+          "trechos": [
+            "In response to this issue, we applied request limits to our platform in an effort to manage an influx of inbound requests and stabilize the platform, but these efforts proved ineffective."
+          ]
+        },
+        {
+          "texto": "Once the queueing problem was identified, the request queues were flushed on each application server and the platform immediately began to stabilize.",
+          "trechos": [
+            "Once this problem was identified, these queues were flushed on each application server and things immediately began to stabilize."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: on August 29th a maximum limit was implemented on the request queue, so requests over the limit are proactively rejected instead of queued.",
+          "trechos": [
+            "On August 29th, we implemented a max limit to this queue.",
+            "If we attempt to go over the limit, we'll start proactively rejecting the requests instead of queuing them up, which is better for both the Duo service and the clients making the requests if these requests are not going to complete in a timely fashion."
+          ]
+        },
+        {
+          "texto": "Already done: monitoring of the queue depth was set up so the team is alerted if it starts to back up.",
+          "trechos": [
+            "We also setup monitoring for this queue depth so our team will be alerted if its starting to back up."
+          ]
+        },
+        {
+          "texto": "Already done: a number of customer accounts were migrated off DUO1 since August 29th; further migrations will be evaluated.",
+          "trechos": [
+            "We have already migrated a number of customer accounts off of DUO1 since August 29th, which has provided additional available capacity. Further migrations will be evaluated as necessary to determine risk and potential impact, and will be coordinated with the customers in question."
+          ]
+        },
+        {
+          "texto": "Double DUO1's database capacity on Saturday, September 1st at 11:00AM UTC, with an expected 1 to 7 minutes of downtime.",
+          "trechos": [
+            "We will double DUO1's database capacity on Saturday, September 1st at 11:00AM UTC.",
+            "We expect between 1 and 7 minutes based on prior testing."
+          ]
+        },
+        {
+          "texto": "Finalize for production in Q4 2018 a re-architected database tier that homes customers to a specific database server within a deployment, so capacity can be added on demand for those customers.",
+          "trechos": [
+            "We’ve been actively re-architecting the database tier of our deployments so that we can home customers to a specific database server within a deployment.",
+            "We’ve been exercising this technology in our non-production environments for some time, and have prioritized finalizing this for production usage in Q4, 2018."
+          ]
+        },
+        {
+          "texto": "Incorporate lessons from these outages into the ongoing capacity planning process so DUO deployments operate with the necessary headroom.",
+          "trechos": [
+            "We will take lessons learned from these outages and incorporate them into our ongoing capacity planning process to ensure our DUO deployments are always operating with necessary headroom."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 62,
+      "trechos": [
+        "From 14:11 to 15:13 UTC on August 29th, 2018, the DUO1 deployment experienced performance degradation that resulted in increased authentication latency and intermittent request timeouts for all customer applications protected by the Duo service on this deployment."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "categoria_causa: capacity-load vs cascading-failure. The root cause is an unbounded application request queue that built a backlog the database could not process while DUO1 usage was above acceptable levels, with no configuration change; 'capacity-load: load, limits or capacity exhausted without a configuration change' fits. The text itself calls it 'the cascading failure scenario that is a result of the database getting backed up', and 'cascading-failure: one component's degradation propagated through dependencies' fits if the database backlog is read as degradation propagating to the application servers. Neither definition excludes the other here.",
+  "observacoes": "The document also covers an earlier DUO1 outage on August 20th, which the authors say had the same root cause; it was resolved by a software rollback and service restart, which in hindsight flushed the same queues. The status updates use EDT (issue subsided 11:21 EDT, resolved 13:02 EDT), while the postmortem gives the impact window in UTC. Software optimizations after August 20th are also described as already done.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.19"
+  }
+}

@@ -1,0 +1,181 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-144",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On March 20, 2017, CPU soft lockups made a Discord presence server drop from its cluster; an undeployed bug fix let the cluster split brain, mass session reconnections overloaded presence, and a third of sessions stalled and buffered events until session servers ran out of memory. Engineers deployed connection-limiting API patches, disabled message sending and reconnected all clients; after a recurrence, the bad server was rebooted onto another host and clients reconnected again, with the incident resolved at 16:54 PDT.",
+    "data_incidente": "2017-03-20",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Discord",
+      "Discord message sending",
+      "Discord direct messages",
+      "presence service",
+      "sessions service"
+    ],
+    "tecnologias": [
+      "Erlang",
+      "Google Cloud Platform",
+      "websocket"
+    ],
+    "categoria_causa": "cascading-failure",
+    "deteccao": {
+      "forma": "equipe_interna",
+      "descricao": {
+        "texto": "At 11:39 PDT Discord engineers noticed a dramatic degradation in service.",
+        "trechos": [
+          "At 11:39 Discord engineers notice a dramatic degradation in service and immediately began investigation.",
+          "All times within this document are PDT"
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 11:38 PDT on March 20, a presence server disconnected from its cluster members; the text names CPU soft lockups on that server as the initial issue, which fully stalled its network stack for upwards of 20 seconds (around 40 lockups of 20-30 seconds over the incident).",
+      "trechos": [
+        "At 11:38 on March 20, a server for one of the internal services (presence) at Discord which tracks real time state and presence information for all connected users, disconnected from its other cluster members.",
+        "The initial issue which caused this outage can be boiled down to the CPU soft lockups that we observed on the individual presence server.",
+        "Although we’ve previously seen these CPU soft lockups on other servers and services, this incident caused around 40 20-30 second lockups.",
+        "These soft lockups fully stalled the network stack of that machine for upwards of 20 seconds."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Because of a bug that was fixed but not yet deployed, the presence cluster did not properly handle the lost node and the whole cluster split brain. All Erlang processes in the sessions service then tried to reconnect to presence, and millions of reconnections overloaded the remaining presence servers. Because sessions depend on presence, about a third of user connections stopped sending messages to clients; their events filled the session servers' in-memory buffers (an intended buffering behaviour) until many session servers ran out of memory and failed.",
+        "trechos": [
+          "Unfortunately due to a bug that was fixed but not yet deployed, the presence cluster did not properly handle the lost node, and instead caused the entire cluster to split brain.",
+          "The failure of the individual presence node caused all the Erlang processes living in our session service to attempt a reconnection to the aforementioned presence service.",
+          "The effect of millions of processes reconnecting quickly overloaded the remaining presence servers and slowed the system to a halt.",
+          "However, during this incident ⅓ of all user connections halted the sending of messages to clients due to the dependency on our presence service.",
+          "The events and messages for these connections quickly filled the in-memory buffers of our session servers and caused many of them to run out of memory and fail.",
+          "Due to an implicit requirement in sessions on data in presence, this caused 1/3rd of all connected sessions on Discord to effectively stall, queuing events in memory (an intended behavior of our sessions service, see below)."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Throughput and contention on the session servers, due to the way Erlang works, prevented engineers from thoroughly investigating or mitigating the effects.",
+        "trechos": [
+          "Due to the way Erlang works, the throughput and contention on these servers also prevented our engineers from being able to thoroughly investigate or mitigate these effects."
+        ]
+      },
+      {
+        "texto": "An issue in newly deployed configuration code made creating and deploying the connection-limiting API patches take longer than expected.",
+        "trechos": [
+          "Due to an issue in newly deployed configuration code, the process of creating and deploying these patches takes longer than expected.",
+          "Although we’re pleased with the result and believe the initial choice was correct, issues with recently added configuration code caused this process to take much longer than expected."
+        ]
+      },
+      {
+        "texto": "The same presence server kept experiencing CPU soft-lock issues: at 13:34 they triggered more cascading failures, and at 14:52, after service had mostly recovered, a series of soft-locks made it disconnect and netsplit again, repeating the incident.",
+        "trechos": [
+          "At 13:34 the presence server which initially caused the outage experiences more soft-lock issues, which trigger more cascading failures through Discord’s real time infrastructure.",
+          "At 14:52 the presence server which had been previously acting up yet again experiences a series of CPU soft-locks causing it to disconnect and netsplit.",
+          "After engineers recovered the situation around 13:56, a subsequent disconnection on the presence service caused the same incident to occur again at 14:52."
+        ]
+      },
+      {
+        "texto": "At 16:04 an attempt to reboot and recover the presence service caused further issues in the sessions cluster, repeating the issues from the first incident.",
+        "trechos": [
+          "At 16:04 engineers attempt to reboot and recover the presence service, however this causes further issues within the sessions cluster, effectively repeating the same issues from the first incident."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Engineers worked on two API server patches introducing limits on connections and message sending to help 'reboot' and reconnect all clients; their rollout completed by 13:35.",
+          "trechos": [
+            "At 12:30 after a period of investigation, engineers work on two code patches to our API servers.",
+            "These patches introduce limitations on connections and message sending meant to assist in “rebooting” and reconnecting all of Discord’s clients.",
+            "By 13:35 rollout of the aforementioned API patches has completed, and the decision to fully “reboot” Discord was made."
+          ]
+        },
+        {
+          "texto": "At 13:41 engineers globally disabled message sending and at 13:45 began the 'reboot' of Discord; by 13:56 service had mostly recovered, most clients had reconnected, and message sending was re-enabled.",
+          "trechos": [
+            "At 13:41 engineers globally disable sending messages on Discord.",
+            "At 13:44 our status page is updated to reflect our decision to “reboot” Discord, and at 13:45 engineers began the reboot process.",
+            "By 13:56 service has mostly recovered, the majority of clients have reconnected, and engineers were able to enable sending of messages."
+          ]
+        },
+        {
+          "texto": "After the recurrence, engineers again globally disabled message sending to shed load; at 16:10 the misbehaving presence server was rebooted, which moved the VM to another physical host and resolved the soft-lock issues.",
+          "trechos": [
+            "Engineers yet again globally disable message sending in an attempt to shed load.",
+            "At 16:10 the issue with the presence service is isolated to the CPU soft locks experienced on the one server.",
+            "This misbehaving server is rebooted, which forces the VM to land on another physical host and resolves the soft-lock issues."
+          ]
+        },
+        {
+          "texto": "At 16:24 engineers started a second full 'reboot' and reconnection of all clients; by 16:40 service had mostly recovered and message sending was enabled.",
+          "trechos": [
+            "At 16:23 engineers yet again prepare to fully “reboot” and reconnect all of Discord’s clients, and start this process at 16:24.",
+            "By 16:40 service is mostly recovered and message sending is enabled."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: during the outage, upgrades were rolled out to the presence server (untouched for almost a year) that fix the split-brain bug.",
+          "trechos": [
+            "During the outage, engineers were able to roll out upgrades to our presence server (which had previously been untouched for almost a year).",
+            "These changes fix the split-brain bug previously mentioned, and include other planned upgrades."
+          ]
+        },
+        {
+          "texto": "Already done: a hard limit on in-flight connections from the sessions cluster to the presence server and a fast-fail mechanism on this dependency, deployed at 1AM on Tuesday.",
+          "trechos": [
+            "We’ve added a hard limit to the number of in-flight connections from our sessions cluster to our presence server, and have also added a fast-fail mechanism to this dependency which should prevent a cascading failure like this from occurring in the future while also resolving the problems developers experienced accessing debug information.",
+            "These changes were deployed at 1AM on Tuesday."
+          ]
+        },
+        {
+          "texto": "Working with Google Cloud Platform's hypervisor team to have the root cause of the CPU soft lockups investigated and resolved.",
+          "trechos": [
+            "As previously mentioned, we’re actively working with Google Cloud Platform’s hypervisor team to ensure the root cause of the CPU soft lockups is investigated and resolved."
+          ]
+        },
+        {
+          "texto": "Adding tooling to automate detecting and alerting on anomalous, hard-to-track problems such as CPU soft lockups.",
+          "trechos": [
+            "We’re working on adding additional tooling which should help automate the process of detecting and alerting around anomalous and hard to track problems like CPU soft lockups."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 316,
+      "trechos": [
+        "At 11:38 on March 20, a server for one of the internal services (presence) at Discord which tracks real time state and presence information for all connected users, disconnected from its other cluster members.",
+        "The status page is updated at 16:54 to indicate the incident has been resolved.",
+        "All times within this document are PDT"
+      ]
+    },
+    "perguntas_em_aberto": [
+      "The root cause of the CPU soft lockups is still being investigated with Google Cloud Platform's hypervisor team (Google escalated the issue to P0)."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "duracao runs from the presence server disconnection at 11:38 PDT to the 'resolved' mark at 16:54 PDT. Within that window service had mostly recovered by 13:56 (status page said recovered at 14:07) before the recurrence at 14:52, and service was mostly recovered again by 16:40. Between 14:54 and 16:04 Discord mostly worked for users, but direct messages were sent without being delivered. The Resolved status update said the team was still investigating why the failure cascaded; the later postmortem explains the cascade.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.19"
+  }
+}

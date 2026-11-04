@@ -1,0 +1,182 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-094",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "In late February 2020, GitHub had four service interruptions totalling eight hours and 14 minutes, which the text attributes to unexpected variations in database load coupled with an unintended configuration issue that led to resource contention in the mysql1 database cluster and ProxySQL failures; file descriptor limits on ProxySQL nodes had been silently capped far below the intended value. The text says the same remediation steps restored the system in the second incident and that the file limit was being changed during the third, but does not otherwise describe how each event ended.",
+    "data_incidente": "2020-02",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "GitHub.com"
+    ],
+    "tecnologias": [
+      "MySQL",
+      "ProxySQL",
+      "Vitess",
+      "vtgate"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Unexpected variations in database load, coupled with an unintended configuration issue introduced as part of ongoing scaling improvements, led to resource contention in the mysql1 database cluster.",
+        "trechos": [
+          "Unexpected variations in database load, coupled with an unintended configuration issue introduced as a part of ongoing scaling improvements, led to resource contention in our mysql1 database cluster."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "February 19 (52 minutes): an unexpectedly resource-intensive query meant for the read replica pool at a much lower frequency was inadvertently sent to the mysql1 master, pushing it beyond surplus capacity and overloading ProxySQL, which is responsible for connection pooling.",
+        "trechos": [
+          "## 2020, February 19 15:17 UTC (lasting for 52 minutes)",
+          "At this time, an unexpectedly resource-intensive query began running against our mysql1 database cluster.",
+          "The intent was to run this load against our read replica pool at a much lower frequency, but we inadvertently sent this traffic to the master of the cluster, increasing the pressure on that host beyond surplus capacity.",
+          "This pressure overloaded ProxySQL, which is responsible for connection pooling, resulting in an inability to consistently perform queries."
+        ]
+      },
+      {
+        "texto": "February 20 (47 minutes): during a planned master database promotion, unexpectedly high load triggered a similar ProxySQL failure.",
+        "trechos": [
+          "## 2020, February 20 21:31 UTC (lasting for 47 minutes)",
+          "Two days later, as part of a planned master database promotion, we saw unexpectedly high load which triggered a similar ProxySQL failure."
+        ]
+      },
+      {
+        "texto": "February 25 (two hours 12 minutes): active database connections crossed a critical threshold that changed ProxySQL's behaviour; because connections stayed above it after remediation, the system fell back into a degraded state, with stalled writes on mysql1.",
+        "trechos": [
+          "## 2020, February 25 16:36 UTC (lasting for two hours 12 minutes)",
+          "In this third incident involving ProxySQL, active database connections crossed a critical threshold that changed the behavior of this new infrastructure.",
+          "Because connections remained above the critical threshold after remediation, the system fell back into a degraded state.",
+          "During this time, GitHub.com services were affected by stalled writes on our mysql1 database cluster."
+        ]
+      },
+      {
+        "texto": "For the ProxySQL incidents, the investigation found file descriptor limits on ProxySQL nodes capped far lower than intended and insufficient for throughput at high load: because of a system-level limit of 1048576, the process manager silently reduced the LimitNOFILE setting from 1073741824 to 65536. During remediation of the February 25 incident, a race condition between the process manager and service configurations slowed changing the file limit to 1048576.",
+        "trechos": [
+          "In this third incident involving ProxySQL, active database connections crossed a critical threshold that changed the behavior of this new infrastructure.",
+          "As a result of our previous investigation, we understood that file descriptor limits on ProxySQL nodes were capped at levels significantly lower than intended and insufficient to maintain throughput at high load levels.",
+          "Specifically, because of a system-level limit of 1048576, our process manager silently reduced our LimitNOFILE setting from 1073741824 to 65536.",
+          "During remediation, we also encountered a race condition between our process manager and service configurations which slowed our ability to change our file limit to 1048576."
+        ]
+      },
+      {
+        "texto": "February 27 (four hours 23 minutes): application logic changes to database query patterns rapidly increased load on the mysql1 master, slowing the cluster enough to affect availability for all dependent services.",
+        "trechos": [
+          "## 2020, February 27 14:31 UTC (lasting for four hours 23 minutes)",
+          "Application logic changes to database query patterns rapidly increased load on the master of our mysql1 database cluster.",
+          "This spike slowed down the cluster enough to affect availability for all dependent services."
+        ]
+      },
+      {
+        "texto": "Reads were sent to master databases when replicas had the same data, adding unnecessary load to the most critical databases, which the text says can exacerbate capacity issues.",
+        "trechos": [
+          "We put unnecessary load on our master databases by reading from them when replicas have the same data.",
+          "This can exacerbate capacity issues and service reliability by adding load to the most critical databases at GitHub."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "An unintended configuration issue introduced as part of ongoing scaling improvements; the text does not name the configuration item.",
+        "trechos": [
+          "Unexpected variations in database load, coupled with an unintended configuration issue introduced as a part of ongoing scaling improvements, led to resource contention in our mysql1 database cluster."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "In the February 20 incident, after an initial load spike, the team used the same remediation steps as in the February 19 incident to restore the system to a working state.",
+          "trechos": [
+            "After an initial load spike, we were able to use the same remediation steps as in the previous incident to restore the system to a working state."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: after the February 20 incident, further maintenance events of that type (planned master promotions) were suspended while the failure was investigated.",
+          "trechos": [
+            "Two days later, as part of a planned master database promotion, we saw unexpectedly high load which triggered a similar ProxySQL failure.",
+            "We suspended further maintenance events of this type as we investigated how this system failed."
+          ]
+        },
+        {
+          "texto": "Already done: production deployments were frozen for three days to address short-term hotspotting after the February 27 incident, which the text says helped stabilize GitHub.com.",
+          "trechos": [
+            "We decided to freeze production deployments for three days to address short-term hotspotting as a result of the final incident on February 27.",
+            "This helped us stabilize GitHub.com."
+          ]
+        },
+        {
+          "texto": "Already done: the 'abilities' table domain was partitioned out of mysql1 into a new cluster (JOINs removed, data copied with Vitess vertical replication, reads and writes moved, writes via vtgate), which reduced load on the mysql1 master by 20 percent and queries per second by 15 percent.",
+          "trechos": [
+            "We shipped a sizable chunk of data partitioning efforts we’ve worked on for the past six months just days after these incidents for one of our more significant MySQL table domains, the “abilities” table.",
+            "Removed all JOIN queries between the abilities table and any other table in the database",
+            "Built a new cluster to move all of the table data into",
+            "Copied all data to the new cluster using Vitess‘s vertical replication feature, keeping the copied data up-to-date in real-time",
+            "Moved all reads to the new cluster",
+            "Moved all writes to the new cluster using Vitess’ proxy layer vtgate",
+            "These changes reduced load on the mysql1 cluster master by 20 percent, and queries per second by 15 percent."
+          ]
+        },
+        {
+          "texto": "Already done: unspecified changes to detect and address issues like these more quickly. Ongoing: more effort on understanding ProxySQL performance at scale. The text also says better system integration and performance testing at realistic load is needed in some areas before fully deploying to production.",
+          "trechos": [
+            "We have made changes to allow us to more quickly detect and address issues like this in the future.",
+            "We’re also devoting more energy to understanding the performance characteristics of ProxySQL at scale and the trickle-down effect on other services before it affects our users.",
+            "It’s clear to us that we need better system integration and performance testing at realistic load levels in some areas before fully deploying to production."
+          ]
+        },
+        {
+          "texto": "Audit reads from master databases and change them to replica databases.",
+          "trechos": [
+            "Audit and lower reads from leader databases: We’re auditing reads from master databases with the intent to lower them.",
+            "By auditing and changing these reads to replica databases, we increase headroom in our SQL databases and reduce the risk of them being overloaded as production load varies."
+          ]
+        },
+        {
+          "texto": "Require feature flags for code updates so problematic code can be disabled dynamically; complete functional partitioning of mysql1, split 12 additional schema domains out of it, and begin sharding the largest schema set; refine deployment dashboards for mysql1.",
+          "trechos": [
+            "Widen our usage of feature flags: We’re requiring feature flags for code updates, which allows us to disable problematic code dynamically, and will dramatically speed up recovery for active incidents.",
+            "Complete in-flight functional partitioning: We’re completing our in-flight functional partitioning of our mysql1 database cluster.",
+            "Invest in additional data partitioning opportunities: We’ve identified an additional 12 schema domains that we’ll split out from the cluster to further protect us from request and storage constraints.",
+            "Shard to scale: We’ll begin sharding our largest schema set.",
+            "Refine our dashboards: We’re improving our visibility into the effects of deploys on our mysql1 database cluster."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 494,
+      "trechos": [
+        "In late February, GitHub experienced multiple service interruptions that resulted in degraded service for a total of eight hours and 14 minutes over four distinct events."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The catalog entry describes a set of four incidents, so causa_raiz holds the shared cause stated by the authors and each incident's own mechanism is in fatores_contribuintes. duracao is the stated total across the four events (52 min, 47 min, 2 h 12 min and 4 h 23 min). The year 2020 comes from the timeline headings in the text. The text names the 'process manager' without naming it further. categoria_causa is configuration-error rather than capacity-load because the authors name a configuration issue alongside the load variations. The text does not say whether the \"unintended configuration issue introduced as a part of ongoing scaling improvements\" is the LimitNOFILE reduction found for the ProxySQL incidents, so they are recorded separately (mudanca_causadora and fatores_contribuintes). Changing the file limit to 1048576 is described only as slowed by a race condition, not as done, so it is not a mitigation step.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.19"
+  }
+}

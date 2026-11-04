@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-080",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "artigo_tecnico",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During a planned Postgres schema migration that dropped and recreated foreign key constraints, GoCardless's API was down for around 15 seconds: the ALTER TABLE waited for an AccessExclusive lock on a heavily used referenced table behind a long-running read query, and API queries queued behind it and timed out. Service came back when the migration went through; the text describes no other recovery action.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "GoCardless API"
+    ],
+    "tecnologias": [
+      "PostgreSQL",
+      "Rails migrations"
+    ],
+    "categoria_causa": "database-storage",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Just after the schema migration started, the team began getting alerts about API requests timing out.",
+        "trechos": [
+          "Just after the schema migration started, we started getting alerts about API requests timing out."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "GoCardless deployed a schema migration that dropped and recreated the foreign key constraints on recently renamed, empty tables.",
+      "trechos": [
+        "We'd already deployed an earlier revision, so we had to rename the tables.",
+        "That wasn't a problem though - the tables were empty, and there was no code depending on them in production.",
+        "The foreign key constraints on those tables had out of date names after the rename, so we decided to drop and recreate them2.",
+        "We deployed the changes, and all of our assumptions got blown out of the water."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Adding a foreign key constraint makes Postgres take AccessExclusive locks on both the table with the constraint and the table it references. The referenced tables were among the most heavily used, and a long-running read query on the parent table held a conflicting lock, so the ALTER TABLE's AccessExclusive lock request sat in the lock queue and blocked all other operations on that table; API read/write queries piled up behind it and clients timed out.",
+        "trechos": [
+          "In order to add a foreign key constraint, Postgres takes AccessExclusive locks on both the table with the constraint4, and the one it references while it adds the triggers which enforce the constraint.",
+          "When a lock can't be acquired because of a lock held by another transaction, it goes into a queue.",
+          "As AccessExclusive locks conflict with every other type of lock, having one sat in the queue blocks all other operations5 on that table.",
+          "While the tables we were adding the constraints to were unused by the app code at that point, the tables they referenced were some of the most heavily used.",
+          "An unfortunately timed, long-running read query on the parent table collided with the migration which added the foreign key constraint.",
+          "The ALTER TABLE statement itself was fast to execute, but the effect of it waiting for an AccessExclusive lock on the referenced table caused the downtime - read/write queries issued by calls to our API piled up behind it, and clients timed out."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A schema migration that dropped and recreated the foreign key constraints of the renamed invoicing tables, whose constraint names were out of date after the rename.",
+        "trechos": [
+          "At the time, we were building invoicing for our Pro product.",
+          "We'd already deployed an earlier revision, so we had to rename the tables.",
+          "The foreign key constraints on those tables had out of date names after the rename, so we decided to drop and recreate them2."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "ausente",
+      "passos": []
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Recommendation to readers: eliminate long-running queries and transactions from the application, and run analytics queries against an asynchronously updated replica.",
+          "trechos": [
+            "Eliminate long-running queries/transactions from your application.6 Run analytics queries against an asynchronously updated replica."
+          ]
+        },
+        {
+          "texto": "Recommendation to readers: set log_min_duration_statement and log_lock_waits to find these issues before they cause downtime.",
+          "trechos": [
+            "It's worth setting log_min_duration_statement and log_lock_waits to find these issues in your app before they turn into downtime."
+          ]
+        },
+        {
+          "texto": "Recommendation to readers: set lock_timeout in migration scripts to a pause the application can tolerate, aborting the deploy rather than taking the application down.",
+          "trechos": [
+            "Set lock_timeout in your migration scripts to a pause your app can tolerate. It's better to abort a deploy than take your application down."
+          ]
+        },
+        {
+          "texto": "Recommendation to readers: split schema changes up, so problems are easier to diagnose and transactions around DDL are shorter.",
+          "trechos": [
+            "Split your schema changes up.",
+            "Problems become easier to diagnose.",
+            "Transactions around DDL are shorter, so locks aren't held so long."
+          ]
+        },
+        {
+          "texto": "Recommendation to readers: keep Postgres up to date, since the locking code improves with every release.",
+          "trechos": [
+            "Keep Postgres up to date. The locking code is improved with every release."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "categoria_causa: database-storage vs other. The impact came from Postgres lock queueing (an AccessExclusive lock waiting behind a long-running read query and blocking all other queries), which the text presents as how Postgres works, not as a failure of the datastore. 'database-storage: the datastore itself failed (limits, corruption, replication break)' can be read to cover the database blocking all queries on a table, while 'other: none of the above' fits if lock contention under normal database behaviour is not a datastore failure; the definitions do not decide whether lock contention counts as the datastore failing.",
+  "observacoes": "The text states the downtime as 'around 15 seconds', which cannot be expressed as a whole number of minutes, so duracao is null. Service came back on its own when the migration went through; no mitigation action is described, so mitigacao is ausente. The incident is dated only as 'late January' with no year ('Last edited Jun 2024' is an edit date and the article says the incident was 'a few months ago'), so data_incidente is null. All prevention items are recommendations the authors give to readers, not commitments of the company. A footnote notes the team did not then know Postgres can rename constraints with ALTER TABLE, which avoids the lock on the referenced table.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.19"
+  }
+}

@@ -1,0 +1,187 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-215",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "secundaria",
+    "tipo": "relatorio_formal",
+    "dominio": "seguranca",
+    "seguranca": "ataque",
+    "problemas_texto": [
+      "pdf_embaralhado"
+    ]
+  },
+  "incidente": {
+    "resumo": "ShapeShift's exchange infrastructure was breached three times in 2016: on 2016-03-14 by an internal employee, then on 2016-04-07 and 2016-04-09 by an attacker; the same rootkit was found on both core exchange servers, and for one of them the investigators could not tell who placed it. Ledger Labs found no direct evidence of the attack vector and ranks possible vectors. New infrastructure was built with new keys after each breach, and the production environment was rebuilt before the site's re-launch.",
+    "data_incidente": "2016",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "ShapeShift exchange"
+    ],
+    "tecnologias": [
+      "SSH",
+      "Ubuntu",
+      "VPN",
+      "AquaConnect",
+      "Ansible",
+      "GPG"
+    ],
+    "categoria_causa": "credential-auth",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "incerta",
+      "descricao": {
+        "texto": "Direct evidence of the attack vector was not found. The investigators list possible vectors in order of probability: another employee with access to both servers performed or assisted the attacks; a Remote Access Trojan on an employee's laptop gave the attacker the infrastructure locations and an SSH key; a vulnerability in ShapeShift's source code or in an Ubuntu service opened a reverse shell. The attacker later alleged, unverifiably, that he bought information from a previous employee, including the HQ router admin credentials, details of an AquaConnect installation the prior employee set up on an employee's laptop before leaving on March 14th, and an employee's SSH key granting access to the server called Simpson.",
+        "trechos": [
+          "Since direct evidence of a specific attack vector was not found during the digitalforensic investigation, an analysis of the available facts was performed to identify all possible attack vectors that fit the facts.",
+          "The following attack vectors were possible avenues of attack sorted in order of probability: 1. An(other) employee with access to both Simpson and Lenny performed or assisted with both attacks; 2. A Remote Access Trojan (RAT) was installed on a laptop belonging to an employee with access to both Simpson and Lenny. The compromised laptop",
+          "allowed Rovion to obtain the location of both new infrastructures and obtain an SSH key for access; 3. A vulnerability exists in the ShapeShift source code that launched a reverse shell to a machine under Rovion’s control.",
+          "4. A vulnerability exists within one of the services running on the Ubuntu operating system that was exploited to open a reverse shell to a machine under Rovion’s control.",
+          "Although there is no way to identify whether the information was actually true, the information provided corroborated a number of facts uncovered during the investigation that would only be known by Rovion, and provided a number of other facts that were consistent with the conditions observed during the attacks.",
+          "Rovion installed a rootkit at /bin/udevd-bridge Rovion purchased information from a previous employee which allowed him to conduct the attacks on ShapeShift.",
+          "o The username/password of ShapeShift HQ’s office router’s admin interface, and the port upon which the admin interface was listening.",
+          "o Details of an AquaConnect installation on a ShapeShift employee’s laptop that was installed by the prior employee prior to his departure on March 14th, along with the username/password/port with which to connect o An SSH key belonging to a ShapeShift employee that granted access to Simpson"
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Breach1 (2016-03-14) was carried out by an internal employee.",
+        "trechos": [
+          "In addition, ShapeShift experienced a third breach on 2016-03-14 by an internal employee."
+        ]
+      },
+      {
+        "texto": "Breach3 (2016-04-09): the last login before the rootkit was installed used public key authentication with a key consistent with a known employee's VPN login from home, and the session stayed open until 13:04 UTC, which the investigators say suggests the employee's session was used to breach the server; the attacker then installed a rootkit at /bin/udevd-bridge that launched on every boot and was disguised as a system file.",
+        "trechos": [
+          "Prior to these commands, the auth.log showed the last login to the server was completed via public key authorization on 2016-04-09 at 8:44:37 UTC by a key with RSA fingerprint 9d:35:fd:6d:60:a8:6e:2e:56:f3:d0:ac:07:79:7f:cb.",
+          "This is consistent with a known employee login to Simpson via VPN connection from the employee’s home.",
+          "This SSH connection remained open until 13:04 UTC, suggesting the employee’s session was used to breach the Simpson server.",
+          "The above commands show the installation of a rootkit at /bin/udevd-bridge.",
+          "The contents of the /etc/init/udevd-bridge.conf file ensured the rootkit would launch every time the system was booted.",
+          "Rovion named the rootkit to appear like a system file on the Ubuntu operating system, and further hid the rootkit by modifying the timestamps to match similar system files."
+        ]
+      },
+      {
+        "texto": "The attacker learned the IP addresses of Infrastructure2 and Infrastructure3, known only to staff, identifying Infrastructure3's within hours of its setup, and accessed Infrastructure3 through firewall rules that restricted access to the HQ static IP address.",
+        "trechos": [
+          "Rovion was able to learn the IP addresses of both Infrastructure2 and Infrastructure3 despite these IPs being known only by ShapeShift staff.",
+          "Infrastructure3’s IP address was identified within hours of being established by the ShapeShift team;",
+          "Rovion was able to access the Infrastructure 3 through firewall rules that restricted access to the ShapeShift HQ static IP address;"
+        ]
+      },
+      {
+        "texto": "An independent report showed that internal ShapeShift communications had previously been compromised.",
+        "trechos": [
+          "ShapeShift received an independent report that showed internal ShapeShift communications had been previously compromised;"
+        ]
+      },
+      {
+        "texto": "The servers had no logging or auditing beyond Ubuntu's default configuration, and the attacker wiped or overwrote auth.log, which limited the evidence and prevented identifying the attack vector.",
+        "trechos": [
+          "Analysis of the Ubuntu operating system configuration identified that there was no logging or auditing configured beyond the default configuration that ships with Ubuntu.",
+          "An analysis of /var/log/auth.log revealed that the logs were wiped at some time prior to 2016-04-10 at 23:05 UTC.",
+          "Analysis of the /var/log/auth.log file showed tampering via overwriting unlike Simpson which had its log deleted.",
+          "Although evidence of the specific attack vector could not be found due to both the destruction of evidence by Rovion and the lack of logging configured on the servers, a number of corrective actions would prevent each of the above attack vectors from being exploited, thereby dramatically increasing ShapeShift’s security."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "After Breach1 (2016-03-14), all team members created entirely new SSH keys and passwords to build the new infrastructure.",
+          "trechos": [
+            "Following the 2016-03-14 breach (which will be referred to as Breach1 of Infrastructure1), entirely new SSH keys and passwords were created by all team members in order to securely build the new infrastructure;"
+          ]
+        },
+        {
+          "texto": "After Breach2 (2016-04-07), some team members changed computers to protect against possible malware, and all team members again created entirely new SSH keys and passwords.",
+          "trechos": [
+            "Following the 2016-04-07 breach (Breach2 of Infrastructure2), some team members changed computers to protect against malware that may have existed on those machines. Entirely new SSH keys and passwords were created by all team members;"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: all employees with access to both Infrastructure1 and Infrastructure2 received brand new computing hardware so any RATs, backdoors or malware would not persist.",
+          "trechos": [
+            "All ShapeShift employees who had access to both Infrastructure1 and Infrastructure2 received brand new computing hardware to ensure any RATs, backdoors, or malware installed on their machines would not persist."
+          ]
+        },
+        {
+          "texto": "Done or in progress: all communication channels (email, Slack and GitHub accounts) replaced, with a company-wide security policy on securely communicating secrets; all employees generated new password-protected GPG and SSH keys and were trained on their use.",
+          "trechos": [
+            "All existing communication channels between ShapeShift employees have been – or are in the process of being – replaced. This includes email accounts, Slack accounts, and GitHub accounts.",
+            "In addition, all employees were given instructions on how to securely communicate company secrets including IP addresses, API keys, SSH public keys, shared passwords, etc. which were distilled in a company-wide security policy.",
+            "All employees generated new GPG keys that were protected by strong passwords. Employees also generated new SSH keys that were also protected by strong passwords.",
+            "Employees were given instruction on the proper use of these keys when accessing production and development servers, and were trained on the proper protocols for the communication of secrets between users."
+          ]
+        },
+        {
+          "texto": "Already done: the production environment was rebuilt in brand new cloud computing accounts with different operating systems, using Ansible deployment scripts that put firewall rules in place before the OS connects to the Internet; tools such as compilers were removed from production servers.",
+          "trechos": [
+            "ShapeShift’s production environment was completely rebuilt using brand new cloud computing accounts. Different operating systems were chosen to house ShapeShift’s new infrastructure to enhance the default security posture of the system.",
+            "Infrastructure deployment scripts were built using Ansible that ensured firewall rules were put in place prior to the operating system’s connection to the Internet, and ensured user accounts, permissions, required software, module dependencies, and configuration files were placed in the appropriate places within the production environment in a secure and repeatable manner that was not subject to human error.",
+            "Finally, a number of tools were removed from production servers to hinder the installation of unauthorized applications and tools, such as compilers."
+          ]
+        },
+        {
+          "texto": "Already done: enhanced logging on all production systems, with log entries sent to an off-site logging server so evidence cannot be destroyed after a breach.",
+          "trechos": [
+            "Enhanced logging capabilities were configured on all production systems that captured relevant actions performed by both the operating systems and all users on those systems.",
+            "Furthermore, all production servers were configured to send log entries to an off-site logging server to ensure that evidentiary data could not be destroyed following any future breaches."
+          ]
+        },
+        {
+          "texto": "Already done: additional firewall rules, a bastion server marshalling access to production servers, and outbound firewall rules preventing production servers from reaching out to the Internet (blocking reverse shells and malware downloads); employee and infrastructure security policies that employees must read and sign.",
+          "trechos": [
+            "A number of firewall rules were added to further restrict access to the production environment servers.",
+            "A bastion server was configured that would marshal access to each of the production servers within the production environment.",
+            "Outbound firewall rules were added to prevent production servers from reaching out over the Internet to other servers. This prevents the establishment of reverse shells and the initiation of downloads of malware and other tools that would aid an attack.",
+            "Ledger Labs drafted an Employee Security Policy and an Infrastructure Security Policy that identify security procedures and protocols for the use of ShapeShift assets.",
+            "Employees are required to read and sign the policies and submit identification to ShapeShift’s Human Resources department."
+          ]
+        },
+        {
+          "texto": "Recommendation to ShapeShift (deferred): re-architect to a multi-signature scheme (P2SH addresses requiring 3 signatures) so a single compromised employee cannot misappropriate funds; adopt deterministic keys; make key backups CCSS-compliant; draft a Data Sanitization Policy.",
+          "trechos": [
+            "Although ShapeShift staff implemented numerous controls that enhanced security, a few of LLI’s recommendations were deferred for future implementation.",
+            "LLI recommends that ShapeShift’s architecture be re-architected to require multiple signatures.",
+            "This would prevent a single compromised employee from being able to misappropriate funds on his or her own.",
+            "End-users should be presented with a P2SH address (or equivalent for its coin type) that is built from a script that requires 3 signatures – 2 signatures from online signing agents that exist external to ShapeShift’s infrastructure, and a 3rd offline recovery key that is stored safely and securely.",
+            "Although Deterministic Keys is another CCSS Level 2 requirement and not Level 1, LLI recommends ShapeShift’s architecture be re-architected to make use of deterministic seeds.",
+            "ShapeShift’s current backup practices are not compliant with CCSS Level 1.",
+            "In the near future, key backups will become CCSS Level 1 compliant with the implementation of deterministic seeds.",
+            "A Data Sanitization Policy (DSP) should be drafted to ensure media on end-of-life equipment is destroyed in a way that prohibits digital-forensic recovery of confidential information."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "The specific attack vector could not be identified from the forensic evidence.",
+      "No artifacts were found that identify how the back-door was placed on the Infrastructure2 server (Lenny) or who placed it.",
+      "There is no way to verify whether the information the attacker provided about how he conducted the attacks is true."
+    ]
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "categoria_causa: credential-auth vs other. For attacks the category follows the mechanism of the root cause, and the root cause is uncertain: the attacker's unverified account (purchased router credentials, AquaConnect login details and an employee's SSH key) and the session evidence fit 'credential-auth: compromised, expired or mis-deployed credentials', but the investigators' most probable vector is an insider assisting the attacks and others are a RAT or a software vulnerability, which fit 'other: none of the above'. The definition does not say how to classify when the text ranks several unproven mechanisms.",
+  "observacoes": "The report was prepared by an outside investigator (Ledger Labs) for ShapeShift. The catalog entry covers the three breaches together, so gatilho is null and each breach's details are in fatores_contribuintes. The amounts stolen are not stated in the extracted text. The extracted text shows PDF artifacts (bullet markers separated from their items). The deferred items are recommendations from the investigator to ShapeShift; the conclusion says ShapeShift plans to implement changes not made immediately after the re-launch.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.19"
+  }
+}

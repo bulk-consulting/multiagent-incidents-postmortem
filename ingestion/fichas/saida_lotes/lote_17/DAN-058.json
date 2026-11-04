@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-058",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "exposicao_dados",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A bug in Turso's database migration process left 0.07% of databases with an empty backup identifier, so they shared one backup location; when some free-tier databases were recreated from backup, they were restored from that shared location, causing a data leak. Turso re-ran the migration with the correct parameters and recreated the affected databases from their December 1st backups under the correct IDs, discarding writes made after that point, which may have lost recent data.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Turso free tier databases"
+    ],
+    "tecnologias": [
+      "fly.io",
+      "S3"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The issue was noticed and reported on December 4th at 8:10 AM UTC; the text thanks a named person for notifying Turso.",
+        "trechos": [
+          "This was noticed and reported on December 4th 8:10 AM UTC, and fixed on December 4th 9:17 AM UTC.",
+          "Thanks to Schlez for notifying us and allowing us to get to a solution quickly."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "On December 1st, internal procedures led to the backups being used to recreate the databases: when the cloud provider (fly.io) cannot restore a scaled-to-zero free-tier database process for lack of host resources, Turso destroys the machine and recreates it from the S3 backup.",
+      "trechos": [
+        "On December 1st, internal procedures led to those backups being used to recreate the databases.",
+        "However, in rare situations, our cloud provider (fly.io) is unable to restore the process due to lack of resource availability in the host.",
+        "In those cases, we destroy the machine and recreate it from the S3 backup."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A bug in the process that migrates databases to newer versions caused some databases to use an empty backup identifier, so 0.07% of databases shared one backup storage location (s3://bucket// instead of s3://bucket/backup_id/). When some of them failed to scale back to one, they were recreated from that shared location, which caused the data leak and data loss.",
+        "trechos": [
+          "0.07% of databases under management were incorrectly configured with an empty backup identifier, which caused a data leak.",
+          "A bug in that process caused some databases created to use an empty backup identifier.",
+          "From time to time, we migrate databases to newer version.",
+          "Effectively, the databases in that small set were now sharing a backup storage bucket.",
+          "In effect, instead of pointing to s3://bucket/backup_id/, the affected databases were pointing to s3://bucket//.",
+          "When some databases failed to scale back to one, recreation happened from a shared location, the null ID.",
+          "This caused both the data loss and data leak mentioned above."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A change made to the system on November 20th made it possible for the empty backup identifier to be used.",
+        "trechos": [
+          "A change that made possible for the empty backup identifier to be used was made to the system on November 20th."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Turso re-ran the migration with the correct parameters and recreated the affected databases from their December 1st backup under the correct backup ID, discarding any writes made after December 1st; the issue was fixed on December 4th at 9:17 AM UTC.",
+          "trechos": [
+            "We fixed the issue, by re-running the migration with the correct parameters and recreating the affected databases with their December 1st backup from the correct backup ID.",
+            "Since we considered any data past December 1st to be shared between those databases, any writes done after that point were discarded.",
+            "This was noticed and reported on December 4th 8:10 AM UTC, and fixed on December 4th 9:17 AM UTC."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Add internal checks in both the control plane and the data plane to ensure backups are for the correct database, and improve data isolation in backups similar to running databases.",
+          "trechos": [
+            "Additional internal checks from both our control plane and data plane to ensure backup's are for the correct database. This also means improving the data isolation in our backups similar to how we have data isolation for our running databases."
+          ]
+        },
+        {
+          "texto": "Improve checks for faulty configuration, with self-healing or notification of a team member, and a narrower band of allowed configurations that is stricter by default.",
+          "trechos": [
+            "Improve our ability to check for faulting configuration and to self heal or notify a team member that there is an issue so we can fix it.",
+            "Essentially have a narrower band of allowed configurations and to be more strict by default."
+          ]
+        },
+        {
+          "texto": "Improve deployment methods to prevent migrations from breaking backup IDs.",
+          "trechos": [
+            "Improve our deployment methods to prevent migrations from breaking backup ID's."
+          ]
+        },
+        {
+          "texto": "Add better mechanisms for being notified of security incidents, via Twitter or via email to a security address.",
+          "trechos": [
+            "Add better mechanisms for being notified of security incidents either via twitter or via email at (security@turso.tech)."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "Turso has not yet fully reviewed every piece of code related to the incident."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives no year for the dates (November 20th, December 1st, December 4th), so data_incidente is null. The leak exposure is tied to the December 1st recreation, while the report was received on December 4th at 8:10 AM UTC and fixed at 9:17 AM UTC (67 minutes after the report); no start time of the impact is given, so duracao is null. The text names the person who reported the issue (Schlez) but does not say whether they are a customer, a user, staff or someone else, so deteccao.forma is nao_informada. The prevention items are presented as changes the company expects, some already fixed and some planned, without saying which.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.19"
+  }
+}

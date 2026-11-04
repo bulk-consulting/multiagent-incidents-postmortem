@@ -1,0 +1,147 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-130",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "When GitHub push hooks resumed after an interruption, CircleCI received a sustained surge several multiples of its normal peak; the rapid insertion of builds into its build queue, which is built on the main database, degraded the database to fully unresponsive and the build queue came to a standstill. The team killed builders, disabled re-enqueueing, fixed or disabled bad queries via live patching, drained the queues with scripts and switched to new, larger database hardware; builds ran again and service later resumed to normal.",
+    "data_incidente": "2015-07",
+    "status_relatorio": "misto",
+    "servicos_afetados": ["CircleCI build queue", "CircleCI builds", "CircleCI site"],
+    "tecnologias": ["GitHub push hooks", "load balancer", "Clojure", "Clojure REPL"],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The first indication was that CircleCI stopped receiving push hooks from GitHub; a few minutes after the hooks returned, the team saw that the queue length was rising while build capacity was not fully used, with builds dequeued at about one per minute.",
+        "trechos": [
+          "Our first indication of a problem was that we stopped receiving push hooks from GitHub.",
+          "After a few minutes, we noticed that although our queue length was rising, our build capacity was not being fully utilized.",
+          "Instead of dequeuing many builds per second, we were dequeueing on the order of one build per minute."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "After about an hour without GitHub push hooks, the hooks came back at an unprecedented intensity: a sustained surge with an arrival rate several multiples of the normal peak, during the busiest period of the day.",
+      "trechos": [
+        "After an hour or so, GitHub's hooks did come back, but they came back at an intensity we had not experienced before.",
+        "When GitHub's hooks started up again we saw a sustained surge with an arrival rate several multiples of our normal peak.",
+        "This is partly due to having so many more customers than the last time this occurred, and also from it being in the middle of the West-coast daytime, our busiest period of the day."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The build queue is built on top of the main database. The rapid insertion of new builds and the associated database writes slowed other processing, database performance degraded non-linearly from fine to fully unresponsive within 2 minutes, and there was significant resource contention across everything accessing the same database.",
+        "trechos": [
+          "As such, it's built on top of our main database.",
+          "The rapid insertion of new builds and the associated writing to the db started to cause other processing to slow down.",
+          "The degradation in DB performance was a special kind of non-linear, going from \"everything is fine\" to \"fully unresponsive\" within 2 minutes.",
+          "We ended up with significant resource contention across everything accessing the same DB."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "New build scheduling infrastructure, which produces much less load, was not fully deployed; when the team tried using parts of it during the incident, the database was too backed up for it to make a difference.",
+        "trechos": [
+          "As a result of recent growth we have been working on new build scheduling infrastructure, but it is not fully deployed.",
+          "Next we attempted to use parts of our new build scheduling infrastructure that produces much less load on the system than the current. But the database was too backed up for that to make a difference."
+        ]
+      },
+      {
+        "texto": "The complexity of the state in queued builds meant the queue could not simply be dropped; parts of the unresponsive database had to be rewritten, so the database had to be unlocked first.",
+        "trechos": [
+          "Unfortunately, the complexity of the state in queued builds meant we couldn't just drop data, but had to rewrite parts of our unresponsive database.",
+          "So we still needed some way to unlock it to be able to get back in control."
+        ]
+      },
+      {
+        "texto": "A database stepdown that promoted a secondary did not help: the new primary was quickly overwhelmed, and builds that failed because of the stepdown were automatically re-enqueued, driving more database operations and growing the queue.",
+        "trechos": [
+          "In an effort to at least flush the database operations, we triggered a stepdown and promoted a secondary.",
+          "Unfortunately, this didn't work - the new primary was quickly overwhelmed by activity.",
+          "Not only that, but the builds which failed as result of the stepdown were re-enqueued, driving more DB operations and further growing the build queue."
+        ]
+      },
+      {
+        "texto": "Throttling hooks by reducing capacity at the load balancer backfired: hooks significantly outnumbered customer traffic, so customers could not reach CircleCI and the site was effectively shut down.",
+        "trechos": [
+          "First we tried to stop new builds from joining the queue, and we tried it from an unusual place: the load balancer.",
+          "A quick attempt at this proved ill-advised: when we reduced capacity to throttle the hooks naturally they significantly outnumbered our customer traffic, making it impossible for our customers to reach us and effectively shutting down our site."
+        ]
+      },
+      {
+        "texto": "Slow queries were mostly run more often than the service required, and some had poor query plans that were exacerbated by the unusually high queue sizes.",
+        "trechos": ["These queries were mostly being run too often for what was required to operate the service, but some also had poor query plans that were exacerbated by the unusually high queue sizes."]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "To reduce database load, the team turned off automatic re-enqueueing of builds on infrastructure failures and killed builder machines.",
+          "trechos": [
+            "The next step in reducing the load on the DB was to kill off as many builders as we could.",
+            "Knowing that the odds of a good build were low, we turned off automatic re-enqueueing of builds on infrastructure failures and started killing builder machines."
+          ]
+        },
+        {
+          "texto": "The team pulled slow query logs and dealt with the worst offending queries, using Clojure live patching through the REPL on production machines to disable queries, fix bugs and disable undesirable code.",
+          "trechos": [
+            "With nowhere for builds to be run, we started pulling slow query logs, which are generally empty during normal operations, and dealing with the worst offenders.",
+            "By connecting directly to our production machines and connecting to the Clojure REPL, we can change code live and in production.",
+            "Here, this allowed us to disable queries, fix bugs and otherwise swap out and disable undesirable code when needed."
+          ]
+        },
+        {
+          "texto": "Once the database could be operated on, scripts cleared the 'usage queue' (over an hour) and then the 'run queue' (an additional 30 minutes), with requeuing disabled; after this the team had control of the database and queue and could run builds again.",
+          "trechos": [
+            "After some significant effort, we were able to get the DB to a state where we could operate on it.",
+            "The first script killed the \"usage queue\", which is where builds sit when a customer doesn't have enough capacity on their plan. The second script killed the \"run queue\", which is where builds go when they are ready to run and awaiting system capacity.",
+            "It took over an hour for the script to drain the usage queue, and an additional 30 minutes to drain the run queue.",
+            "During this time we disabled requeuing of builds.",
+            "From here on we had control over our DB and the queue, and were able to run builds again."
+          ]
+        },
+        {
+          "texto": "The team switched to new, larger database hardware, built out in parallel, and scaled capacity up while monitoring; the switch was reported complete with builds running again at 22:26 UTC on Jul 07, 2015.",
+          "trechos": [
+            "It was abundantly clear that even when we got the DB back, we'd want to be operating on bigger hardware with more headroom, so we started the parallel process of building out an upgrade.",
+            "Once we had control over the DB and queue, we were able to initiate the switch to the new DB hardware. We quickly swapped over, and started monitoring as we ran more builds and scaled our capacity up.",
+            "The switch to the new DB hardware is complete. Builds are running again: if your builds are stuck, please reach out to us at",
+            "Posted Jul 07, 2015 - 22:26 UTC"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "Already done: a number of simple changes to the architecture that the text says should prevent a recurrence of the same problem.",
+          "trechos": ["We've made a number of simple changes to our architecture in the last few days, which should prevent a recurrence of the same problem."]
+        },
+        {
+          "texto": "Investing in a number of major improvements to put architecture and capacity ahead of growth.",
+          "trechos": ["We are also investing in a number of major improvements which will put our architecture and capacity far ahead of our growth and give us far more room to spare."]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The postmortem (posted Jul 14, 2015) says the outage happened 'last Tuesday' and the status updates are posted on Jul 07-08, 2015; the exact day is not fixed because the hooks returned 'in the middle of the West-coast daytime' while the first status update is posted Jul 07, 2015 09:55 UTC, so data_incidente is given as 2015-07. No start time of the impact is given; candidate end times are 20:45 UTC Jul 07 (queue cleared, processing builds as they arrive), 22:26 UTC Jul 07 (switch to new DB hardware complete, builds running) and 03:42 UTC Jul 08 (nearly all stuck builds cleared, service resumed to normal), so duracao is null. After the impact the team moved the live-patched code through code review into the repository, cycled the fleet back to pre-baked images and re-enabled disabled features; these are cleanup steps.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.19" }
+}

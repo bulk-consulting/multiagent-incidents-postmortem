@@ -1,0 +1,187 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-037",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On 2 June 2019 a datacenter maintenance event, combined with two misconfigurations and a bug in the maintenance automation, descheduled Google's network control plane jobs in multiple physical locations; BGP routing was withdrawn and several US Google Cloud regions saw heavy packet loss or became inaccessible, also affecting G Suite and YouTube. Engineers halted the automation, re-enabled the control plane and rebuilt and redistributed its lost configuration, while teams redirected traffic away from affected regions; full service resumed at 16:10 US/Pacific.",
+    "data_incidente": "2019-06-02",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Google Cloud",
+      "G Suite",
+      "YouTube",
+      "Google Compute Engine",
+      "App Engine",
+      "Cloud Endpoints",
+      "Cloud Interconnect",
+      "Cloud VPN",
+      "Cloud Console",
+      "Stackdriver Monitoring",
+      "Cloud Pub/Sub",
+      "BigQuery",
+      "Cloud Spanner",
+      "Cloud Storage"
+    ],
+    "tecnologias": [
+      "BGP",
+      "cluster management software",
+      "network control plane",
+      "ESP"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Google engineers were alerted to the failure two minutes after it began.",
+        "trechos": [
+          "Google engineers were alerted to the failure two minutes after it began, and rapidly engaged the incident management protocols used for the most significant of production incidents."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 11:45 US/Pacific a relatively rare type of datacenter maintenance event started in a single physical location; the automation software built a list of jobs to deschedule there, which included the logical clusters running network control jobs.",
+      "trechos": [
+        "The outage progressed as follows: at 11:45 US/Pacific, the previously-mentioned maintenance event started in a single physical location; the automation software created a list of jobs to deschedule in that physical location, which included the logical clusters running network control jobs.",
+        "Secondly, the multiple instances of cluster management software running the network control plane were marked as eligible for inclusion in a particular, relatively rare maintenance event type."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Two normally-benign misconfigurations and a software bug combined: network control plane jobs and their supporting infrastructure were configured to be stopped on a maintenance event; the cluster management instances running the control plane were marked eligible for this maintenance event type; and the software initiating maintenance events had a bug allowing it to deschedule multiple independent clusters at once, even in different physical locations. The automation descheduled the control plane jobs in multiple locations; after the network ran 'fail static' for several minutes, BGP routing between impacted locations was withdrawn, sharply reducing network capacity.",
+        "trechos": [
+          "Two normally-benign misconfigurations, and a specific software bug, combined to initiate the outage: firstly, network control plane jobs and their supporting infrastructure in the impacted regions were configured to be stopped in the face of a maintenance event.",
+          "Secondly, the multiple instances of cluster management software running the network control plane were marked as eligible for inclusion in a particular, relatively rare maintenance event type.",
+          "Thirdly, the software initiating maintenance events had a specific bug, allowing it to deschedule multiple independent software clusters at once, crucially even if those clusters were in different physical locations.",
+          "The automation then descheduled each in-scope logical cluster, including the network control jobs and their supporting infrastructure in multiple physical locations.",
+          "The network ran normally for a short period - several minutes - after the control plane had been descheduled.",
+          "After this period, BGP routing between specific impacted physical locations was withdrawn, resulting in the significant reduction in network capacity observed by our services and users, and the inaccessibility of some Google Cloud regions."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Debugging was significantly hampered by the failure of tools competing over use of the congested network.",
+        "trechos": [
+          "Debugging the problem was significantly hampered by failure of tools competing over use of the now-congested network."
+        ]
+      },
+      {
+        "texto": "Using the backup plans for failed tooling (including engineers travelling to secure facilities and lowering the priority of less critical network traffic classes to reduce congestion) added to the time spent debugging.",
+        "trechos": [
+          "The defense in depth philosophy means we have robust backup plans for handling failure of such tools, but use of these backup plans (including engineers travelling to secure facilities designed to withstand the most catastrophic failures, and a reduction in priority of less critical network traffic classes to reduce congestion) added to the time spent debugging."
+        ]
+      },
+      {
+        "texto": "With all network control plane instances descheduled in several locations, configuration data had been lost and had to be rebuilt and redistributed, which proved time-consuming during such a significant network event and extended recovery time.",
+        "trechos": [
+          "Additional problems once again extended the recovery time: with all instances of the network control plane descheduled in several locations, configuration data had been lost and needed to be rebuilt and redistributed.",
+          "Doing this during such a significant network configuration event, for multiple locations, proved to be time-consuming."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 13:01 US/Pacific, after the incident was root-caused, engineers halted the automation software responsible for the maintenance event.",
+          "trechos": [
+            "As of 13:01 US/Pacific, the incident had been root-caused, and engineers halted the automation software responsible for the maintenance event."
+          ]
+        },
+        {
+          "texto": "Engineers set about re-enabling the network control plane and its supporting infrastructure, and the new configuration began to roll out at 14:03.",
+          "trechos": [
+            "We then set about re-enabling the network control plane and its supporting infrastructure.",
+            "with all instances of the network control plane descheduled in several locations, configuration data had been lost and needed to be rebuilt and redistributed.",
+            "The new configuration began to roll out at 14:03."
+          ]
+        },
+        {
+          "texto": "In parallel, multiple teams applied service-specific mitigations, directing traffic away from the affected regions to keep serving from elsewhere.",
+          "trechos": [
+            "In parallel with these efforts, multiple teams within Google applied mitigations specific to their services, directing traffic away from the affected regions to allow continued serving from elsewhere."
+          ]
+        },
+        {
+          "texto": "As the network control plane was rescheduled in each location and its configuration recreated and distributed, network capacity came back; recovery of network capacity started at 15:19 and full service resumed at 16:10 US/Pacific.",
+          "trechos": [
+            "As the network control plane was rescheduled in each location, and the relevant configuration was recreated and distributed, network capacity began to come back online.",
+            "Recovery of network capacity started at 15:19, and full service was resumed at 16:10 US/Pacific time."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the datacenter automation software that deschedules jobs on maintenance events was halted; it will be re-enabled only once safeguards prevent descheduling jobs in multiple physical locations concurrently.",
+          "trechos": [
+            "We have immediately halted the datacenter automation software which deschedules jobs in the face of maintenance events.",
+            "We will re-enable this software only when we have ensured the appropriate safeguards are in place to avoid descheduling of jobs in multiple physical locations concurrently."
+          ]
+        },
+        {
+          "texto": "Harden Google's cluster management software so that it rejects such requests regardless of origin.",
+          "trechos": [
+            "Further, we will harden Google's cluster management software such that it rejects such requests regardless of origin, providing an additional layer of defense in depth and eliminating other similar classes of failure."
+          ]
+        },
+        {
+          "texto": "Reconfigure the network control plane software and supporting infrastructure to reject maintenance requests of the type implicated in this incident.",
+          "trechos": [
+            "Google's network control plane software and supporting infrastructure will be reconfigured such that it handles datacenter maintenance events correctly, by rejecting maintenance requests of the type implicated in this incident."
+          ]
+        },
+        {
+          "texto": "Modify the network control plane in each location to persist its configuration so it does not need to be rebuilt and redistributed if all jobs are descheduled.",
+          "trechos": [
+            "Furthermore, the network control plane in any single location will be modified to persist its configuration so that the configuration does not need to be rebuilt and redistributed in the event of all jobs being descheduled."
+          ]
+        },
+        {
+          "texto": "Update Google's network to continue in 'fail static' mode for a longer period after loss of the control plane.",
+          "trechos": [
+            "Finally, Google's network will be updated to continue in 'fail static' mode for a longer period in the event of loss of the control plane, to allow an adequate window for recovery with no user impact."
+          ]
+        },
+        {
+          "texto": "Review, update and test emergency response tooling and procedures (including customer communication tooling) for robustness to network failures of this kind, and extend continuous disaster recovery testing to include this and similar catastrophic failures.",
+          "trechos": [
+            "Google's emergency response tooling and procedures will be reviewed, updated and tested to ensure that they are robust to network failures of this kind, including our tooling for communicating with the customer base.",
+            "Furthermore, we will extend our continuous disaster recovery testing regime to include this and other similarly catastrophic failures."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 235,
+      "trechos": [
+        "Incident began at 2019-06-02 11:45 and ended at 2019-06-02 15:40 (all times are US/Pacific)."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Google is continuing to investigate reports that the Cloud Spanner multi-region nam3 was affected.",
+      "The post-mortem process remains at a relatively early stage and further action items may be identified."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "Duration uses the status page's marks (incident began 11:45, ended 15:40 US/Pacific). The report also gives a per-region range of 3 hours 19 minutes to 4 hours 25 minutes, says end-user impact began 11:47-11:49, that full service resumed at 16:10, that the status header reports resolution for all users as of 4:00pm, and that some VPN gateways recovered at 16:30. A separate Cloud Endpoints incident caused by this disruption lasted until 4 June 2019. categoria_causa is configuration-error because two of the three combined conditions were misconfigurations and software-bug is residual.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.19"
+  }
+}

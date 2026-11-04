@@ -1,0 +1,199 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-143",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On March 8, 2023, an automatically applied systemd security update restarted systemd-networkd on tens of thousands of Datadog nodes, which forcibly deleted the routes managed by the Cilium CNI plugin and took the nodes offline, causing an outage across the US1, EU1, US3, US4 and US5 regions and all services. Datadog recovered compute capacity region by region, then regional control planes, Kubernetes clusters and services, prioritizing live data; all services were declared operational on March 9 and the incident was fully resolved on March 10 after historical data was backfilled.",
+    "data_incidente": "2023-03-08",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Datadog platform (US1, EU1, US3, US4, US5 regions)",
+      "Datadog web access and APIs",
+      "monitors",
+      "data ingestion"
+    ],
+    "tecnologias": [
+      "systemd",
+      "systemd-networkd",
+      "Ubuntu 22.04",
+      "Cilium",
+      "Container Network Interface (CNI)",
+      "Kubernetes"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Datadog was first alerted to the issue by its internal monitoring, three minutes after the first faulty upgrade was triggered at 06:00 UTC on March 8, 2023.",
+        "trechos": [
+          "We were first alerted to the issue by our internal monitoring, three minutes after the trigger of the first faulty upgrade (March 8, 2023, at 06:00 UTC)."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "On March 8, 2023, at 06:00 UTC, a security update to systemd was automatically applied to a number of VMs, restarting systemd-networkd.",
+      "trechos": [
+        "We have identified (and since disabled) the initial trigger for the outage: on March 8, 2023, at 06:00 UTC, a security update to systemd was automatically applied to a number of VMs, which caused a latent adverse interaction in the network stack (on Ubuntu 22.04 via systemd v249) to manifest upon systemd-networkd restarting."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A latent adverse interaction in the network stack (Ubuntu 22.04 with systemd v249): when systemd-networkd restarted, it forcibly deleted the routes managed by the Cilium CNI plugin used for communication between containers, which took the affected nodes offline.",
+        "trechos": [
+          "We have identified (and since disabled) the initial trigger for the outage: on March 8, 2023, at 06:00 UTC, a security update to systemd was automatically applied to a number of VMs, which caused a latent adverse interaction in the network stack (on Ubuntu 22.04 via systemd v249) to manifest upon systemd-networkd restarting.",
+          "Namely, systemd-networkd forcibly deleted the routes managed by the Container Network Interface (CNI) plugin (Cilium) we use for communication between containers.",
+          "This caused the affected nodes to go offline."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The base OS image used to run Kubernetes had a legacy security update channel enabled, which caused the update to apply automatically, whereas Datadog normally pushes security patches region-by-region, cluster-by-cluster, node-by-node.",
+        "trechos": [
+          "However, the base OS image we use to run Kubernetes had a legacy security update channel enabled, which caused the update to apply automatically.",
+          "Whenever we push new code, security patches or configuration changes to our platform, we do so region-by-region, cluster-by-cluster, node-by-node."
+        ]
+      },
+      {
+        "texto": "The OS default sets the automatic update window to 06:00-07:00 UTC, so the update hit multiple regions at the same time even though the regions have no direct network connection or coupling between them; this made the impact markedly larger and confounded the initial responders, who were unaware of this indirect coupling. Tens of thousands of nodes were affected between 06:00 and 07:00.",
+        "trechos": [
+          "To compound the issue, the time at which the automatic update happens is set by default in the OS to a window between 06:00 and 07:00 UTC.",
+          "Thus it affected multiple regions at the exact same time, even though the regions have no direct network connection or coupling between them.",
+          "This made the scale of the impact markedly larger, and confounded the initial responders who, like the rest of us, were unaware of this very indirect coupling of behavior between regions.",
+          "This affected tens of thousands of nodes in our fleet between 06:00 and 07:00; by 06:31 UTC, enough of our fleet was offline that the outage was visible to our customers."
+        ]
+      },
+      {
+        "texto": "Neither a fresh nor a rebooted node exhibits the behaviour, because systemd-networkd starts before the CNI plugin installs routing rules during a normal boot; no obvious test reproduces the sequence outside a systemd-networkd update on a running node.",
+        "trechos": [
+          "The aggravating factor is that neither a fresh node nor a rebooted node exhibit this behavior because during a normal boot sequence systemd-networkd always starts before routing rules are installed by the CNI plugin.",
+          "In other words, outside of the systemd-networkd update scenario on a running node, no obvious test reproduces the exact sequence."
+        ]
+      },
+      {
+        "texto": "Some cloud providers' auto-scaling logic immediately replaced unhealthy nodes with fresh ones, losing data on them that had to be recovered; at the scale of tens of thousands of nodes this created a thundering herd that tested the providers' regional rate limits.",
+        "trechos": [
+          "Other cloud providers’ auto-scaling logic immediately replaces the unhealthy node with a fresh one. Data on the unhealthy node is lost and needs to be recovered, which adds to the complexity of the task at hand.",
+          "At the scale of tens of thousands of nodes being replaced at once, it also created a thundering herd that tested the cloud provider’s regional rate limits in various ways, none of which was obvious ex ante."
+        ]
+      },
+      {
+        "texto": "Metadata stores (e.g. those that index and resolve tags) require a quorum and refuse to operate once it is lost, unlike the statically sharded telemetry datastores that degrade roughly linearly; much of the recovery focused on restoring them.",
+        "trechos": [
+          "The same fleet of data nodes, bound together by a quorum will operate without degradation so long as the quorum is met and refuse to operate once it’s not.",
+          "Generally speaking, our primary telemetry datastores (e.g., those that store point values and raw log data) are statically sharded, while various metadata (e.g., those that index and resolve tags) is stored in systems that require a quorum to operate.",
+          "Thus, much of the recovery focused on restoring these metadata stores to the point that they would accept new writes for live data, while a smaller team was able to concurrently repair the independent static shards that indexed and stored live data."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A security update to systemd, automatically applied to a number of VMs through a legacy security update channel enabled in the base OS image.",
+        "trechos": [
+          "We have identified (and since disabled) the initial trigger for the outage: on March 8, 2023, at 06:00 UTC, a security update to systemd was automatically applied to a number of VMs, which caused a latent adverse interaction in the network stack (on Ubuntu 22.04 via systemd v249) to manifest upon systemd-networkd restarting.",
+          "However, the base OS image we use to run Kubernetes had a legacy security update channel enabled, which caused the update to apply automatically."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "For each region, Datadog first recovered compute capacity, working with each cloud provider to scale it above normal to process real-time and historical data at the same time; on providers that did not retire unhealthy nodes, rebooting the affected instances was the recovery step.",
+          "trechos": [
+            "First, for each region, recover enough compute capacity so that it could scale back to what it needed to process incoming data at the normal rate.",
+            "In fact, working with each cloud provider, we scaled the compute capacity to a higher level than normal in order to accommodate the processing of real-time and historical data at the same time.",
+            "This meant that simply rebooting the affected instance was the correct recovery step and was much faster for stateful workloads that still had their data intact and led to an overall faster recovery."
+          ]
+        },
+        {
+          "texto": "Each region's internal control plane was recovered before the hundreds of Kubernetes clusters were repaired; compute teams then made each cluster healthy enough for services to be repaired.",
+          "trechos": [
+            "Once we had raw compute capacity at our disposal, we had to pay attention to the order of recovery: each region’s internal control plane, whose role is to keep all Kubernetes clusters healthy, had to be recovered before the hundreds of Kubernetes clusters that power the platform could be repaired.",
+            "When the regional control plane was fully restored, the various compute teams could fan out and make sure that each cluster was healthy enough to let the services running on it be repaired by other teams."
+          ]
+        },
+        {
+          "texto": "Services were recovered in parallel, prioritizing live data: quorum-based metadata stores were restored to accept new writes for live data while a smaller team repaired the static shards that indexed and stored live data. Web access was restored at 09:13 UTC and the first major service was declared operational at 16:44 UTC.",
+          "trechos": [
+            "Once compute capacity was ready, recover each service in parallel, such that all services could be restored as soon as possible.",
+            "In all cases, our number one priority was to restore the processing of live data.",
+            "Thus, much of the recovery focused on restoring these metadata stores to the point that they would accept new writes for live data, while a smaller team was able to concurrently repair the independent static shards that indexed and stored live data.",
+            "We started to see initial signs of recovery at 09:13 UTC (web access restored) and declared our first major service operational by 16:44 UTC."
+          ]
+        },
+        {
+          "texto": "Once real-time data was usable, recovery switched to historical data that had been ingested but left unprocessed; all services were declared operational in all regions on March 9, 2023, 08:58 UTC, and the incident was fully resolved on March 10, 2023, 06:25 UTC after historical data was backfilled.",
+          "trechos": [
+            "Once real-time data was usable, we switched our recovery efforts to historical data that had been ingested but left unprocessed at the beginning of the outage.",
+            "We continued our recovery efforts, and declared all services operational in all regions on March 9, 2023, 08:58 UTC.",
+            "The incident was fully resolved on March 10, 2023, at 06:25 UTC once we had backfilled historical data."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the legacy security update channel was disabled across all affected regions.",
+          "trechos": [
+            "We have disabled this legacy security update channel across all affected regions so it will not happen again."
+          ]
+        },
+        {
+          "texto": "Already done: the systemd-networkd configuration was changed so that it leaves the routing table unchanged upon restart.",
+          "trechos": [
+            "We have also changed the configuration of systemd-networkd so that it leaves the routing table unchanged upon restart."
+          ]
+        },
+        {
+          "texto": "Already done: the infrastructure was audited for potential similar legacy update channels.",
+          "trechos": [
+            "Finally, we have audited our infrastructure for potential similar legacy update channels."
+          ]
+        },
+        {
+          "texto": "Use the level of infrastructure disruption seen in this incident in chaos testing to prove the platform can operate in degraded conditions, possibly with only urgent data accessible and processed in degraded mode, taking the data hierarchy (live data and alerts first) into account.",
+          "trechos": [
+            "Going forward we will use the level of infrastructure disruption we saw to prove that the platform can operate in degraded conditions without being completely down.",
+            "Coupled with the previous point, this may take the form of having only urgent data accessible and processed in degraded mode.",
+            "Most important, usable live data and alerts are much more valuable than access to historical data.",
+            "We will take this clear hierarchy into account in how we handle processing and access in degraded mode."
+          ]
+        },
+        {
+          "texto": "Prioritize sharing guidance with customers on which services and data are available and how to access them, and devise a way to communicate a detailed real-time status for each product, even in degraded mode.",
+          "trechos": [
+            "Going forward, we will prioritize sharing guidance with our customers about which services and data are available and how to access them.",
+            "We will devise a way to communicate in real-time a detailed status for each product, even when we run the platform in degraded mode."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 2902,
+      "trechos": [
+        "Starting on March 8, 2023, at 06:03 UTC, we experienced an outage that affected the US1, EU1, US3, US4, and US5 Datadog regions across all services.",
+        "The incident was fully resolved on March 10, 2023, at 06:25 UTC once we had backfilled historical data."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "categoria_causa is configuration-error: the text calls the root cause 'a latent adverse interaction in the network stack', and the fix was a change to the systemd-networkd configuration so it leaves the routing table unchanged on restart, plus disabling a legacy update channel enabled in the base image; configuration-error fits, and software-bug is residual. duracao runs from the stated start of the outage (March 8, 06:03 UTC) to the 'fully resolved' mark (March 10, 06:25 UTC, after historical data was backfilled). Other times in the text: customers could see the outage by 06:31 UTC, web access was restored at 09:13 UTC, the first major service was operational at 16:44 UTC, and all services were declared operational in all regions on March 9, 2023, 08:58 UTC (1,615 minutes after the start). The authors also say the outage shows a need to re-examine past choices of quorum-based datastores, without committing to a change.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.19"
+  }
+}

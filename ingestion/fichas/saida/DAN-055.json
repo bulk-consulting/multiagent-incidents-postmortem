@@ -1,0 +1,162 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-055",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "After Travis CI rolled out worker v2.6.2 for container-based Linux builds, jobs were incorrectly marked as failed; the text attributes this to a change that runs bash explicitly as a login shell, which appears to affect exit-code handling. The rollback to v2.5.0 initially did not take effect because the v2.5.0 worker image tag was missing on Docker Hub; after the tag was created and the team chose to declare emergency maintenance, the rollback was fully completed at 00:31 UTC and the incident marked resolved.",
+    "data_incidente": "2017-02-02",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Travis CI container-based Linux builds (sudo: false)"
+    ],
+    "tecnologias": [
+      "worker",
+      "Go",
+      "Docker",
+      "EC2",
+      "Docker Hub",
+      "quay.io",
+      "bash",
+      "direct-lvm"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "On Friday Feb 3rd the team identified jobs being incorrectly marked as failed; the status update mentions reports of mismatched exit code and job status, without saying who reported them.",
+        "trechos": [
+          "Friday Feb 3rd, we identified an issue with jobs being incorrectly marked as failed and started the rollback to v2.5.0.",
+          "We had started rolling out a newer version this past Thursday, then began rolling back due to reports of mismatched exit code and job status."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "incerta",
+      "descricao": {
+        "texto": "Among the major contributing factors of the outage, the text names a change in how the worker's docker backend executes build scripts, so that bash is run explicitly with a login shell; this change appears to affect how bash handles exit codes. After worker v2.6.2 was rolled out, jobs were incorrectly marked as failed.",
+        "trechos": [
+          "The major contributing factors in this outage were",
+          "Thursday Feb 2nd, we started rolling out a new worker version (v2.6.2) on EC2, for sudo: false, container-based builds.",
+          "A change in how our worker's docker backend executes build scripts, so that bash is run explicitly with a login shell.",
+          "This change appears to have effects on how bash handles exit codes, in a manner that we have fully investigated yet.",
+          "Friday Feb 3rd, we identified an issue with jobs being incorrectly marked as failed and started the rollback to v2.5.0."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The rollback to v2.5.0 did not take effect: new v2.5.0 instances were not making it into service because the worker image tag was missing on Docker Hub. Worker v2.6.0 had switched image pulls from quay.io to Docker Hub, while v2.5.0 had only been published and tagged on quay.io; the pull-source change and the publishing/tagging process live in different code bases.",
+        "trechos": [
+          "Saturday, Feb 4th, we discovered that the new instances with worker v2.5.0 were not actually making it into service and so builds were still being executed by worker v2.6.2.",
+          "The on-call engineer dug into why the v2.5.0 instances were failing to make it into service, identified a missing tag for the worker's image on the Docker Hub, created the missing tag, and then got the rollback working properly.",
+          "As mentioned previously, we recently switched where we pull the worker Docker images and this change was made with our v2.6.0 release of the worker.",
+          "The code change for where we pull the docker images from, was done in one code base, while the publishing and tagging process is done in another code base.",
+          "We did not foresee needing to rollback the container-based infrastructure to v2.5.0, which was originally only published/tagged on quay.io and not the Docker hub."
+        ]
+      },
+      {
+        "texto": "There was no alerting on the errors logged when image pulls failed to find v2.5.0.",
+        "trechos": [
+          "We also learned we did not have alerting which included the errors logged when the image pulls were failing to find v2.5.0."
+        ]
+      },
+      {
+        "texto": "Fully cycling out container-based build instances can take multiple hours because of safeguards that avoid interrupting long-running jobs (up to 2 hours for travis-ci.com users).",
+        "trechos": [
+          "It currently can take us multiple hours to fully cycle out instances because of the safe guards we have in place to do this recycling in a fashion that does not interrupt longer running (up to 2 hours for travis-ci.com users) jobs."
+        ]
+      },
+      {
+        "texto": "The change was not detected by staging environment tests, which the text says revealed insufficient diversity in how tests reflect the variety of user builds.",
+        "trechos": [
+          "This change was not detected by our staging environment tests and revealed insufficient diversity in how our tests reflect the variety of builds ou users are running."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "The rollout of worker version v2.6.2 for container-based builds; the text names as a major contributing factor a change in the worker's docker backend so that bash is run explicitly with a login shell.",
+        "trechos": [
+          "The major contributing factors in this outage were",
+          "Thursday Feb 2nd, we started rolling out a new worker version (v2.6.2) on EC2, for sudo: false, container-based builds.",
+          "A change in how our worker's docker backend executes build scripts, so that bash is run explicitly with a login shell."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "On Friday Feb 3rd the team started the rollback to worker v2.5.0, believing at the time it was proceeding; on Saturday Feb 4th they found the v2.5.0 instances were not making it into service.",
+          "trechos": [
+            "Friday Feb 3rd, we identified an issue with jobs being incorrectly marked as failed and started the rollback to v2.5.0.",
+            "At the time we believed the rollback to be happening successfully, but expected it to take a few hours to be fully completed.",
+            "Saturday, Feb 4th, we discovered that the new instances with worker v2.5.0 were not actually making it into service and so builds were still being executed by worker v2.6.2."
+          ]
+        },
+        {
+          "texto": "The on-call engineer created the missing tag for the worker image on Docker Hub (publishing v2.5.0 to Docker Hub as part of remediation), which got the rollback working properly.",
+          "trechos": [
+            "The on-call engineer dug into why the v2.5.0 instances were failing to make it into service, identified a missing tag for the worker's image on the Docker Hub, created the missing tag, and then got the rollback working properly.",
+            "Publishing it to the Docker hub was done as part of the incident remediation."
+          ]
+        },
+        {
+          "texto": "On Sunday Feb 5th the team chose to declare emergency maintenance and take more disruptive actions to ensure all EC2 instances ran v2.5.0; at 00:31 UTC the rollback was fully completed and the incident was marked resolved.",
+          "trechos": [
+            "Sunday, Feb 5th, in order to more quickly eliminate the impact of this issue on our users, we chose to declare emergency maintenance and take more disruptive and aggressive actions that would ensure all the EC2 instances were running v2.5.0.",
+            "At 00:31 UTC the rollback was fully completed and the incident was marked as Resolved."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: as part of the incident resolution, additional alerting was created so the team is notified about similar errors (such as the logged image-pull errors) in the future.",
+          "trechos": [
+            "As part of the incident resolution, we created additional alerting, so that we know we'll be notified about similar errors in the future.",
+            "Missing coverage in terms of alerting for the errors which were being logged when the image pulls failed."
+          ]
+        },
+        {
+          "texto": "Under discussion: incremental and radical changes to the instance replacement process and tooling to deploy and roll back worker versions more quickly.",
+          "trechos": [
+            "We are discussing both incremental and radical ways to change our instance replacement process and tooling, so that we can more quickly deploy and rollback future worker versions."
+          ]
+        },
+        {
+          "texto": "Being looked at: improving the diversity of staging tests to catch such regressions before they affect user builds.",
+          "trechos": [
+            "We are looking at how we can better improve the diversity of our tests in staging, to help better catch these kinds of regressions before they impact user builds."
+          ]
+        },
+        {
+          "texto": "Under discussion: potentially moving to a more agent/pull-based process for running each job, to replace the worker version without restarting user builds.",
+          "trechos": [
+            "Bigger picture, we discussing the potential for moving to a more agent/pull based process for running each job, which would let us more easily replace the worker version without requiring us to restart user builds."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The year 2017 comes from the 'Posted' dates in the extracted text (postmortem posted Feb 13, 2017; resolution posted Feb 06, 2017 00:31 UTC). The postmortem places the 00:31 UTC completion under 'Sunday, Feb 5th', while the Resolved update is posted Feb 06, 2017 - 00:31 UTC. The sentence about exit codes reads 'in a manner that we have fully investigated yet', apparently missing a negation; it is not listed as an open question because the literal text does not say so. The status update estimated the emergency maintenance at 1-2 hours. No start time of impact is given, so duracao is null.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.19"
+  }
+}
