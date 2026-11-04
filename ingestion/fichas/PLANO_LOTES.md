@@ -30,10 +30,11 @@ Observações:
 
 **A partir do lote 06 (decidido após o lote 05, taxa estável em ~1,5 ERRADO por ficha desde o lote 03):**
 - a sessão de extração faz uma **autorrevisão** ([`autorrevisao.md`](autorrevisao.md)) depois de validar, e lista o que mudou em cada ficha;
-- a conferência no GPT é por **amostra**: as fichas `baixa` + 3 `alta` sorteadas (`montar_revisao.py NN --amostra`);
+- a conferência no GPT é por **amostra**: as fichas `baixa` + 3 `alta` sorteadas + as que a autorrevisão passou de `baixa` para `alta` (`montar_revisao.py NN --amostra DAN-xxx ...`; desde o lote 08);
 - se a amostra passar de 1,5 ERRADO procedente por ficha, volta a conferir tudo no lote seguinte.
 
 Resultado da amostra por lote (ERRADOS procedentes / fichas da amostra): lote 06 = 6/6 (1,0) → segue por amostra; gerou a v2.13. Lote 07 = 5/5 (1,0), 4 dos 5 por detalhe sem trecho → segue por amostra, sem mudança de prompt.
+Lote 08 = 6/5 (1,2), amostra ampliada com as 2 fichas que a autorrevisão passou de baixa para alta (124, 240; a 197 já tinha sido sorteada): nenhuma das 3 viradas foi contestada → segue por amostra, sem mudança de prompt.
 
 **Fichas vazias:** documentos que saem `nao_verificavel` (só menus ou rodapé) não precisam de conferência; entram na lista de reextração.
 

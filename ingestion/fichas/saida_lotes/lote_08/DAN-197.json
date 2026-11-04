@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-197",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "An unannounced Azure change made a previously optional field, the partition key, mandatory when creating CosmosDB containers, so Metrist's Azure CosmosDB service monitor began failing to create containers in East US from September 14th and later in Central US, causing a partial outage of the monitor. After several investigative steps, the team found the requirement in the Azure web portal and fixed the monitor by explicitly setting the partition key.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Metrist Azure CosmosDB service monitor",
+      "Azure CosmosDB container creation (East US and Central US regions)"
+    ],
+    "tecnologias": [
+      "Azure CosmosDB",
+      "CreateContainer",
+      "PartitionKey",
+      "Azure SDK",
+      "Azure web portal"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Metrist's scripted functional tests of Azure CosmosDB began returning errors at 18:42 UTC on September 14th, not on every attempt but on enough to trigger Metrist's heuristics that something was wrong in the East US region while creating a database container.",
+        "trechos": [
+          "We first noticed the problem with the partial outage of our Azure CosmosDB service monitor September 14th at 18:42 UTC.",
+          "We reported to our users that the product was not functioning correctly because our tests began returning errors, not on every attempt, but on enough to trigger Metrist’s heuristics that something was wrong in the East US region of Azure while attempting to create a database container, as seen below."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Azure published a breaking change without warning its users, making a previously optional field mandatory: CosmosDB container creation now required a partition key, so the monitor's CreateContainer requests, unchanged for months and not setting a partition key, failed with 'One of the specified inputs is invalid'.",
+        "trechos": [
+          "Azure published a breaking change – making a previously optional field that we considered irrelevant mandatory, and creating errors in our monitoring.",
+          "This was the case when Azure published a breaking change that affected downstream systems like ours without warning its users.",
+          "Using a feature of our product that details errors from our functional tests, we were able to see a log of all the recent errors thrown by the monitor, with CreateContainer specifically showing several errors stating “One of the specified inputs is invalid”.",
+          "While this data was not the most helpful, it confirmed that there was something wrong with our request, despite no changes to how we made the request in months.",
+          "However, manually setting the PartitionKey with a simple .WithPartitionKey(“/id”) was all it needed to start working."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The change was not announced and nothing was reported on the Azure status page, so the source of the failures was not clear at first.",
+        "trechos": [
+          "But, the source of the breaking change was not clear at first, and we at Metrist had to investigate using our own data for third-party application reliability in order to determine the source of the issue.",
+          "Although other regions still worked and there was nothing reported on the status page, it was worth having a try through the web console as a sanity check."
+        ]
+      },
+      {
+        "texto": "The failures started intermittently in one region (75% of test runs failing on the first day, about 90% on the following days) and only later reached every attempt and the Central US region; until the error details were seen, the team could not rule out a regional problem such as capacity issues.",
+        "trechos": [
+          "Following the first error on the 14th, 75% of test runs failed through the remainder of the day, with 25% succeeding.",
+          "On September 15th through September 20th, Metrist continued to report the service as partially down as 90% of the 140 daily tests in the East US region failed day.",
+          "Until seeing the error details in Metrist, for all we knew that could have just been because of the specific region having issues (we’ve seen capacity issues before on single regions from cloud providers that prevented us from spinning up a new database or VM).",
+          "After a few days, this error was happening on every attempt and began affecting the Central US region."
+        ]
+      },
+      {
+        "texto": "The only clue that the partition key was now required was found in the Azure web portal's 'New Container' form, and the SDK's PartitionKey.None implied that not setting the value should be an option; it took a full morning to fully debug and fix.",
+        "trechos": [
+          "Filling out the “New Container” form, everything seemed fine until the Partition Key.",
+          "This was even more confusing with the inclusion of a PartitionKey.None that implies not setting the value should be an option.",
+          "However, it still took a full morning to fully debug and fix this all because of a previously optional field becoming required and the only clue was found while using the Azure web portal, in a world of Infrastructure as Code."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "An Azure CosmosDB API change made the previously optional partition key field required when creating a container; the web portal's 'New Container' form showed the Partition Key as required with a default of '/id'.",
+        "trechos": [
+          "Azure published a breaking change – making a previously optional field that we considered irrelevant mandatory, and creating errors in our monitoring.",
+          "Filling out the “New Container” form, everything seemed fine until the Partition Key.",
+          "It was required and had a default of “/id”, surely the SDK would set a similar sane default that Just Worked™.",
+          "However, it still took a full morning to fully debug and fix this all because of a previously optional field becoming required and the only clue was found while using the Azure web portal, in a world of Infrastructure as Code."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The monitor's CreateContainer call was changed to set the partition key explicitly with .WithPartitionKey(\"/id\"), which made it work, with similar changes to the InsertItem and DeleteItem checks.",
+          "trechos": [
+            "However, manually setting the PartitionKey with a simple .WithPartitionKey(“/id”) was all it needed to start working.",
+            "Fortunately, this was all we needed to get the our service monitor formatted the way CosmosDB suddenly expected, in just 2 of the regions (plus similar changes to the InsertItem and DeleteItem checks)."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "Recommendation to API consumers: follow best practices and recommendations from providers and get alerted to upcoming changes to prevent a breaking API change from impacting an application.",
+          "trechos": [
+            "Following best practices and recommendations from providers and getting alerted to upcoming changes is your best bet to prevent a breaking API change from impacting your application."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "data_incidente is null because the text gives September 14th without a year. duracao is null because the text does not say on which day the fix was applied (failures reached 100% of East US test runs on September 21st). The text says the fix was needed 'in just 2 of the regions'. The authors note that a production CosmosDB deploy would almost certainly have a partition key set; the only prevention offered is a general recommendation to readers, not a commitment. categoria_causa is configuration-error: the provider's API validation rule changed (a previously optional field became mandatory), which the definition covers as 'a change to configuration, rules or policy'. Before finding the fix, the team updated the outdated SDK and checked throughput values and whether containers could be created, with no change; these investigation steps are not listed as mitigation.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

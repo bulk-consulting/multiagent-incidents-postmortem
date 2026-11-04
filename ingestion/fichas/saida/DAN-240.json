@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-240",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On 12 April 2018, the primary NSE leased line of one of Zerodha's CTCLs went down and the backup line kept going up and down for about 60 minutes, so orders routed through that CTCL were not placed on the exchange and stayed in pending states; for bracket and cover orders this left hanging positions. The CTCL was eventually shut completely and the pending orders were lapsed and reconciled with the exchange.",
+    "data_incidente": "2018-04-12",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "order placement on NSE through the affected CTCL",
+      "bracket and cover orders (BO, CO)"
+    ],
+    "tecnologias": [
+      "CTCL",
+      "leased lines",
+      "NSE"
+    ],
+    "categoria_causa": "other",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Emails were received from the NSE approved leased line vendor when the lines went down; orders going through the affected CTCL showed open pending, validation pending and modify pending statuses. The text does not say which was noticed first.",
+        "trechos": [
+          "Find below screenshot of one of the emails we received from the NSE approved leased line vendor, when this happened:",
+          "During this period when the lines were flapping orders going through this affected CTCL weren’t getting placed on the exchanges and hence the order status update – open pending, validation pending, and modify pending."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "vaga",
+      "descricao": {
+        "texto": "Around 12:12 pm the primary leased line of one CTCL connecting to NSE went down; the backup line went live automatically but then went up and down ('flapping') multiple times over the next 60 minutes, and orders through that CTCL were not placed on the exchange. The text does not say why the lines failed.",
+        "trechos": [
+          "Yesterday, around 12.12 pm, the primary leased line on one of our CTCLs went down.",
+          "The backup leased line automatically went live. But the backup line also started going up and down (“flapping”), not once but multiple times over the next 60 minutes.",
+          "During this period when the lines were flapping orders going through this affected CTCL weren’t getting placed on the exchanges and hence the order status update – open pending, validation pending, and modify pending."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Each CTCL has only a primary and one backup leased line (only one backup is allowed per CTCL), and orders from the trading platforms are placed on the exchange through the CTCLs in round robin.",
+        "trechos": [
+          "Each CTCL has a primary and backup leased line.",
+          "All orders that come through our trading platforms get placed on the exchange through these CTCL’s in round robin.",
+          "We are allowed only one backup for every CTCL."
+        ]
+      },
+      {
+        "texto": "In bracket and cover orders, the counter leg square-off orders are never placed when the primary orders are lapsed, and the exit option was shown only on counter leg open orders, leaving hanging BO/CO positions that could not be exited in the normal way.",
+        "trechos": [
+          "In a bracket and cover order, there are counter leg square off orders which never gets placed when the primary orders are lapsed.",
+          "What this means is a hanging BO/CO position which can’t be exited in the normal way.",
+          "Currently the exit option shows up only on the counter leg open orders."
+        ]
+      },
+      {
+        "texto": "The authors state that leased line reliability in India, even from exchange-approved vendors, is extremely poor.",
+        "trechos": [
+          "We have invested significant amounts of money to ensure upkeep of our connectivity, but leased line reliability in India, even from the exchange approved vendors, is extremely poor."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The affected CTCL was eventually shut completely so no new orders could be affected, and orders showing pending states were lapsed and reconciled with the exchange.",
+          "trechos": [
+            "We eventually shut this CTCL completely, so no new orders could get affected.",
+            "Once the CTCL was shut off, the orders which were showing any of the pending states were lapsed and reconciled with the exchange."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "A release by the end of the month will give bracket and cover orders an option to exit from the open position itself, so a BO/CO position can be exited from the admin position even without a counter leg open order.",
+          "trechos": [
+            "We have a new release by end of this month where bracket and cover orders will have an option to exit from open position itself.",
+            "So even if you don’t see a counter leg open order, you can exit the BO/CO position from admin position directly."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "duracao is null: the backup line flapped 'over the next 60 minutes', but the text does not say when the CTCL was shut, and hanging BO/CO positions persisted beyond that. The incident affected less than 0.3% of orders and about 1.5% of clients who traded that day. The authors advise clients to take an opposite position using MIS/NRML to exit a hanging BO/CO position, and state that nothing can be done on the leased line connectivity side. categoria_causa is 'other' because no category describes the failure of a vendor's leased line with no stated mechanism. dominio is software_servicos: the leased lines are a vendor connectivity dependency outside any data center, and infra_fisica_datacenter is limited to physical network inside a data center. causa_raiz.status is vaga: the text names the failed lines but gives no mechanism for why they failed, like the 'an upstream provider' example.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

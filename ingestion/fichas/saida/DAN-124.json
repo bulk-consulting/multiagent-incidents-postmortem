@@ -1,0 +1,146 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-124",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "seguranca",
+    "seguranca": "ataque",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "An attacker penetrated an old, unpatched prototype machine via the shellshock vulnerability, used the AWS keys stored on it to reach a backup holding the database password, partially copied a table of user information and sent an email with inaccurate claims to about 5,000 users. Monitoring alerts led the team to block the attacker's IP; the service was taken down for several hours while components were checked and all AWS keys and passwords were revoked and regenerated.",
+    "data_incidente": "2014-11-09",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "BrowserStack service",
+      "BrowserStack database (user information table)"
+    ],
+    "tecnologias": [
+      "Amazon Web Services",
+      "IAM",
+      "AWS security group",
+      "SES",
+      "AWS CloudTrail",
+      "shellshock",
+      "VNC",
+      "SSH"
+    ],
+    "categoria_causa": "credential-auth",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "The attacker's copy operation locked a database table, which raised alerts on the monitoring system; on checking the logs the team saw an unrecognized IP.",
+        "trechos": [
+          "His copy operation locked the database table, which raised alerts on our monitoring system.",
+          "On receiving the alerts, we checked the logs, saw an unrecognized IP, and blocked it right away."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "On 9 November 2014 at 23:30 GMT, an attacker penetrated an old prototype machine among the AWS application servers using the shellshock vulnerability.",
+      "trechos": [
+        "As you may already know, BrowserStack experienced an attack on 9th November, 2014 at 23:30 GMT during which an individual was able to gain unauthorized access to some of our users' registered email addresses.",
+        "BrowserStack application servers run using Amazon Web Services.",
+        "One of these was an old prototype machine, which was the target of the breach.",
+        "It was penetrated using the shellshock vulnerability, and since it was no longer in active use, it did not have the appropriate patch installed."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The prototype machine had been running since before 2012, was not in active use and did not have the shellshock patch installed, and it held the company's AWS API access key and secret key; with those keys the attacker created an IAM user, generated a key-pair and ran an instance inside the company's AWS account.",
+        "trechos": [
+          "The machine had been running since before 2012, and was not in active use.",
+          "It was penetrated using the shellshock vulnerability, and since it was no longer in active use, it did not have the appropriate patch installed.",
+          "The old prototype machine had our AWS API access key and secret key.",
+          "Once the hacker gained access to the keys, he created an IAM user, and generated a key-pair.",
+          "He was then able to run an instance inside our AWS account using these credentials, and mount one of our backup disks."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "A backup disk of a component service used in production, which the attacker mounted from the instance, contained a config file with the database password.",
+        "trechos": [
+          "He was then able to run an instance inside our AWS account using these credentials, and mount one of our backup disks.",
+          "This backup was of one of our component services, used for production environment, and contained a config file with our database password."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "On receiving the monitoring alerts, the team blocked the unrecognized IP found in the logs.",
+          "trechos": [
+            "On receiving the alerts, we checked the logs, saw an unrecognized IP, and blocked it right away."
+          ]
+        },
+        {
+          "texto": "The service was temporarily taken down while each component was scrutinized.",
+          "trechos": [
+            "This involved temporarily taking down the service, as we scrutinized each component carefully."
+          ]
+        },
+        {
+          "texto": "After taking down the service, all existing AWS keys and passwords were revoked and new ones generated.",
+          "trechos": [
+            "After taking down the service, we revoked all the existing AWS keys and passwords, and generated new ones immediately, as an added security measure."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "In progress: migrating all backups to encrypted backups and removing all unencrypted ones.",
+          "trechos": [
+            "We are migrating all backups to encrypted backups, and removing all unencrypted ones."
+          ]
+        },
+        {
+          "texto": "Already done: several additional checks and alerts triggered on specified AWS actions were put in place, and new VM snapshots were created to replace all existing ones.",
+          "trechos": [
+            "We have also put in several additional checks and alerts, which are triggered on specified AWS actions. As a precautionary measure we have also created new VM snapshots and have replaced all the existing ones."
+          ]
+        },
+        {
+          "texto": "The company is evaluating certain VPC/VPN options to enhance security.",
+          "trechos": [
+            "To prevent further incidents, we are in the process of evaluating certain VPC/VPN options to enhance our security measures."
+          ]
+        },
+        {
+          "texto": "A security audit will be conducted by an external, independent agency.",
+          "trechos": [
+            "We're going to have a security audit conducted by an external, independent agency."
+          ]
+        },
+        {
+          "texto": "Recommendation to users: change BrowserStack account passwords as an added precaution.",
+          "trechos": [
+            "However, as an added precaution, we suggest that users change their BrowserStack account passwords."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "duracao is null because the text only says the service was down for 'several hours' (the later FAQ says 'resolved within hours'). The extracted text includes a later 'Security Evolution: 2014 → 2026' table, a customer-count banner and an FAQ, which are marketing content not used for prevention. The text also says CloudTrail confirmed no other services were compromised and that SSH, web server and CloudTrail logs were reviewed after the takedown (response steps, not mitigation), and that production web servers were patched against shellshock attempts. categoria_causa is credential-auth: by the attack rule, the root cause is classified by its mechanism (the stolen AWS keys, then the database password), not by how the attacker got access (the unpatched shellshock vulnerability). The authors state that servers not in active use should have been stopped and the server should not have had the AWS keys.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

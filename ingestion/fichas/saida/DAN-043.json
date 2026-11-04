@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-043",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "A function meant to delete and recreate the local development database connected to the production database and wiped it, deleting the scoreboards and their associated data. The website was put into maintenance mode and work began on restoring a DigitalOcean daily backup; the site was back online about 30 minutes after the deletion, but 7 hours of scoreboard data were lost.",
+    "data_incidente": "2020-10-17",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Keepthescore website",
+      "scoreboards"
+    ],
+    "tecnologias": [
+      "DigitalOcean managed database",
+      "PostgresqlDatabase"
+    ],
+    "categoria_causa": "other",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A function that deletes the local database and recreates all required tables from scratch connected to the production database during late evening coding and wiped it, although its host was hardcoded to localhost and development and production use different users and passwords. Why it connected to production is still being investigated.",
+        "trechos": [
+          "It’s a function that deletes the local database and creates all the required tables from scratch.",
+          "This evening, whilst doing some late evening coding, the function connected to the production database and wiped it.",
+          "Why? This is something we’re still trying to figure out.",
+          "Note that `host` is hardcoded to `localhost`.",
+          "Also: **of course** we use different passwords and users for development and production."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The managed database was backed up automatically once a day; when the site came back online, 7 hours of scoreboard data (created or added on 17 October 2020 between 15:47 CET and 23:21 CET) were gone.",
+        "trechos": [
+          "Thankfully our database is a managed database from DigitalOcean, which means that DigitalOcean automatically do backups once a day.",
+          "At around 11:15pm CET, 30 minutes after the disaster, we went back online, however 7 hours of scoreboard data was gone forever 😵.",
+          "To be precise, any scoreboards created or scores added on the 17th October 2020 between 15:47 CET and 23:21 CET have been lost."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "About 5 minutes after the deletion, the website was put into maintenance mode and work began on restoring a backup of the DigitalOcean managed database.",
+          "trechos": [
+            "Thankfully our database is a managed database from DigitalOcean, which means that DigitalOcean automatically do backups once a day.",
+            "After 5 minutes of hand-wringing and panic, we took the website into maintenance mode and worked on restoring a backup."
+          ]
+        },
+        {
+          "texto": "At around 11:15pm CET, 30 minutes after the deletion, the website went back online, with 7 hours of scoreboard data lost.",
+          "trechos": [
+            "At around 11:15pm CET, 30 minutes after the disaster, we went back online, however 7 hours of scoreboard data was gone forever 😵."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "The authors will figure out what went wrong and ensure that this particular error does not happen again.",
+          "trechos": [
+            "However, we will figure out what went wrong and ensure that this *particular* error doesn’t happen again."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 30,
+      "trechos": [
+        "At around 11:15pm CET, 30 minutes after the disaster, we went back online, however 7 hours of scoreboard data was gone forever 😵."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Why the function, whose host was hardcoded to localhost, connected to the production database."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The date is inferred from the statement that data created on 17 October 2020 between 15:47 and 23:21 CET was lost; the deletion is described as happening 'today at around 10:45pm CET' (the text does not reconcile 10:45pm with the 23:21 end of the lost-data window). The text writes 'Over 300.00 scoreboards'. categoria_causa is 'other' because the text gives no mechanism for why the function reached production. The authors also list lessons learned (a database-deleting function is too dangerous to keep around; quick backup recovery is essential), stated as lessons rather than commitments. The authors also say the safety mechanisms of a database-deleting function cannot really be tested without pointing it at the production database; this is a general lesson, not listed as a factor. The extracted text ends with a photo credit and a note about a Hacker News discussion.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

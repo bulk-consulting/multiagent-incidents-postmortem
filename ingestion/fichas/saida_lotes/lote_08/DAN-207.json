@@ -1,0 +1,162 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-207",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "seguranca",
+    "seguranca": "ataque",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "On 19 July 2017, unknown parties exploited unguarded wallet set-up functions in the multi-sig library contract used by Parity Wallet, resetting ownership of existing wallets; three wallets holding large ETH balances were compromised and their balances moved to the attacker, while the White Hat Group used the same exploit to secure the other vulnerable wallets. Parity disabled the broken code by unregistering the on-chain registered resource it required.",
+    "data_incidente": "2017-07-19",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Parity Wallet multi-signature wallets"
+    ],
+    "tecnologias": [
+      "Ethereum",
+      "Solidity",
+      "multi-sig wallet contract",
+      "stub contract",
+      "library contract",
+      "Javascript"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "On Wednesday 19 July 2017, parties unknown exploited the bug in the multi-sig wallet code used in Parity Wallet.",
+      "trechos": [
+        "On Wednesday 19th July, 2017 a bug found in the multi-signature wallet (\"multi-sig\") code used as part of Parity Wallet software was exploited by parties unknown."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A pair of sensitive functions for setting up multi-sig wallets, which should have been usable only while the contract was being created, were entirely unguarded, allowing the attacker to reset the ownership and usage parameters of existing wallets arbitrarily; the bug was introduced when the original multi-sig code was restructured into a lightweight stub contract and a library contract holding most of the wallet logic.",
+        "trechos": [
+          "The bug was in a pair of extremely sensitive functions designed to allow the set-up of \"multi-sig\" wallets in the Parity Wallet software.",
+          "The functions should have been protected in order that they be usable only in one specific circumstance, as the contract was being created. However, they were entirely unguarded, which allowed the attacker to reset the ownership and usage parameters of existing wallets arbitrarily.",
+          "It was restructured into a lightweight \"stub\" contract which is deployed to the network every time a wallet is created, together with a much heavier \"library\" contract, containing the majority of the wallet's logic and which is deployed only once.",
+          "The bug was introduced during this restructuring."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The restructuring happened inside a much larger change, the introduction of the Wallet user interface (a 4000-line, almost entirely Javascript, CSS and HTML alteration); it was erroneously tagged as a purely UI change and so received only one review before merge, instead of the two or more expert reviews given to changes tagged as sensitive, and a later audit by a Solidity expert also missed the issue.",
+        "trechos": [
+          "The restructuring of the original multi-sig wallet contract happened as part of a much larger change, namely the introduction of the Wallet user-interface, a 4000-line, almost entirely Javascript, CSS and HTML alteration.",
+          "It was erroneously tagged as a (purely) UI change and thus received only one review before merge. A later audit by a Solidity expert also missed the issue.",
+          "Changes which are understood to be sensitive (such as with contracts or core consensus code) are tagged as such and undergo a greater level of review, generally two or more expert reviews."
+        ]
+      },
+      {
+        "texto": "The authors state that part of the cause of the bug, and the reason it went unnoticed, was the large amount of complexity within the preexisting multi-sig wallet.",
+        "trechos": [
+          "Part of the cause of this bug, and the reason it went unnoticed, was due to the large amount of complexity within the preexisting and well-audited multi-sig wallet."
+        ]
+      },
+      {
+        "texto": "The code was open and public, but there was no incentivisation mechanism to ensure community members inspected it.",
+        "trechos": [
+          "Though the code was open and public, and thus the bug could have been discovered, reported and fixed before any damage done, there was no incentivisation mechanism to ensure good-natured eyes from the community inspected it."
+        ]
+      },
+      {
+        "texto": "The authors attribute part of the bug to the Solidity language: it is difficult to understand execution permissions over functions, and the default access mode of functions is \"public\".",
+        "trechos": [
+          "Fourth, some blame for this bug lies with the Solidity language and, in its current incarnation, the difficulty with which one can understand the execution permissions over functions.",
+          "One would be to change the default access mode of functions to \"private\", rather than the eminently insecure \"public\"."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "The restructuring of the original multi-sig wallet code into a stub contract and a library contract, made as part of the 4000-line Wallet user-interface change; the text says the bug was introduced during this restructuring.",
+        "trechos": [
+          "The restructuring of the original multi-sig wallet contract happened as part of a much larger change, namely the introduction of the Wallet user-interface, a 4000-line, almost entirely Javascript, CSS and HTML alteration.",
+          "It was restructured into a lightweight \"stub\" contract which is deployed to the network every time a wallet is created, together with a much heavier \"library\" contract, containing the majority of the wallet's logic and which is deployed only once.",
+          "The bug was introduced during this restructuring."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The self-titled White Hat Group used the same exploit to secure the other vulnerable multi-sig wallets (the remainder of 596), with the stated intention of returning control to the original owners.",
+          "trechos": [
+            "The self-titled \"White Hat Group\" used the same exploit to secure the other compromised wallets within Ethereum, with the stated intention of returning control to the original owners.",
+            "To give some perspective: 3 multi-sig wallets were exploited from of a total of 596 vulnerable multi-sig wallets (the rest were commandeered by the White Hat Group), which themselves are a tiny fraction of Parity accounts."
+          ]
+        },
+        {
+          "texto": "Parity disabled the use of the broken code by unregistering the on-chain registered resource it requires, so future multi-sig wallets created in all versions of Parity Wallet have no known exploits.",
+          "trechos": [
+            "We already disabled the use of the broken code (it requires use of an on-chain registered resource which we were able to quickly unregister), which means future multi-sig wallets created in all versions of Parity Wallet have no known exploits."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Any alterations to the codebase that involve live contract code (generally identifiable through .sol files) will be reviewed by Solidity experts, as part of refining development processes and the CI system.",
+          "trechos": [
+            "In response to the present exploit we will refine our development processes and CI system.",
+            "The first and biggest change will be to ensure that any alterations to the codebase that involve live contract code (which can be generally identified through .sol files) be reviewed by Solidity experts."
+          ]
+        },
+        {
+          "texto": "Parity will revisit the multi-sig design at a high level and will consider adding an extremely simple contract between the multi-sig and the assets it controls; work has started on a draft, CoreVeto, a simple veto-able time-lock contract.",
+          "trechos": [
+            "Secondly, we will be revisiting the design of Parity Wallet's Multi-sig at a high level.",
+            "We will consider adding an additional, extremely simple, contract to sit between the more complex multi-sig and any assets it controls.",
+            "We have already started work on this and a draft of the idea can be found in our contracts repository, the contract named CoreVeto.",
+            "It is essentially a very simple veto-able time-lock contract, which gives a last defence against these kinds of black swan events where the unknown unknowns can occur."
+          ]
+        },
+        {
+          "texto": "Parity will rearchitect the UI into a more general and lightweight platform with well-isolated modules that are more inviting to casual developers.",
+          "trechos": [
+            "To this end we will be rearchitecting the UI into a more general and lightweight platform with the idea that modules are well-isolated and more inviting to the casual developer."
+          ]
+        },
+        {
+          "texto": "Parity will submit suggestions to the Solidity team: change the default access mode of functions to \"private\", or make it illegal to include functions with neither an explicit access modifier nor a guard modifier.",
+          "trechos": [
+            "We will submit some suggestions to the Solidity team that would help to minimise bugs of this kind.",
+            "One would be to change the default access mode of functions to \"private\", rather than the eminently insecure \"public\".",
+            "Another, even safer, change would be to make it illegal to include functions that have neither an explicit access modifier nor a guard modifier."
+          ]
+        },
+        {
+          "texto": "Parity will try to arrange a bug-bounty programme and appeals to the community for funding to set it up.",
+          "trechos": [
+            "Going forward, Parity will try to arrange a bug-bounty programme.",
+            "So we appeal to the community and those that use our software in their well-funded businesses and projects: help us set up a fund to help ensure this doesn't happen again."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text does not state the amounts of ETH stolen or secured. It notes that the thief was attempting to launder the stolen funds through exchanges at the time of writing, and warns users of phishing attempts, asking them to download Parity only from the official GitHub repository. The original Foundation multi-sig code, audited by the Ethereum Foundation's DEV team, Parity and others, is stated to have no known security issues. The text ends with an appeal to the community to help fund a bug-bounty programme.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

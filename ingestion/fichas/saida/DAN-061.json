@@ -1,0 +1,223 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-061",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During an electrical storm, utility power failures in US East-1 led to a transfer to generator power, but in one datacenter the generators failed to provide stable voltage, the UPS units depleted and servers lost power, taking down EC2, EBS, RDS and ELB resources in one Availability Zone and degrading Region-wide control planes. Generator power was stabilized and the UPSs restarted, power was back to all racks by 8:24pm PDT, and instances, volumes, databases and control planes were recovered over the following hours.",
+    "data_incidente": "2012-06-29",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Elastic Compute Cloud (EC2)",
+      "Elastic Block Store (EBS)",
+      "Relational Database Service (RDS)",
+      "Elastic Load Balancer (ELB)",
+      "EC2 and EBS control planes",
+      "ELB control plane"
+    ],
+    "tecnologias": [
+      "generators",
+      "electrical switching equipment",
+      "Uninterruptable Power Supply (UPS)",
+      "multi-Availability Zone replicated datastores",
+      "DNS",
+      "DNS CNAME record"
+    ],
+    "categoria_causa": "hardware-power",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "At 7:24pm PDT, during a large electrical storm, a large voltage spike hit the electrical switching equipment in two US East-1 datacenters supporting a single Availability Zone, and all utility electrical switches in both datacenters initiated transfer to generator power; utility power failed a second time at 7:57pm PDT.",
+      "trechos": [
+        "The event was triggered during a large scale electrical storm which swept through the Northern Virginia area.",
+        "At 7:24pm PDT, a large voltage spike was experienced by the electrical switching equipment in two of the US East-1 datacenters supporting a single Availability Zone.",
+        "All utility electrical switches in both datacenters initiated transfer to generator power.",
+        "The utility power in the Region failed a second time at 7:57pm PDT."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "In one of the two datacenters, the generators started but each independently failed to provide stable voltage as they were brought into service, so they did not pick up the load and servers ran on UPS power; at the second utility failure all rooms of this facility again failed to transfer to generator power, the UPS systems depleted and servers began losing power at 8:04pm PDT.",
+        "trechos": [
+          "In the other, the generators started successfully, but each generator independently failed to provide stable voltage as they were brought into service.",
+          "As a result, the generators did not pick up the load and servers operated without interruption during this period on the Uninterruptable Power Supply (“UPS”) units.",
+          "Again, all rooms of this one facility failed to successfully transfer to generator power while all of our other datacenters in the Region continued to operate without customer impact.",
+          "As onsite personnel worked to stabilize the primary and backup power generators, the UPS systems were depleting and servers began losing power at 8:04pm PDT."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Recovery of the affected EC2 instances, most of which came back online between 11:15pm PDT and just after midnight, was extended by a bottleneck in the server booting process.",
+        "trechos": [
+          "The vast majority of these instances came back online between 11:15pm PDT and just after midnight.",
+          "Time for the completion of this recovery was extended by a bottleneck in our server booting process."
+        ]
+      },
+      {
+        "texto": "EBS volumes with in-flight writes at the time of the power loss are brought back in an impaired state with I/O paused so customers can verify consistency; the number of volumes requiring processing was large enough that the backlog still took several hours to complete.",
+        "trechos": [
+          "However, for EBS data volumes that had in-flight writes at the time of the power loss, those volumes had the potential to be in an inconsistent state.",
+          "Rather than return those volumes in a potentially inconsistent state, once the EBS servers are back up and available, EBS brings customer volumes back online in an impaired state where all I/O on the volume is paused.",
+          "Though the time to recover these EBS volumes has been reduced dramatically over the last 6 months, the number of volumes requiring processing was large enough that it still took several hours to complete the backlog."
+        ]
+      },
+      {
+        "texto": "The duration of the EC2 and EBS control plane recovery was the result of the inability to rapidly fail over to a new primary datastore: when the primary copy loses power, the multi-Availability Zone replicated datastores flip to read-only mode until power returns or it is determined safe to promote another copy, and blockages forced manual assessment and hand-managed failover.",
+        "trechos": [
+          "The duration of the recovery time for the EC2 and EBS control planes was the result of our inability to rapidly fail over to a new primary datastore.",
+          "The EC2 and EBS APIs are implemented on multi-Availability Zone replicated datastores.",
+          "To protect against datastore corruption, currently when the primary copy loses power, the system automatically flips to a read-only mode in the other Availability Zones until power is restored to the affected Availability Zone or until we determine it is safe to promote another copy to primary.",
+          "We are addressing the sources of blockage which forced manual assessment and required hand-managed failover for the control plane, and have work already underway to have this flip happen automatically."
+        ]
+      },
+      {
+        "texto": "As power returned, many ELBs came up in a state that triggered a previously unseen bug, which caused the ELB control plane to try to scale them to larger instance sizes; the resulting flood of requests, plus customer requests to add new EC2 instances to load balancers in other zones, backlogged the control plane, which manages US East-1 requests through a shared queue and fell increasingly behind, delaying recovery for customers replacing lost capacity.",
+        "trechos": [
+          "As the power and systems returned, a large number of ELBs came up in a state which triggered a bug we hadn’t seen before.",
+          "The bug caused the ELB control plane to attempt to scale these ELBs to larger ELB instance sizes.",
+          "This resulted in a sudden flood of requests which began to backlog the control plane.",
+          "These requests further increased the ELB control plane backlog.",
+          "Because the ELB control plane currently manages requests for the US East-1 Region through a shared queue, it fell increasingly behind in processing these requests; and pretty soon, these requests started taking a very long time to complete.",
+          "While direct impact was limited to those ELBs which had failed in the power-affected datacenter and hadn’t yet had their traffic shifted, the ELB service’s inability to quickly process new requests delayed recovery for many customers who were replacing lost EC2 capacity by launching new instances in other Availability Zones."
+        ]
+      },
+      {
+        "texto": "Clients that use only one IP address from DNS (especially game consoles and other consumer electronics) and connected to an ELB in the impacted Availability Zone failed to connect until the backlogged traffic shift occurred and they issued a new DNS query.",
+        "trechos": [
+          "If a client attempted to connect to an ELB in the impacted Availability Zone and didn’t retry using one of the alternate IP addresses returned, it would fail to connect until the backlogged traffic shift occurred and it issued a new DNS query.",
+          "As mentioned, many modern web browsers perform multiple attempts when given multiple IP addresses; but many clients, especially game consoles and other consumer electronics, only use one IP address returned from the DNS query."
+        ]
+      },
+      {
+        "texto": "A small number of Multi-AZ RDS instances did not complete failover due to a software bug introduced in April with changes to storage failure handling; it manifests only under a certain sequence of communication failures, seen during this event, and triggered a failsafe that required manual intervention to complete the failover.",
+        "trechos": [
+          "However, a small number of Multi-AZ RDS instances did not complete failover, due to a software bug.",
+          "The bug was introduced in April when we made changes to the way we handle storage failure.",
+          "It is only manifested when a certain sequence of communication failure is experienced, situations we saw during this event as a variety of server shutdown sequences occurred.",
+          "This triggered a failsafe which required manual intervention to complete the failover."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "After the second utility failure, as onsite personnel worked to stabilize the generators, the backup generator power was stabilized (the generators were brought online manually) and the UPSs were restarted; power started to be restored by 8:14pm PDT and the full facility had power to all racks at 8:24pm PDT.",
+          "trechos": [
+            "As onsite personnel worked to stabilize the primary and backup power generators, the UPS systems were depleting and servers began losing power at 8:04pm PDT.",
+            "Ten minutes later, the backup generator power was stabilized, the UPSs were restarted, and power started to be restored by 8:14pm PDT.",
+            "At 8:24pm PDT, the full facility had power to all racks.",
+            "In the interim, because the generators ran successfully for 30 hours after being manually brought online, we are confident they will perform properly if the load is transferred to them."
+          ]
+        },
+        {
+          "texto": "EC2 and EBS control plane functionality was restored for the Region at 9:10pm PDT; the text says the control plane required manual assessment and hand-managed failover to a new primary datastore.",
+          "trechos": [
+            "At 9:10pm PDT, control plane functionality was restored for the Region.",
+            "We are addressing the sources of blockage which forced manual assessment and required hand-managed failover for the control plane, and have work already underway to have this flip happen automatically.",
+            "The duration of the recovery time for the EC2 and EBS control planes was the result of our inability to rapidly fail over to a new primary datastore."
+          ]
+        },
+        {
+          "texto": "Affected Single-AZ RDS instances were powered up, booted and brought online, a large number by 10pm PDT; remaining ones waited for EBS volume recovery, after which customers could apply backups and restore them.",
+          "trechos": [
+            "There was no way to recover these instances until servers were powered up, booted, and brought online.",
+            "By 10pm PDT, a large number of the affected Single-AZ RDS instances had been brought online.",
+            "Once volumes were recovered, customers could apply backups and restore their Single-AZ RDS instances."
+          ]
+        },
+        {
+          "texto": "Multi-AZ RDS failovers blocked by the failsafe were completed with manual intervention, the majority by 11:00pm PDT; the remaining ones were processed when EBS recovery of their volumes completed.",
+          "trechos": [
+            "This triggered a failsafe which required manual intervention to complete the failover.",
+            "The majority of remaining Multi-AZ failovers were completed by 11:00pm PDT.",
+            "The remaining Multi-AZ instances were processed when EBS volume recovery completed for their storage volumes."
+          ]
+        },
+        {
+          "texto": "Affected EC2 instances were restarted, most coming back online between 11:15pm PDT and just after midnight; most EBS servers were up by 12:25am PDT, and by 2:45am PDT 90% of outstanding EBS volumes had been turned over to customers.",
+          "trechos": [
+            "These instances were offline until power was restored and systems restarted.",
+            "The vast majority of these instances came back online between 11:15pm PDT and just after midnight.",
+            "The majority of EBS servers had been brought up by 12:25am PDT on Saturday.",
+            "By 2:45am PDT, 90% of outstanding volumes had been turned over to customers."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "The generators and electrical switching equipment in the affected datacenter will be repaired, recertified by the manufacturer and retested at full load onsite, or replaced entirely.",
+          "trechos": [
+            "The equipment will be repaired, recertified by the manufacturer, and retested at full load onsite or it will be replaced entirely."
+          ]
+        },
+        {
+          "texto": "Before that engineering work is completed, AWS will lengthen the time the electrical switching equipment gives the generators to reach stable power before the switch board assesses whether they are ready to accept the full load, and will expand the power quality tolerances allowed when evaluating whether to switch the load to generator power.",
+          "trechos": [
+            "Therefore, prior to completing the engineering work mentioned above, we will lengthen the amount of time the electrical switching equipment gives the generators to reach stable power before the switch board assesses whether the generators are ready to accept the full power load.",
+            "Additionally, we will expand the power quality tolerances allowed when evaluating whether to switch the load to generator power."
+          ]
+        },
+        {
+          "texto": "AWS will expand the onsite 24x7 engineering staff so that, in a repeat event, the switch to generator is completed manually if necessary before the UPSs discharge.",
+          "trechos": [
+            "We will expand the size of the onsite 24x7 engineering staff to ensure that if there is a repeat event, the switch to generator will be completed manually (if necessary) before UPSs discharge and there is any customer impact."
+          ]
+        },
+        {
+          "texto": "AWS will remove the bottleneck in the server booting process and further optimize several areas of the EBS recovery process to speed processing of recovered volumes; RDS will work on the speed at which volumes available for recovery are processed.",
+          "trechos": [
+            "Removing this bottleneck is one of the actions we’ll take to improve recovery times in the face of power failure.",
+            "We have identified several areas in the recovery process that we will further optimize to improve the speed of processing recovered volumes.",
+            "In addition to the actions noted above with EBS, RDS will be working to improve the speed at which volumes available for recovery can be processed."
+          ]
+        },
+        {
+          "texto": "AWS is addressing the sources of blockage that forced manual assessment and hand-managed failover of the EC2/EBS control plane datastore, with work underway to make the flip to a new primary happen automatically.",
+          "trechos": [
+            "We are addressing the sources of blockage which forced manual assessment and required hand-managed failover for the control plane, and have work already underway to have this flip happen automatically."
+          ]
+        },
+        {
+          "texto": "AWS is breaking ELB processing into multiple queues to improve throughput and allow faster processing of time-sensitive actions such as traffic shifts, and will develop a backup DNS re-weighting that can shift all ELB traffic away from an impacted Availability Zone without contacting the control plane.",
+          "trechos": [
+            "As a result of these impacts and our learning from them, we are breaking ELB processing into multiple queues to improve overall throughput and to allow more rapid processing of time-sensitive actions such as traffic shifts.",
+            "We are also going to immediately develop a backup DNS re-weighting that can very quickly shift all ELB traffic away from an impacted Availability Zone without contacting the control plane."
+          ]
+        },
+        {
+          "texto": "A mitigation for the Multi-AZ RDS failover bug is in test and will be rolled out to production in the coming weeks.",
+          "trechos": [
+            "To address the issues we had with some Multi-AZ RDS Instances failovers, we have a mitigation for the bug in test and will be rolling it out in production in the coming weeks."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The year of data_incidente comes from the 'July 2, 2012' date heading in the text, which refers to the event as 'last Friday night, June 29th'. duracao is null because power loss (8:04pm PDT) and full facility power (8:24pm PDT) do not bound the customer impact, and the text does not state when all service was restored (90% of outstanding EBS volumes were returned by 2:45am PDT). The text does not say why the generators failed to provide stable voltage; it notes they had passed manufacturer tests, commissioning load tests, a full load test on May 12th and weekly tests, and then ran for just over 30 hours once brought online. The text does not describe how the ELB backlog was resolved. Before the impact began, after the first transfer failure, utility power was restored and personnel transferred the datacenter back to utility power; this is not listed as mitigation because servers were still on UPS without customer impact.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

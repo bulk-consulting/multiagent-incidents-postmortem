@@ -1,0 +1,192 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-221",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "On 16 March 2017, Square's merchant authentication service, Multipass, was overloaded when a code path retrying Redis optimistic transactions (upper bound 500, no backoff) created a harmful feedback loop that saturated its Redis database, causing an outage of most Square products from 10:02 to 11:55 a.m. PDT. Service was restored by deploying a Multipass change that allowed reducing the Redis transaction retries; SMS delivery of 2FA codes recovered at 1:12 p.m. after the SMS number pool was rebalanced.",
+    "data_incidente": "2017-03-16",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "payment processing",
+      "Point of Sale",
+      "Dashboard",
+      "Appointments",
+      "Payroll",
+      "api.squareup.com",
+      "Multipass (customer authentication)",
+      "logins",
+      "SMS delivery of two-factor authentication codes"
+    ],
+    "tecnologias": [
+      "Redis",
+      "Redis SLOWLOG",
+      "Redis MONITOR",
+      "Linux cgroups",
+      "SMS"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 10:02, Multipass, the customer authentication service, began reporting timeouts to oncall engineers; Roster paged an oncall engineer at 10:06 and external monitoring reported api.squareup.com down at 10:08.",
+        "trechos": [
+          "10:02 “Multipass”, our customer authentication service, began reporting timeouts to oncall engineers.",
+          "**10:06** Roster paged an oncall engineer.",
+          "**10:08** Our external monitoring notified us that api.squareup.com was down."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Multipass's Redis database suddenly peaked out on capacity; the heaviest operations were traced to a Multipass code path that retries a Redis optimistic transaction with a high upper bound (500) and no backoff, causing a harmful feedback loop that left the merchant authentication service unrecoverably overloaded.",
+        "trechos": [
+          "Root Cause: Merchant authentication service unrecoverably overloaded due to bug in adjacent service",
+          "Our engineers discovered that Multipass’s Redis database had peaked out on capacity — suddenly and unexpectedly:",
+          "We then traced them back to a specific code path in Multipass which retries a Redis optimistic transaction.",
+          "We determined the retries had a high upper bound (500) and no backoff causing a harmful feedback loop, and started working on a fix."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "After logins came back, the sudden rush of logins caused a rush of SMS messages, and two-factor authentication codes were not sent to customers who had enabled 2FA, extending the 2FA outage until 1:12 p.m.",
+        "trechos": [
+          "We discovered that one issue remained — over the course of testing our signout/sign-in flow, we realized that two-factor authentication codes were not being sent to customers who had enabled 2FA.",
+          "This was the result of a rush of SMS messages caused by the sudden rush of logins to our system.",
+          "Impact: Service outage for all merchants between 10:02AM-11:55AM; 2FA outage until 1:12PM"
+        ]
+      },
+      {
+        "texto": "The authors state the thorny nature of the problem meant their triage processes did not drive a quick resolution, and there were small triage delays due to the workroom setup, where engineers testing on their own devices was stretched.",
+        "trechos": [
+          "Overall, our processes for triaging the issue worked as intended, but the thorny nature of this problem meant that they did not drive the quick resolution that we are used to.",
+          "We experienced some small delays in triage due to the current setup in our workroom.",
+          "Our standard operating procedure of engineers using their own devices to test during an outage was stretched during this one."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "All software changes leading up to the incident were rolled back; the Roster rollback completed at 10:23 but did not resolve the outage, and in retrospect Roster had remained available from other datacenters throughout.",
+          "trechos": [
+            "We rolled back all software changes that happened leading up to the incident.",
+            "**10:23** Roster completed rollback.",
+            "Unfortunately, this did not resolve the outage. Looking at the data in retrospect, Roster continued to be available for the duration, serving out of other datacenters, as designed."
+          ]
+        },
+        {
+          "texto": "At 10:25 Multipass was shut off and turned back on, on the theory that Roster had put it into a bad state; this did not restore service.",
+          "trechos": [
+            "**10:25** We shut Multipass off and turned it back on. Our theory was that Roster put Multipass into a bad state and that restarting it would restore service. This theory was proven false."
+          ]
+        },
+        {
+          "texto": "Key services were given full access to the machines they ran on (Square isolates co-hosted services with Linux cgroups, which limit the CPU and memory each service can use), giving services critical to payment processing the maximum possible priority on compute resources.",
+          "trechos": [
+            "We began identifying key services and gave them full access to the machines that they were running on.",
+            "Square hosts multiple services on each of its servers and uses Linux cgroups to isolate them from each other.",
+            "This limits the amount of CPU and memory that a given service is able to use on a machine.",
+            "This had the effect of giving services critical to our payment processing flow the maximum possible priority on our compute resources."
+          ]
+        },
+        {
+          "texto": "A Multipass fix providing the ability to reduce retries on Redis transactions was deployed to the West coast datacenter at 11:48, when multipass-redis immediately recovered and payments began to flow normally, then to the East coast at 11:59 and Japan at 12:00, when logins were back up.",
+          "trechos": [
+            "**11:48 West coast datacenter Multipass deploy providing the ability to reduce retries on Redis transactions.**",
+            "**11:48** multipass-redis immediately recovered as the improvement rolled out. Payments began to flow normally!",
+            "**11:59 East coast datacenter Multipass deploy.**",
+            "**12:00 Japan datacenter Multipass deploy.**",
+            "**12:00 Logins were back up.**"
+          ]
+        },
+        {
+          "texto": "With the SMS vendor, the team rebalanced the outbound SMS phone numbers to increase capacity, adding new numbers to the pool at 12:32 and clearing old numbers at 12:42; SMS 2FA codes began working for everyone at 13:12.",
+          "trechos": [
+            "With them, we determined that a rebalancing of our outbound SMS phone numbers would increase capacity here.",
+            "**12:32** We began adding new SMS numbers to the pool.",
+            "**12:42** We cleared old numbers from the pool.",
+            "**13:12** SMS 2FA codes began working for everyone."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Identify other areas where retry logic is used and audit them to ensure they are not vulnerable to the same flaw.",
+          "trechos": [
+            "**Identify other areas where retry logic is used and audit them to ensure that they aren’t vulnerable to the same flaw.**"
+          ]
+        },
+        {
+          "texto": "Determine whether the single-datacenter Roster outage exacerbated the Multipass-Redis retries and whether additional dependencies between Multipass and Roster need to be broken.",
+          "trechos": [
+            "**Determine if the single datacenter Roster outage exacerbated Multipass-Redis retries and if there are additional dependencies we need to break between Multipass and Roster.**"
+          ]
+        },
+        {
+          "texto": "Audit cgroup constraints to ensure application limits are correct and reasonable.",
+          "trechos": [
+            "Audit cgroup constraints to ensure that the limits we place on our applications are correct and reasonable."
+          ]
+        },
+        {
+          "texto": "Write a Redis runbook based on the outage to guide Redis troubleshooting, and set up a second postmortem for the SMS issues.",
+          "trechos": [
+            "Write a redis runbook based on outage to guide redis troubleshooting.",
+            "Set up second postmortem for SMS issues. We feel that there is more to explore and learn here."
+          ]
+        },
+        {
+          "texto": "Stock the Operations Center conference room with dedicated testing equipment so customer experience can be evaluated more easily during an outage.",
+          "trechos": [
+            "Stock Operations Center conference room with readily-available testing equipment so customer experience can be more easily evaluated from the Operations Center during an outage."
+          ]
+        },
+        {
+          "texto": "Re-affirm SLAs between services with adjacent teams, discuss more effective in-app messaging of outages with the iOS/Android Point of Sale teams, and follow up with the status page vendor to improve issquareup.com reliability.",
+          "trechos": [
+            "Meet with adjacent teams to re-affirm SLAs between services.",
+            "Meet with iOS/Android Point of Sale teams to discuss more effective in-app messaging of outages.",
+            "Follow up with status page vendor to improve issquareup.com reliability."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 113,
+      "trechos": [
+        "Impact: Service outage for all merchants between 10:02AM-11:55AM; 2FA outage until 1:12PM"
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Whether the single-datacenter Roster outage exacerbated the Multipass-Redis retries, and whether there are additional dependencies between Multipass and Roster to break.",
+      "The SMS issues, for which a second postmortem will be set up because there is more to explore and learn."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "duracao covers the service outage for all merchants (10:02 to 11:55 a.m.); SMS delivery of 2FA codes stayed down until 1:12 p.m. (190 minutes from the start). The Roster rollout started at 9:55 in a single datacenter and its timing lined up with the Multipass issues, but its rollback did not resolve the outage and whether it exacerbated the retries is an open action item. The root-cause line calls the bug one 'in adjacent service', while the timeline traces it to a code path in Multipass. The status page vendor's database load problems (11:10 to 11:56) affected communication only.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

@@ -1,0 +1,195 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-218",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On 4 January 2021, one of Slack's AWS Transit Gateways did not scale fast enough and dropped packets; packet loss saturated Slack's web tier and made Slack unavailable, took down dashboards and alerting, and a large scale-up overloaded provision-service. After provision-service was repaired, Slack was degraded rather than down by 9:15am PST, and AWS manually increased Transit Gateway capacity, returning the network to normal by 10:40am PST.",
+    "data_incidente": "2021-01-04",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Slack",
+      "Slack message sending",
+      "Slack web tier",
+      "dashboarding and alerting service",
+      "provision-service"
+    ],
+    "tecnologias": [
+      "AWS Transit Gateways (TGWs)",
+      "Virtual Private Clouds (VPCs)",
+      "autoscaling",
+      "Apache worker threads",
+      "Linux open files limit",
+      "AWS quota limit",
+      "load balancers (panic mode)",
+      "SSH"
+    ],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "During the Americas' morning, Slack was paged by an external monitoring service because error rates were creeping up.",
+        "trechos": [
+          "During the Americas’ morning we got paged by an external monitoring service: Error rates were creeping up."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "On January 4th, the first working day back after the holidays, Slack's traffic went from its quietest time of the year to one of its biggest days overnight, with cold client caches pulling down more data than usual on first connection.",
+      "trechos": [
+        "January 4th 2021 was the first working day of the year for many around the globe, and for most of us at Slack too (except of course for our on-callers and our customer experience team, who never sleep).",
+        "On the first Monday back, client caches are cold and clients pull down more data than usual on their first connection to Slack.",
+        "We go from our quietest time of the whole year to one of our biggest days quite literally overnight."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "One of the AWS Transit Gateways linking Slack's VPCs, which are managed by AWS and intended to scale transparently, did not scale fast enough and became overloaded; this part of Slack's AWS networking infrastructure was saturated and dropping packets.",
+        "trechos": [
+          "We use AWS Transit Gateways (TGWs) as hubs to link our VPCs.",
+          "On January 4th, one of our Transit Gateways became overloaded.",
+          "The TGWs are managed by AWS and are intended to scale transparently to us.",
+          "However, our TGWs did not scale fast enough.",
+          "By the time Slack had recovered, engineers at AWS had found the trigger for our problems: Part of our AWS networking infrastructure had indeed become saturated and was dropping packets."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The dashboard and alerting services failed because they ran in a different VPC from their backend databases, creating a dependency on the TGWs; debugging was hampered by the lack of usual dashboards and alerts, and new dashboard instances could not be provisioned because provision-service was overloaded.",
+        "trechos": [
+          "In this case, our dashboard and alerting services failed because they were running in a different VPC from their backend databases, creating a dependency on the TGWs.",
+          "We pulled in several more people from our infrastructure teams because all debugging and investigation was now hampered by the lack of our usual dashboards and alerts.",
+          "Throughout all this, we were still without our monitoring dashboards — we couldn’t provision new dashboard service instances because provision-service was overloaded."
+        ]
+      },
+      {
+        "texto": "The 7am PST mini-peak combined with the network problems saturated the web tier: packet loss increased with load and led to much higher latency for calls from the web tier to its backends, which saturated web tier system resources and made Slack unavailable.",
+        "trechos": [
+          "However, the mini-peak at 7am PST — combined with the underlying network problems — led to saturation of our web tier.",
+          "As load increased so did the widespread packet loss.",
+          "The increased packet loss led to much higher latency for calls from the web tier to its backends, which saturated system resources in our web tier.",
+          "Slack became unavailable."
+        ]
+      },
+      {
+        "texto": "Threads waiting on the network lowered CPU utilization, which triggered automated downscaling of the web tier, while automation replaced instances marked unhealthy; responders' SSH sessions on production instances ended abruptly as instances were deprovisioned, making investigation more difficult.",
+        "trechos": [
+          "The network problems prior to 7:00am PST meant that the threads were spending more time waiting, which caused CPU utilization to drop.",
+          "This drop in CPU utilization initially triggered some automated downscaling.",
+          "Some of our instances were marked unhealthy by our automation because they couldn’t reach the backends that they depended on.",
+          "Many of the incident responders on our call had their SSH sessions ended abruptly as the instances they were working on were deprovisioned.",
+          "This made investigating the widespread production issues even more difficult."
+        ]
+      },
+      {
+        "texto": "The automated attempt to add 1,200 servers between 7:01 and 7:15am PST, over the degraded network, overloaded provision-service, which hit two resource bottlenecks: the Linux open files limit and an AWS quota limit.",
+        "trechos": [
+          "We attempted to add 1,200 servers to our web tier between 7:01am PST and 7:15am PST.",
+          "It was communicating with those dependencies over the same degraded network, and like most of Slack’s systems at the time, it was seeing longer connection and response times, and therefore was using more system resources than usual.",
+          "The spike of load from the simultaneous provisioning of so many instances under suboptimal network conditions meant that provision-service hit two separate resource bottlenecks (the most significant one was the Linux open files limit, but we also exceeded an AWS quota limit)."
+        ]
+      },
+      {
+        "texto": "The large number of created but not fully provisioned instances hit the pre-configured autoscaling-group size limits, leaving the web tier under capacity.",
+        "trechos": [
+          "We had created a large number of instances, but most of them were not fully provisioned and were not serving.",
+          "The large number of broken instances caused us to hit our pre-configured autoscaling-group size limits, which determine the maximum number of instances in our web tier."
+        ]
+      },
+      {
+        "texto": "Because the network was still unhealthy, more instances than normal were needed to serve traffic and provisioning took longer than usual, so it took an hour to provision enough instances to reduce error rates to a low level.",
+        "trechos": [
+          "It took an hour to provision enough instances to reduce our error rates to a low level for two reasons.",
+          "Firstly, because the network still wasn’t completely healthy, we needed more instances than we normally do to serve traffic.",
+          "Secondly, it took longer than usual to complete that provisioning process, again because the network was not healthy."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The team disabled the web tier downscaling to facilitate investigation and preserve serving capacity.",
+          "trechos": [
+            "We disabled the downscaling to facilitate investigation and to preserve our serving capacity."
+          ]
+        },
+        {
+          "texto": "Responders repaired provision-service, which was back in operation around 8:15am PST, and cleared up the broken, not fully provisioned instances; healthy instances then began entering service.",
+          "trechos": [
+            "While we were repairing provision-service, we were still under-capacity for our web tier because the scale-up was not working as expected.",
+            "Some responders cleared these broken instances up while others continued to investigate the widespread connectivity problems.",
+            "Once provision-service was back in operation (around 8:15am PST) we began to see an improvement as healthy instances entered service."
+          ]
+        },
+        {
+          "texto": "By 9:15am PST the web tier had enough functioning hosts; the load balancers' 'panic mode', which balances requests across all instances when many fail health checks, plus retries and circuit breaking, got Slack back to serving in a degraded state.",
+          "trechos": [
+            "However, by 9:15am PST our web tier had a sufficient number of functioning hosts to serve traffic.",
+            "Our load balancing tier was still showing an extremely high rate of health check failures to our web application instances due to network problems, but luckily, our load balancers have a feature called ‘panic mode’ which balances requests across all instances when many are failing health checks.",
+            "This — plus retries and circuit breaking — got us back to serving.",
+            "Slack was slower than normal and error rates were higher, but by around 9:15am PST Slack was degraded, not down."
+          ]
+        },
+        {
+          "texto": "AWS engineers, alerted to the packet drops by their internal monitoring, increased Slack's TGW capacity manually; by 10:40am PST the change had rolled out across all Availability Zones and the network, error rates and latency returned to normal.",
+          "trechos": [
+            "During the incident, AWS engineers were alerted to our packet drops by their own internal monitoring, and increased our TGW capacity manually.",
+            "By 10:40am PST that change had rolled out across all Availability Zones and our network returned to normal, as did our error rates and latency."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "AWS states it is reviewing the TGW scaling algorithms for large packet-per-second increases as part of its post-incident process.",
+          "trechos": [
+            "AWS assures us that they are reviewing the TGW scaling algorithms for large packet-per-second increases as part of their post-incident process."
+          ]
+        },
+        {
+          "texto": "Already done: Slack set a reminder to request a preemptive upscaling of its TGWs at the end of the next holiday season.",
+          "trechos": [
+            "We’ve also set ourselves a reminder (a Slack reminder, of course) to request a preemptive upscaling of our TGWs at the end of the next holiday season."
+          ]
+        },
+        {
+          "texto": "Running the dashboard service instances in the same VPC as their database will remove the monitoring dependency on the TGWs.",
+          "trechos": [
+            "Running the dashboard service instances in the same VPC as their database will remove this dependency."
+          ]
+        },
+        {
+          "texto": "Slack will regularly load test provision-service and reevaluate its health-checking and autoscaling configurations to prevent inadvertently overloading provision-service again.",
+          "trechos": [
+            "Finally, we’ll make sure to regularly load test provision-service to make sure there aren’t any more scaling problems in store (we’ve load tested it in the past but this event exceeded our previous scale-ups).",
+            "We will also reevaluate our health-checking and autoscaling configurations to prevent inadvertently overloading provision-service again, even in extreme circumstances such as this significant network disruption."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "duracao is null because the text does not state when the impact started: error rates were already rising before 7am PST (99% of messages sent successfully at 6:57am PST versus the usual 99.999%), Slack became unavailable around the 7am mini-peak, was degraded from about 9:15am PST and returned to normal by 10:40am PST. Early in the response, changes pushed that day were rolled back to narrow down causes, but they were not the issue. The text uses 'trigger' for the TGW saturation; the gatilho here is the post-holiday traffic surge described as the event that the TGWs did not scale fast enough for.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

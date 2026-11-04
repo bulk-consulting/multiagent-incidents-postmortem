@@ -13,6 +13,9 @@ Uso (a partir da raiz do repositório):
     multiagent_env/bin/python ingestion/fichas/montar_revisao.py 06 --amostra  # só as fichas `baixa` + 3 `alta`
                                                                                # sorteadas (semente = número do lote);
                                                                                # fichas nao_verificavel ficam de fora
+    multiagent_env/bin/python ingestion/fichas/montar_revisao.py 08 --amostra DAN-124 DAN-240
+                                                                               # amostra + fichas citadas (ex.: as que a
+                                                                               # autorrevisão passou de baixa para alta)
 
 Lê:
     ingestion/fichas/saida_lotes/lote_NN/DAN-xxx.json
@@ -95,9 +98,9 @@ def main() -> None:
     colar = "--colar" in args
     amostra = "--amostra" in args
     args = [a for a in args if a not in ("--colar", "--amostra")]
-    if len(args) != 1:
+    if not args:
         sys.exit(__doc__)
-    lote = args[0].zfill(2)
+    lote, extras = args[0].zfill(2), set(args[1:])
     origem = PASTA / "saida_lotes" / f"lote_{lote}"
     fichas = sorted(origem.glob("DAN-*.json"))
     if not fichas:
@@ -107,7 +110,7 @@ def main() -> None:
         baixas = [c for c in fichas if dados[c]["confianca"] == "baixa" and dados[c]["incidente"]]
         altas = [c for c in fichas if dados[c]["confianca"] == "alta" and dados[c]["incidente"]]
         sorteadas = sorted(random.Random(int(lote)).sample(altas, min(3, len(altas))))
-        fichas = sorted(baixas + sorteadas)
+        fichas = sorted(set(baixas + sorteadas) | {c for c in fichas if c.stem in extras})
         print("amostra: " + ", ".join(f"{c.stem} ({dados[c]['confianca']})" for c in fichas))
 
     destino = ROOT / "revisao" / f"lote_{lote}"
