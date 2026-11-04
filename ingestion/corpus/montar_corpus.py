@@ -16,6 +16,13 @@ fichas continuam existindo no texto):
    zero, pontuação isolada). Ficam: linhas de tabela (com "|" ou "+"), réguas "---"/"===" e
    linhas dentro de blocos de código.
 
+4. comentários de leitores: nos documentos com a marca `comentarios`, o texto é cortado onde os
+   comentários começam (tabela CORTE_COMENTARIOS, ponto achado à mão em cada um). DAN-236 não é
+   cortado: é uma issue do GitHub, e a discussão faz parte do relato.
+
+5. títulos: quando o título da página não diz de que incidente se trata, vale o da tabela
+   TITULO_MANUAL (o título da página fica em `page_title`).
+
 Ao final confere se cada trecho das fichas existe no texto do corpus (mesma normalização do
 validar_fichas.py) e lista os que não existem.
 
@@ -56,6 +63,17 @@ reextrair = modulo(ROOT / "ingestion" / "reextracao" / "reextrair.py", "reextrai
 GABARITO = {p.stem for p in (FICHAS / "gabarito").glob("DAN-*.json")}
 REEXTRAIR_LISTA = {r["catalog_id"] for r in csv.DictReader(
     (ROOT / "ingestion" / "reextracao" / "lista.csv").open(encoding="utf-8"))}
+# texto a partir do qual começam os comentários de leitores (achado à mão em cada documento)
+CORTE_COMENTARIOS = {
+    "DAN-022": "Very cool. Any chance you’re going to release the source?",
+    "DAN-025": "## 5 comments",
+    "DAN-119": "## Jan\n\non 26 Mar 14",
+    "DAN-187": "Robbie\nOctober 21st, 2013",
+}
+# título da página que não identifica o incidente -> título tirado do próprio documento
+TITULO_MANUAL = {
+    "DAN-191": "IT Infrastructure Resiliency Review (23 February 2017)",
+}
 ESTRUTURA = re.compile(r"[|+]|^[-=]{3,}$")
 
 
@@ -100,17 +118,27 @@ def main() -> None:
         texto, linhas = tirar_linhas_vazias_de_sentido(texto)
         if linhas:
             feito.append(f"{linhas} lines without letters or digits")
+        problemas = list(ficha["triagem"].get("problemas_texto", []))
+        if cid in CORTE_COMENTARIOS:
+            pos = texto.find(CORTE_COMENTARIOS[cid])
+            if pos < 0:
+                raise SystemExit(f"{cid}: ponto de corte dos comentários não encontrado")
+            removidas = len(texto[pos:].split())
+            texto = texto[:pos].rstrip() + "\n"
+            feito.append(f"reader comments cut ({removidas} words)")
+            problemas = [x for x in problemas if x != "comentarios"]
         cat = catalogo.get(cid, {})
         inc = ficha.get("incidente") or {}
         registros.append({
             "catalog_id": cid,
             "company": cat.get("company") or doc.get("company"),
-            "title": doc.get("title"),
+            "title": TITULO_MANUAL.get(cid, doc.get("title")),
+            "page_title": doc.get("title"),
             "url": doc.get("source_url") or cat.get("url"),
             "incident_date": inc.get("data_incidente"),
             "text_source": origem,
             "catalogo": ficha["triagem"]["catalogo"],
-            "problemas_texto": ficha["triagem"].get("problemas_texto", []),
+            "problemas_texto": problemas,
             "cleaning": feito,
             "word_count": len(texto.split()),
             "text": texto,
