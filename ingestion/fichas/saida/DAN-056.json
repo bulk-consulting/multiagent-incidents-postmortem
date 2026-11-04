@@ -1,0 +1,178 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-056",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "exposicao_dados",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A truncate query run by a test suite in a shell whose DATABASEURL pointed at production truncated all tables of the travis-ci.com production database, making travis-ci.com non-operational for around 5.5 hours; users who signed in while applications kept running on the almost empty database were later logged in as the wrong users. Service was restored by taking applications offline and restoring the database from a snapshot, and affected tokens were revoked the next day.",
+    "data_incidente": "2018-03-13",
+    "status_relatorio": "misto",
+    "servicos_afetados": ["travis-ci.com", "travis-ci.com API", "scheduled cron jobs", "builds on travis-ci.com"],
+    "tecnologias": ["PostgreSQL", "Database Cleaner gem", "tmux"],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "The team responded to alerts immediately after the truncate query executed at 12:14 UTC.",
+        "trechos": [
+          "The query was blocked for around 10 minutes and finally executed at 12:14 UTC.",
+          "As we responded to alerts immediately following this, our API remained operational for roughly 30 minutes, connected to an almost empty database."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 12:04 UTC on 13 March 2018 a truncate query was run against the production database during tests using the Database Cleaner gem: the test suite was executed in an old tmux terminal window, previously used to inspect production data, whose shell still had a DATABASEURL environment variable set to the production database. The query executed at 12:14 UTC and truncated all tables.",
+      "trechos": [
+        "On Tuesday, 13 March 2018 at 12:04 UTC a database query was accidentally run against our production database which truncated all tables.",
+        "The query was blocked for around 10 minutes and finally executed at 12:14 UTC.",
+        "Using our API logs, and with information from our upstream provider about the IP address the query originated from, we were able to identify a truncate query run during tests using the Database Cleaner gem.",
+        "The shell the tests ran in unknowingly had a DATABASEURL environment variable set as our production database.",
+        "It was an old terminal window in a tmux session that had been used for inspecting production data many days before."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "To debug or inspect production data, the development environment was connected to the production primary database with write access; tooling and processes made it difficult to connect to the read-only follower, so connecting to the primary was a common shortcut.",
+        "trechos": [
+          "This raised the question of why, when needing to debug or inspect production data, we connected our development environment to a production database with write access.",
+          "The answer to this was that our tooling and processes made it difficult to connect to the read-only follower, which is why connecting to the primary database was a common shortcut."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "User-facing applications were left running for roughly 30 minutes connected to the almost empty database; users who signed in got new user records with primary keys from the existing sequence (PostgreSQL does not reset id sequences on truncate), which created replicated user ids, and after the restore those users found themselves logged in as the wrong users.",
+        "trechos": [
+          "As we responded to alerts immediately following this, our API remained operational for roughly 30 minutes, connected to an almost empty database.",
+          "Since their old user records had been wiped from the database, our system created new records for them, with primary keys generated from the existing sequence (PostgreSQL does not reset id sequences on truncate).",
+          "We realised that while seeking to understand the problem, then quickly applying steps to rectify the situation, we inadvertantly left user-facing applications running.",
+          "This was an error that resulted in the creation of replicated user ids.",
+          "When our system was finally back online, those who had logged in during the 30 minutes between database truncation and our applications going offline found themselves logged in as the wrong users."
+        ]
+      },
+      {
+        "texto": "Because users are synced from GitHub on a regular basis, existing users as well as new ones required new user records and were affected by the token mismatch.",
+        "trechos": [
+          "As brand new customers are not the only accounts to require new user records, because we sync users from GitHub on a regular basis, this meant that both new and existing users at travis-ci.com were affected by this issue."
+        ]
+      },
+      {
+        "texto": "After the database was restored, the cron scheduler was not restarted and certain alerts were not turned back on, so the team was unaware the cron scheduler was not operational, causing errors triggering scheduled cron jobs.",
+        "trechos": [
+          "We also became aware that once the database was restored, we didn't restart our cron scheduler, causing errors with triggering scheduled cron jobs.",
+          "We omitted turning certain alerts back on - which meant that we were unaware the cron scheduler was not operational."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "All applications in the system were taken offline.",
+          "trechos": [
+            "We eventually took the step of taking all applications in our system offline, and the database was restored to its original state some hours later."
+          ]
+        },
+        {
+          "texto": "A replacement database was provisioned from a snapshot taken that morning, restoring the database to its original state with about 15 minutes of data loss.",
+          "trechos": [
+            "A replacement database is being provisioned from a snapshot taken this morning.",
+            "We eventually took the step of taking all applications in our system offline, and the database was restored to its original state some hours later.",
+            "On a positive note, we were able to recover our entire travis-ci.com production database with only ~15 minutes of data loss."
+          ]
+        },
+        {
+          "texto": "At 17:06 UTC the database was reattached to the platform and www.travis-ci.com and the API were back up; by 17:13 UTC all platform services were running and builds for private repositories were being processed.",
+          "trechos": [
+            "We’ve reattached the database to our platform.",
+            "and api are back up, currently waiting on all platform services to come back up.",
+            "Posted Mar 13, 2018 - 17:06 UTC",
+            "All platform services are running. We are now processing builds for private repositories on travis-ci.com.",
+            "Posted Mar 13, 2018 - 17:13 UTC"
+          ]
+        },
+        {
+          "texto": "All affected tokens (for users logged in as the wrong users) were revoked by 14:22 UTC on Wednesday, 14 March.",
+          "trechos": [
+            "Their login credentials – in the form of a signed token in localStorage – corresponded to user records created after system restore.",
+            "To address this situation, all affected tokens were revoked by 14:22 UTC on Wednesday, 14 March."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: revoked the truncate permission on the databases, making it impossible for tables to be truncated.",
+          "trechos": [
+            "Revoked the truncate permission on our databases, effectively making it impossible for tables to be truncated."
+          ]
+        },
+        {
+          "texto": "Already done: patched the internal spechelpers to check for the DATABASEURL environment variable.",
+          "trechos": [
+            "Patched our internal spechelpers to check for the DATABASEURL environment variable."
+          ]
+        },
+        {
+          "texto": "Already done: added a shell prompt warning to developer tooling that warns when a DATABASE_URL is set.",
+          "trechos": [
+            "Added a shell prompt warning to our developer tooling to make the shell prompt warn when a DATABASE_URL is set."
+          ]
+        },
+        {
+          "texto": "Already done: submitted a Pull Request to the Database Cleaner gem to safeguard against accidentally using a remote DATABASE_URL.",
+          "trechos": [
+            "Submitted a Pull Request to the Database Cleaner gem to safeguard against accidentally using a remote DATABASE_URL."
+          ]
+        },
+        {
+          "texto": "Already done: created an alias for the follower database to make it easier to connect to when testing against production data is required.",
+          "trechos": [
+            "Created an alias for the follower database, to make it easier to find and connect to when testing is required against production data."
+          ]
+        },
+        {
+          "texto": "Already done: automated database failover and maintenance to reduce the time and manual steps needed to recover from this type of situation.",
+          "trechos": [
+            "Automated database failover and maintenance to reduce the time and number of manual steps needed to recover from this type of situation."
+          ]
+        },
+        {
+          "texto": "Planned: a number of short and long term improvements aimed at making the system more resilient and preventing similar outages.",
+          "trechos": [
+            "In addition to the measures mentioned above, we are planning a number of short and long term improvements that are aimed at making our system more resilient and preventing similar outages from happening."
+          ]
+        },
+        {
+          "texto": "Recommendation to affected customers: rotate any credentials stored on travis-ci.com, even if encrypted, and check build logs for other sensitive information, as a precaution.",
+          "trechos": [
+            "We have also advised them it would be wise to rotate any credentials stored on travis-ci.com, even if encrypted, and check repositories on travis-ci.com to make sure build logs do not contain other forms of sensitive information, as a precautionary measure."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 330,
+      "trechos": [
+        "On Tuesday, 13 March 2018, travis-ci.com was non-operational for around 5.5 hours starting at 12:14 UTC."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration uses the stated non-operational period (around 5.5 hours from 12:14 UTC). The text adds a backlog of builds for another 3.5 hours; the status updates say all platform services were running at 17:13 UTC and the incident was resolved (backlog cleared) at 20:59 UTC. Affected tokens were revoked by 14:22 UTC on 14 March. Data exposure: access logs suggested at least one user was logged in with access to another account's data for a subset of affected accounts. The text spells the variable both DATABASEURL and DATABASE_URL.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.19" }
+}

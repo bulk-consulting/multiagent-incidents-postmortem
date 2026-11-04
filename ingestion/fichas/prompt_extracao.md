@@ -1,5 +1,5 @@
 <!--
-Prompt de extração da ficha (peça 2). Versão: v2.19.
+Prompt de extração da ficha (peça 2). Versão: v2.20.
 v1 guardada em prompt_extracao_v1.md. Mudanças da v2 (revisão do piloto, ver FICHA.md):
 regra 2 (trechos sustentam todo detalhe do texto), regras 3 e 4 novas (causalidade e plano x feito),
 gatilho x causa raiz, categoria pela causa raiz, detecção, resumo com desfecho, mitigação com a correção concreta.
@@ -31,6 +31,7 @@ v2.16 (amostra do lote 13, 8 ERRADOS em 6 fichas): software-bug é residual; dur
 v2.17 (amostra do lote 15, 10 ERRADOS em 6 fichas): mudança que só impediu a recuperação não é mudanca_causadora; mudança de comportamento de dependência externa é nao_se_aplica.
 v2.18 (revisão das fichas antigas): volta parcial só conta se o texto diz que o serviço afetado voltou para a maioria; várias ou nenhuma → null sem baixar a confiança.
 v2.19 (reextração): nota de formato do texto — "## " marca intertítulos; atualizações de status page vêm da mais nova para a mais antiga.
+v2.20 (lotes 17-18): "engineers were paged/alerted", sem pessoa que deu o aviso, é alerta_automatico.
 Escrito em inglês de propósito (ver FICHA.md, seção "Idioma").
 A parte entre ===== INPUT ===== é preenchida para cada documento.
 -->
@@ -123,7 +124,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
 - For **attacks** (`seguranca: ataque`), classify the mechanism of the root cause: a DDoS that floods the network → `capacity-load`; stolen or reused credentials → `credential-auth`; a tampered package → `supply-chain` only when the root cause is the tampering itself, not how the attacker got access.
 - `other`: none of the above.
 
-**`deteccao`** — how the problem was **first noticed**, not what was done next. "The team was triaging within 2 minutes", "we began investigating", "an incident was raised", "a team was assembled" are response, not detection; leave them out of `descricao`. `forma`: `alerta_automatico` (monitoring/alerting fired), `usuarios_clientes` (users or customers reported), `equipe_interna` (the text says a person noticed it without an alert, e.g. "an operator noticed", "an engineer saw"), `terceiros` (another company, press), `nao_informada` (the text does not say how: "we detected this internally", "real-time detection" or only the symptom, without saying whether an alert fired or a person noticed). `descricao`: what was first noticed (the symptom, e.g. "higher than normal re-queue rates", "a larger-than-normal number of Postgres connection timeouts") and, if the text says it, how; claim + `trechos`. `null` only if the text says neither. The symptom can be filled while `forma` is `nao_informada`.
+**`deteccao`** — how the problem was **first noticed**, not what was done next. "The team was triaging within 2 minutes", "we began investigating", "an incident was raised", "a team was assembled" are response, not detection; leave them out of `descricao`. `forma`: `alerta_automatico` (monitoring/alerting fired; "engineers were paged" or "were alerted", with no person named as raising it, counts as this), `usuarios_clientes` (users or customers reported), `equipe_interna` (the text says a person noticed it without an alert, e.g. "an operator noticed", "an engineer saw"), `terceiros` (another company, press), `nao_informada` (the text does not say how: "we detected this internally", "real-time detection" or only the symptom, without saying whether an alert fired or a person noticed). `descricao`: what was first noticed (the symptom, e.g. "higher than normal re-queue rates", "a larger-than-normal number of Postgres connection timeouts") and, if the text says it, how; claim + `trechos`. `null` only if the text says neither. The symptom can be filled while `forma` is `nao_informada`.
 
 **Cause fields.** Four fields describe the cause; decide them together.
 - **`causa_raiz`** always holds the failure that produced the impact, as the text states it.
@@ -214,7 +215,7 @@ Return **only** one JSON object, no comments, no Markdown fences, matching this 
   "confianca": "alta" | "baixa",
   "motivo_confianca_baixa": "..."   (only when confianca is "baixa"),
   "observacoes": "..."              (optional),
-  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.19" }
+  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.20" }
 }
 
 ## Document format

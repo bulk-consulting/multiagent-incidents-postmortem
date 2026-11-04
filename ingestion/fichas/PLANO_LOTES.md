@@ -44,6 +44,7 @@ Lote 14 = 6/6 (1,0) → segue por amostra, sem mudança de prompt.
 Lote 15 = 10/6 (1,7) + 2 fora da amostra (ano deduzido em DAN-086 e 195) → passou de 1,5: o lote 16 volta a ser conferido inteiro.
 Lote 16 = 5/7 (0,7), conferido inteiro (as 7 fichas com incidente; DAN-034 e 209 saíram nao_verificavel) → extração do plano concluída.
 Lote 17 = 7/10 (0,7), primeiro lote reextraído (v2.19), conferido inteiro → o lote 18 volta a ser conferido por amostra, sem mudança de prompt. A virada da DAN-143 de baixa para alta se manteve.
+Lote 18 = 5/6 (0,8): 4 dos 5 na DAN-097, por datas sem trecho e ações em andamento marcadas como planejadas → segue por amostra; gerou a v2.20 ("paged/alerted" é alerta_automatico, contestado no 17 e no 18).
 
 **Fichas vazias:** documentos que saem `nao_verificavel` (só menus ou rodapé) não precisam de conferência; entram na lista de reextração.
 

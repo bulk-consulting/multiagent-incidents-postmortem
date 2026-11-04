@@ -1,0 +1,190 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-097",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "relatorio_periodico",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "GitHub describes three incidents in May 2023 whose root causes it says were unrelated: a configuration change to the internal Git data service followed by a failover and a failed rollback (May 9), an inefficient GitHub App permissions API called by a retrying caller that raised auth-token write latency and failures (May 10), and a Git database crash whose failover left read replicas unattached (May 11), each degrading many services. They were mitigated by a gradual failover, load reduction, and reattaching the read replicas, followed by extra work to recover pull request and push data.",
+    "data_incidente": "2023-05",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Git databases",
+      "pull requests",
+      "Git pushes",
+      "GitHub App authentication token issuance",
+      "GitHub Actions",
+      "GitHub Codespaces",
+      "private GitHub Pages"
+    ],
+    "tecnologias": [
+      "Git",
+      "GITHUB_TOKEN"
+    ],
+    "categoria_causa": null,
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "ausente",
+      "descricao": null
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "May 9: a configuration change to the internal service serving Git data, intended to prevent connection saturation and previously introduced successfully elsewhere in the Git backend, triggered the incident; shortly after the rollout began the cluster failed over, and the attempted rollback failed due to an internal infrastructure error.",
+        "trechos": [
+          "This incident was triggered by a configuration change to the internal service serving Git data.",
+          "The change was intended to prevent connection saturation, and had been previously introduced successfully elsewhere in the Git backend.",
+          "Shortly after the rollout began, the cluster experienced a failover.",
+          "We reverted the config change and attempted a rollback within a few minutes, but the rollback failed due to an internal infrastructure error.",
+          "Date: May 9, 2023 Incident: Git Databases degraded due to configuration change Impact: 8 of 10 main services degraded"
+        ]
+      },
+      {
+        "texto": "May 10: an API for managing GitHub App permissions had an inefficient implementation that, under specific circumstances, results in very large writes and a timeout failure; it was invoked by a new caller that retried on timeouts, triggering the incident, and the database cluster serving GitHub App auth tokens saw a 7x increase in write latency, with auth token request failures of 8-15% for most of the incident and a short peak of 76%.",
+        "trechos": [
+          "We determined that an API for managing GitHub App permissions had an inefficient implementation.",
+          "When invoked under specific circumstances, it results in very large writes and a timeout failure.",
+          "This API was invoked by a new caller that retried on timeouts, triggering the incident.",
+          "On May 10, the database cluster serving GitHub App auth tokens saw a 7x increase in write latency for GitHub App permissions (status yellow).",
+          "The failure rate of these auth token requests was 8-15% for the majority of this incident, but did peak at 76% percent for a short time.",
+          "Date: May 10, 2023 Incident: GitHub App authentication token issuance degradation due to load Impact: 6 of 10 main services degraded"
+        ]
+      },
+      {
+        "texto": "May 10: much of the observability is optimized for identifying high-volume patterns rather than low-volume high-cost ones, which made it difficult to identify the circumstances causing degraded cluster health.",
+        "trechos": [
+          "Beyond the problem with the query performance, much of our observability is optimized for identifying high-volume patterns, not low-volume high-cost ones, which made it difficult to identify the specific circumstances that were causing degraded cluster health.",
+          "Date: May 10, 2023 Incident: GitHub App authentication token issuance degradation due to load Impact: 6 of 10 main services degraded"
+        ]
+      },
+      {
+        "texto": "May 11: a database cluster serving Git data crashed, triggering an automated failover; the primary failed over successfully but read replicas were not attached, and since the primary cannot handle full read/write load, an average of 15% of Git data requests failed or were slow (peak 26%). The cause of the crash and why the failure left the cluster in a bad state are under investigation; the Git database crash has caused more than one incident.",
+        "trechos": [
+          "On May 11, a database cluster serving git data crashed, triggering an automated failover.",
+          "The failover of the primary was successful, but in this instance read replicas were not attached.",
+          "The primary cannot handle full read/write load, so an average of 15% of requests for Git data were failed or slow, with peak impact of 26% at the start of the incident.",
+          "Beyond the immediate mitigation work, the top workstreams underway are focused on determining and resolving what caused the cluster to crash and why the failure didn’t leave the cluster in a good state.",
+          "We are addressing the Git database crash that has caused more than one incident at this point.",
+          "Date: May 11, 2023 Incident: Git database degraded due to loss of read replicas Impact: 8 of 10 main services degraded"
+        ]
+      },
+      {
+        "texto": "Impact spread across services: Git reads and writes are at the core of many GitHub scenarios, so Git database latency and failures left GitHub Actions workflows unable to pull data and pull requests not updating; token issuance failures made GitHub Actions and GitHub Codespaces unable to access the data they need, so they failed to launch.",
+        "trechos": [
+          "In the Git database incidents, Git reads and writes are at the core of many GitHub scenarios, so increased latency and failures resulted in GitHub Actions workflows unable to pull data or pull requests not updating.",
+          "In the GitHub Apps incident, the impact on the token issuance also impacted GitHub features that rely on tokens for operation.",
+          "When token issuance fails, GitHub Actions and GitHub Codespaces are unable to access the data they need to run, and fail to launch as a result."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "May 9 only: a configuration change to the internal service serving Git data, intended to prevent connection saturation (the exact setting is not named).",
+        "trechos": [
+          "This incident was triggered by a configuration change to the internal service serving Git data.",
+          "The change was intended to prevent connection saturation, and had been previously introduced successfully elsewhere in the Git backend.",
+          "Date: May 9, 2023 Incident: Git Databases degraded due to configuration change Impact: 8 of 10 main services degraded"
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "May 9: the config change was reverted and a rollback was attempted within a few minutes, but the rollback failed due to an internal infrastructure error.",
+          "trechos": [
+            "We reverted the config change and attempted a rollback within a few minutes, but the rollback failed due to an internal infrastructure error.",
+            "Date: May 9, 2023 Incident: Git Databases degraded due to configuration change Impact: 8 of 10 main services degraded"
+          ]
+        },
+        {
+          "texto": "May 9: once a gradual failover was completed, write operations were restored to the database and broad impact ended; additional time was needed to make Git data, website-visible contents and pull requests consistent for pushes received during the outage.",
+          "trechos": [
+            "Once we completed a gradual failover, write operations were restored to the database and broad impact ended.",
+            "Additional time was needed to get Git data, website-visible contents, and pull requests consistent for pushes received during the outage to achieve a full resolution.",
+            "Date: May 9, 2023 Incident: Git Databases degraded due to configuration change Impact: 8 of 10 main services degraded"
+          ]
+        },
+        {
+          "texto": "May 10: steps were taken to reduce load from both internal and external paths, reducing impact to critical paths such as GitHub Actions workflows.",
+          "trechos": [
+            "While working to identify root cause, improve the data access pattern, and address the source of the new call pattern, we also took steps to reduce load from both internal and external paths, reducing impact to critical paths like GitHub Actions workflows.",
+            "Date: May 10, 2023 Incident: GitHub App authentication token issuance degradation due to load Impact: 6 of 10 main services degraded"
+          ]
+        },
+        {
+          "texto": "May 11: the read replicas were reattached and the core scenarios recovered; additional work was required to recover pull request push updates before full resolution.",
+          "trechos": [
+            "We mitigated this by reattaching the read replicas and the core scenarios recovered.",
+            "Similar to the May 9 incident, additional work was required to recover pull request push updates, but we were eventually able to achieve full resolution.",
+            "Date: May 11, 2023 Incident: Git database degraded due to loss of read replicas Impact: 8 of 10 main services degraded"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "In progress (temporary measure, May 10 incident): updating the GitHub App permissions API to check for the shift in installation state and fail the request if it would trigger the large writes, while the backing data model is updated to avoid this pattern entirely.",
+          "trechos": [
+            "While we update the backing data model to avoid this pattern entirely, we are updating the API to check for the shift in installation state and will fail the request if it would trigger these large writes as a temporary measure.",
+            "Date: May 10, 2023 Incident: GitHub App authentication token issuance degradation due to load Impact: 6 of 10 main services degraded"
+          ]
+        },
+        {
+          "texto": "In progress: reviewing internal processes and making adjustments to ensure changes are always deployed safely.",
+          "trechos": [
+            "We are carefully reviewing our internal processes and making adjustments to ensure changes are always deployed safely moving forward."
+          ]
+        },
+        {
+          "texto": "In progress: analyzing the breadth of impact across services to identify where the impact of future similar failures can be reduced.",
+          "trechos": [
+            "In addition to the standard post-incident analysis and review, we are analyzing the breadth of impact these incidents had across services to identify where we can reduce the impact of future similar failures."
+          ]
+        },
+        {
+          "texto": "In progress: improving observability of high-cost, low-volume query patterns and the ability to diagnose and mitigate this class of issue quickly.",
+          "trechos": [
+            "We are working to improve observability of high-cost, low-volume query patterns and general ability to diagnose and mitigate this class of issue quickly."
+          ]
+        },
+        {
+          "texto": "In progress: addressing the Git database crash that has caused more than one incident.",
+          "trechos": [
+            "We are addressing the Git database crash that has caused more than one incident at this point.",
+            "This work was already in progress and we will continue to prioritize it."
+          ]
+        },
+        {
+          "texto": "In progress: addressing the database failover issues so that failovers always recover fully without intervention.",
+          "trechos": [
+            "We are addressing the database failover issues to ensure that failovers always recover fully without intervention."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "May 11: what caused the Git database cluster to crash and why the failure did not leave the cluster in a good state are still being determined."
+    ]
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "mudanca_causadora: generica vs nao_se_aplica. The catalog entry is a set of three incidents; the definition ('the persistent change ... that set off the problem') fits the May 9 configuration change (generica), while the May 10 and May 11 incidents were not set off by a persistent change (nao_se_aplica), and the set-of-incidents rule says nothing about this field.",
+  "observacoes": "The catalog describes a set of three incidents (May 9, 10 and 11, 2023). The authors state that the root causes were unrelated, so there is no shared root cause: causa_raiz is ausente, gatilho is null and each incident's mechanism is in fatores_contribuintes. duracao is null because the text gives no single impact duration (May 9: majority of downtime 'just over an hour', followed by extended recovery of some pull request and push data). The text says the May monthly availability report will include further detail.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.19"
+  }
+}

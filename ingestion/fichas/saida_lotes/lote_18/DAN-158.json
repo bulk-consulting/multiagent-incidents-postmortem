@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-158",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "seguranca",
+    "seguranca": "ataque",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A volumetric memcached-based amplification DDoS attack peaking at 1.35Tbps made GitHub.com unavailable from 17:21 to 17:26 UTC and intermittently unavailable until 17:30 UTC on February 28, 2018. Service recovered after traffic was moved to Akamai by withdrawing BGP announcements over transit providers and announcing AS36459 exclusively over the links to Akamai, whose access control lists mitigated the attack.",
+    "data_incidente": "2018-02-28",
+    "status_relatorio": "final",
+    "servicos_afetados": ["GitHub.com"],
+    "tecnologias": ["memcached", "UDP", "BGP", "Akamai", "ChatOps", "access control lists"],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 17:21 UTC the network monitoring system detected an anomaly in the ratio of ingress to egress traffic and notified the on-call engineer and others in the chat system.",
+        "trechos": [
+          "At 17:21 UTC our network monitoring system detected an anomaly in the ratio of ingress to egress traffic and notified the on-call engineer and others in our chat system."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A volumetric amplification DDoS attack abusing memcached instances accessible on the public internet with UDP support enabled, with spoofed IP addresses directing memcached responses at GitHub's addresses; it originated from over a thousand ASNs across tens of thousands of endpoints and peaked at 1.35Tbps via 126.9 million packets per second.",
+        "trechos": [
+          "The attack works by abusing memcached instances that are inadvertently accessible on the public internet with UDP support enabled.",
+          "Spoofing of IP addresses allows memcached’s responses to be targeted against another address, like ones used to serve GitHub.com, and send more data toward the target than needs to be sent by the unspoofed source.",
+          "The attack originated from over a thousand different autonomous systems (ASNs) across tens of thousands of unique endpoints.",
+          "It was an amplification attack using the memcached-based approach described above that peaked at 1.35Tbps via 126.9 million packets per second."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "With inbound transit bandwidth above 100Gbps in one facility, it was decided to move traffic to Akamai for additional edge capacity; at 17:26 UTC a command was initiated via ChatOps tooling to withdraw BGP announcements over transit providers and announce AS36459 exclusively over the links to Akamai. Routes reconverged in the next few minutes, access control lists mitigated the attack at Akamai's border, and monitoring indicated a full recovery at 17:30 UTC.",
+          "trechos": [
+            "Given the increase in inbound transit bandwidth to over 100Gbps in one of our facilities, the decision was made to move traffic to Akamai, who could help provide additional edge network capacity.",
+            "At 17:26 UTC the command was initiated via our ChatOps tooling to withdraw BGP announcements over transit providers and announce AS36459 exclusively over our links to Akamai.",
+            "Routes reconverged in the next few minutes and access control lists mitigated the attack at their border.",
+            "Monitoring of transit bandwidth levels and load balancer response codes indicated a full recovery at 17:30 UTC."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned (under investigation): using the monitoring infrastructure to automate enabling DDoS mitigation providers, and continuing to measure response times with a goal of reducing MTTR.",
+          "trechos": [
+            "We’re investigating the use of our monitoring infrastructure to automate enabling DDoS mitigation providers and will continue to measure our response times to incidents like this with a goal of reducing mean time to recovery (MTTR)."
+          ]
+        },
+        {
+          "texto": "Planned: continuing to deploy additional transit capacity and develop peering relationships across a diverse set of exchanges, and to expand the edge network.",
+          "trechos": [
+            "We’re continuing to deploy additional transit capacity and develop robust peering relationships across a diverse set of exchanges.",
+            "We’re going to continue to expand our edge network and strive to identify and mitigate new attack vectors before they affect your workflow on GitHub.com."
+          ]
+        },
+        {
+          "texto": "Planned: build better detection systems and streamline response.",
+          "trechos": [
+            "We will continue to analyze this and other events that impact our availability, build better detection systems, and streamline response."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 9,
+      "trechos": [
+        "On Wednesday, February 28, 2018 GitHub.com was unavailable from 17:21 to 17:26 UTC and intermittently unavailable from 17:26 to 17:30 UTC due to a distributed denial-of-service (DDoS) attack."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration covers full unavailability (17:21-17:26 UTC) and intermittent unavailability (17:26-17:30 UTC). After recovery, at 17:34 UTC routes to internet exchanges were withdrawn to shift an additional 40Gbps away from the edge; a second 400Gbps spike occurred a little after 18:00 UTC. The text states that the confidentiality and integrity of user data were not at risk.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.19" }
+}

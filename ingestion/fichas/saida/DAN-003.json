@@ -1,0 +1,133 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-003",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A deploy that changed a field type in the PostgreSQL-backed distribution database was not backwards compatible, and the distribution service stopped distributing work, leaving customer jobs blocked in a “not running” state for all executors from about 18:50 to 19:43 UTC. A rollback did not restore distribution; service came back after a manually deployed modification made the distributor ignore the field and the compute cluster was manually scaled, with longer queue times until 20:19 UTC.",
+    "data_incidente": "2021-11-08",
+    "status_relatorio": "final",
+    "servicos_afetados": ["Customer jobs (all executors)", "distribution service", "machine executors including Mac"],
+    "tecnologias": ["PostgreSQL"],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Immediately after the 18:50 deploy, the team saw errors and alerts related to the distribution failure.",
+        "trechos": [
+          "At 18:50, we rolled out a deploy to change a field type in our distribution database.",
+          "We immediately saw errors and alerts related to the failure, and rolled back the change."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A deploy changed a field type in the distribution database in a way that was not backwards compatible: incoming work received data of the new type, and any work from before the deploy caused distribution to fail.",
+        "trechos": [
+          "due to a database schema change that was not backwards compatible",
+          "At 18:50, we rolled out a deploy to change a field type in our distribution database.",
+          "Incoming work received data of the new type, and any work from before the deploy caused distribution to fail."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "When the distributor service looks for work, it stops if it finds bad data and tries again from the start; the authors are changing how the distributor reacts to unexpected data so that this kind of deploy should not impact all jobs in the system.",
+        "trechos": [
+          "When the distributor service looks for work, it stops if it finds bad data and tries again from the start, assuming that something has gone wrong and a retry is sufficient to recover.",
+          "To limit impact in a similar situation, we’re changing how our distributor reacts when encountering unexpected data.",
+          "This should prevent this kind of deploy from impacting all jobs in the system."
+        ]
+      },
+      {
+        "texto": "Rolling back the change made the data written between the two deploys unreadable, and distribution kept failing.",
+        "trechos": [
+          "With the revert, the data written between deploys became unreadable and caused distribution to fail."
+        ]
+      },
+      {
+        "texto": "When provisioning for the primary compute fleet was increased, new nodes took longer than expected to join the fleet, many were marked unhealthy and terminated, and recovery proceeded more slowly.",
+        "trechos": [
+          "When we increased provisioning for our primary compute fleet, the new nodes took longer than expected to join the fleet, which led to many of them being marked unhealthy and terminating.",
+          "As a result, recovery proceeded more slowly than it should have."
+        ]
+      },
+      {
+        "texto": "Machine executors, including Mac, provisioned more slowly due to provider rate limiting.",
+        "trechos": [
+          "In addition, our machine executors including Mac provisioned more slowly due to provider rate limiting."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A deploy changed a field type in the distribution database (the field is not named).",
+        "trechos": [
+          "At 18:50, we rolled out a deploy to change a field type in our distribution database."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The change was rolled back; with the revert, data written between the deploys became unreadable and distribution still failed.",
+          "trechos": [
+            "We immediately saw errors and alerts related to the failure, and rolled back the change.",
+            "With the revert, the data written between deploys became unreadable and caused distribution to fail."
+          ]
+        },
+        {
+          "texto": "The team wrote, built and manually deployed a modification that made the distribution system ignore that field.",
+          "trechos": [
+            "We quickly wrote, built, and manually deployed a modification that allowed the distribution system to simply ignore that field."
+          ]
+        },
+        {
+          "texto": "In the meantime, the primary compute cluster was manually scaled to handle the expected flood of work (\"thundering herd\"), a standard part of the incident handling process.",
+          "trechos": [
+            "In the meantime, we manually scaled our primary compute cluster to handle the expected flood of work, or “thundering herd.”",
+            "This manual scaling is a standard part of our incident handling process."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "Planned: implementing fixes for identified gaps in the testing strategy, to prevent an identical incident.",
+          "trechos": [
+            "To prevent an identical incident, we’ve identified gaps in our testing strategy and are implementing fixes."
+          ]
+        },
+        {
+          "texto": "Planned: changing how the distributor reacts when encountering unexpected data, which should prevent this kind of deploy from impacting all jobs.",
+          "trechos": [
+            "To limit impact in a similar situation, we’re changing how our distributor reacts when encountering unexpected data.",
+            "This should prevent this kind of deploy from impacting all jobs in the system."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 53,
+      "trechos": [
+        "Customer jobs were blocked in a “not running” state from approximately 18:50 UTC to 19:43 UTC on Monday, November 8, 2021, due to a database schema change that was not backwards compatible."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration is the period jobs were blocked (approximately 18:50 to 19:43 UTC); the text says the disruption continued as longer than usual queue times, particularly for machine executors, until 20:19 UTC. The prevention section announces efforts in three places, but the third (ensuring faster recovery when unforeseen failures occur) is not described.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.19" }
+}

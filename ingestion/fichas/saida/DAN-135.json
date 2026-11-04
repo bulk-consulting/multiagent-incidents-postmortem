@@ -1,0 +1,163 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-135",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "An ongoing Kubernetes upgrade of CircleCI's main production cluster created a version mismatch between kubelet and kube-proxy; kube-proxy's iptables sync repeatedly failed, leaving iptables on multiple nodes corrupted and with widespread networking failures in the cluster; all customers' pipelines were delayed and jobs did not run from about 18:00 to 01:27 UTC. Service was restored by restarting every node of the cluster, which created fresh iptables rulesets, and then a separate pool of dependencies.",
+    "data_incidente": "2023-03-14",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "customer pipelines and jobs (Docker, Machine, macOS, Windows)",
+      "CircleCI UI",
+      "CircleCI API",
+      "Runner",
+      "GitHub checks"
+    ],
+    "tecnologias": [
+      "Kubernetes",
+      "kube-proxy",
+      "kubelet",
+      "iptables",
+      "core-dns",
+      "node-local-dns-cache",
+      "RabbitMQ"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "At 18:00 UTC the team started seeing an increase in communication errors on one of its services.",
+        "trechos": [
+          "At 18:00 UTC, we started seeing an increase in communication errors on one of our services."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At approximately 17:40 UTC on March 14, after adjusting the plan, the team resumed the upgrade with a different approach to upgrading the components; as more changes to pods and services were introduced during the upgrade, a spike in kube-proxy sync errors left the iptables on multiple nodes in a very corrupted state.",
+      "trechos": [
+        "After reviewing and adjusting the plan to limit the blast radius, at approximately 17:40 UTC on March 14th, we attempted a different approach to upgrading these components.",
+        "These errors increased as more changes to pods and services were introduced during the upgrade process and on March 14th, as we resumed the upgrade, a spike in sync errors left the iptables on multiple nodes in a very corrupted state."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The ongoing Kubernetes upgrade created a version mismatch between kubelet and kube-proxy. Between the two Kubernetes versions the handling and format of kube-proxy's rulesets changed; after the kube-proxy version was rolled back on March 13, kube-proxy's read/modify/write of iptables in Proxier.syncProxyRules() (using iptables-save and iptables-restore) started failing with \"Sync failed\" errors as Endpoints objects changed.",
+        "trechos": [
+          "In short, an ongoing Kubernetes upgrade created a version mismatch between kubelet and kubeproxy, leading to widespread networking failures in our main production cluster.",
+          "In the course of its normal operation kube-proxy performs a read/modify/write operation in the Proxier.syncProxyRules() method.",
+          "This method uses the system iptables-save and iptables-restore commands to read in the state, create new rules, and write the state back out.",
+          "Between the two Kubernetes versions we were working with, the handling and format of kube-proxy's rulesets changed.",
+          "What we did not notice was when we rolled back the kube-proxy version on March 13th, a very small amount of Sync-failure errors started showing up in our logs as visible in the graph below.",
+          "As we rolled out more pods and existing Endpoints objects changed in response to these events, kube-proxyattempted to sync and reconcile the iptables on the nodes and failed to do so."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The small number of kube-proxy sync-failure errors that started after the March 13 rollback went unnoticed in the logs; the team later added metrics and alerts specifically for these sync errors.",
+        "trechos": [
+          "What we did not notice was when we rolled back the kube-proxy version on March 13th, a very small amount of Sync-failure errors started showing up in our logs as visible in the graph below.",
+          "In addition, we have enhanced observability with additional metrics and alerts specifically related to the sync errors being thrown by kube-proxy during the incident."
+        ]
+      },
+      {
+        "texto": "The suspected components (kube-proxy, core-dns, node-local-dns-cache) all appeared healthy, which made the networking failure difficult to verify.",
+        "trechos": [
+          "After continued investigation, digging through logs, metrics, and attempts to connect to services using internal Kubernetes domain names directly from the pods, we suspected that the networking issues leading to communication failures were either due to kube-proxy, core-dns or node-local-dns-cache.",
+          "This was difficult to verify, as all of those workloads appeared to be healthy."
+        ]
+      },
+      {
+        "texto": "Restarting node-local-dns-cache and core-dns between 20:00 and 21:00 UTC caused DNS resolution to fail completely.",
+        "trechos": [
+          "Between 20:00 and 21:00 UTC, we decided to restart node-local-dns-cache and core-dns, which caused DNS resolution to fail completely."
+        ]
+      },
+      {
+        "texto": "The authors state there was no single trigger, and that their risk mitigation strategies for Kubernetes upgrades were not effective where an interaction of multiple events triggered the incident.",
+        "trechos": [
+          "As we analyzed the contributing factors, we realized that there was not one single trigger that led to this incident.",
+          "Due to the foundational nature of networking, Kubernetes upgrade are inherently risky and our risk mitigation strategies were not effective in the scenario where an interaction of multiple events ultimately triggered this incident."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A staged upgrade of the main production Kubernetes cluster, including a rollback of the kube-proxy version on March 13, left kubelet and kube-proxy at mismatched versions (the versions are not named).",
+        "trechos": [
+          "In the week prior to this event, our infrastructure team had been slowly carrying out an upgrade of our main production Kubernetes cluster.",
+          "What we did not notice was when we rolled back the kube-proxy version on March 13th, a very small amount of Sync-failure errors started showing up in our logs as visible in the graph below.",
+          "In short, an ongoing Kubernetes upgrade created a version mismatch between kubelet and kubeproxy, leading to widespread networking failures in our main production cluster."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "One node was restarted and requests related to that node went through; the team then restarted every node, and by 23:00 all nodes were rolled out and recovery began except for jobs using contexts or the machine executor. Restarting a node created a fresh iptables ruleset, and the full cluster restart made the sync errors disappear, restoring networking.",
+          "trechos": [
+            "The team was starting to hone in on kube-proxy as the main culprit and the restart of one of the nodes gave us more confidence as we noticed that requests related to that node were going through.",
+            "At this point, we continued on the restart path and restarted every node.",
+            "By 23:00, all the nodes were rolled out and we had started seeing recovery except for those jobs using contexts or machine executor.",
+            "When we restarted the node, a fresh iptable ruleset was created and as we completed a full restart of the clusters, the sync errors disappeared restoring networking within the cluster."
+          ]
+        },
+        {
+          "texto": "A separate pool of dependencies was restarted, and by 01:15 UTC on March 15 all jobs were executing correctly.",
+          "trechos": [
+            "We then restarted a separate pool of dependencies and by 01:15 UTC, March 15th, all jobs were executing correctly."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: enhanced observability with additional metrics and alerts for the kube-proxy sync errors seen during the incident.",
+          "trechos": [
+            "In addition, we have enhanced observability with additional metrics and alerts specifically related to the sync errors being thrown by kube-proxy during the incident."
+          ]
+        },
+        {
+          "texto": "In progress: enhancing the Kubernetes upgrade process to significantly limit this risk for future upgrades.",
+          "trechos": [
+            "Our infrastructure engineering team is enhancing our Kubernetes upgrade process in order to significantly limit this risk model for future upgrades."
+          ]
+        },
+        {
+          "texto": "Planned: evaluating strategies to improve the resilience of the RabbitMQ infrastructure.",
+          "trechos": [
+            "Additionally, we are evaluating strategies to improve the resilience of our RabbitMQ infrastructure."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 447,
+      "trechos": [
+        "On March 14, 2023, at approximately 18:00 UTC, all customers' pipelines began to experience delays in starting, ultimately resulting in jobs not running.",
+        "This incident lasted until approximately 01:27 UTC."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "categoria_causa: configuration-error vs other. The root cause is a version mismatch between kubelet and kube-proxy left by an upgrade and rollback, where the ruleset format changed between versions; the text does not call it a code defect, so software-bug does not fit, and the definitions do not say whether a component-version mismatch counts as 'a configuration, rule or policy value' (configuration-error) or fits no category (other).",
+  "observacoes": "Duration is computed from the summary (approximately 18:00 to 01:27 UTC); the postmortem says all jobs were executing correctly by 01:15 UTC and the status page marked it resolved at 01:59 UTC. Remediation led to two follow-on incidents in the RabbitMQ queuing system: RabbitMQ connection errors delayed all customer pipelines from 02:50 to 05:14 UTC (mitigated by 03:35), and a restart of RabbitMQ nodes to fix corrupted queues delayed GitHub checks by up to 30 minutes from 09:50 to 13:15 UTC (mitigated by 11:08). On March 13, after some components were updated, services reported missing metrics and the changes were reverted.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.19"
+  }
+}

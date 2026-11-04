@@ -75,6 +75,7 @@ Regras do prompt que costumam ser esquecidas na revisão (não marque como erro 
   completa); volta de um subsistema, de outra região ou "a pior parte durou X" não contam; várias voltas
   desse tipo, nenhuma, ou só uma faixa ("10-15 minutes") → null, sem baixar a confiança;
 - data_incidente pode vir de um cabeçalho dentro do texto extraído (não do título da página).
+- "engineers were paged/alerted", sem pessoa que deu o aviso, é alerta_automatico;
 - em status page, as atualizações ("## <status>" + "Posted <data>") vêm da mais nova para a mais antiga.
 
 FORMATO DA RESPOSTA (siga à risca, seja breve):

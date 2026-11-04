@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-189",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During upgrades of new capacity, a mis-typed reboot command in remote-execution tooling without enough input validation rebooted every server in Joyent's us-east-1 data center at 20:13Z on 2014-05-27, taking down all API systems and customer instances (instance downtime 20 to 149 minutes). Instances came back as TFTP boot throttles were removed and nodes hit by a network card driver bug were rebooted again; the API and service were fully restored by 21:30Z after manual recovery of control-plane components was needed.",
+    "data_incidente": "2014-05-27",
+    "status_relatorio": "final",
+    "servicos_afetados": ["us-east-1 customer instances", "us-east-1 API"],
+    "tecnologias": ["SmartDataCenter", "DHCP", "TFTP", "PXE boot", "network card driver"],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "While performing upgrades of new capacity with the tooling that allows remote software updates, an operator mis-typed the command to reboot the select set of new systems, and it instead specified all servers in the data center; all us-east-1 API systems and customer instances were rebooted simultaneously at 2014-05-27T20:13Z.",
+      "trechos": [
+        "Root cause of this incident was the result of an operator performing upgrades of some new capacity in our fleet, and they were using the tooling that allows for remote updates of software.",
+        "The command to reboot the select set of new systems that needed to be updated was mis-typed, and instead specified all servers in the data center.",
+        "Due to an operator error, all us-east-1 API systems and customer instances were simultaneously rebooted at 2014-05-27T20:13Z (13:13PDT)."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The remote-execution tool did not have enough input validation to prevent a reboot of all servers without extra steps or confirmation, and it issued a reboot command to every server in the us-east-1 availability zone without delay.",
+        "trechos": [
+          "Unfortunately the tool in question does not have enough input validation to prevent this from happening without extra steps/confirmation, and went ahead and issued a reboot command to every server in us-east-1 availability zone without delay."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The simultaneous reboot of every system caused extremely high contention on the TFTP boot infrastructure, whose normal throttles made compute nodes boot more slowly.",
+        "trechos": [
+          "Because there was a simultaneous reboot of every system in the data center, there was extremely high contention on the TFTP boot infrastructure, which like all of our infrastructure, normally has throttles in place to ensure that it cannot run away with a machine.",
+          "We removed the throttles when we identified this was causing the compute nodes to boot more slowly."
+        ]
+      },
+      {
+        "texto": "A small number of machines lagged because of a known, transient bug in a network card driver on legacy hardware platforms, where obtaining a DHCP lease on boot fails about 10% of the time.",
+        "trechos": [
+          "The small number of machines that lagged for the remaining time were subject to a known, transient bug in a network card driver on legacy hardware platforms whereby obtaining a DHCP lease upon boot occasionally fails.",
+          "In our experience, platforms with this network device will encounter this boot-time issue about 10% of the time."
+        ]
+      },
+      {
+        "texto": "Rebooting the whole data center caused complete failure of all stateful control-plane components, which did not maintain enough history to bring themselves online (partially by design, to avoid split brain), so manual recovery was needed and the API outage was extended.",
+        "trechos": [
+          "The extended API outage time was due to the need for manual recovery of stateful components in the control plane.",
+          "While the system is designed to handle 2F+1 failures of any stateful system, rebooting the data center resulted in complete failure of all these components, and they did not maintain enough history to bring themselves online.",
+          "This is partially by design, as we would rather systems be unavailable than come up \"split brain\" and suffer data loss as a result."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The throttles on the TFTP boot infrastructure were removed when they were identified as slowing compute node boots, which enabled most customer instances to come online over the following 20-30 minutes.",
+          "trechos": [
+            "We removed the throttles when we identified this was causing the compute nodes to boot more slowly.",
+            "This enabled most customer instances to come online over the following 20-30 minutes."
+          ]
+        },
+        {
+          "texto": "Nodes affected by the network card driver DHCP bug were rebooted again as soon as they were identified.",
+          "trechos": [
+            "The mitigation for this is for an operator to simply initiate another reboot, which we performed on those afflicted nodes as soon as we identified them."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: improve the tooling so input validation is much more strict and does not allow all servers and control plane servers to be rebooted simultaneously; some immediate fixes to operator tools have already begun, and the tools needed will be rethought so \"full power\" tools are not the only way to do routine tasks.",
+          "trechos": [
+            "First, we will be dramatically improving the tooling that humans (and systems) interact with such that input validation is much more strict and will not allow for all servers, and control plane servers to be rebooted simultaneously.",
+            "We have already begun putting in place a number of immediate fixes to tools that operators use to mitigate this, and we will be rethinking what tools are necessary over the coming days and weeks so that \"full power\" tools are not the only means by which to accomplish routine tasks."
+          ]
+        },
+        {
+          "texto": "Planned: determine extra steps in control plane recovery, recording state in each node, so all nodes can be safely rebooted simultaneously and recover without operator intervention.",
+          "trechos": [
+            "Secondly, we are determining what extra steps in the control plane recovery can be done such that we can safely reboot all nodes simultaneously without waiting for operator intervention.",
+            "We will not be able to serve requests during a complete outage, but we will ensure that we can record state in each node such that we can recover without human intervention."
+          ]
+        },
+        {
+          "texto": "Planned: assess migrating customer instances off older legacy hardware platforms more aggressively, case by case with each customer.",
+          "trechos": [
+            "Lastly, we will be assessing migrating customer instances off our older legacy hardware platforms more aggressively.",
+            "We will be doing this on a case by case basis, as there will be impact to instances as we do this, which will require us to work with each customer to do so."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 77,
+      "trechos": [
+        "The us-east-1 API was available and the service was fully restored by 2014-05-27T21:30Z (1 hour and 17 minutes of downtime)."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration uses the stated downtime until the API was available and the service was fully restored (21:30Z, 1 hour and 17 minutes). Per-instance downtime is given separately: minimum 20 minutes, maximum 149 minutes (2.5 hours); 80 percent of customer instances were back within 32 minutes and over 90 percent within 59 minutes. The 149-minute maximum is inconsistent with full restoration at 21:30Z; the text does not reconcile them. The text does not say how the outage was first detected.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.19" }
+}
