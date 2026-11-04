@@ -33,14 +33,20 @@ O Docker Desktop precisa estar aberto, com a integração com o WSL ligada (Sett
 WSL Integration). O pipeline cria o `ingestion/banco/.env` com uma senha aleatória e sobe o container
 sozinho.
 
-**Pipeline completo** (~6 minutos com GPU; a maior parte é gerar os vetores):
+**Pipeline completo** (~1,5 minuto com GPU, ~2,5 minutos sem GPU):
 
 ```bash
 multiagent_env/bin/python -I ingestion/pipeline.py
 multiagent_env/bin/python -I ingestion/pipeline.py --listar          # etapas
 multiagent_env/bin/python -I ingestion/pipeline.py --desde chunks    # da etapa 'chunks' em diante
 multiagent_env/bin/python -I ingestion/pipeline.py --so validacao    # só a validação
+multiagent_env/bin/python -I ingestion/pipeline.py --forcar-embeddings   # gera os vetores de novo
 ```
+
+**GPU ou processador.** Tudo funciona nos dois: o código usa a GPU NVIDIA se houver e o processador
+se não houver. A única etapa pesada é gerar os vetores (~3,5 min na GPU, ~2 h no processador), e ela
+só roda quando os chunks mudam: os vetores do Qwen3 estão no git, e o pipeline confere se eles batem
+com os chunks atuais antes de gerar de novo. Sem GPU, cada pergunta leva ~1 s a mais para virar vetor.
 
 **Para a apresentação:** `--desde banco` (~1 minuto) mostra a carga no banco e a validação com as
 perguntas de teste; o pipeline completo mostra todas as etapas rodando. Uma pergunta avulsa:
@@ -58,7 +64,7 @@ multiagent_env/bin/python -I ingestion/banco/busca.py "usuários estão vendo da
 | 3 | fichas | `fichas/validar_fichas.py` | `fichas/saida/DAN-*.json` | `fichas/saida/validacao.csv` |
 | 4 | corpus | `corpus/montar_corpus.py` | texto (reextraído ou original) e fichas | `corpus/corpus.jsonl`, `limpeza.csv` |
 | 5 | chunks | `corpus/chunk_fichas.py`, `corpus/chunk_texto.py` | `corpus.jsonl` e fichas | `corpus/chunks_fichas.jsonl`, `chunks_texto.jsonl` |
-| 6 | embeddings | `corpus/gerar_embeddings.py qwen3` | chunks | `corpus/embeddings/qwen3/` (os `.npy` ficam fora do git) |
+| 6 | embeddings | `corpus/gerar_embeddings.py qwen3` | chunks | `corpus/embeddings/qwen3/` (no git; pulada se os vetores batem com os chunks) |
 | 7 | banco | `banco/carregar.py` | corpus, fichas, chunks e vetores | tabelas `documents`, `chunks`, `cargas` |
 | 8 | validacao | `banco/validar_ingestao.py` | banco | `banco/validacao_ingestao.md` |
 

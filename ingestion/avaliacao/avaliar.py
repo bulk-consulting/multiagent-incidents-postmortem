@@ -52,8 +52,6 @@ def ranquear(sims: np.ndarray, doc_de_chunk: np.ndarray, n_docs: int) -> tuple[n
 
 
 def avaliar(chave: str) -> None:
-    import torch
-    from sentence_transformers import SentenceTransformer
     spec = importlib.util.spec_from_file_location("g", ROOT / "ingestion" / "corpus" / "gerar_embeddings.py")
     g = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(g)
@@ -70,7 +68,7 @@ def avaliar(chave: str) -> None:
     idx = {n: np.array([pos[d] for d in docs_chunk[n]]) for n in INDICES}
 
     casos = carregar_casos()
-    modelo = SentenceTransformer(cfg["nome"], device="cuda", model_kwargs={"torch_dtype": torch.float16})
+    modelo, _ = g.carregar_modelo(chave)
     q = modelo.encode([cfg["prefixo_query"] + c["pergunta"] for c in casos], batch_size=32,
                       normalize_embeddings=True, convert_to_numpy=True).astype(np.float32)
 

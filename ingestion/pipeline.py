@@ -20,6 +20,11 @@ Uso (a partir da raiz do repositório):
     multiagent_env/bin/python -I ingestion/pipeline.py --desde corpus   # da etapa 'corpus' em diante
     multiagent_env/bin/python -I ingestion/pipeline.py --ate chunks     # até a etapa 'chunks'
     multiagent_env/bin/python -I ingestion/pipeline.py --so validacao   # só uma etapa
+    multiagent_env/bin/python -I ingestion/pipeline.py --forcar-embeddings   # gera os vetores mesmo se
+                                                                              # já baterem com os chunks
+
+A etapa embeddings é pulada quando os vetores gravados (versionados no git) correspondem aos chunks
+atuais; ela usa a GPU se houver e senão o processador (bem mais lento).
 """
 from __future__ import annotations
 
@@ -89,9 +94,17 @@ def garantir_banco() -> None:
     print(f"  banco no ar ({CONTAINER})", flush=True)
 
 
-def rodar(nome: str, descricao: str, comandos: list[list[str]], numero: int) -> float:
+def rodar(nome: str, descricao: str, comandos: list[list[str]], numero: int, forcar_embeddings: bool = False) -> float:
     print(f"\n{'=' * 78}\n[{numero}/{len(ETAPAS)}] {nome}: {descricao}\n{'=' * 78}", flush=True)
     t0 = time.time()
+    if nome == "embeddings" and not forcar_embeddings:
+        # os vetores só mudam quando os chunks mudam; os do Qwen3 estão no git, então uma máquina
+        # sem GPU não precisa gerá-los (no processador levaria ~2 h)
+        conf = subprocess.run(comandos[0] + ["--conferir"], cwd=ROOT, env=AMBIENTE, capture_output=True, text=True)
+        print(conf.stdout.strip(), flush=True)
+        if conf.returncode == 0:
+            print("-- embeddings: vetores reaproveitados (use --forcar-embeddings para gerar de novo)", flush=True)
+            return time.time() - t0
     if nome == "banco":
         garantir_banco()
     for cmd in comandos:
@@ -125,7 +138,7 @@ def main() -> None:
     t0 = time.time()
     for k in range(ini, fim + 1):
         nome, desc, cmds = ETAPAS[k]
-        tempos.append((nome, rodar(nome, desc, cmds, k + 1)))
+        tempos.append((nome, rodar(nome, desc, cmds, k + 1, "--forcar-embeddings" in args)))
     print(f"\n{'=' * 78}\nPipeline concluído em {time.time() - t0:.0f}s: "
           + ", ".join(f"{n} {t:.0f}s" for n, t in tempos))
 

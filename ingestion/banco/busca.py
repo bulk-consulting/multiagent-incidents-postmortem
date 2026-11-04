@@ -56,14 +56,9 @@ ORDER BY doc_id, similaridade DESC
 
 def vetorizar(pergunta: str) -> np.ndarray:
     global _modelo
-    import torch
-    from sentence_transformers import SentenceTransformer
     cfg = _gerar.MODELOS["qwen3"]
     if _modelo is None:
-        if torch.cuda.is_available():
-            _modelo = SentenceTransformer(cfg["nome"], device="cuda", model_kwargs={"torch_dtype": torch.float16})
-        else:
-            _modelo = SentenceTransformer(cfg["nome"], device="cpu", model_kwargs={"dtype": torch.float32})
+        _modelo, _ = _gerar.carregar_modelo("qwen3")
     return _modelo.encode([cfg["prefixo_query"] + pergunta], normalize_embeddings=True)[0].astype(np.float32)
 
 
