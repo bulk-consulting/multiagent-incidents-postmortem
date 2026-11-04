@@ -66,6 +66,7 @@ Regras do prompt que costumam ser esquecidas na revisão (não marque como erro 
 - data_incidente pode vir de um cabeçalho dentro do texto extraído (não do título da página).
 
 FORMATO DA RESPOSTA (siga à risca, seja breve):
+0. Primeira linha, sozinha: "## {cid}".
 1. Uma tabela só com os campos que têm problema: | campo | ERRADO ou DISCUTÍVEL | problema em 1 ou 2 frases | trecho do documento que mostra o problema |
    Não liste campos corretos.
 2. Omissões importantes: até 3 itens, 1 frase cada, com o trecho. Se não houver, escreva "nenhuma".

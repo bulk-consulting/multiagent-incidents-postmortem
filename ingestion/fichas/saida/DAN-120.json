@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-120",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Basecamp 3 was in read-only mode from 7:21am to 12:11pm CST because the database hit the ceiling of 2,147,483,647 on the events table, which tracks almost every activity, so no new events could be written. The fix applied to the tables lifted the record headroom to 9,223,372,036,854,775,807; the text does not describe the restoration steps in more detail.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Basecamp 3"
+    ],
+    "tecnologias": [
+      "Ruby on Rails",
+      "events table (database)"
+    ],
+    "categoria_causa": "database-storage",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The database hit the ceiling of 2,147,483,647 records on the very busy events table, which tracks almost every activity in Basecamp; once new events could not be written to that table, practically every attempt to do anything in Basecamp was halted.",
+        "trechos": [
+          "The root cause was that our database hit the ceiling of 2,147,483,647 on our very busy events table.",
+          "Almost every single activity in Basecamp is tracked in this table.",
+          "So when we became unable to write new events to that table, every attempt to do practically anything in Basecamp was halted."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Work to expand the capacity of the events table was under way in the days before the outage, but it did not properly account for how quickly headroom was running out and was not completed in time.",
+        "trechos": [
+          "We were actively working on expanding the capacity of the events table in the days prior to this outage, but we failed to properly account for how quickly we were running out of headroom.",
+          "It’s embarrassing and humbling to have suffered the biggest outage at Basecamp in a decade from an issue that we should have addressed years ago, and that we were actively working on addressing, but failed to complete in time."
+        ]
+      },
+      {
+        "texto": "Ruby on Rails moved in version 5.1 (released in 2017) to a new default for database tables that lifts record headroom from 2,147,483,647 to 9,223,372,036,854,775,807; the authors say they should have been aware of the general issue much sooner.",
+        "trechos": [
+          "The programming framework we use, Ruby on Rails (which was originally extracted from Basecamp!), moved to a new default for database tables in version 5.1 that was released in 2017.",
+          "That change lifting the headroom for records from 2,147,483,647 to 9,223,372,036,854,775,807 on all tables.",
+          "To compound the avoidable factor, we should had been aware of the general issue much sooner."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The root-cause fix applied to the tables lifted the headroom for records from 2,147,483,647 to 9,223,372,036,854,775,807, the same as the Rails 5.1 default; the text does not say when it was applied relative to the end of the outage.",
+          "trechos": [
+            "That change lifting the headroom for records from 2,147,483,647 to 9,223,372,036,854,775,807 on all tables. Which ended up being the same root-cause fix that we applied to our tables."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "ausentes",
+      "acoes": []
+    },
+    "duracao": {
+      "minutos": 290,
+      "trechos": [
+        "Last Thursday, November 9th, Basecamp 3 was in read-only mode for almost five hours starting 7:21am CST and ending 12:11pm CST."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives the date only as 'Last Thursday, November 9th' with no year in the extracted text, so data_incidente is null. Duration is computed from the stated start and end times (7:21am to 12:11pm CST); the text also says 'almost five hours'. The text says users were kept informed via status updates and a blog play-by-play, which are not included.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.15"
+  }
+}

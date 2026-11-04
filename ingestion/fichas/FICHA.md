@@ -1,6 +1,6 @@
 # Ficha de post-mortem — formulário
 
-**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.15
+**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.16
 
 Cada documento do danluu vira uma ficha `DAN-xxx.json`. A ficha **não substitui** o texto original: o RAG continua indexando e citando o original. A ficha organiza o que o texto diz, para triagem, metadados e chunking.
 
@@ -130,6 +130,7 @@ Regra do IPA mantida: **classificar pela origem, não pelo efeito**. A categoria
 - **v2.13** (amostra do lote 06: 6 ERRADOS em 6 fichas, 1,0 por ficha, contra 1,5 no lote 05): `equipe_interna` só quando o texto diz que uma pessoa notou sem alerta; "detected internally" ou só o sintoma é `nao_informada`. Atividade operacional automática (scaling, failover) é `nao_se_aplica` em `mudanca_causadora`.
 - **v2.14** (amostra do lote 09: 4 ERRADOS em 7 fichas, 0,6 por ficha): a regra de duração que só existia no lembrete do pedido de revisão entrou no prompt. Marcas "Impact starts"/"Impact ends" no texto valem mais que outros horários; sem marca de fim, o horário em que o serviço voltou (mesmo degradado) é o fim; faixa ("10-15 minutes") dá `null`. O lembrete da revisão foi alinhado ao prompt.
 - **v2.15** (amostra do lote 12: 7 ERRADOS em 7 fichas, 1,0 por ficha): `configuration-error` passa a cobrir também um valor de configuração errado há muito tempo, sem mudança recente (antes a definição exigia "a change" e esses casos não tinham categoria). Não muda nenhuma ficha aceita (DAN-001 já estava assim).
+- **v2.16** (amostra do lote 13: 8 ERRADOS em 6 fichas, 1,3 por ficha): `software-bug` é residual (outra categoria que caiba vence; código que funcionava não é `software-bug`); "total duration of the incident" diferente das marcas de impacto não vence as marcas. Os dois casos entram na lista de dúvidas que a regra já decide.
 
 ## Validação
 

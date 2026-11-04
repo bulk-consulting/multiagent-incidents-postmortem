@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-014",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During a routine abuse remediation for a phishing report, a product disablement action disabled the production R2 Gateway service instead of the specific endpoint, and the abuse processing systems were not configured to identify internal accounts and block disablement against them. All R2 operations failed for 59 minutes and dependent services such as Stream, Images, Cache Reserve, Vectorize and Log Delivery saw failures. An operations team with lower-level access began re-enabling the service and the R2 team triggered a redeployment of the R2 Gateway, after which clients reconnected.",
+    "data_incidente": "2025-02-06",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "R2",
+      "Stream",
+      "Images",
+      "Cache Reserve",
+      "Vectorize",
+      "Log Delivery",
+      "Durable Objects",
+      "Cache Purge",
+      "Key Transparency Auditor",
+      "Workers & Pages"
+    ],
+    "tecnologias": [
+      "R2 Gateway service",
+      "Durable Objects",
+      "Prometheus",
+      "Admin API",
+      "abuse review UI"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "R2 service metrics began to show degradation at 08:15 UTC, and at 08:17 UTC critical R2 alerts began to fire because the service no longer responded to health checks.",
+        "trechos": [
+          "| 2025-02-06 08:15 | R2 service metrics begin to show signs of service degradation. |",
+          "| 2025-02-06 08:17 | Critical R2 alerts begin to fire due to our service no longer responding to our health checks. |"
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 08:12 UTC, while responding to an abuse report about a phishing site hosted on R2, an operator action inadvertently disabled the production R2 Gateway service instead of the specific endpoint/bucket associated with the report.",
+      "trechos": [
+        "| 2025-02-06 08:12 | The R2 Gateway service is inadvertently disabled while responding to an abuse report. |",
+        "The incident occurred due to human error and insufficient validation safeguards during a routine abuse remediation for a report about a phishing site hosted on R2.",
+        "During a routine abuse remediation, action was taken on a complaint that inadvertently disabled the R2 Gateway service instead of the specific endpoint/bucket associated with the report."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Insufficient validation safeguards in the admin tooling: the abuse processing systems were not explicitly configured to identify internal accounts and block disablement actions against them, so the system allowed the operator to disable the R2 Gateway service. The R2 production account was a member of the internal organization, but the abuse remediation engine had no protections against acting on accounts in it.",
+        "trechos": [
+          "Due to human error and insufficient validation safeguards in our admin tooling, the R2 Gateway service was taken down as part of a routine remediation for a phishing URL.",
+          "Teams typically have multiple accounts (dev, staging, prod) to reduce the blast radius of any configuration changes or deployments, but our abuse processing systems were not explicitly configured to identify these accounts and block disablement actions against them.",
+          "Instead of disabling the specific endpoint associated with the abuse report, the system allowed the operator to (incorrectly) disable the R2 Gateway service.",
+          "Internal accounts are being moved to our new Organizations model ahead of public release of this feature.",
+          "The R2 production account was a member of this organization, but our abuse remediation engine did not have the necessary protections to prevent acting against accounts within this organization."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The internal admin tooling used to re-enable the R2 Gateway service was unavailable because it relies on R2.",
+        "trechos": [
+          "| 2025-02-06 08:46 | On-call attempts to re-enable the R2 Gateway service using our internal admin tooling, however this tooling was unavailable because it relies on R2. |"
+        ]
+      },
+      {
+        "texto": "Recovery was inhibited by the lack of direct controls to revert the product disablement action and the need to engage an operations team with lower-level access than is routine; the R2 Gateway service then also required a re-deployment to rebuild its routing pipeline across the edge network.",
+        "trechos": [
+          "Once we identified this as the cause of the outage, remediation and recovery was inhibited by the lack of direct controls to revert the product disablement action and the need to engage an operations team with lower level access than is routine.",
+          "The R2 Gateway service then required a re-deployment in order to rebuild its routing pipeline across our edge network."
+        ]
+      },
+      {
+        "texto": "As R2 recovered, the backlog and spike of reconnecting clients caused load issues with R2's metadata layer built on Durable Objects, with a 0.09% increase in error rates for Durable Objects in North America from 09:13 to 09:36 UTC.",
+        "trechos": [
+          "From 09:13 UTC to 09:36 UTC, as R2 recovered and clients reconnected, the backlog and resulting spike in client operations caused load issues with R2's metadata layer (built on Durable Objects).",
+          "This impact was significantly more isolated: we observed a 0.09% increase in error rates in calls to Durable Objects running in North America during this window."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 08:57 UTC an operations team with lower-level system access began to re-enable the R2 Gateway service.",
+          "trechos": [
+            "| 2025-02-06 08:49 | On-call escalates to an operations team who has lower level system access and can re-enable the R2 Gateway service. |",
+            "| 2025-02-06 08:57 | The operations team engaged and began to re-enable the R2 Gateway service. |"
+          ]
+        },
+        {
+          "texto": "At 09:09 UTC the R2 team triggered a redeployment of the R2 Gateway service; R2 began to recover at 09:10 UTC as the forced re-deployment rolled out and clients reconnected, and availability returned to within its SLO at 09:13 UTC.",
+          "trechos": [
+            "| 2025-02-06 09:09 | R2 team triggers a redeployment of the R2 Gateway service. |",
+            "| 2025-02-06 09:10 | R2 began to recover as the forced re-deployment rolled out as clients were able to reconnect to R2. |",
+            "| 2025-02-06 09:13 | -- IMPACT ENDS -- R2 availability recovers to within its service-level objective (SLO)."
+          ]
+        },
+        {
+          "texto": "For Log Delivery, a kill switch was enabled to stop processing jobs sending data to R2, after which the system recovered.",
+          "trechos": [
+            "The system recovered when we enabled a kill switch to stop processing jobs sending data to R2."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: deployed additional guardrails in the Admin API to prevent product disablement of services running in internal accounts.",
+          "trechos": [
+            "- **Actioned:** deployed additional guardrails implemented in the Admin API to prevent product disablement of services running in internal accounts."
+          ]
+        },
+        {
+          "texto": "Already done: product disablement actions in the abuse review UI were disabled while more robust safeguards are added.",
+          "trechos": [
+            "- **Actioned**: Product disablement actions in the abuse review UI have been disabled while we add more robust safeguards."
+          ]
+        },
+        {
+          "texto": "In progress: changing how all internal accounts (staging, dev, production) are created so they are provisioned into the correct organization, including protections against creating standalone accounts; internal accounts are being moved to the new Organizations model.",
+          "trechos": [
+            "- **In-flight**: Changing how we create all internal accounts (staging, dev, production) to ensure that all accounts are correctly provisioned into the correct organization.",
+            "This must include protections against creating standalone accounts to avoid re-occurrence of this incident (or similar) in the future.",
+            "- **In-flight**: Internal accounts are being moved to our new Organizations model ahead of public release of this feature."
+          ]
+        },
+        {
+          "texto": "In progress: restricting access to product disablement actions beyond the system-recommended remediations to a smaller group of senior operators, and requiring two-party approval for ad-hoc product disablement actions.",
+          "trechos": [
+            "- **In-flight:** Further restricting access to product disablement actions beyond the remediations recommended by the system to a smaller group of senior operators.",
+            "- **In-flight**: Two-party approval required for ad-hoc product disablement actions."
+          ]
+        },
+        {
+          "texto": "In progress: expanding existing abuse checks that prevent accidental blocking of internal hostnames to also prevent any product disablement action on products associated with an internal Cloudflare account.",
+          "trechos": [
+            "- **In-flight**: Expand existing abuse checks that prevent accidental blocking of internal hostnames to also prevent any product disablement action of products associated with an internal Cloudflare account."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 59,
+      "trechos": [
+        "Multiple Cloudflare services, including our <u>R2 object storage</u>, were unavailable for 59 minutes on Thursday, February 6, 2025."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The 59-minute duration matches the primary incident window (08:14 to 09:13 UTC). A secondary window with elevated Durable Objects error rates lasted from 09:13 to 09:36 UTC, and the incident was closed at 10:29 UTC. The text also names operator training as a failed control alongside system-level controls. It states that immediate steps were taken to resolve the validation gaps in the tooling. Log Delivery dropped logs because resources saturated trying to deliver data to R2; this is described as part of the impact.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.15"
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-071",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Four successive lightning strikes on the local utility grid powering Google's European datacenter caused a brief loss of power to storage systems hosting GCE disk capacity in europe-west1-b; some recently written data was on storage systems more susceptible to power failure from extended or repeated battery drain. About 5% of Standard Persistent Disks in the zone saw I/O errors and a very small fraction suffered permanent data loss. Power was restored quickly by automatic auxiliary systems, and engineers carried out data recovery operations as affected disks progressively declined.",
+    "data_incidente": "2015-08-13",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Google Compute Engine Standard Persistent Disks (europe-west1-b)",
+      "Persistent Disk management operations (e.g. snapshot creation)"
+    ],
+    "tecnologias": [
+      "Google Compute Engine",
+      "Standard Persistent Disks",
+      "battery backup",
+      "storage systems"
+    ],
+    "categoria_causa": "hardware-power",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "From 09:19 PDT on 13 August 2015 some Standard Persistent Disks in europe-west1-b began to return sporadic I/O errors to their connected GCE instances. The text does not say how the issue was first noticed.",
+        "trechos": [
+          "From 09:19 PDT on Thursday 13 August 2015, to Monday 17 August 2015, some Standard Persistent Disks in the europe-west1-b zone began to return sporadic I/O errors to their connected GCE instances."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 09:19 PDT on 13 August 2015, four successive lightning strikes on the local utilities grid that powers Google's European datacenter caused a brief loss of power to storage systems hosting disk capacity for GCE instances in europe-west1-b.",
+      "trechos": [
+        "ROOT CAUSE: At 09:19 PDT on Thursday 13 August 2015, four successive lightning strikes on the local utilities grid that powers our European datacenter caused a brief loss of power to storage systems which host disk capacity for GCE instances in the europe-west1-b zone."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Although automatic auxiliary systems restored power quickly and the storage systems have battery backup, some recently written data was located on storage systems more susceptible to power failure from extended or repeated battery drain; in a very few cases recent writes were unrecoverable, causing permanent data loss on the Persistent Disk.",
+        "trechos": [
+          "Although automatic auxiliary systems restored power quickly, and the storage systems are designed with battery backup, some recently written data was located on storage systems which were more susceptible to power failure from extended or repeated battery drain.",
+          "However, in a very few cases, recent writes were unrecoverable, leading to permanent data loss on the Persistent Disk."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Automatic auxiliary systems restored power to the storage systems quickly.",
+          "trechos": [
+            "Although automatic auxiliary systems restored power quickly, and the storage systems are designed with battery backup, some recently written data was located on storage systems which were more susceptible to power failure from extended or repeated battery drain."
+          ]
+        },
+        {
+          "texto": "Manual intervention was required to restore the storage systems to their normal serving state.",
+          "trechos": [
+            "In almost all cases the data was successfully committed to stable storage, although manual intervention was required in order to restore the systems to their normal serving state."
+          ]
+        },
+        {
+          "texto": "Google engineers carried out data recovery operations, and the number of affected disks progressively declined; by Monday 17 August only disks totalling less than 0.000001% of allocated persistent disk space remained affected, for which full recovery is not possible.",
+          "trechos": [
+            "From the start of the incident, the number of affected disks progressively declined as Google engineers carried out data recovery operations.",
+            "By Monday 17 August, only a very small number of disks remained affected, totalling less than 0.000001% of the space of allocated persistent disks in europe-west1-b. In these cases, full recovery is not possible."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Ongoing: upgrading to storage hardware less susceptible to the power failure mode that triggered the incident, to improve cache data retention during transient power loss; most Persistent Disk storage already runs on this hardware.",
+          "trechos": [
+            "REMEDIATION AND PREVENTION: Google has an ongoing program of upgrading to storage hardware that is less susceptible to the power failure mode that triggered this incident. Most Persistent Disk storage is already running on this hardware.",
+            "Continue to upgrade our hardware to improve cache data retention during transient power loss."
+          ]
+        },
+        {
+          "texto": "Identified opportunity: implement multiple orthogonal schemes to increase Persistent Disk data durability.",
+          "trechos": [
+            "Implement multiple orthogonal schemes to increase Persistent Disk data durability for greater resilience."
+          ]
+        },
+        {
+          "texto": "Identified opportunity: improve response procedures for system engineers during future incidents.",
+          "trechos": [
+            "Improve response procedures for system engineers during possible future incidents."
+          ]
+        },
+        {
+          "texto": "Recommendation to customers: be prepared to switch operations to another GCE zone for maximum availability, and use GCE snapshots and Google Cloud Storage as geographically replicated repositories for maximum durability.",
+          "trechos": [
+            "Customers who need maximum availability should be prepared to switch their operations to another GCE zone.",
+            "For maximum durability we recommend GCE snapshots and Google Cloud Storage as resilient, geographically replicated repositories for your data."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 4330,
+      "trechos": [
+        "Incident began at **2015-08-13 09:25**",
+        "and ended at **2015-08-16 09:35**"
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration is computed from the status page's incident start and end marks (2015-08-13 09:25 to 2015-08-16 09:35 US/Pacific). The final summary instead gives the impact as starting at 09:19 PDT on 13 August and lasting to Monday 17 August (no time), and at the 16 August final update less than 0.05% of PDs still had read failures. Each status update and the summary appear twice in the extracted text, and the text begins with generic status-page boilerplate. The summary says several contributory factors were identified but does not list them. The status updates told affected customers they could restore their disks from snapshots; the text does not say customers did so, so it is not listed as a mitigation step.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.15"
+  }
+}

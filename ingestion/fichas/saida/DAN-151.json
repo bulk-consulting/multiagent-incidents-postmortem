@@ -1,0 +1,229 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-151",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During routine patching of the ZooKeeper coordination layer in Elastic Cloud's AWS us-east-1 region, the ensemble became unstable and lost quorum, and because other platform components depend on it, Elasticsearch deployments were partially or completely unavailable from 02:50 to 09:28 UTC, with some Kibana access degraded until 18:44 UTC. Service was restored by removing client load to re-establish quorum, increasing the observer initLimit, scaling the proxy fleet, and restarting the internal TLS proxying containers and Kibana instances.",
+    "data_incidente": "2019-02-04",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Elasticsearch Service on Elastic Cloud (AWS us-east-1)",
+      "Kibana",
+      "Elastic Cloud User Console",
+      "APM"
+    ],
+    "tecnologias": [
+      "Apache ZooKeeper",
+      "runc",
+      "TLS proxying service container",
+      "Kibana",
+      "Elasticsearch",
+      "load balancer",
+      "nf_conn_track table",
+      "sysctl"
+    ],
+    "categoria_causa": "cascading-failure",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "At 02:50 UTC an increase in HTTP 5xx errors was identified on the load balancer; the text does not say whether an alert fired.",
+        "trechos": [
+          "**2019-02-04 02:50**: An increase in HTTP 5xx errors was identified on the load balancer."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "The incident began following a routine patching procedure for the ZooKeeper coordination layer in AWS us-east-1, in which the first and second ensemble members were replaced with patched hosts between 02:25 and 02:45 UTC, following the same documented host-replacement process used in other regions.",
+      "trechos": [
+        "The incident began following a routine patching procedure for the coordination layer in our AWS us-east-1 region.",
+        "**2019-02-04 02:25-02:45**: First and second ensemble members were replaced with patched hosts.",
+        "The engineer was following the documented procedure of replacing the underlying hosts, which had previously been successful when performed in other regions."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Service metrics reported the hosts as healthy, signaling it was safe to proceed, but proved insufficient to convey the state of individual hosts and of the coordination layer; this led to unanticipated instability on and between hosts and an overall failure of the coordination layer. At 02:50 UTC the ZooKeeper leader was overwhelmed by incoming connections and shut down, and the ensemble could not quickly re-establish and maintain quorum due to the request load; because other platform components depend on the coordination layer, the loss of quorum caused a major service disruption.",
+        "trechos": [
+          "Service metrics had reported the hosts as healthy, thus signaling that it was safe to proceed with the maintenance; however, the metrics proved to be insufficient in conveying the state of individual hosts and of the coordination layer as a whole.",
+          "This led to unanticipated instability on and between hosts, which ultimately led to an overall failure of the coordination layer.",
+          "**2019-02-04 02:50**: The ZooKeeper ensemble undertook a leader election. Logging indicated that the ensemble leader was overwhelmed by incoming connections and shut down.",
+          "The ensemble wasn’t able to quickly re-establish and maintain a quorum due to the incoming request load.",
+          "Due to dependencies of other platform components with the coordination layer, instability and loss of quorum in the coordination layer caused a major service disruption."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "From 02:55 UTC, latency within the unstable ZooKeeper ensemble increased, which led to further client reconnections and instability in the ZooKeeper observer layer.",
+        "trechos": [
+          "**2019-02-04 02:55**: Latency within the ZooKeeper ensemble increased due to ensemble instability, which in turn led to further client reconnections and instability in the ZooKeeper observer layer."
+        ]
+      },
+      {
+        "texto": "First-seen runc bugs caused CPU softlocks that made two ZooKeeper ensemble members unresponsive and required host reboots; the root issue of ensemble member instability was identified as runc triggering a kernel OOPS and CPU softlocks lasting minutes when entering the network namespace of a TLS proxying service container. Unrelated issues found while investigating delayed the final resolution.",
+        "trechos": [
+          "**2019-02-04 05:48**: First-seen runc bugs led to CPU softlocks and rendered the system unresponsive for two members of the ZooKeeper ensemble.",
+          "The hosts had to be rebooted to mitigate this bug.",
+          "**2019-02-04 06:45**: Identified the root issue causing ensemble member instability: when entering the network namespace of a TLS proxying service container, runc would trigger a kernel OOPS and CPU softocks spanning minutes.",
+          "A set of unrelated issues were encountered while investigating the primary source of the outage, which contributed to a further delay of the final resolution."
+        ]
+      },
+      {
+        "texto": "Once client connections were re-established, a large influx of external re-connections put the proxy layer under high load, causing instability in the proxy ZooKeeper observer layer and continued unavailability of the proxy layer; a three-fold increase of requests to the proxy layer was noted.",
+        "trechos": [
+          "**2019-02-04 07:30**: Once the client connections were re-established, the proxy layer began to exhibit high load due to a large influx of external re-connections.",
+          "This caused instability in the proxy ZooKeeper observer layer, which led to continued unavailability in the proxy layer itself (i.e., customers still encountered issues connecting to their clusters).",
+          "A three-fold increase of requests to our proxy layer was noted."
+        ]
+      },
+      {
+        "texto": "Kibana instances could not reach their Elasticsearch clusters because the internal TLS proxying service could not forward requests to the proxy layer; Kibana did not close sockets after failed attempts, so open sockets grew out of bounds, filling the nf_conn_track table and straining the internal proxying containers. Previously unknown Kibana bugs caused connection leaks and HTTP request amplification back to the load balancing layer.",
+        "trechos": [
+          "**2019-02-04 09:53**: Kibana instances were not able to connect to their target Elasticsearch clusters due the internal TLS proxying service being unable to forward requests to the proxy layer.",
+          "As Kibana was not closing sockets after a failed attempt, the number of open sockets grew out of bounds, filling the nf\\_conn\\_track table and causing a high strain on the internal proxying containers.",
+          "As part of the RCA investigation, it was identified that a set of previously unknown bugs in Kibana was resulting in connection leaks and HTTP request amplification back to the load balancing layer, driving extra traffic to the proxy layer and Elasticsearch deployments."
+        ]
+      },
+      {
+        "texto": "Individually successful mitigation actions were temporarily inefficient due to the scale of the failures, making full resolution more complicated and difficult.",
+        "trechos": [
+          "Individually successful mitigation actions by our response team proved to be temporarily inefficient due to the scale of the failures being addressed, making a full resolution both more complicated and more difficult to achieve."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A routine patching of the ZooKeeper coordination layer in AWS us-east-1, replacing ensemble members with patched hosts; the exact patch is not named.",
+        "trechos": [
+          "The incident began following a routine patching procedure for the coordination layer in our AWS us-east-1 region.",
+          "**2019-02-04 02:25-02:45**: First and second ensemble members were replaced with patched hosts."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 03:22 and again at 06:00 UTC, internal services were restarted in a sweeping manner to reduce client connection problems.",
+          "trechos": [
+            "**2019-02-04 03:22**: Sweeping restart of internal services to reduce client connection problems.",
+            "**2019-02-04 06:00**: Sweeping restart of internal services to reduce client connection problems; started working to identify what exactly was causing the host instability within ensemble members."
+          ]
+        },
+        {
+          "texto": "At 04:39 UTC the ensemble was isolated by cutting off client connections; roll-back of the remaining and then the second ensemble member began at 04:46 and 05:25 UTC after host instability, and hosts hit by the runc bug had to be rebooted.",
+          "trechos": [
+            "**2019-02-04 04:39**: Isolated ensemble by cutting off client connections to stabilize the system.",
+            "**2019-02-04 04:46**: Roll-back of the remaining ensemble member began after host instability was observed.",
+            "**2019-02-04 05:25**: Roll-back of the second ensemble member began due to host instability.",
+            "The hosts had to be rebooted to mitigate this bug."
+          ]
+        },
+        {
+          "texto": "At 07:10 UTC a stable quorum was established by reducing client load and operator debugging actions on the ZooKeeper hosts, then gradually re-introducing client load; at 07:17 UTC incoming traffic was reintroduced and the customer control plane was brought back online.",
+          "trechos": [
+            "**2019-02-04 07:10**: A stable quorum was established by reducing client load and reducing operator debugging actions on the impacted ZooKeeper hosts.",
+            "Quorum within the ZooKeeper ensemble was re-established by removing client load where possible, giving the ensemble time to stabilize before gradually re-introducing client load.",
+            "**2019-02-04 07:17**: Incoming traffic was reintroduced and the customer control plane was brought back online."
+          ]
+        },
+        {
+          "texto": "The ZooKeeper observer layer used by the proxies was stabilized by increasing the initLimit setting (time followers are allowed to connect and sync to a leader), which flowed down to the proxy layer.",
+          "trechos": [
+            "The ZooKeeper observer layer utilized by the proxies was stabilized by increasing the `initLimit` setting.",
+            "This setting controls the amount of time followers are allowed to connect and sync to a leader.",
+            "Increasing this limit stabilized the observer layer, which flowed down to the proxy layer."
+          ]
+        },
+        {
+          "texto": "At 09:19 UTC the proxy fleet was scaled up and out to handle the increased traffic; at 09:28 UTC availability to Elasticsearch deployments was restored, with all proxies serving traffic and the error rate at pre-incident levels.",
+          "trechos": [
+            "**2019-02-04 09:19**: Once the ZooKeeper ensemble and observers were stable, the proxy fleet was scaled up and out to handle the increased traffic to ES clusters.",
+            "**2019-02-04 09:28**: Availability to Elasticsearch deployments was restored. All proxies were now serving traffic and the error rate dropped to pre-incident levels."
+          ]
+        },
+        {
+          "texto": "At 12:30 UTC a remediation runbook was applied to Kibana instances that restarted the internal proxying container and Kibana instances and applied sysctl limits; Kibana access was fully restored at 18:44 UTC.",
+          "trechos": [
+            "**2019-02-04 12:30**: A remediation runbook was developed and applied to mitigate the issue with Kibana instances exhibiting the connection issue. The runbook restarted the internal proxying container and Kibana instances, and also applied sysctl limits to prevent these issues from recurring in the future.",
+            "**2019-02-04 18:44: Kibana access was fully restored.**"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: reduced the dataset size carried by the ZooKeeper ensembles by over 60%, reducing network and disk I/O and speeding recovery of members joining the quorum.",
+          "trechos": [
+            "Reduced the dataset size carried by our ZooKeeper ensembles by over 60%. By doing so, network and disk I/O requirements for ZooKeeper are greatly reduced during normal operation, as well as providing faster recovery times for ensemble members joining the quorum. (Completed)"
+          ]
+        },
+        {
+          "texto": "Already done: reduced the number of health-checks and intervals required for a healthy proxy node to join the load balancing layer, to reduce mean time to recovery.",
+          "trechos": [
+            "Reduced the number of health-checks and intervals required to allow a proxy node, marked as healthy, to join our load balancing layer as eligible targets to route traffic. This action item aims to reduce the mean time to recovery. (Completed)"
+          ]
+        },
+        {
+          "texto": "In progress: revamp the proxy health-check logic so it no longer accounts for ZooKeeper connectivity, so an initialized proxy does not drift to unhealthy because of the ZooKeeper ensemble state.",
+          "trechos": [
+            "Further revamp the logic around our proxy health-checks to not account for ZooKeeper connectivity as part of the checklist.",
+            "With this change, once a proxy is successfully initialized, and has received its configuration and cluster routes, it will no longer drift to an unhealthy state due to the state of the supporting ZooKeeper ensemble.",
+            "This change aims to sacrifice a potential small consistency skew over general availability. (In progress)"
+          ]
+        },
+        {
+          "texto": "In progress: canarying the rewritten proxy v2 architecture, which decouples the proxy service from the ZooKeeper state, in production regions.",
+          "trechos": [
+            "Canarying the ground up rewrite of our proxy layer in production regions, as one of the final steps to switch to our proxy v2 architecture.",
+            "The v2 architecture decouples the proxy service from the ZooKeeper state. (In progress)"
+          ]
+        },
+        {
+          "texto": "In progress: improve ZooKeeper visibility with better logging and metrics on the ZooKeeper processes, the JVM and container/host systems; and fix Kibana issues causing internal HTTP request amplification and connection leaking.",
+          "trechos": [
+            "Improve visibility around ZooKeeper by further investing in our internal logging strategy and introducing better metrics around the ZooKeeper processes, the JVM, and container/host systems. (In progress)",
+            "Identifying and solving issues with Kibana that lead to internal HTTP request amplifications during availability events. (In progress)",
+            "Identifying and solving issues with Kibana that lead to connection leaking. (In progress)"
+          ]
+        },
+        {
+          "texto": "Already done: mitigated internal monitoring agents not using proper backoff with jitter, and formalized a maintenance matrix limiting maintenance in each region to specific non-critical timeframes; in progress: an improved decision criteria matrix in runbooks for coordination layer maintenance.",
+          "trechos": [
+            "Identified and mitigated issues with internal monitoring agents not employing proper backoff strategies with Jitter. (Completed)",
+            "Formalized our maintenance matrix to reduce exposure of critical services within a region. We will be operating within specific timeframes for each region to limit the exposure of a failure to non-critical times. (Completed)",
+            "Provide our team with an improved decision criteria matrix in runbooks that involves regular maintenance operations with the coordination layer. (In progress)"
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 398,
+      "trechos": [
+        "Deployments of Elasticsearch Service on Elastic Cloud in the AWS us-east-1 region would have been partially or completely unavailable between **02:50 and 09:28 UTC**."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Other issues with Kibana that were determined to lead to request amplification are still being investigated."
+    ]
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "causa_raiz/categoria_causa: the text describes more than one mechanism of ensemble instability (insufficient health metrics during patching leading to instability and the leader being overwhelmed by incoming connections at 02:50, and runc bugs causing kernel OOPS and CPU softlocks, identified as 'the root issue causing ensemble member instability'), and does not make clear which one started the impact, which the definition calls a judgment call. For categoria_causa, 'cascading-failure' (coordination layer loss of quorum propagating through dependencies) and 'capacity-load' (leader overwhelmed by incoming request load) both fit the stated mechanism.",
+  "observacoes": "Duration covers Elasticsearch deployment unavailability (02:50 to 09:28 UTC). Kibana was impacted until 18:44 UTC, the Elastic Cloud User Console was degraded from 02:50 to 07:17 UTC, and the Impact section gives the proxy layer as impacted until 09:15 UTC. The runc softlocks appeared at 05:48 UTC, after the impact started.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.16"
+  }
+}

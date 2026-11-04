@@ -1,0 +1,188 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-013",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A newly deployed cleanup sub-task in Cloudflare's Addressing API queried the API with a pending_delete flag that had no value, which the API server interpreted as a request for all BYOIP prefixes; the sub-task then began deleting BYOIP prefixes and their service bindings, withdrawing about 1,100 prefixes via BGP and making customer services unreachable. An engineer shut down the sub-task, some customers re-advertised prefixes via the dashboard, and engineers restored the remaining prefixes through releases and a global machine configuration rollout completed at 23:03 UTC.",
+    "data_incidente": "2026-02-20",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Bring Your Own IP (BYOIP)",
+      "Core CDN and Security Services",
+      "Spectrum",
+      "Dedicated Egress",
+      "Magic Transit",
+      "one.one.one.one (website for the 1.1.1.1 recursive DNS resolver)"
+    ],
+    "tecnologias": [
+      "BGP",
+      "Addressing API",
+      "BYOIP",
+      "service bindings",
+      "Cloudflare dashboard"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Impact was detected as failures on one.one.one.one; Cloudflare engaged at 18:13 UTC for these failures. The text does not say whether an alert fired or a person noticed.",
+        "trechos": [
+          "We were able to detect impact on one.one.one.one and revert the impacting change before more prefixes were impacted.",
+          "Cloudflare engaged for failures on one.one.one.one",
+          "| 2026-02-20 18:13 | Cloudflare engaged |"
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A regularly running cleanup sub-task, meant to automate removal of BYOIP prefixes, called the Addressing API with `/v1/prefixes?pending_delete` and no value for the flag. Because the value was an empty string, the API server interpreted the call as a request for all BYOIP prefixes instead of only those pending deletion; the system treated all returned prefixes as queued for deletion, and the sub-task began systematically deleting all BYOIP prefixes and their dependent objects, including service bindings.",
+        "trechos": [
+          "Since the list of related objects of BYOIP prefixes can be large, this was implemented as part of a regularly running sub-task that checks for BYOIP prefixes that should be removed, and then removes them. Unfortunately, this regular cleanup sub-task queried the API with a bug.",
+          "resp, err := d.doRequest(ctx, http.MethodGet, `/v1/prefixes?pending_delete`, nil)",
+          "Because the client is passing pending\\_delete with no value, the result of Query().Get(“pending\\_delete”) here will be an empty string (“”), so the API server interprets this as a request for all BYOIP prefixes instead of just those prefixes that were supposed to be removed.",
+          "The system interpreted this as all returned prefixes being queued for deletion.",
+          "The new sub-task then began systematically deleting all BYOIP prefixes and all of their related dependent objects including <u>service bindings</u>, until the impact was noticed, and an engineer identified the sub-task and shut it down."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The staging environment's data and the mock data used to simulate the change were insufficient, and test coverage did not include a scenario where the task-runner service independently executes changes to user data without explicit input; testing and code review focused on the BYOIP self-service API journey.",
+        "trechos": [
+          "Our staging environment contains data that matches Production as closely as possible, but was not sufficient in this case and the mock data we relied on to simulate what would occur was insufficient.",
+          "Initial testing and code review focused on the BYOIP self-service API journey and were completed successfully.",
+          "While our engineers successfully tested the exact process a customer would have followed, testing did not cover a scenario where the task-runner service would independently execute changes to user data without explicit input."
+        ]
+      },
+      {
+        "texto": "Changes to the Addressing API are immediately propagated to the Cloudflare edge.",
+        "trechos": [
+          "This means that changes to the Addressing API are immediately propagated to the Cloudflare edge."
+        ]
+      },
+      {
+        "texto": "Recovery was slowed because prefixes were in different states: some customers had prefixes withdrawn and all service bindings removed, so they could not toggle prefixes in the dashboard and needed a global configuration update to reapply service bindings to every machine on the edge. A system for rolling back to known-good operational state snapshots was not in Production.",
+        "trechos": [
+          "Affected BYOIP prefixes were not all impacted in the same way, necessitating more intensive data recovery steps.",
+          "However, that system is not in Production today.",
+          "As a part of Code Orange: Fail Small, we are building a system where operational state snapshots can be safely rolled out through health-mediated deployments.",
+          "These customers took the longest to mitigate, as a global configuration update had to be initiated to reapply the service bindings for all these customers to every single machine on Cloudflare’s edge."
+        ]
+      },
+      {
+        "texto": "Customer configuration is persisted in the same authoritative database used for operational actions, which makes manual rollback more challenging because engineers need to use database snapshots.",
+        "trechos": [
+          "Today, customers make changes to the addressing schema that are persisted in an authoritative database, and that database is the same one used for operational actions.",
+          "This makes manual rollback processes more challenging because engineers need to utilize database snapshots instead of rationalizing between desired and actual states."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "An Addressing API release containing a new cleanup sub-task that automated the customer action of removing prefixes from BYOIP; the sub-task issued the query `/v1/prefixes?pending_delete`. The code was merged on 2026-02-05 and the release completed on 2026-02-20 at 17:46 UTC.",
+        "trechos": [
+          "The specific piece of configuration that broke was a modification attempting to automate the customer action of removing prefixes from Cloudflare’s BYOIP service, a regular customer request that is done manually today.",
+          "resp, err := d.doRequest(ctx, http.MethodGet, `/v1/prefixes?pending_delete`, nil)",
+          "| 2026-02-05 21:53 | Code merged into system | Broken sub-process merged into code base |",
+          "| 2026-02-20 17:46 | Code deployed into system | Address API release with broken sub-process completes |"
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 18:46 UTC an engineer terminated the broken sub-process and disabled its regular execution, and prefixes stopped being withdrawn.",
+          "trechos": [
+            "| 2026-02-20 18:46 | Issue identified | Broken sub-process terminated by an engineer and regular execution disabled; remediation begins |",
+            "Cloudflare engineers reverted the change and prefixes stopped being withdrawn when we began to observe failures."
+          ]
+        },
+        {
+          "texto": "From 19:19 UTC, after Cloudflare published guidance, customers began re-advertising their prefixes via the Cloudflare dashboard to restore service.",
+          "trechos": [
+            "At 19:19 UTC, we published guidance to customers that they would be able to self-remediate this incident by going to the Cloudflare dashboard and re-advertising their prefixes.",
+            "Customers begin to re-advertise their prefixes via the dashboard to restore service.",
+            "| 2026-02-20 19:19 | Some prefixes mitigated |"
+          ]
+        },
+        {
+          "texto": "Engineers began database recovery methods for removed prefixes at 19:44 UTC; around 20:20 UTC Cloudflare reverted many of the advertisement changes, restoring 800 prefixes, and at 20:30 UTC engineers completed a release to restore withdrawn prefixes that still had service bindings.",
+          "trechos": [
+            "| 2026-02-20 19:44 | Additional mitigation continues | Engineers begin database recovery methods for removed prefixes |",
+            "Cloudflare was able to revert many of the advertisement changes around 20:20 UTC, which caused 800 prefixes to be restored.",
+            "| 2026-02-20 20:30 | Final mitigation process begins | Engineers complete release to restore withdrawn prefixes that still have existing service bindings."
+          ]
+        },
+        {
+          "texto": "At 21:08 UTC engineering began a global machine configuration rollout to reapply service bindings and restore the remaining prefixes (about 300 whose service configurations had been removed from the edge); the rollout completed at 23:03 UTC, when the remaining prefixes were restored and impact ended.",
+          "trechos": [
+            "| 2026-02-20 21:08 | Configuration update deploys | Engineering begins global machine configuration rollout to restore prefixes that were not self-mitigated or mitigated via previous efforts – IMPACT DOWNGRADE – |",
+            "These customers took the longest to mitigate, as a global configuration update had to be initiated to reapply the service bindings for all these customers to every single machine on Cloudflare’s edge.",
+            "There were still \\~300 prefixes that were unable to be remediated through the dashboard because the service configurations for those prefixes were removed from the edge due to a software bug.",
+            "These prefixes were manually restored by Cloudflare engineers at 23:03 UTC.",
+            "| 2026-02-20 23:03 | Configuration update completed | Global machine configuration deployment to restore remaining prefixes is completed. – IMPACT ENDS – |"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: improve the Addressing API schema for better standardization, so tests and systems can validate whether an API call (such as one with the pending_delete flag) is properly formed.",
+          "trechos": [
+            "We will improve the API schema to ensure better standardization, which will make it much easier for testing and systems to validate whether an API call is properly formed or not.",
+            "One of the issues in this incident is that the pending\\_delete flag was interpreted as a string, making it difficult for both client and server to rationalize the value of the flag."
+          ]
+        },
+        {
+          "texto": "Planned: redesign the rollback mechanism and database configuration to separate customer configuration from Production, snapshotting the data read from the database and applying those snapshots through health-mediated deployments that can stop automatically, so individual or all customers can be reverted near-instantly to a working version.",
+          "trechos": [
+            "We will redesign the rollback mechanism and database configuration to ensure that we have an easy way to roll back changes quickly and also to introduce layers between customer configuration and Production.",
+            "We will snap shot the data that we read from the database and are applying to Production, and apply those snapshots in the same way that we deploy all our other Production changes, mediated by health metrics that can automatically stop the deployment if things are going wrong.",
+            "This means that the next time we have a problem where the database gets changed into a bad state, we can near-instantly revert individual customers (or all customers) to a version that was working."
+          ]
+        },
+        {
+          "texto": "Planned: improve monitoring to detect changes happening too fast or too broadly, such as quickly withdrawing or deleting BGP prefixes, and disable snapshot deployment when this happens, as a circuit breaker.",
+          "trechos": [
+            "We will improve our monitoring to detect when changes are happening too fast or too broadly, such as withdrawing or deleting BGP prefixes quickly, and disable the deployment of snapshots when this happens.",
+            "This will form a type of circuit breaker to stop any out-of-control process that is manipulating the database from having a large blast radius, like we saw in this incident."
+          ]
+        },
+        {
+          "texto": "Ongoing work: directly monitor that services run by customers behave correctly, so those signals can also trip the circuit breaker and stop potentially dangerous changes.",
+          "trechos": [
+            "We also have some ongoing work to directly monitor that the services run by our customers are behaving correctly, and those signals can also be used to trip the circuit breaker and stop potentially dangerous changes from being applied until we have had time to investigate."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 307,
+      "trechos": [
+        "| 2026-02-20 17:56 | Impact Start | Broken sub-process begins executing. Prefix advertisement updates begin propagating and prefixes begin to be withdrawn – IMPACT STARTS – |",
+        "| 2026-02-20 23:03 | Configuration update completed | Global machine configuration deployment to restore remaining prefixes is completed. – IMPACT ENDS – |"
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "duracao uses the timeline's impact marks (IMPACT STARTS 17:56 UTC, IMPACT ENDS 23:03 UTC, 307 minutes); the text also states a 'total duration of the incident' of 6 hours and 7 minutes, and the opening paragraph gives 17:48 UTC as the start of the outage. The opening also says 1,100 prefixes were withdrawn from 17:56 to 18:46 UTC. The text says engineers 'reverted the change', while the timeline describes the sub-process being terminated and its regular execution disabled.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.15"
+  }
+}

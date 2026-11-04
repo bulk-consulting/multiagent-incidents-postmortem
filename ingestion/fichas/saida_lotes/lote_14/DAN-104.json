@@ -1,0 +1,144 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-104",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "While debugging the S3 billing system in US-EAST-1, a command from an established playbook was run with one input entered incorrectly, and the tool removed a larger set of servers than intended, including servers supporting the S3 index and placement subsystems, which then required a full restart. S3 could not service requests during the restart, impacting dependent AWS services such as EC2 launches, EBS and Lambda; service came back as the index and then the placement subsystems were restarted and recovered.",
+    "data_incidente": "2017-02-28",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Amazon S3 (US-EAST-1)",
+      "S3 console",
+      "Amazon EC2 new instance launches",
+      "Amazon EBS volumes (when data was needed from a S3 snapshot)",
+      "AWS Lambda"
+    ],
+    "tecnologias": [
+      "S3 index subsystem",
+      "S3 placement subsystem"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "At 9:37AM PST, while debugging an issue causing the S3 billing system to progress more slowly than expected, an authorized S3 team member using an established playbook executed a command intended to remove a small number of servers for an S3 subsystem used by the billing process; one of the inputs was entered incorrectly and a larger set of servers was removed than intended.",
+      "trechos": [
+        "The Amazon Simple Storage Service (S3) team was debugging an issue causing the S3 billing system to progress more slowly than expected.",
+        "At 9:37AM PST, an authorized S3 team member using an established playbook executed a command which was intended to remove a small number of servers for one of the S3 subsystems that is used by the S3 billing process.",
+        "Unfortunately, one of the inputs to the command was entered incorrectly and a larger set of servers was removed than intended."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The tool used allowed too much capacity to be removed too quickly. The servers inadvertently removed supported the S3 index subsystem (metadata and location of all objects, needed for GET, LIST, PUT and DELETE) and the placement subsystem (storage allocation for PUT, which requires the index subsystem); removing a significant portion of capacity caused each to require a full restart, during which S3 was unable to service requests.",
+        "trechos": [
+          "While removal of capacity is a key operational practice, in this instance, the tool used allowed too much capacity to be removed too quickly.",
+          "The servers that were inadvertently removed supported two other S3 subsystems.",
+          "One of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region.",
+          "This subsystem is necessary to serve all GET, LIST, PUT, and DELETE requests.",
+          "The second subsystem, the placement subsystem, manages allocation of new storage and requires the index subsystem to be functioning properly to correctly operate.",
+          "Removing a significant portion of the capacity caused each of these systems to require a full restart.",
+          "While these subsystems were being restarted, S3 was unable to service requests."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The index and placement subsystems had not been completely restarted in the larger regions for many years; with S3's massive growth, restarting them and running the safety checks to validate metadata integrity took longer than expected.",
+        "trechos": [
+          "While this is an operation that we have relied on to maintain our systems since the launch of S3, we have not completely restarted the index subsystem or the placement subsystem in our larger regions for many years.",
+          "S3 has experienced massive growth over the last several years and the process of restarting these services and running the necessary safety checks to validate the integrity of the metadata took longer than expected."
+        ]
+      },
+      {
+        "texto": "The placement subsystem, needed for the S3 PUT API, could only begin recovery once the index subsystem was functional.",
+        "trechos": [
+          "The S3 PUT API also required the placement subsystem.",
+          "The placement subsystem began recovery when the index subsystem was functional and finished recovery at 1:54PM PST."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "The index subsystem, the first of the two affected subsystems that needed a restart, was restarted; by 12:26PM PST it had activated enough capacity to begin servicing S3 GET, LIST and DELETE requests, and by 1:18PM PST it was fully recovered.",
+          "trechos": [
+            "The index subsystem was the first of the two affected subsystems that needed to be restarted.",
+            "While these subsystems were being restarted, S3 was unable to service requests.",
+            "By 12:26PM PST, the index subsystem had activated enough capacity to begin servicing S3 GET, LIST, and DELETE requests.",
+            "By 1:18PM PST, the index subsystem was fully recovered and GET, LIST, and DELETE APIs were functioning normally."
+          ]
+        },
+        {
+          "texto": "The placement subsystem then recovered, finishing at 1:54PM PST, at which point S3 was operating normally.",
+          "trechos": [
+            "The placement subsystem began recovery when the index subsystem was functional and finished recovery at 1:54PM PST.",
+            "At this point, S3 was operating normally."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: modified the capacity-removal tool to remove capacity more slowly and added safeguards to prevent capacity from being removed when it would take any subsystem below its minimum required capacity level.",
+          "trechos": [
+            "We have modified this tool to remove capacity more slowly and added safeguards to prevent capacity from being removed when it will take any subsystem below its minimum required capacity level."
+          ]
+        },
+        {
+          "texto": "Auditing other operational tools to ensure they have similar safety checks.",
+          "trechos": [
+            "We are also auditing our other operational tools to ensure we have similar safety checks."
+          ]
+        },
+        {
+          "texto": "Reprioritizing the planned further partitioning of the index subsystem into smaller cells to begin immediately, to improve recovery time of key S3 subsystems.",
+          "trechos": [
+            "We will also make changes to improve the recovery time of key S3 subsystems.",
+            "The S3 team had planned further partitioning of the index subsystem later this year.",
+            "We are reprioritizing that work to begin immediately."
+          ]
+        },
+        {
+          "texto": "Already done: changed the AWS Service Health Dashboard administration console, which depended on Amazon S3, to run across multiple AWS regions.",
+          "trechos": [
+            "From the beginning of this event until 11:37AM PST, we were unable to update the individual services’ status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console has on Amazon S3.",
+            "We understand that the SHD provides important visibility to our customers during operational events and we have changed the SHD administration console to run across multiple AWS regions."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 169,
+      "trechos": [
+        "At 9:37AM PST, an authorized S3 team member using an established playbook executed a command which was intended to remove a small number of servers for one of the S3 subsystems that is used by the S3 billing process.",
+        "By 12:26PM PST, the index subsystem had activated enough capacity to begin servicing S3 GET, LIST, and DELETE requests."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration is computed from 9:37AM PST to 12:26PM PST, when S3 began servicing GET, LIST and DELETE requests again (partial service, per the duration rule). GET, LIST and DELETE were fully recovered at 1:18PM PST and S3 was operating normally at 1:54PM PST (257 minutes after 9:37AM); some dependent services needed additional time to work through backlogs. The Service Health Dashboard could not show individual service status until 11:37AM PST because of its dependency on S3.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.16"
+  }
+}

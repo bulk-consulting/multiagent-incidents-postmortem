@@ -1,0 +1,215 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-060",
+  "triagem": {
+    "catalogo": "parcial",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A utility provider's transformer failed, cutting power to a large part of one EU West Availability Zone, and one PLC did not complete bringing a portion of the backup generators online (AWS currently believes a ground fault detected by the PLC caused this), so EC2 instances, EBS volumes, RDS instances and networking gear lost power. Generators were brought online by manual phase synchronization, power and connectivity were restored over the following hours, and EBS volumes were recovered with added capacity and recovery snapshots over several days.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Amazon EC2",
+      "Amazon EBS",
+      "Amazon RDS",
+      "EC2 APIs (EU West)"
+    ],
+    "tecnologias": [
+      "Programmable Logic Controllers (PLCs)",
+      "backup generators",
+      "Uninterruptable Power Supplies (UPSs)",
+      "EBS",
+      "RDS Multi-AZ",
+      "DNS",
+      "Amazon S3"
+    ],
+    "categoria_causa": "hardware-power",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "At 10:41 AM PDT on August 7th the utility provider suffered a failure of a 110kV 10 megawatt transformer, causing a total loss of electricity supply to its customers on that transformer, including a significant portion of the affected AWS Availability Zone. The utility provider first indicated a lightning strike but now believes it was not, and is still investigating root cause.",
+      "trechos": [
+        "The service disruption began at 10:41 AM PDT on August 7th when our utility provider suffered a failure of a 110kV 10 megawatt transformer.",
+        "This failure resulted in a total loss of electricity supply to all of their customers connected to this transformer, including a significant portion of the affected AWS Availability Zone.",
+        "The initial fault diagnosis from our utility provider indicated that a lightning strike caused the transformer to fail.",
+        "The utility provider now believes it was not a lightning strike, and is continuing to investigate root cause."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "One of the PLCs that assure the electrical phase is synchronized between generators did not complete the connection of a portion of the backup generators. AWS currently believes, supported by observations of the PLC, that a large ground fault detected by the PLC caused it to fail to complete its task, and is analyzing the device with the supplier to confirm. With no utility power and backup generators for a large portion of the Availability Zone disabled, there was insufficient power for all servers; UPS batteries quickly drained and power was lost to almost all EC2 instances and 58% of EBS volumes in that Availability Zone.",
+        "trechos": [
+          "Programmable Logic Controllers (PLCs) assure that the electrical phase is synchronized between generators before their power is brought online.",
+          "In this case, one of the PLCs did not complete the connection of a portion of the generators to bring them online.",
+          "We currently believe (supported by all observations of the state and behavior of this PLC) that a large ground fault detected by the PLC caused it to fail to complete its task.",
+          "We are working with our supplier and performing further analysis of the device involved to confirm.",
+          "With no utility power, and backup generators for a large portion of this Availability Zone disabled, there was insufficient power for all of the servers in the Availability Zone to continue operating.",
+          "Uninterruptable Power Supplies (UPSs) that provide a short period of battery power quickly drained and we lost power to almost all of the EC2 instances and 58% of the EBS volumes in that Availability Zone."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Power was also lost to the EC2 networking gear connecting the Availability Zone to the Internet and to the other Availability Zones, causing connectivity issues and API errors; after generators restored power to many instances and volumes, a majority of the networking gear was still without power, so those instances remained inaccessible.",
+        "trechos": [
+          "We also lost power to the EC2 networking gear that connects this Availability Zone to the Internet and connects this Availability Zone to the other Availability Zones in the Region.",
+          "This caused connectivity issues to the affected Availability Zone and resulted in API errors when customers targeted API requests (RunInstance, CreateVolume, etc.) to the impacted Availability Zone.",
+          "This restored power to many of the EC2 instances and EBS volumes, but a majority of the networking gear was still without power, so these restored instances were still inaccessible."
+        ]
+      },
+      {
+        "texto": "EC2 management servers kept routing requests to inaccessible management servers in the affected Availability Zone and kept accepting and queuing RunInstances requests targeted at it instead of failing them immediately; the queued requests overloaded the management servers, causing launch delays and higher API error rates in all EU West Availability Zones by 11:05 AM PDT.",
+        "trechos": [
+          "At 11:05 AM PDT, we were seeing launch delays and API errors in all EU West Availability Zones.",
+          "The management servers which receive requests continued to route requests to management servers in the affected Availability Zone.",
+          "Because the management servers in the affected Availability Zone were inaccessible, requests routed to those servers failed.",
+          "Second, the EC2 management servers receiving requests were continuing to accept RunInstances requests targeted at the impacted Availability Zone.",
+          "Fairly quickly, a large number of these requests began to queue up and we overloaded the management servers receiving requests, which were waiting for these queued requests to complete.",
+          "The combination of these two factors caused long delays in launching instances and higher error rates for the EU West EC2 APIs."
+        ]
+      },
+      {
+        "texto": "Because an unusually large number of EBS volumes lost power, spare capacity for re-mirroring ran out before all volumes could re-mirror, leaving volumes stuck; adding capacity was delayed because it was nighttime in Dublin and trucking servers required mobilizing transportation from some distance.",
+        "trechos": [
+          "But, because we had such an unusually large number of EBS volumes lose power, the spare capacity we had on hand to support re-mirroring wasn’t enough.",
+          "We ran out of spare capacity before all of the volumes were able to successfully re-mirror.",
+          "There were delays as this was nighttime in Dublin and the logistics of trucking required mobilizing transportation some distance from the datacenter."
+        ]
+      },
+      {
+        "texto": "When an EC2 instance and all nodes holding its EBS volume replicas lost power, consistency of writes could not be verified, so such volumes were cautiously assumed inconsistent even though many were actually consistent.",
+        "trechos": [
+          "In the third case, when an EC2 instance and all nodes containing EBS volume replicas concurrently lose power, we cannot verify that all of the writes to all of the nodes are completely consistent.",
+          "If we cannot confirm that all writes have been persisted to disk, then we cautiously assume that the volume is in an inconsistent state (even though in many cases the volume is actually consistent)."
+        ]
+      },
+      {
+        "texto": "For some RDS Multi-AZ pairs, a DNS connectivity issue related to the power loss prevented the health check from finding the IP address it needed and kept the secondary from immediately becoming primary; DNS connectivity was restored within 4 minutes, but the DNS issues triggered a software bug that significantly extended failover times for a small subset of Multi-AZ deployments.",
+        "trechos": [
+          "However, for a portion of these Multi-AZ primary-secondary pairs, a DNS connectivity issue related to the power loss prevented the health check from finding the IP address it needed to contact and kept the secondary from immediately assuming the role of the primary.",
+          "DNS connectivity was restored within 4 minutes, and the majority of Multi-AZ deployments then completed failover within an additional 10 minutes.",
+          "However, the DNS connectivity issues triggered a software bug that caused failover times to the secondary database instance to extend significantly for a small subset of Multi-AZ deployments."
+        ]
+      },
+      {
+        "texto": "For Multi-AZ deployments with secondaries in the affected Availability Zone, the DNS issue prevented primaries from confirming the secondary's status; in that case the primary does not switch to Single-AZ mode but involves the RDS team for a manual decision, which extends the period the instance is unavailable.",
+        "trechos": [
+          "For these deployments, DNS connectivity prevented the primary replicas from confirming their secondary replica’s status.",
+          "In the rare case where the status of the secondary cannot be determined, the primary does not make itself a Single AZ-mode database instance and instead immediately involves the RDS team.",
+          "This approach minimizes the risk of data loss in edge cases, but extends the period of time the Multi-AZ instance is unavailable."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 11:54 AM PDT some backup generators were brought online by manually phase-synchronizing the power sources, restoring power to many EC2 instances and EBS volumes.",
+          "trechos": [
+            "At 11:54 AM PDT, we had been able to bring some of the backup generators online by manually phase-synchronizing the power sources.",
+            "This restored power to many of the EC2 instances and EBS volumes, but a majority of the networking gear was still without power, so these restored instances were still inaccessible."
+          ]
+        },
+        {
+          "texto": "At 12:00 PM PDT EC2 launches were disabled in the affected Availability Zone and the failed management servers were removed from service; EC2 API launch times for other Availability Zones then recovered.",
+          "trechos": [
+            "At 12:00 PM PDT, when we disabled EC2 launches in the affected Availability Zone and removed the failed management servers from service, EC2 API launch times for other Availability Zones recovered."
+          ]
+        },
+        {
+          "texto": "By 1:49 PM PDT power had been restored to enough network devices to re-establish connectivity to the Availability Zone, and many instances and volumes became accessible.",
+          "trechos": [
+            "By 1:49 PM PDT, power had been restored to enough of our network devices that we were able to re-establish connectivity to the Availability Zone.",
+            "Many of the instances and volumes in the Availability Zone became accessible at this time."
+          ]
+        },
+        {
+          "texto": "To bring stuck EBS volumes back, additional labor was brought in to get more onsite capacity online and servers were trucked in from another Availability Zone in the Region; once the capacity was available, the remaining volumes completed re-mirroring and were recovered.",
+          "trechos": [
+            "We brought in additional labor to get more onsite capacity online and trucked in servers from another Availability Zone in the Region.",
+            "Once the additional capacity was available, we were able to recover the remaining volumes waiting for space to complete a successful re-mirror."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Add redundancy and more isolation for the PLCs: correct the isolation of the primary PLC and deploy a cold, environmentally isolated backup PLC being worked on with vendors.",
+          "trechos": [
+            "To further prevent the loss of power, we will add redundancy and more isolation for our PLCs so they are insulated from other failures.",
+            "Specifically, in addition to correcting the isolation of the primary PLC, a cold, environmentally isolated backup PLC is being worked with our vendors.",
+            "We will deploy this as rapidly as possible."
+          ]
+        },
+        {
+          "texto": "Implement better load balancing to quickly take failed EC2 API management service hosts out of production.",
+          "trechos": [
+            "We will implement better load balancing to quickly take failed API management service hosts out of production."
+          ]
+        },
+        {
+          "texto": "Continue developing further isolation of EC2 control plane components (the APIs) so that latency or failure in one Availability Zone does not affect processing calls to other Availability Zones; completing some of these changes will take several more months.",
+          "trechos": [
+            "Over the last few months, we have been developing further isolation of EC2 control plane components (i.e. the APIs) to eliminate possible latency or failure in one Availability Zone from impacting our ability to process calls to other Availability Zones.",
+            "It will take us several more months to complete some of the changes we’re making, and we will test and roll out these changes carefully."
+          ]
+        },
+        {
+          "texto": "Create the capability to recover EBS volumes directly on the EBS servers upon restoration of power, without moving the data off those servers, to avoid restoration via snapshot.",
+          "trechos": [
+            "To significantly reduce the time required to restore these volumes, we will create the capability to recover volumes directly on the EBS servers upon restoration of power, without having to move the data off of those servers.",
+            "This will require providing a way for customers to know that a volume has been shut down and restored, but will avoid the need for restoration via snapshot."
+          ]
+        },
+        {
+          "texto": "For RDS Multi-AZ: change health checks to avoid customer impact from a DNS connectivity issue like this one, and fix the software bug that extended failover times for some Multi-AZ customers with primaries in the affected Availability Zone.",
+          "trechos": [
+            "First, we will implement changes to our health checks to avoid customer impact in the event of a unique DNS connectivity issue like we experienced here.",
+            "Second, we will promptly fix the software bug that extended failover times for a portion of Multi-AZ customers with primaries in the affected Availability Zone."
+          ]
+        },
+        {
+          "texto": "For RDS Multi-AZ: improve handling of the edge case where one member is down and the health check cannot complete, with the running member initiating connection retries to confirm it is not in a split brain mode, so that involving an engineer might not be necessary.",
+          "trechos": [
+            "Third, we will implement an improved handling of the edge case where either primary or secondary is down and the health check cannot complete.",
+            "In such a case, the successfully running member of the Multi-AZ pair will initiate connection retries to confirm it is no longer in a “split brain” mode, such that involving an engineer might not be necessary."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 188,
+      "trechos": [
+        "The service disruption began at 10:41 AM PDT on August 7th when our utility provider suffered a failure of a 110kV 10 megawatt transformer.",
+        "By 1:49 PM PDT, power had been restored to enough of our network devices that we were able to re-establish connectivity to the Availability Zone.",
+        "Many of the instances and volumes in the Availability Zone became accessible at this time."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "The utility provider is continuing to investigate the root cause of the transformer failure.",
+      "AWS is working with its supplier and analyzing the PLC to confirm that a ground fault caused it to fail to complete its task."
+    ]
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "triagem.catalogo: 'sim' fits because the document is 'mainly about the incident described in the catalog' (the power event), and 'parcial' also fits because 'the text mixes several incidents': it includes a separate, independent EBS snapshot-deletion bug with its own cause, timeline, remediation and credits. The definitions do not say which wins when the catalog incident is the main subject but a second incident is also reported; the weaker 'parcial' was chosen and only the power event was extracted.",
+  "observacoes": "The separate EBS snapshot cleanup bug (blocks wrongly deleted on August 5th) was not extracted. The year is not in the extracted text. Duration is computed from the start at 10:41 AM PDT to 1:49 PM PDT, when connectivity to the Availability Zone was re-established and many instances and volumes became accessible; EC2 API launch times for other Availability Zones recovered at 12:00 PM PDT, and EBS recovery snapshots continued until August 10th (98% complete by 8:25 PM PDT). Communication improvements and service credits are not listed as prevention. After connectivity returned (end of the impact used for duracao), recovery snapshots were produced for EBS volumes assumed inconsistent: about 38% delivered by 6:04 AM PDT on August 9th, 85% by 2:37 AM PDT on August 10th and 98% by 8:25 PM PDT on August 10th; producing them was time-consuming because all data had to be copied to Amazon S3, converted and re-copied to customer accounts.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.16"
+  }
+}

@@ -1,0 +1,151 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-065",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On October 27, 1980, the ARPANET was unusable for several hours: almost no IMP could communicate reliably with another. A hardware malfunction appears to have corrupted the sequence number of a routing update from IMP 50 by dropped bits; because retransmissions are recreated from tables whose checksums were not recomputed on every access, three versions (8, 40, 44) circulated indefinitely, each LATER than another, consuming IMP CPU time and buffers. The network was restored by patching the IMPs to disregard updates from IMP 50.",
+    "data_incidente": "1980-10-27",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "ARPANET"
+    ],
+    "tecnologias": [
+      "IMP (Interface Message Processor)",
+      "TIP",
+      "routing updating protocol",
+      "line up/down protocol",
+      "Network Control Center (NCC)",
+      "C30 IMP"
+    ],
+    "categoria_causa": "other",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The problem was discovered as almost no IMP being able to communicate reliably with any other IMP; a flood of phone calls to the Network Control Center (NCC) indicated it affected virtually every IMP. The text does not say how the problem was first discovered.",
+        "trechos": [
+          "The problem began suddenly when we discovered that, with very few exceptions, no IMP was able to communicate reliably with any other IMP.",
+          "A flood of phone calls to the Network Control Center (NCC) from all around the country indicated that the problem was not localized, but rather seemed to be affecting virtually every IMP."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "A hardware malfunction caused a faulty sequence of network control packets to be generated. IMP 50 had been malfunctioning just before the outage and IMP 29, its neighbor, was suffering hardware malfunctions (dropping bits); the evidence suggests that a single routing update, 44, had its sequence number twice corrupted by dropped bits.",
+      "trechos": [
+        "As we shall see, the immediate cause of the problem was a rather freakish hardware malfunction (which is not likely to recur) which caused a faulty sequence of network control packets to be generated.",
+        "By a strange \"coincidence,\" IMP 50 had been malfunctioning just before the network-wide outage occurred, and was off the net during the period of the outage.",
+        "In addition, IMP 29, an immediate neighbor of IMP 50, was also suffering hardware malfunctions (in particular, dropping bits), but was up (though somewhat flakey) while the network was in bad shape.",
+        "This suggests that there was really only one update, 44, whose sequence number was twice corrupted by dropped bits."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Update packets are checksummed, but retransmitted updates are recreated from tabled information, and the tables were not checksummed on every access (judged not cost-effective), so dropped bits could fall between the cracks. The authors consider it likely that a malfunctioning IMP retransmitted update 44 with corrupted sequence numbers 40 and 8. The core dumps showed all queued updates came from IMP 50 with sequence numbers 8, 40 or 44; under the definition of LATER each was LATER than another, forming a cycle that kept the three updates floating around the network, so the IMPs spent most of their CPU time and buffer space processing them.",
+        "trechos": [
+          "The update packets themselves are checksummed, so a dropped bit in an update packet is readily detected.",
+          "Remember though that if an update needs to be retransmitted, it is recreated from tabled information.",
+          "Since CPU cycles and memory are both potentially scarce resources, this did not seem to us to be a cost-effective way to deal with problems that arise, say, once per year",
+          "Time and space can be saved by recomputing the checksum at a somewhat slower frequency, but this is less reliable, in that it allows a certain number of dropped bits to \"fall between the cracks.\"",
+          "It seems likely then that one of the malfunctioning IMPs had to retransmit update 44 at least twice, (recreating it each time from tabled information), retransmitting it at least once with the corrupted sequence number 40,",
+          "least once with the corrupted sequence number 8.",
+          "Close inspection showed that all the updates were from a single IMP, IMP 50.",
+          "but they all had one of three sequence numbers (either 8, 40, or 44)",
+          "Since each update is LATER than one of the others, a cycle is formed which keeps the three updates floating",
+          "around the network indefinitely. Thus the IMPs spend most of their CPU time and buffer space in processing these updates."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The IMPs are generally unmanned and can only be controlled from the NCC via the network itself; broadcasting a patch, which normally takes minutes, could take 3 or 4 hours with the network in this state, and several additional hours were needed to gain control of the misbehaving IMPs after the fix was known.",
+        "trechos": [
+          "When the network is operating normally, broadcasting a patch to all IMPs can be done in a matter of minutes. With the network operating as it was during the period of the outage, this can take as much as 3 or 4 hours.",
+          "(Remember that the IMPs are generally unmanned, and that the only way of controlling them from the NCC is via the network itself.",
+          "It took us no more than an hour to figure out how to restore the network; several additional hours were required because it took so long for us to gain control of the misbehaving IMPs and get them back to normal."
+        ]
+      },
+      {
+        "texto": "Parity checking on the current hardware, which should detect single dropped bits, had been turned off because of too many spurious parity errors and because parity errors halt the machines, requiring on-site intervention.",
+        "trechos": [
+          "Current hardware does have parity checking (which should detect single dropped bits), but this feature has had to be turned off since",
+          "(a) there are too many spurious parity \"errors,\"",
+          "(b) parity errors cause the machines to simply halt, rather than go into their loader/dumpers, which means that on-site intervention is required to restart them."
+        ]
+      },
+      {
+        "texto": "There was no built-in mechanism to detect that a high-priority process was consuming too many resources and place the IMPs in their loader/dumpers; the authors state that such a software alarm system might have significantly reduced the duration of the outage.",
+        "trechos": [
+          "In the case under discussion, we would have liked to have all the IMPs go into their loader/dumpers when the problem arose.",
+          "A built-in software alarm system (assuming, of course, that it was not subject to false alarms) might have enabled us to restore the network more quickly, significantly reducing the duration of the outage."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Failed attempt: several IMPs in the operators' own building were manually restarted after taking dumps; they worked until reconnected to the rest of the network, then showed the same symptoms, which suggested that bad routing updates were circulating in the network.",
+          "trechos": [
+            "We tried manually restarting a number of IMPs which are in our own building (after taking dumps, of course).",
+            "The IMPs which were restarted worked well until they were connected to the rest of the net, after which they exhibited the same complex of symptoms as the IMPs which had not been restarted.",
+            "suggested that the problem was due to one or more \"bad\" routing updates circulating in the network."
+          ]
+        },
+        {
+          "texto": "The IMPs were patched to disregard any updates from IMP 50 (which was down); this procedure was fully successful in bringing the network back up.",
+          "trechos": [
+            "All that was necessary was to patch the IMPs to disregard any updates from IMP 50, which after all was down anyway.",
+            "This procedure was fully successful in bringing the network back up."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: modify clause (a) of the definition of LATER so that \"<=\" is replaced by \"<\" (strictly less than); the authors note this cannot guarantee that no related problems will arise.",
+          "trechos": [
+            "A very simple and conservative fix to prevent this particular problem from recurring is to modify clause (a) of the definition of LATER so that the \"<=\" is replaced by \"<\" (strictly less than).",
+            "We will implement this fix, but it cannot be guaranteed that no related problems will ever arise."
+          ]
+        },
+        {
+          "texto": "The next generation of IMP hardware (the C30 IMP) will detect and correct all single-bit errors and detect all other bit errors; uncorrectable errors will put the IMP into its loader/dumper.",
+          "trechos": [
+            "The next generation of IMP hardware (the \"C30 IMP\") will be able to detect and correct all single-bit errors, and will detect all other bit errors.",
+            "Uncorrectable bit errors will cause the IMP to go into its \"loader/dumper.\""
+          ]
+        },
+        {
+          "texto": "The authors state a need (not a commitment) for a better means of detecting that a high-priority process in the IMP is consuming too many resources, so the IMP can then be automatically placed in its loader/dumper.",
+          "trechos": [
+            "high priority process in the IMP, despite all the safeguards we have built in, is still consuming too many resources.",
+            "Once this is detected, the IMP can be automatically placed in its loader/dumper."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "dominio: infra_fisica_datacenter vs software_servicos. The origin is a hardware malfunction (dropped bits) in IMPs, which fits 'power, cooling, hardware or physical network', but the definition limits it to hardware 'inside a data center', and the IMPs are network nodes spread around the country; software_servicos ('software, configuration, ... logical network') fits the routing-protocol condition but not the hardware origin.",
+  "observacoes": "The text gives the outage duration only as 'several hours', so duracao is null. The author is from Bolt Beranek and Newman Inc., which designed and operated the routing algorithm and the NCC; the document is an RFC reprinting a paper. The text gives a planned code fix and upcoming hardware as prevention; the general detection mechanism is stated as a need. The text adds that restarting all IMPs simultaneously would have cleared the problem instantly, while restarting individual IMPs did little good. categoria_causa is other: the text says 'The routing code was working correctly', so there is no code defect for software-bug; the root cause is a protocol/design condition.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.15"
+  }
+}

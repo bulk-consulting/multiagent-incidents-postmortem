@@ -1,0 +1,143 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-205",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On April 13, 2013, a degrading peering point in Northern California took offline two of PagerDuty's three datacenters (two AWS regions), which PagerDuty later learned shared that peering point; the notification dispatch system could not establish quorum due to high network latency and could not dispatch notifications for 18 minutes. During the outage most failed coordinator processes were restarted manually, and the dispatch system reached quorum again at 8:53am.",
+    "data_incidente": "2013-04-13",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "PagerDuty notification dispatch",
+      "PagerDuty API"
+    ],
+    "tecnologias": [
+      "AWS",
+      "Linode",
+      "coordinator service",
+      "Cassandra",
+      "ZooKeeper"
+    ],
+    "categoria_causa": "cascading-failure",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 8:11am Pacific the PagerDuty on-call engineer was paged about an issue with one of the nodes in the notification dispatch system; at 8:18am monitoring detected multiple-provider failure for notifications.",
+        "trechos": [
+          "At 8:11am, PagerDuty on-call engineer is paged about an issue with the one of the nodes in our notification dispatch system",
+          "At 8:18am, our monitoring system detects multiple-provider failure for notifications (caused by connectivity issue)."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 7:57am Pacific, according to AWS, a connectivity issue began due to a peering point degrading in Northern California; the connectivity issue ended at 9:23am.",
+      "trechos": [
+        "At 7:57am, according to AWS, connectivity issue begins due to a peering point degrading in Northern California",
+        "At 9:23am, according to AWS, connectivity issue at the Northern California peering point ends"
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Two of PagerDuty's three datacenters, chosen to have no dependency among them, shared a common peering point, and its outage took both offline. The software had been rearchitected over the past year with the goal of surviving the outage of an entire datacenter, but surviving the failure of two datacenters at once was not specifically built into the design. The notification dispatch system could not establish quorum due to high network latency and completely lost its ability to dispatch notifications at 8:35am.",
+        "trechos": [
+          "We picked our three datacenters to have no dependency amongst them, and made sure that they are physically separated.",
+          "However, we have since learned that two of the datacenters shared a common peering point.",
+          "This peering point experienced an outage that resulted in both of our datacenters going offline.",
+          "For the past year, we’ve been rearchitecting our software with the goal of it being able to survive the outage of an entire datacenter (including it being partitioned from the network), but something not specifically built into our design was the ability to survive the failure of two datacenters at once.",
+          "At 8:35am, PagerDuty completely loses its ability to dispatch notification, as it couldn’t establish quorum due to high network latency."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Post-mortem analysis determined that a misconfiguration on the coordinator service prevented a quick recovery.",
+        "trechos": [
+          "During the post-mortem analysis, our engineers also determined that a misconfiguration on our coordinator service prevented us from recovering quickly."
+        ]
+      },
+      {
+        "texto": "Logging was not adequate to debug issues within some systems, and there was no good visibility into inter-host connectivity.",
+        "trechos": [
+          "During our analysis, we found that we didn’t have adequate logging to debug issues within some of our systems.",
+          "We also found that we didn’t have good visibility into the inter-host connectivity."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "During the outage most of the failed coordinator processes were restarted manually; at 8:53am the notification dispatch system reached quorum and started processing all queued notifications.",
+          "trechos": [
+            "During the outage, most of the failed coordinator processes were restarted manually.",
+            "At 8:53am, PagerDuty notification dispatch system was able to reach quorum and started to process all queued notifications"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: added more logging and started aggregating logs into a single source for better searchability.",
+          "trechos": [
+            "We have now added more logging and started to aggregate them into a single source for better searchability."
+          ]
+        },
+        {
+          "texto": "Add a process watcher to restart failed coordinator processes automatically.",
+          "trechos": [
+            "During the outage, most of the failed coordinator processes were restarted manually.",
+            "We are going to add a process watcher to restart such processes automatically."
+          ]
+        },
+        {
+          "texto": "Build a dashboard showing inter-host connectivity.",
+          "trechos": [
+            "We also found that we didn’t have good visibility into the inter-host connectivity.",
+            "We’ll be building a dashboard that shows this."
+          ]
+        },
+        {
+          "texto": "Train engineering staff on Cassandra and ZooKeeper.",
+          "trechos": [
+            "We also found that not all of our engineering staff are up to date with Cassandra and ZooKeeper.",
+            "We’ll be investing time to train our staff on both of these technologies."
+          ]
+        },
+        {
+          "texto": "Investigate moving off one of the AWS regions to a new hosting provider and datacenter chosen to avoid a single point of failure.",
+          "trechos": [
+            "Investigate moving off one of the AWS regions.",
+            "We’ll need to do our homework when picking a new hosting provider and the datacenter to avoid single point of failure."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 18,
+      "trechos": [
+        "In all, PagerDuty wasn’t able to dispatch notifications for 18 minutes between 8:35am and 8:53am; however, during this time, our events API was still able to accept events."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "From 8:18am, notifications were going through with increased latencies and error rates before dispatch failed completely at 8:35am; the events API kept accepting events during the 18-minute outage. categoria_causa is cascading-failure: the degradation of a hidden shared peering point propagated through that dependency to two datacenters and to the quorum of the dispatch system; the peering point degradation itself is the trigger.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.16"
+  }
+}

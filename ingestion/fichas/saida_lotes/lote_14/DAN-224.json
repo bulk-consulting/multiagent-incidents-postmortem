@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-224",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On July 20, 2016, a malformed post with roughly 20,000 consecutive whitespace characters made a whitespace-trimming regular expression consume high CPU on the web servers each time the home page was viewed; the home page stopped responding fast enough and, since the load balancer health check uses it, the servers were taken out of rotation and the site was unavailable for 34 minutes. Service was restored by writing and rolling out a code fix; the regular expression was replaced with a substring function.",
+    "data_incidente": "2016-07-20",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Stack Overflow"
+    ],
+    "tecnologias": [
+      "regular expressions",
+      "backtracking regex engine",
+      "load balancer",
+      "health check"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "A malformed post containing roughly 20,000 consecutive whitespace characters on a comment line was in the homepage list, so the expensive regular expression was called on each home page view.",
+      "trechos": [
+        "The malformed post contained roughly 20,000 consecutive character of whitespace on a comment line that started with `-- play happy sound for player to enjoy`.",
+        "The post was in the homepage list, and that caused the expensive regular expression to be called on each home page view."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The regular expression `^[\\s\\u200c]+|[\\s\\u200c]+$`, intended to trim unicode space from the start and end of a line, makes a backtracking regex engine retry the match from each successive space when a long run of spaces is not at the end of the string, about 199,990,000 character-class checks for 20,000 spaces (O(n²), not exponential). This consumed high CPU on the web servers, the home page stopped responding fast enough, and because the load balancer uses the home page for its health check, it took the servers out of rotation and the entire site became unavailable.",
+        "trechos": [
+          "The direct cause was a malformed post that caused one of our regular expressions to consume high CPU on our web servers.",
+          "The regular expression was: `^[\\s\\u200c]+|[\\s\\u200c]+$` Which is intended to trim unicode space from start and end of a line.",
+          "If the string to be matched against contains 20,000 space characters in a row, but not at the end, then the Regex engine will start at the first space, check that it belongs to the \\s character class, move to the second space, make the same check, etc.",
+          "Realizing it cannot match like this it backtracks, and tries matching `\\s+$` starting from the second space, checking 19,999 characters.",
+          "So the Regex engine has to perform a “character belongs to a certain character class” check (plus some additional things) 20,000+19,999+19,998+…+3+2+1 = 199,990,000 times, and that takes a while.",
+          "This is not classic catastrophic backtracking (talk on backtracking) (performance is O(n²), not exponential, in length), but it was enough.",
+          "This caused the home page to stop responding fast enough.",
+          "Since the home page is what our load balancer uses for the health check, the entire site became unavailable since the load balancer took the servers out of rotation."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "After 10 minutes identifying the cause, a code fix was written in 14 minutes and rolled out in 10 minutes until Stack Overflow became available again; the regular expression has been replaced with a substring function.",
+          "trechos": [
+            "It took 10 minutes to identify the cause, 14 minutes to write the code to fix it, and 10 minutes to roll out the fix to a point where Stack Overflow became available again.",
+            "This regular expression has been replaced with a substring function."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Audit the regular expressions and the post validation workflow for similar issues.",
+          "trechos": [
+            "Audit our regular expressions and post validation workflow for any similar issues"
+          ]
+        },
+        {
+          "texto": "Add controls to the load balancer to disable the health check, as the authors believe everything but the home page would have been accessible without the health check.",
+          "trechos": [
+            "Add controls to our load balancer to disable the healthcheck – as we believe everything but the home page would have been accessible if it wasn’t for the the health check"
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 34,
+      "trechos": [
+        "On July 20, 2016 we experienced a 34 minute outage starting at 14:44 UTC."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text does not say whether the substring replacement was the fix rolled out during the outage or a later change; it is kept in the single mitigation step as stated. A third follow-up action (a 'what to do during an outage' checklist, prompted by a late StackStatus Twitter notification) concerns outage communication and workflow and is not listed as prevention.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.16"
+  }
+}

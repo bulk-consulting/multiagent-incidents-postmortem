@@ -1,0 +1,214 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-110",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A small capacity addition to the Amazon Kinesis front-end fleet in US-EAST-1 caused all front-end servers to exceed the maximum number of threads allowed by an operating system configuration, so shard-map cache construction failed and servers could not route requests to back-end clusters. Kinesis errors impacted Cognito, CloudWatch, Lambda, AutoScaling, EventBridge, ECS and EKS. The new capacity was removed and the front-end fleet was slowly restarted; Kinesis fully returned to normal at 10:23 PM PST.",
+    "data_incidente": "2020-11-25",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Amazon Kinesis Data Streams",
+      "Amazon Cognito (User Pools, Identity Pools)",
+      "CloudWatch",
+      "AutoScaling",
+      "Lambda",
+      "CloudWatch Events",
+      "EventBridge",
+      "Elastic Container Service (ECS)",
+      "Elastic Kubernetes Service (EKS)",
+      "Service Health Dashboard"
+    ],
+    "tecnologias": [
+      "Amazon Kinesis",
+      "operating system threads",
+      "shard-map cache",
+      "DynamoDB",
+      "Amazon Cognito",
+      "CloudWatch",
+      "EventBridge"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 5:15 AM PST the first alarms began firing for errors on putting and getting Kinesis records.",
+        "trechos": [
+          "At 5:15 AM PST, the first alarms began firing for errors on putting and getting Kinesis records."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "A relatively small addition of capacity to the Kinesis front-end fleet, added from 2:44 AM PST to 3:47 AM PST; the text calls it the trigger, though not the root cause.",
+      "trechos": [
+        "The trigger, though not root cause, for the event was a relatively small addition of capacity that began to be added to the service at 2:44 AM PST, finishing at 3:47 AM PST.",
+        "The capacity addition was being made to the front-end fleet."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Each front-end server creates an operating system thread for each of the other servers in the front-end fleet. The new capacity caused all servers in the fleet to exceed the maximum number of threads allowed by an operating system configuration; as the limit was exceeded, shard-map cache construction failed to complete and front-end servers ended up with useless shard-maps that left them unable to route requests to back-end clusters.",
+        "trechos": [
+          "For the latter communication, each front-end server creates operating system threads for each of the other servers in the front-end fleet.",
+          "Rather, the new capacity had caused all of the servers in the fleet to exceed the maximum number of threads allowed by an operating system configuration.",
+          "As this limit was being exceeded, cache construction was failing to complete and front-end servers were ending up with useless shard-maps that left them unable to route requests to back-end clusters."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Diagnosis was slowed by the variety of errors observed, including errors unrelated to the new capacity, which made it hard to separate side-effects from the root cause; the leading candidate (memory pressure) turned out to be wrong.",
+        "trechos": [
+          "While the new capacity was a suspect, there were a number of errors that were unrelated to the new capacity and would likely persist even if the capacity were to be removed.",
+          "The diagnosis work was slowed by the variety of errors observed. We were seeing errors in all aspects of the various calls being made by existing and new members of the front-end fleet, exacerbating our ability to separate side-effects from the root cause.",
+          "While the leading candidate (an issue that seemed to be creating memory pressure) looked promising, if we were wrong, we would double the recovery time as we would need to apply a second fix and restart again.",
+          "At 9:39 AM PST, we were able to confirm a root cause, and it turned out this wasn’t driven by memory pressure."
+        ]
+      },
+      {
+        "texto": "Recovery required a full restart of the front-end fleet, which had to be slow: the resources used to populate the shard-map compete with those used to process requests, so servers brought back too quickly could be deemed unhealthy and removed; servers could only be added at a few hundred per hour across a fleet of many thousands.",
+        "trechos": [
+          "At 7:51 AM PST, we had narrowed the root cause to a couple of candidates and determined that any of the most likely sources of the problem would require a full restart of the front-end fleet, which the Kinesis team knew would be a long and careful process.",
+          "The resources within a front-end server that are used to populate the shard-map compete with the resources that are used to process incoming requests.",
+          "As a result, these slow front-end servers could be deemed unhealthy and removed from the fleet, which in turn, would set back the recovery process.",
+          "The front-end fleet is composed of many thousands of servers, and for the reasons described earlier, we could only add servers at the rate of a few hundred per hour."
+        ]
+      },
+      {
+        "texto": "Cellularization of the Kinesis front-end fleet, which isolates the effects of failure, was under way but had not been completed.",
+        "trechos": [
+          "Cellularization is an approach we use to isolate the effects of failure within a service, and to keep the components of the service (in this case, the shard-map cache) operating within a previously tested and operated range.",
+          "This had been under way for the front-end fleet in Kinesis, but unfortunately the work is significant and had not yet been completed."
+        ]
+      },
+      {
+        "texto": "The prolonged Kinesis issue triggered a latent bug in Cognito's local buffering code that caused Cognito webservers to block on backlogged Kinesis Data Stream buffers, causing elevated API failures and latencies for User Pools and Identity Pools.",
+        "trechos": [
+          "Unfortunately, the prolonged issue with Kinesis Data Streams triggered a latent bug in this buffering code that caused the Cognito webservers to begin to block on the backlogged Kinesis Data Stream buffers.",
+          "As a result, Cognito customers experienced elevated API failures and increased latencies for Cognito User Pools and Identity Pools, which prevented external users from authenticating or obtaining temporary AWS credentials."
+        ]
+      },
+      {
+        "texto": "CloudWatch relies on Kinesis for metric and log processing; its errors delayed reactive AutoScaling policies, and Lambda metric agents buffering metric data locally caused memory contention on Lambda invocation hosts starting at 6:15 AM PST, increasing error rates.",
+        "trechos": [
+          "CloudWatch uses Kinesis Data Streams for the processing of metric and log data.",
+          "First, reactive AutoScaling policies that rely on CloudWatch metrics experienced delays until CloudWatch metrics began to recover at 5:47 PM PST.",
+          "Lambda metric agents are designed to buffer metric data locally for a period of time if CloudWatch is unavailable.",
+          "Starting at 6:15 AM PST, this buffering of metric data grew to the point that it caused memory contention on the underlying service hosts used for Lambda function invocations, resulting in increased error rates."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "As a precaution, the team began removing the new capacity while researching other errors; the removal had been completed by the time the root cause was confirmed at 9:39 AM PST.",
+          "trechos": [
+            "Still, as a precaution, we began removing the new capacity while researching the other errors.",
+            "At 9:39 AM PST, we were able to confirm a root cause, and it turned out this wasn’t driven by memory pressure.",
+            "We didn’t want to increase the operating system limit without further testing, and as we had just completed the removal of the additional capacity that triggered the event, we determined that the thread count would no longer exceed the operating system limit and proceeded with the restart."
+          ]
+        },
+        {
+          "texto": "To speed restart, the team began adding a configuration to front-end servers to obtain data directly from the authoritative metadata store rather than from front-end neighbors during bootstrap.",
+          "trechos": [
+            "To speed restart, in parallel with our investigation, we began adding a configuration to the front-end servers to obtain data directly from the authoritative metadata store rather than from front-end server neighbors during the bootstrap process."
+          ]
+        },
+        {
+          "texto": "The front-end fleet was restarted without raising the operating system thread limit: the first group of servers took Kinesis traffic at 10:07 AM PST, traffic was added slowly, error rates dropped steadily from noon, and Kinesis fully returned to normal at 10:23 PM PST.",
+          "trechos": [
+            "We didn’t want to increase the operating system limit without further testing, and as we had just completed the removal of the additional capacity that triggered the event, we determined that the thread count would no longer exceed the operating system limit and proceeded with the restart.",
+            "We began bringing back the front-end servers with the first group of servers taking Kinesis traffic at 10:07 AM PST.",
+            "We continued to slowly add traffic to the front-end fleet with the Kinesis error rate steadily dropping from noon onward. Kinesis fully returned to normal at 10:23 PM PST."
+          ]
+        },
+        {
+          "texto": "Cognito: the team added capacity to buffer calls to Kinesis, which initially reduced impact before errors rose again by 7:01 AM PST; at 10:15 AM PST deployment of a change reducing Cognito's dependency on Kinesis began, and Cognito was operating normally by 2:18 PM PST.",
+          "trechos": [
+            "In the early stages of the event, the Cognito team worked to mitigate the impact of the Kinesis errors by adding additional capacity and thereby increasing their capacity to buffer calls to Kinesis. While this initially reduced impact, by 7:01 AM PST errors rates increased significantly.",
+            "The team was working in parallel on a change to Cognito to reduce the dependency on Kinesis. At 10:15 AM PST, deployment of this change began and error rates began falling.",
+            "By 12:15 PM PST, error rates were significantly reduced, and by 2:18 PM PST Cognito was operating normally."
+          ]
+        },
+        {
+          "texto": "Lambda: at 10:36 AM PST engineers took action to mitigate the memory contention on invocation hosts, which resolved the increased error rates.",
+          "trechos": [
+            "At 10:36 AM PST, engineers took action to mitigate the memory contention, which resolved the increased error rates for function invocations."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned (very short term): move the Kinesis front-end to larger CPU and memory servers, reducing the number of servers and hence the threads each server needs to communicate across the fleet.",
+          "trechos": [
+            "In the very short term, we will be moving to larger CPU and memory servers, reducing the total number of servers and, hence, threads required by each server to communicate across the fleet."
+          ]
+        },
+        {
+          "texto": "In progress: adding fine-grained alarming for thread consumption in the service. Planned: finish testing an increase in operating system thread count limits.",
+          "trechos": [
+            "We are adding fine-grained alarming for thread consumption in the service.",
+            "We will also finish testing an increase in thread count limits in our operating system configuration, which we believe will give us significantly more threads per server and give us significant additional safety margin there as well."
+          ]
+        },
+        {
+          "texto": "In progress: changes to improve front-end fleet cold-start time and moving the front-end server cache to a dedicated fleet. Planned: move a few large AWS services such as CloudWatch to a separate, partitioned front-end fleet.",
+          "trechos": [
+            "In addition, we are making a number of changes to radically improve the cold-start time for the front-end fleet. We are moving the front-end server cache to a dedicated fleet.",
+            "We will also move a few large AWS services, like CloudWatch, to a separate, partitioned front-end fleet."
+          ]
+        },
+        {
+          "texto": "Planned (medium term): greatly accelerate cellularization of the Kinesis front-end fleet.",
+          "trechos": [
+            "In the medium term, we will greatly accelerate the cellularization of the front-end fleet to match what we’ve done with the back-end."
+          ]
+        },
+        {
+          "texto": "Already done: Cognito webservers were modified so they can sustain Kinesis API errors without exhausting their buffers.",
+          "trechos": [
+            "To prevent a recurrence of this issue, we have modified the Cognito webservers so that they can sustain Kinesis API errors without exhausting their buffers that resulted in these user errors."
+          ]
+        },
+        {
+          "texto": "Partly done: CloudWatch will persist 3 hours of metric data in its local metrics data store so users and services such as AutoScaling can access recent metrics directly; completed in US-EAST-1, to be deployed globally in the coming weeks.",
+          "trechos": [
+            "While CloudWatch currently relies on Kinesis for its complete metrics and logging capabilities, the CloudWatch team is making a change to persist 3-hours of metric data in the CloudWatch local metrics data store.",
+            "This change will allow CloudWatch users, and services requiring CloudWatch metrics (including AutoScaling), to access these recent metrics directly from the CloudWatch local metrics data store. This change has been completed in the US-EAST-1 Region and will be deployed globally in the coming weeks."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 1028,
+      "trechos": [
+        "At 5:15 AM PST, the first alarms began firing for errors on putting and getting Kinesis records.",
+        "Starting at 5:15 AM PST, CloudWatch experienced increased error rates and latencies for the PutMetricData and PutLogEvents APIs, and alarms transitioned to the INSUFFICIENT\\_DATA state.",
+        "Kinesis fully returned to normal at 10:23 PM PST."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration is computed from the first alarms and first dependent-service impact at 5:15 AM PST to Kinesis fully returning to normal at 10:23 PM PST; the text states no explicit impact duration. Dependent services recovered at other times (Cognito 2:18 PM, EventBridge/ECS/EKS mostly by 4:15 PM, CloudWatch 10:31 PM PST). The operating system thread limit is a long-standing setting; the capacity addition is a scaling activity, so mudanca_causadora is nao_se_aplica. Delays posting to the Service Health Dashboard (its tool depends on Cognito) are communication delays; the text says support training on the backup tool was changed.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.15"
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-219",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During a Consul agent upgrade, sequential agent restarts removed memcached nodes from the service catalog and Mcrib replaced or flushed them, lowering the cache hit rate at peak traffic. A GDM membership query that scatters across every shard of a Vitess keyspace sharded by user then overloaded the datastore, queries timed out and the cache could not refill, so many users could not connect to Slack. Service was restored by throttling client boot requests, changing the query to read only missing data and also from replicas, and slowly raising the boot rate limit.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Slack (client boot / connecting to Slack)"
+    ],
+    "tecnologias": [
+      "Vitess",
+      "MySQL",
+      "Memcached",
+      "Mcrouter",
+      "Mcrib",
+      "Consul",
+      "Serf gossip protocol"
+    ],
+    "categoria_causa": "cascading-failure",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "Just after 6 a.m. Pacific Time, almost simultaneously, user tickets about problems connecting to Slack arrived, some internal users had problems using Slack, and several engineering teams received pages or alerts.",
+        "trechos": [
+          "Just after 6 a.m. Pacific Time, a number of things happened almost simultaneously: we began to receive user tickets about problems connecting to Slack, some internal users experienced problems using Slack, and a number of our engineering teams received pages or alerts about problems."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "A percentage-based rollout step upgraded the Consul agent on 25% of the fleet and sequentially restarted the agents. When an agent restarts on a memcached node, the node is deregistered from the service catalog and Mcrib replaces it with an empty node, flushing nodes that rejoin; as cache nodes were removed during peak traffic, the cache hit rate dropped.",
+      "trechos": [
+        "This portion of the Consul rollout involved a percentage-based rollout (PBR) step that upgraded the Consul binary on the host, followed by a sequential (and fairly slow) restart of the agent on the hosts.",
+        "When a Consul agent shuts down, it deregisters the node (and the services on the node) from the service catalog, and re-registers them when it starts up again. When the agent restart occurs on a memcached node, the node that leaves the service catalog gets replaced by Mcrib. The new cache node will be empty.",
+        "The PBR step on February 22 updated Consul on 25% of the fleet.",
+        "However, on February 22, we hit a tipping point and entered a cascading failure scenario as we hit peak traffic for the day. As cache nodes were removed sequentially from the fleet, Mcrib continued to update the mcrouter configuration, promoting spare nodes to serving state and flushing nodes that left and rejoined. This caused the cache hit rate to drop."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The list of users in a user's GDMs, fetched during client boot, was queried from a Vitess keyspace sharded by user, which requires a scatter query to every shard; normally this is served from cache. With a significant portion of the cache unavailable, nearly all users needed to query every shard, database read load increased superlinearly with cache misses, and most queries to those tables timed out, so the cache could not be filled: a cascading failure in which lower cache hit rates caused high database load and problems filling the cache.",
+        "trechos": [
+          "One of the things that the client fetches during the boot process is the list of other users in the GDMs that you are in. We were querying this from a Vitess keyspace containing channel information that is sharded by user.",
+          "However, it is quite inefficient to find the set of users that are members of a particular GDM from this sharded-by-user table, because you have to query every shard in the datastore.",
+          "Normally the GDM membership data is cached by channel ID, which means that the client boot performance is acceptable, despite the inefficient underlying query.",
+          "With a significant portion of the cache unavailable, nearly all users needed to successfully query every shard of the keyspace.",
+          "The database was overwhelmed as the read load increased superlinearly in relation to the percentage of cache misses. Most queries to the channel membership-sharded-by-user Vitess tables were timing out, which meant that the cache could not be filled.",
+          "However, when something destabilizes the system — in this case, the Consul agent restarts combined with the problematic query — we can pass a tipping point and encounter the inverse relationship, where lower cache hit rates result in high database load and problems filling the cache."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Slow, failing client boot requests caused resource exhaustion in the database tier and prevented other requests from users with booted clients from succeeding.",
+        "trechos": [
+          "Because of the overloaded database tier, client boot requests were taking much longer than usual and often failing. These slow requests were causing resource exhaustion in our database tier and were preventing other requests — from users who had booted clients — from succeeding."
+        ]
+      },
+      {
+        "texto": "Automated client retries, despite exponential backoff with jitter, still contributed to the load on the system.",
+        "trechos": [
+          "Slack’s clients use retries with exponentially increasing backoff periods and jitter, to reduce the impact of retries in an overload situation. However, automated retries still contributed to the load on the system."
+        ]
+      },
+      {
+        "texto": "The relatively new Mcrib control plane was faster at detecting downed memcached instances and repairing the cache configuration than the previous scheme, which increased churn in the cache tier and contributed to the severity of the incident.",
+        "trechos": [
+          "Mcrib was faster and more efficient at detecting downed memcached instances and repairing the cache configuration than the previous scheme had been. Mcrib’s efficiency increased the churn in the cache tier and contributed to the severity of the incident."
+        ]
+      },
+      {
+        "texto": "A keyspace sharded by channel, more efficient for this query, existed, but the sharded-by-user keyspace was used because it contained needed columns not present in the sharded-by-channel table.",
+        "trechos": [
+          "We also have a keyspace that has membership of a channel sharded by channel, which would have been more efficient for this query. However, the sharded-by-user keyspace was used because it contained needed columns that were not present in the sharded-by-channel table."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "An upgrade of the Consul agent (the Consul binary on each host), rolled out in percentage-based steps followed by sequential agent restarts; the February 22 step covered 25% of the fleet.",
+        "trechos": [
+          "We were upgrading the Consul agent, which runs on each instance, participating in the Serf gossip protocol which Consul uses for service discovery.",
+          "The PBR step on February 22 updated Consul on 25% of the fleet."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "A restrictive throttle was applied to client boot requests, which reduced errors and gave users with booted clients more normal performance; a first attempt to raise the limit increased it too much, so the limit was reduced again and then raised in smaller increments.",
+          "trechos": [
+            "Therefore, we made a decision to throttle client boot requests.",
+            "We applied a restrictive throttle and it worked, to some degree. The number of errors we were servicing was reduced, and users with booted clients began to see more normal Slack performance.",
+            "However, our initial attempt increased the limit by too much.",
+            "We were forced to reduce the client boot rate limit once more, and then to increase by smaller increments."
+          ]
+        },
+        {
+          "texto": "The inefficient GDM query was modified to read from Vitess only the data missing from memcached instead of every shard on each miss, and to read from replicas as well as primaries; caches refilled and hit rates increased, reducing database load.",
+          "trechos": [
+            "The inefficient query was modified to read from Vitess only the data that was missing from memcached, rather than reading from every shard on each miss.",
+            "Because the GDM data is immutable and thus can tolerate staleness, the query was also updated to read from replicas as well as Vitess primaries. The caches began to refill and hit-rates increased, reducing load on the database."
+          ]
+        },
+        {
+          "texto": "The client boot rate limit was slowly increased back to normal traffic levels until service was fully restored.",
+          "trechos": [
+            "We were able to slowly increase the client boot rate limit back to normal traffic levels while maximizing database goodput, until we had fully restored service."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: changed the process for performing Consul rollouts so upgrades should not trigger this failure mode again.",
+          "trechos": [
+            "The interactions between Consul and the caching architecture are now much more broadly understood, and we have already made changes in the process for performing Consul rollouts that should mean we do not trigger this failure mode again during upgrades."
+          ]
+        },
+        {
+          "texto": "In progress: rolling out changes to the Mcrib control loop so that a brief network outage or partition affecting cache nodes does not trigger the same cascading failure.",
+          "trechos": [
+            "A brief network outage or partition affecting the cache nodes might trigger the same kind of cascading failure scenario as the Consul agent restarts did (or worse, as it would be more coordinated). However, we are rolling out changes to this part of the Mcrib control loop to avoid this kind of failure."
+          ]
+        },
+        {
+          "texto": "Already done: modified the problematic scatter query to read from a table sharded by channel, and analyzed other cache-fronted database queries for other high-volume scatter queries.",
+          "trechos": [
+            "We have modified the problematic scatter query to read from a table that is sharded by channel. We have also analyzed our other database queries which are fronted by the caching tier to see if there are any other high-volume scatter queries which might pose similar risks."
+          ]
+        },
+        {
+          "texto": "Longer term: projects exploring other ways of increasing the resilience of the caching tier.",
+          "trechos": [
+            "Other more long-term projects are exploring other ways of increasing the resilience of our caching tier."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "deteccao.forma: usuarios_clientes vs alerta_automatico. The text says user tickets, internal users' problems and pages or alerts 'happened almost simultaneously'; both 'users or customers reported' and 'monitoring/alerting fired' are satisfied, and the definition ('how the problem was first noticed') does not say which to pick when they coincide.",
+  "observacoes": "The text dates the incident only as 'February 22 this year', with no year in the extracted text, so data_incidente is null. The text gives no end time, so duracao is null. The authors note that the Consul agent restarts combined with the problematic query destabilized the system. The Consul agent restart operation had been paused early in the incident, but by then the system was in a cascading failure state, which does not normally return to a stable state without a significant reduction in load or increase in capacity.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.15"
+  }
+}

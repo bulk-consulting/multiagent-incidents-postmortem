@@ -1,0 +1,187 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-066",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "A partially failed network switch in a Cloudflare control plane data center gave etcd cluster members conflicting views, making etcd read-only; this triggered automatic promotion of a new primary for two database clusters, and a defect requiring a rebuild of all replicas left the authentication database primary without replicas and overloaded. API and dashboard availability was impacted for 6 hours and 33 minutes. Engineers shed load and diverted API reads to the secondary data center; performance returned to normal once the first replica was rebuilt.",
+    "data_incidente": "2020-11-02",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Cloudflare API",
+      "Cloudflare dashboard"
+    ],
+    "tecnologias": [
+      "LACP",
+      "BGP",
+      "vPC",
+      "etcd",
+      "RAFT",
+      "relational databases",
+      "cluster management system",
+      "Redis"
+    ],
+    "categoria_causa": "cascading-failure",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 14:43 UTC alerts began firing about a network switch being unreachable to pings.",
+        "trechos": [
+          "At 14:43, a network switch started misbehaving. Alerts began firing about the switch being unreachable to pings."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 14:43 UTC a network switch entered a partially operating state: LACP and BGP remained operational, vPC did not, and the data plane was not forwarding all packets. It recovered without human intervention six minutes later.",
+      "trechos": [
+        "At 14:43, a network switch started misbehaving.",
+        "The device was in a partially operating state: network control plane protocols such as LACP and BGP remained operational, while others, such as vPC, were not.",
+        "At the same time, the data plane (or forwarding plane) was not processing and forwarding all the packets received from connected devices.",
+        "Six minutes later, the switch recovered without human intervention."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The partial switch failure gave etcd cluster members conflicting views; node 1 repeatedly initiated leader elections that ended in ties, making etcd read-only. Two database clusters, which use etcd for coordination, could then not communicate that they had a healthy primary, which triggered automatic promotion of a synchronous replica. A defect in the cluster management system requires a rebuild of all database replicas when a new primary is promoted; the authentication database required a replica for performant operation, and with no replicas available its primary was overloaded, which is when the main impact started.",
+        "trechos": [
+          "This caused cluster members to have conflicting views of reality, known in distributed systems theory as a Byzantine fault.",
+          "As a consequence of this conflicting information, node 1 repeatedly initiated leader elections, voting for itself, while node 2 repeatedly voted for node 3, which it could still connect to.",
+          "This resulted in ties that did not promote a leader node 1 could reach. RAFT leader elections are disruptive, blocking all writes until they're resolved, so this made the cluster read-only until the faulty switch recovered and node 1 could once again reach node 3.",
+          "The cluster management system leverages etcd for cluster member discovery and coordination.",
+          "When etcd became read-only, two clusters were unable to communicate that they had a healthy primary database. This triggered the automatic promotion of a synchronous database replica to become the new primary.",
+          "There was a defect in our cluster management system that requires a rebuild of all database replicas when a new primary database is promoted.",
+          "For the other cluster, however, performant operation of that database *required* a replica to be online.",
+          "Because this database handles authentication for API calls and dashboard activities, it takes a lot of reads, and one replica was heavily utilized to spare the primary the load.",
+          "When this failover happened and no replicas were available, the primary was overloaded, as it had to take all of the load. This is when the main impact started."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The partial switch failure was invisible to connected servers because, with LACP load balancing, each server saw an issue for only some of its traffic; a full failure would have failed traffic over to the peer switch.",
+        "trechos": [
+          "This failure scenario is completely invisible to the connected nodes, as each server only sees an issue for some of its traffic due to the load-balancing nature of LACP.",
+          "Had the switch failed fully, all traffic would have failed over to the peer switch, as the connected links would've simply gone down, and the ports would've dropped out of the forwarding LACP bundles."
+        ]
+      },
+      {
+        "texto": "RAFT assumes cluster members are either available or unavailable and is not always able to handle members having conflicting information.",
+        "trechos": [
+          "In the RAFT protocol, cluster members are assumed to be either available or unavailable, and to provide accurate information or none at all. This works fine when a machine crashes, but is not always able to handle situations where different members of the cluster have conflicting information."
+        ]
+      },
+      {
+        "texto": "Database replica promotion was automated to trigger on a minute's notice; the authors state that for at least one database the promotion may not be wanted so quickly.",
+        "trechos": [
+          "In previous years, promoting a database replica to primary took far longer than we liked, so getting that process automated and able to trigger on a minute’s notice was a point of pride.",
+          "At the same time, for at least one of our databases, the cure may be worse than the disease, and in fact we may not want to invoke the promotion process so quickly."
+        ]
+      },
+      {
+        "texto": "Because of its size, the replica of the authentication database would take several hours to rebuild.",
+        "trechos": [
+          "Because this database handles authentication for API calls and dashboard activities, it takes a lot of reads, and one replica was heavily utilized to spare the primary the load.",
+          "Unfortunately, because of its size, we knew it would take several hours for a replica to be fully rebuilt."
+        ]
+      },
+      {
+        "texto": "Steering read queries to the secondary data center replicas was not automated, and dashboard user sessions (kept in a Redis cluster) could not be moved across data centers without disruption; the actions taken to improve API availability made the dashboard experience worse.",
+        "trechos": [
+          "The process of steering read-queries to those replicas was not yet automated, so we manually diverted API traffic that could leverage those read replicas to the secondary data center.",
+          "When user sessions are created (each time a user logs in) we perform some database operations and keep data in a Redis cluster for the duration of that user’s session. Unlike our API calls, our user sessions cannot currently be moved across the ocean without disruption.",
+          "As we took actions to improve the availability of our API calls, we were unfortunately making the user experience on the dashboard worse."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Shed load from the overwhelmed primary authentication database by dialing back the rate of pushing SSL certificates to the edge, sending emails and other features.",
+          "trechos": [
+            "At this point we saw that our primary authentication database was overwhelmed and began shedding load from it. We dialed back the rate at which we push SSL certificates to the edge, send emails, and other features, to give it space to handle the additional load."
+          ]
+        },
+        {
+          "texto": "Manually diverted API traffic that could use read replicas to the secondary data center, whose replicas stayed online; this substantially improved API availability.",
+          "trechos": [
+            "Those replicas are not part of the local failover process, and were online and available throughout the incident.",
+            "The process of steering read-queries to those replicas was not yet automated, so we manually diverted API traffic that could leverage those read replicas to the secondary data center. This substantially improved our API availability."
+          ]
+        },
+        {
+          "texto": "After a period in which dashboard users became increasingly frustrated, authentication calls were failed fully back to the primary data center while work continued on the primary database.",
+          "trechos": [
+            "After a first period in which users on the dashboard became increasingly frustrated, we failed the authentication calls fully back to our primary data center, and kept working on our primary database to ensure we could provide the best service levels possible in that degraded state."
+          ]
+        },
+        {
+          "texto": "At 21:20 UTC the first database replica finished rebuilding and put itself back into service, and performance returned to normal; the services that had been turned down were then re-ramped.",
+          "trechos": [
+            "### 2020-11-02 21:20 UTC Database Replica Rebuilt",
+            "The instant the first database replica rebuilt, it put itself back into service, and performance resumed to normal levels. We re-ramped all of the services that had been turned down, so all asynchronous processing could catch up, and after a period of monitoring marked the end of the incident."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: fixed the bug in the cluster management system that required a database replica rebuild upon promotion.",
+          "trechos": [
+            "There was a defect in our cluster management system that requires a rebuild of all database replicas when a new primary database is promoted.",
+            "We’ve since fixed the bug in our cluster management system, and are continuing to tune each of the systems involved in this incident to be more resilient to failures of their dependencies.",
+            "A team was already working on fixing the limitation that requires a database replica rebuild upon promotion."
+          ]
+        },
+        {
+          "texto": "Already done: immediately after the incident, adjusted the configuration of the automatic database promotion so it is not invoked so quickly, for at least one database.",
+          "trechos": [
+            "This incident also led us to revisit the configuration parameters we put in place for things that auto-remediate.",
+            "At the same time, for at least one of our databases, the cure may be worse than the disease, and in fact we may not want to invoke the promotion process so quickly. Immediately after this incident we adjusted that configuration accordingly."
+          ]
+        },
+        {
+          "texto": "In progress: redesigning the user sessions system, which was inflexible when steering traffic around.",
+          "trechos": [
+            "Our user sessions system was inflexible in scenarios where we’d like to steer traffic around, and redesigning that was already in progress."
+          ]
+        },
+        {
+          "texto": "Ongoing: continuing to tune each system involved to be more resilient to failures of its dependencies.",
+          "trechos": [
+            "We’ve since fixed the bug in our cluster management system, and are continuing to tune each of the systems involved in this incident to be more resilient to failures of their dependencies."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 393,
+      "trechos": [
+        "On November 2, 2020, Cloudflare had an incident that impacted the availability of the API and dashboard for six hours and 33 minutes."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "A postscript says the distributed systems community characterized the failure as an omission fault rather than a Byzantine fault. The text gives no timestamp for when the main impact started (after the 14:45 UTC promotion). The authors also mention looking forward to collaborating on BFT consensus for production cluster management, which is not a concrete commitment. categoria_causa is cascading-failure: the switch degradation propagated through etcd and the database cluster management system; software-bug applies only to a code defect that fits none of the other categories.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.15"
+  }
+}

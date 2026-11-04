@@ -1,5 +1,5 @@
 <!--
-Prompt de extração da ficha (peça 2). Versão: v2.15.
+Prompt de extração da ficha (peça 2). Versão: v2.16.
 v1 guardada em prompt_extracao_v1.md. Mudanças da v2 (revisão do piloto, ver FICHA.md):
 regra 2 (trechos sustentam todo detalhe do texto), regras 3 e 4 novas (causalidade e plano x feito),
 gatilho x causa raiz, categoria pela causa raiz, detecção, resumo com desfecho, mitigação com a correção concreta.
@@ -27,11 +27,12 @@ v2.13 (amostra do lote 06, 6 ERRADOS em 6 fichas): equipe_interna só quando o t
 atividade operacional automática (scaling, failover) não é mudanca_causadora.
 v2.14 (amostra do lote 09, 4 ERRADOS em 7 fichas): duração com marcas de início/fim no texto; serviço de volta degradado é o fim; faixa de minutos é null.
 v2.15 (amostra do lote 12, 7 ERRADOS em 7 fichas): configuration-error inclui valor de configuração errado há muito tempo, sem mudança recente.
+v2.16 (amostra do lote 13, 8 ERRADOS em 6 fichas): software-bug é residual; duração total do incidente não vence as marcas de impacto.
 Escrito em inglês de propósito (ver FICHA.md, seção "Idioma").
 A parte entre ===== INPUT ===== é preenchida para cada documento.
 -->
 
-# Post-mortem extraction — prompt v2.15
+# Post-mortem extraction — prompt v2.16
 
 You are extracting a structured record ("ficha") from one public incident post-mortem. The record will be used by an incident-diagnosis assistant that must **never state anything the source does not say**. Your job is to organize what the text says, with proof. You are not writing a post-mortem, summarizing for readers, or judging the company.
 
@@ -114,7 +115,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
 - `network-bgp`: routing itself failed (leak, hijack), not a config change with routing symptoms.
 - `capacity-load`: load, limits or capacity exhausted without a configuration change.
 - `hardware-power`: power, cooling or hardware failure.
-- `software-bug`: a code defect that fits none of the above.
+- `software-bug`: a code defect that fits none of the above. It is residual: if another category fits (e.g. `cascading-failure` for a degradation that propagated through dependencies), that one wins; if the text says the code worked correctly (a design or protocol condition), it is not `software-bug`.
 - `supply-chain`: tampered material left one organization and ran in another's environment.
 - For **attacks** (`seguranca: ataque`), classify the mechanism of the root cause: a DDoS that floods the network → `capacity-load`; stolen or reused credentials → `credential-auth`; a tampered package → `supply-chain` only when the root cause is the tampering itself, not how the attacker got access.
 - `other`: none of the above.
@@ -175,7 +176,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
 **`confianca`** measures whether the **rules** decided every field, not how certain the source is (that is `causa_raiz.status`).
 - `alta`: for every field, the rules above leave only one value.
 - `baixa`: for at least one field, two values still fit after applying every rule. Then `motivo_confianca_baixa` (English) names each such field, the two values, and **why the field's definition does not decide between them** (quote the part of the definition that both values satisfy). If you cannot write that reason, the definition decides: use its value and set `alta`.
-- **Checklist before writing `baixa`**: for each field you hesitated on, reread its definition above. If the definition picks one value, use it, write the reason in `observacoes` if useful, and do **not** count it as a doubt. Cases that the rules already decide: `generica` vs `ausente` (the text says where the change was → `generica`); `final` vs `preliminar` (written after the incident and not presented as preliminary → `final`); a configuration or instance change vs `capacity-load` (a change was made → not `capacity-load`); a stated duration that does not measure the impact; "needed to block traffic" vs a mitigation step (needed is not done → not a step).
+- **Checklist before writing `baixa`**: for each field you hesitated on, reread its definition above. If the definition picks one value, use it, write the reason in `observacoes` if useful, and do **not** count it as a doubt. Cases that the rules already decide: `generica` vs `ausente` (the text says where the change was → `generica`); `final` vs `preliminar` (written after the incident and not presented as preliminary → `final`); a configuration or instance change vs `capacity-load` (a change was made → not `capacity-load`); a stated duration that does not measure the impact; a "total duration of the incident" that differs from timeline marks of impact start/end (use the marks); `software-bug` vs another category that fits (the other wins); "needed to block traffic" vs a mitigation step (needed is not done → not a step).
 
 **`observacoes`** (optional, English) — notes a reader of the record should know that are **not** judgment calls: where a value came from (the year taken from the publication date), the other duration when two were given, a list announced in the text but missing from it, text repeated in another language, recommendations being all the prevention offered. A note here does not lower `confianca`. Omit the key if there is nothing to note.
 
@@ -210,7 +211,7 @@ Return **only** one JSON object, no comments, no Markdown fences, matching this 
   "confianca": "alta" | "baixa",
   "motivo_confianca_baixa": "..."   (only when confianca is "baixa"),
   "observacoes": "..."              (optional),
-  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.15" }
+  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.16" }
 }
 
 ===== INPUT =====
