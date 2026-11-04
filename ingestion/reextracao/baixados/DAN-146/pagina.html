@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+	<title>Outage post-mortem | Dropbox Tech Blog</title>
+	<link rel="profile" href="http://gmpg.org/xfn/11">
+	<link rel="pingback" href="https://dropboxtechblog.wordpress.com/xmlrpc.php">
+	<link rel="shortcut icon" href="https://dropboxtechblog.files.wordpress.com/2015/01/favicon.png" />
+
+			<meta property="og:title" content="Outage post-mortem" />
+		<meta property="og:site_name" content="Dropbox Tech Blog" />
+		<meta property="og:url" content="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" />
+		
+	
+<meta name="description" content="On Friday evening our service went down during scheduled maintenance. The service was back up and running about three hours later, with core service fully restored by 4:40 PM PT on Sunday. For the past couple of days, we’ve been working around the clock to restore full access as soon as possible." />
+<meta name="keywords" content="infrastructure, " /><meta name="google-site-verification" content="DiCjeV8id2Qbw9VImB5V7jVYoEeSR95Pfb_7pS3L1Ko" />
+
+<link rel="alternate" type="application/rss+xml" title="Dropbox Tech Blog &raquo; Feed" href="https://blogs.dropbox.com/tech/feed/" />
+<link rel="alternate" type="application/rss+xml" title="Dropbox Tech Blog &raquo; Comments Feed" href="https://blogs.dropbox.com/tech/comments/feed/" />
+<link rel="alternate" type="application/rss+xml" title="Dropbox Tech Blog &raquo; Outage post-mortem Comments Feed" href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/feed/" />
+	<script type="text/javascript">
+		/* <![CDATA[ */
+		function addLoadEvent(func) {
+			var oldonload = window.onload;
+			if (typeof window.onload != 'function') {
+				window.onload = func;
+			} else {
+				window.onload = function () {
+					oldonload();
+					func();
+				}
+			}
+		}
+		/* ]]> */
+	</script>
+	<link rel='stylesheet' id='all-css-0' href='https://s2.wp.com/_static/??-eJyFj1kOwjAMRC9EarGKfiCOgtpggds4seqU5fakBJBYVH4iezTPM4GzGBt8RB+BeyOuP5BXOIsNbJTJ4fVjK6zqBH5jjlpUaDBKZVtz38bsNnSYdJYqDg7GPVXokJNtDGNZPalhPKas0Zhcv66lQ1WTXqaeTTymoD/1eKiS/wHJ+K5klMCHSInW1/B1M0fBiQT2XZA6XKBSxZiPPqRd7cJBCyY/8FveTBfLcraYlvN1cwM4EJ5m' type='text/css' media='all' />
+<link rel='stylesheet' id='opensans-css'  href='//fonts.googleapis.com/css?family=Open+Sans%3A300italic%2C400italic%2C300%2C400%2C700&#038;ver=4.4.3-RC1' type='text/css' media='all' />
+<link rel='stylesheet' id='all-css-2' href='https://s1.wp.com/_static/??-eJx9i0EKhDAMRS9kDUJkdCGepZZMrKSN2IrXV5mNMuLm8x+8B9tsnMZMMUNYzSwr+5iAgk7+t6VLqYBnjUmNqLPZa7yB+Yr1y1u60CDKx2U4rAv+RXmkQAlGBBYdrJxCH7oK6xax+VQ47bCWSFI=' type='text/css' media='all' />
+<script type='text/javascript' src='https://s1.wp.com/_static/??-eJyFztEKwjAMBdAfsqvT+bAH8VtqjSN1SWuTbujX24E+CEMhEMg9XGLnZJD9WC4gNtS5F8iP92qCbOwvYAiH7BQaQv5gH1mBdbEUzziCKQLZDfVWi65xxaUoSiBS0Ur6/RLyhDD/ZQE0OX8zGQSfS+uJjm237w/tdtd34QU0IVvQ'></script>
+<link rel='stylesheet' id='all-css-0' href='https://s1.wp.com/wp-content/mu-plugins/highlander-comments/style.css?m=1377793621h' type='text/css' media='all' />
+<!--[if lt IE 8]>
+<link rel='stylesheet' id='highlander-comments-ie7-css'  href='https://s1.wp.com/wp-content/mu-plugins/highlander-comments/style-ie7.css?m=1351637563h&#038;ver=20110606' type='text/css' media='all' />
+<![endif]-->
+<link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://dropboxtechblog.wordpress.com/xmlrpc.php?rsd" />
+<link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://s1.wp.com/wp-includes/wlwmanifest.xml" /> 
+<meta name="generator" content="WordPress.com" />
+<link rel="canonical" href="http://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" />
+<link rel='shortlink' href='http://wp.me/p5AgGg-9Q' />
+<link rel="alternate" type="application/json+oembed" href="https://public-api.wordpress.com/oembed/1.0/?format=json&amp;url=https%3A%2F%2Fblogs.dropbox.com%2Ftech%2F2014%2F01%2Foutage-post-mortem%2F&amp;for=wpcom-auto-discovery" /><link rel="alternate" type="application/xml+oembed" href="https://public-api.wordpress.com/oembed/1.0/?format=xml&amp;url=https%3A%2F%2Fblogs.dropbox.com%2Ftech%2F2014%2F01%2Foutage-post-mortem%2F&amp;for=wpcom-auto-discovery" /><link rel='openid.server' href='https://dropboxtechblog.wordpress.com/?openidserver=1' />
+<link rel='openid.delegate' href='https://dropboxtechblog.wordpress.com/' />
+<link rel="search" type="application/opensearchdescription+xml" href="https://dropboxtechblog.wordpress.com/osd.xml" title="Dropbox Tech Blog" />
+<link rel="search" type="application/opensearchdescription+xml" href="https://s1.wp.com/opensearch.xml" title="WordPress.com" />
+<link type="text/plain" rel="author" href="https://s0.wp.com/wp-content/themes/vip/dropbox/humans.txt" /><style type="text/css" media="screen">.site-title a{background:url( https://dropboxtechblog.files.wordpress.com/2015/11/dropbox_tech_blog.png ) no-repeat left center;background-size:100%;}.site-branding {width:208px;}@media all and (min-width:769px) {.site-branding {width:250px;}}a,a:visited,.sd-social-icon-text .sd-content ul li a.sd-button,.sd-social-icon-text .sd-content ul li a.sd-button,.entry-content blockquote p, .entry-title a:hover { color:#007ee5; }a:hover,a:focus,a:active,.sd-social-icon-text .sd-content ul li a.sd-button:hover { color:#0060c7; }.entry-title a{color:#5e676d;}.site-header .search-form i,.site-header .search-field,.main-navigation a,#subscribe, #subscribe input[type="text"] {color:#007ee5;}.icon-mobile-nav span {background-color:#007ee5;}.site-header .search-field::-webkit-input-placeholder,#subscribe input::-webkit-input-placeholder {color:#007ee5;}.site-header .search-field::-moz-placeholder,#subscribe input::-moz-placeholder {color:#007ee5;}.site-header .search-field:-ms-input-placeholder,#subscribe input:-ms-input-placeholder {color:#007ee5;}.site-header .search-field:focus{border-color:#007ee5;}.site-header .search-field,a#download,.sticky .search-field, #subscribe input,.header-cta .btn{border-color:#007ee5 !important;}a#download {color:#007ee5;}.entry-content blockquote p {color:#007ee5;}button,input[type="button"],input[type="reset"],input[type="submit"] {border-color:#007ee5;background:#007ee5;}button:hover,input[type="button"]:hover,input[type="reset"]:hover,input[type="submit"]:hover,button:focus,input[type="button"]:focus,input[type="reset"]:focus,input[type="submit"]:focus,button:active,input[type="button"]:active,input[type="reset"]:active,input[type="submit"]:active{background:#1e9cff;}.main-navigation > ul > li > a:after{border-color:#007ee5 transparent transparent transparent;}@media screen and (min-width:768px) {#subscribe {color:#007ee5;}.main-navigation .menu a{color:#007ee5;}.site-title a{ background-size:100%; }}#related-stories .story span.fallback, #most-read .story span.fallback {background:url(https://s0.wp.com/wp-content/themes/vip/dropbox/images/fallback.png ) center/cover no-repeat;}</style>		<style type="text/css">
+			.recentcomments a {
+				display: inline !important;
+				padding: 0 !important;
+				margin: 0 !important;
+			}
+
+			table.recentcommentsavatartop img.avatar, table.recentcommentsavatarend img.avatar {
+				border: 0px;
+				margin: 0;
+			}
+
+			table.recentcommentsavatartop a, table.recentcommentsavatarend a {
+				border: 0px !important;
+				background-color: transparent !important;
+			}
+
+			td.recentcommentsavatarend, td.recentcommentsavatartop {
+				padding: 0px 0px 1px 0px;
+				margin: 0px;
+			}
+
+			td.recentcommentstextend {
+				border: none !important;
+				padding: 0px 0px 2px 10px;
+			}
+
+			.rtl td.recentcommentstextend {
+				padding: 0px 10px 2px 0px;
+			}
+
+			td.recentcommentstexttop {
+				border: none;
+				padding: 0px 0px 0px 10px;
+			}
+
+			.rtl td.recentcommentstexttop {
+				padding: 0px 10px 0px 0px;
+			}
+		</style>
+		<meta name="application-name" content="Dropbox Tech Blog" /><meta name="msapplication-window" content="width=device-width;height=device-height" /><meta name="msapplication-task" content="name=Subscribe;action-uri=https://blogs.dropbox.com/tech/feed/;icon-uri=https://s2.wp.com/i/favicon.ico" /><link rel="amphtml" href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/amp/" /><style type="text/css" id="syntaxhighlighteranchor"></style>
+		<link rel="stylesheet" id="custom-css-css" type="text/css" href="https://s2.wp.com/?custom-css=1&#038;csblog=5AgGg&#038;cscache=6&#038;csrev=33" />
+		</head>
+
+<body class="single single-post postid-610 single-format-standard mp6 customizer-styles-applied group-blog highlander-enabled highlander-light">
+<div id="page" class="hfeed site">
+	<a class="skip-link screen-reader-text" href="#content">Skip to content</a>
+
+	<header id="masthead" class="site-header" role="banner">
+		<div class="header-inner">
+			<div class="site-branding">
+				<h1 class="site-title replace-logo" >
+					<a href="https://blogs.dropbox.com/tech/" rel="home">Dropbox Tech Blog</a>
+				</h1>
+			</div>
+				 		<div class="header-cta replace-logo">
+				<a href="https://bit.ly/1RFCKSs" class="btn replace-logo" id="download">
+					See open tech jobs at Dropbox				</a>
+			</div>
+			
+			<nav id="site-navigation" class="main-navigation" role="navigation">
+				<a class="menu-toggle"><div class="icon-mobile-nav"><span class="icon-mobile-nav-1"></span><span class="icon-mobile-nav-2"></span><span class="icon-mobile-nav-3"></span></div></a>
+
+				
+				<!-- #site-navigation -->
+				<div class="site-search">
+					<form role="search" method="get" id="searchform" class="search-form" action="https://blogs.dropbox.com/tech/">
+	<div>
+		<i class="icon-search"></i>
+		<span class="screen-reader-text">Search for:</span>
+		<input type="text" class="search-field" value="" name="s" id="s" placeholder="Search blog…"/>
+	</div>
+	<input type="submit" class="search-submit" value="Search" />
+</form>				</div>
+
+				<ul>
+					<li>
+						<a href="">Topics</a>
+						<div class="menu-topics-container"><ul id="menu-topics" class="menu"><li id="menu-item-5" class="menu-item menu-item-type-taxonomy menu-item-object-category menu-item-5"><a href="https://blogs.dropbox.com/tech/category/carousel/">Carousel</a></li>
+<li id="menu-item-6" class="menu-item menu-item-type-taxonomy menu-item-object-category current-post-ancestor current-menu-parent current-post-parent menu-item-6"><a href="https://blogs.dropbox.com/tech/category/infrastructure/">Infrastructure</a></li>
+<li id="menu-item-7" class="menu-item menu-item-type-taxonomy menu-item-object-category menu-item-7"><a href="https://blogs.dropbox.com/tech/category/mobile/">Mobile</a></li>
+<li id="menu-item-8" class="menu-item menu-item-type-taxonomy menu-item-object-category menu-item-8"><a href="https://blogs.dropbox.com/tech/category/open-source/">Open Source</a></li>
+<li id="menu-item-9" class="menu-item menu-item-type-taxonomy menu-item-object-category menu-item-9"><a href="https://blogs.dropbox.com/tech/category/performance/">Performance</a></li>
+<li id="menu-item-1370" class="menu-item menu-item-type-taxonomy menu-item-object-category menu-item-1370"><a href="https://blogs.dropbox.com/tech/category/security/">Security</a></li>
+</ul></div>					</li>
+					<li>
+						<a href="">Subscribe</a>
+						<div id="subscriptions" class="menu">
+							<p><label for="subscription_email">Subscribe and get updates</label></p>
+							<form action="" id="subscribe">
+								<input type="text" name="subscription_email" id="subscription_email" placeholder="Email address" />
+								<input type="submit" value="Submit" />
+							</form>
+							<div class="social">
+								<span>Follow us:</span>
+																		<a href="http://www.twitter.com/Dropbox" class="twitter"><i class="icon-twitter"></i></a>
+																			<a href="http://www.facebook.com/Dropbox" class="facebook"><i class="icon-facebook"></i></a>
+																			<a href="http://www.linkedin.com/company/dropbox" class="linkedin"><i class="icon-linkedin"></i></a>
+																			<a href="https://plus.google.com/b/103316200298703443962/+Dropbox/posts" class="googleplus"><i class="icon-googleplus"></i></a>
+																	<a href="https://blogs.dropbox.com/tech/feed/" target="_blank" class="rss"><i class="icon-rss-squared"></i></a>
+							</div>
+						</div>
+					</li>
+					<li>
+						<a href="">Dropbox blogs</a>
+						<div class="menu-dropbox-blogs-container"><ul id="menu-dropbox-blogs" class="menu"><li id="menu-item-10" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-10"><a href="https://blogs.dropbox.com/dropbox/">Dropbox Blog</a></li>
+<li id="menu-item-13" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-13"><a href="https://blogs.dropbox.com/business/">Dropbox Business Blog</a></li>
+<li id="menu-item-12" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-12"><a href="https://blogs.dropbox.com/developers">Dropbox Developer Blog</a></li>
+</ul></div>					</li>
+				</ul>
+
+			</nav>
+		</div><!-- .header-inner -->
+	</header>
+	<!-- #masthead -->
+
+	<div id="content" class="site-content">
+
+
+	<div id="primary" class="content-area">
+		<main id="main" class="site-main" role="main">
+			
+<article id="post-610" class="post-610 post type-post status-publish format-standard hentry category-infrastructure">
+	<header class="entry-header">
+		<h1 class="entry-title">Outage post-mortem</h1>
+		<div class="entry-meta">
+			<div class="details"><span class="post-author author vcard" title="Akhil Gupta">Akhil Gupta</span><span class="post-date"> January 12, 2014</span></div><span class="comments-link"><a class="post-comments icon-comments" href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/#disqus_thread">127 comments</a></span><div class="social"><a class="twitter addthis_button_twitter" data-url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:title="Outage post-mortem"><i class="icon-twitter"></i> <span class="counter">0</span></a><a class="facebook addthis_button_facebook" data-url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:title="Outage post-mortem"><i class="icon-facebook"></i> <span class="counter">0</span></a><a class="linkedin addthis_button_linkedin" data-url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:title="Outage post-mortem"><i class="icon-linkedin"></i> <span class="counter">21</span></a><a class="goolgeplus addthis_button_google_plusone_share" data-url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:title="Outage post-mortem"><i class="icon-googleplus"></i><span class="counter">36</span></a></div>		</div><!-- .entry-meta -->
+	</header><!-- .entry-header -->
+
+	<div class="entry-content">
+		<p dir="ltr">On Friday evening our service went down during scheduled maintenance. The service was back up and running about three hours later, with core service fully restored by 4:40 PM PT on Sunday.</p>
+<p dir="ltr">For the past couple of days, we’ve been working around the clock to restore full access as soon as possible. Though we’ve shared some brief updates along the way, we owe you a detailed explanation of what happened and what we’ve learned.</p>
+<p dir="ltr"><strong><br />
+What happened?</strong></p>
+<p dir="ltr">We use thousands of databases to run Dropbox. Each database has one master and two replica machines for redundancy. In addition, we perform full and incremental data backups and store them in a separate environment.</p>
+<p dir="ltr">On Friday at 5:30 PM PT, we had a planned maintenance scheduled to upgrade the OS on some of our machines. During this process, the upgrade script checks to make sure there is no active data on the machine before installing the new OS.</p>
+<p dir="ltr">A subtle bug in the script caused the command to reinstall a small number of active machines. Unfortunately, some master-replica pairs were impacted which resulted in the site going down.</p>
+<p dir="ltr">Your files were never at risk during the outage. These databases do not contain file data. We use them to provide some of our features (for example, photo album sharing, camera uploads, and some API features).</p>
+<p dir="ltr">To restore service as fast as possible, we performed the recovery from our backups. We were able to restore most functionality within 3 hours, but the large size of some of our databases slowed recovery, and it took until 4:40 PM PT today for core service to fully return.</p>
+<p dir="ltr"><strong><br />
+What did we learn?</strong></p>
+<p dir="ltr"><em>Distributed state verification</em></p>
+<p dir="ltr">Over the past few years our infrastructure has grown rapidly to support hundreds of millions of users. We routinely upgrade and repurpose our machines. When doing so, we run scripts that remotely verify the production state of each machine. In this case, a bug in the script caused the upgrade to run on a handful of machines serving production traffic.</p>
+<p dir="ltr">We’ve since added an additional layer of checks that require machines to locally verify their state before executing incoming commands. This enables machines that self-identify as running critical processes to refuse potentially destructive operations.</p>
+<p dir="ltr"><em>Faster disaster recovery</em></p>
+<p dir="ltr">When running infrastructure at large scale, the standard practice of running multiple replicas provides redundancy. However, should those replicas fail, the only option is to restore from backup. The standard tool used to recover MySQL data from backups is slow when dealing with large data sets.</p>
+<p dir="ltr">To speed up our recovery, we developed a tool that parallelizes the replay of binary logs. This enables much faster recovery from large MySQL backups. We plan to open source this tool so others can benefit from what we’ve learned.</p>
+<p dir="ltr">We know you rely on Dropbox to get things done, and we’re very sorry for the disruption. We wanted to share these technical details to shed some light on what we’re doing in response. Thanks for your patience and support.</p>
+<p dir="ltr">Akhil<br />
+Head of Infrastructure</p>
+			</div><!-- .entry-content -->
+
+			<div class="entry-meta entry-meta-footer">
+			<span class="cat-links">Filed under: <a href="https://blogs.dropbox.com/tech/category/infrastructure/" rel="category tag">Infrastructure</a></span>		</div><!-- .entry-footer -->
+	
+	<footer class="entry-footer">
+		<a class="twitter addthis_button_twitter" data-url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:title="Outage post-mortem"><i class="icon-twitter"></i> Twitter <span class="counter">(0)</span></a><a class="facebook addthis_button_facebook" data-url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:title="Outage post-mortem"><i class="icon-facebook"></i> Facebook <span class="counter">(0)</span></a><a class="linkedin addthis_button_linkedin" data-url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:title="Outage post-mortem"><i class="icon-linkedin"></i> LinkedIn <span class="counter">(21)</span></a><a class="goolgeplus addthis_button_google_plusone_share" data-url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:url="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/" addthis:title="Outage post-mortem"><i class="icon-googleplus"></i><span class="counter">36</span></a><a class="icon-comments" href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/#disqus_thread">Comments (127)</a>	</footer><!-- .entry-footer -->
+
+</article><!-- #post-## -->
+		</main>
+		<!-- #main -->
+
+							<section id="related-stories">
+				<h3>Related stories</h3>
+									<a href="https://blogs.dropbox.com/tech/2016/03/magic-pocket-infrastructure/" class="story">
+																			<span class="related-thumb" style="background-image: url('https://dropboxtechblog.files.wordpress.com/2016/03/magic-pocket.png')"></span>
+												<p>Scaling to exabytes and&nbsp;beyond</p>
+					</a>
+									<a href="https://blogs.dropbox.com/tech/2016/03/open-sourcing-pytest-tools/" class="story">
+																			<span class="fallback"></span>
+												<p>Open Sourcing Pytest&nbsp;Tools</p>
+					</a>
+									<a href="https://blogs.dropbox.com/tech/2015/10/what-do-you-mean-you-need-more-time/" class="story">
+																			<span class="fallback"></span>
+												<p>What do you mean &#8216;we need more&nbsp;time&#8217;??</p>
+					</a>
+							</section>
+				
+		<section id="comments" class="post-comments">
+			<div id="disqus_thread">
+	<div id="dsq-content">
+		<ul id="dsq-comments">
+					<li id="dsq-comment-977">
+			<div id="dsq-comment-header-977" class="dsq-comment-header">
+				<cite id="dsq-cite-977">
+					http://igo2fix.co.uk/adobes-lightroom-for-ipad-makes-a-brief-appearance-google-acquires-a-nest-and-other-news-from-jan-12-18/						<span id="dsq-author-user-977">Adobe&#039;s Lightroom for iPad makes a brief appearance, Google acquires a Nest, and other news from Jan. 12-18 &#124; igo2fix</span>
+									</cite>
+			</div>
+			<div id="dsq-comment-body-977" class="dsq-comment-body">
+				<div id="dsq-comment-message-977" class="dsq-comment-message"><p>[&#8230;] Dropbox experienced a rare bit of out downtime this week. Some well-timed pranksters tried to claim they had hacked the site, but Dropbox explains they had brought it on themselves. They outlined the problems in a post-mortem. [&#8230;]</p>
+<p id="comment-like-977" data-liked=comment-not-liked class="comment-likes comment-not-liked"><a href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/?like_comment=977&#038;_wpnonce=a46dac68eb" class="comment-like-link needs-login" rel="nofollow" data-blog="82525612"><span>Like</span></a><span id="comment-like-count-977" class="comment-like-feedback">Like</span></p>
+</div>
+			</div>
+		</li>
+		</li><!-- #comment-## -->
+		<li id="dsq-comment-978">
+			<div id="dsq-comment-header-978" class="dsq-comment-header">
+				<cite id="dsq-cite-978">
+					http://bambooinnovator.com/2014/01/19/dropbox-and-uber-worth-billions-but-still-inches-from-disaster-investors-drop-big-money-on-dropbox-so-it-can-beat-box-dropbox-is-now-worth-two-ubers-and-a-snapcha						<span id="dsq-author-user-978">Dropbox and Uber: Worth Billions, But Still Inches From Disaster; Investors Drop Big Money On Dropbox So It Can Beat Box; Dropbox is now worth two Ubers and a Snapchat | Bamboo Innovator</span>
+									</cite>
+			</div>
+			<div id="dsq-comment-body-978" class="dsq-comment-body">
+				<div id="dsq-comment-message-978" class="dsq-comment-message"><p>[&#8230;] to the company, the widespread outage was the result of a bug it introduced while updating the hundreds of computer servers that drive its massively popular file-sharing [&#8230;]</p>
+<p id="comment-like-978" data-liked=comment-not-liked class="comment-likes comment-not-liked"><a href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/?like_comment=978&#038;_wpnonce=c47972bd72" class="comment-like-link needs-login" rel="nofollow" data-blog="82525612"><span>Like</span></a><span id="comment-like-count-978" class="comment-like-feedback">Like</span></p>
+</div>
+			</div>
+		</li>
+		</li><!-- #comment-## -->
+		<li id="dsq-comment-979">
+			<div id="dsq-comment-header-979" class="dsq-comment-header">
+				<cite id="dsq-cite-979">
+											<span id="dsq-author-user-979">Peter</span>
+									</cite>
+			</div>
+			<div id="dsq-comment-body-979" class="dsq-comment-body">
+				<div id="dsq-comment-message-979" class="dsq-comment-message"><p>Cool</p>
+<p id="comment-like-979" data-liked=comment-not-liked class="comment-likes comment-not-liked"><a href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/?like_comment=979&#038;_wpnonce=f183e2f587" class="comment-like-link needs-login" rel="nofollow" data-blog="82525612"><span>Like</span></a><span id="comment-like-count-979" class="comment-like-feedback">Like</span></p>
+</div>
+			</div>
+		</li>
+		</li><!-- #comment-## -->
+		<li id="dsq-comment-980">
+			<div id="dsq-comment-header-980" class="dsq-comment-header">
+				<cite id="dsq-cite-980">
+					http://www.cloudsminder.com/2014/01/dropbox-ausfall-haelt-ueber-2-stunden-an/						<span id="dsq-author-user-980">Dropbox-Ausfall hält über 2 Stunden an | cloudsminder</span>
+									</cite>
+			</div>
+			<div id="dsq-comment-body-980" class="dsq-comment-body">
+				<div id="dsq-comment-message-980" class="dsq-comment-message"><p>[&#8230;] Kommentar zum Ausfall auf dropbox.com [&#8230;]</p>
+<p id="comment-like-980" data-liked=comment-not-liked class="comment-likes comment-not-liked"><a href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/?like_comment=980&#038;_wpnonce=bcea24972d" class="comment-like-link needs-login" rel="nofollow" data-blog="82525612"><span>Like</span></a><span id="comment-like-count-980" class="comment-like-feedback">Like</span></p>
+</div>
+			</div>
+		</li>
+		</li><!-- #comment-## -->
+		<li id="dsq-comment-981">
+			<div id="dsq-comment-header-981" class="dsq-comment-header">
+				<cite id="dsq-cite-981">
+					http://thesquarestone.com/worth-billions-but-inches-from-disaster/						<span id="dsq-author-user-981">Worth Billions, But Inches From Disaster | Square Stone</span>
+									</cite>
+			</div>
+			<div id="dsq-comment-body-981" class="dsq-comment-body">
+				<div id="dsq-comment-message-981" class="dsq-comment-message"><p>[&#8230;] to the company, the widespread outage was the result of a bug it introduced while updating the hundreds of computer servers that drive its massively popular file-sharing [&#8230;]</p>
+<p id="comment-like-981" data-liked=comment-not-liked class="comment-likes comment-not-liked"><a href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/?like_comment=981&#038;_wpnonce=561f21108c" class="comment-like-link needs-login" rel="nofollow" data-blog="82525612"><span>Like</span></a><span id="comment-like-count-981" class="comment-like-feedback">Like</span></p>
+</div>
+			</div>
+		</li>
+		</li><!-- #comment-## -->
+		<li id="dsq-comment-982">
+			<div id="dsq-comment-header-982" class="dsq-comment-header">
+				<cite id="dsq-cite-982">
+											<span id="dsq-author-user-982">Jorge Guimarães</span>
+									</cite>
+			</div>
+			<div id="dsq-comment-body-982" class="dsq-comment-body">
+				<div id="dsq-comment-message-982" class="dsq-comment-message"><p>Who can help me, please? I updated Dropbox to the version 2.6.2 and it does&#8217;nt run anymore&#8230; message to contact the Dropbox team and send this message:</p>
+<p>pid:	6284<br />
+appdata:	u&#8217;C:UsersJorgeAppDataRoamingDropbox&#8217;<br />
+real_path=u&#8217;C:UsersJorgeAppDataRoamingDropbox&#8217;<br />
+	mode=040777	uid=0	gid=0<br />
+parent	mode=040777	uid=0	gid=0<br />
+dropbox_path:	u&#8217;C:UsersJorgeDropbox&#8217;<br />
+real_path=u&#8217;C:UsersJorgeDropbox&#8217;<br />
+	not found<br />
+parent	mode=040777	uid=0	gid=0<br />
+HOME:	None<br />
+TMP:	C:UsersJorgeAppDataLocalTemp<br />
+TEMP:	C:UsersJorgeAppDataLocalTemp<br />
+tempdir:	u&#8217;c:usersjorgeappdatalocaltemp&#8217;<br />
+real_path=u&#8217;c:usersjorgeappdatalocaltemp&#8217;<br />
+	mode=040777	uid=0	gid=0<br />
+parent	mode=040777	uid=0	gid=0<br />
+Traceback (most recent call last):<br />
+  File &#8220;dropboxclientmain.pyc&#8221;, line 1758, in main_startup<br />
+  File &#8220;dropboxclientmain.pyc&#8221;, line 1019, in run<br />
+  File &#8220;dropboxclientmain.pyc&#8221;, line 406, in startup_low<br />
+  File &#8220;dropboxclientmultiaccountinstance_database.pyc&#8221;, line 364, in __init__<br />
+  File &#8220;dropboxclientmultiaccountinstance_database.pyc&#8221;, line 65, in __init__<br />
+  File &#8220;dropboxsqlite3_helpers.pyc&#8221;, line 527, in __init__<br />
+  File &#8220;dropboxsqlite3_helpers.pyc&#8221;, line 496, in rebuild<br />
+  File &#8220;dropboxsqlite3_helpers.pyc&#8221;, line 256, in conn<br />
+  File &#8220;dropboxsqlite3_helpers.pyc&#8221;, line 236, in _create_conn<br />
+  File &#8220;dropboxsqlite3_helpers.pyc&#8221;, line 140, in connect<br />
+  File &#8220;dropbox_sqlite_ext__init__.pyc&#8221;, line 67, in load_extension<br />
+OperationalError: ImpossÃ­vel localizar o mÃ³dulo especificado.<br />
+Thanks.</p>
+<p id="comment-like-982" data-liked=comment-not-liked class="comment-likes comment-not-liked"><a href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/?like_comment=982&#038;_wpnonce=6f5d61018d" class="comment-like-link needs-login" rel="nofollow" data-blog="82525612"><span>Like</span></a><span id="comment-like-count-982" class="comment-like-feedback">Like</span></p>
+</div>
+			</div>
+		</li>
+		<ul class="children">
+		<li id="dsq-comment-986">
+			<div id="dsq-comment-header-986" class="dsq-comment-header">
+				<cite id="dsq-cite-986">
+											<span id="dsq-author-user-986">Jorge Guimarães</span>
+									</cite>
+			</div>
+			<div id="dsq-comment-body-986" class="dsq-comment-body">
+				<div id="dsq-comment-message-986" class="dsq-comment-message"><p>It&#8217;s all okay now and again. How? Back to Dropbox 2.4.11.</p>
+<p id="comment-like-986" data-liked=comment-not-liked class="comment-likes comment-not-liked"><a href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/?like_comment=986&#038;_wpnonce=a682bf6bd7" class="comment-like-link needs-login" rel="nofollow" data-blog="82525612"><span>Like</span></a><span id="comment-like-count-986" class="comment-like-feedback">Like</span></p>
+</div>
+			</div>
+		</li>
+		</li><!-- #comment-## -->
+</ul><!-- .children -->
+</li><!-- #comment-## -->
+		<li id="dsq-comment-983">
+			<div id="dsq-comment-header-983" class="dsq-comment-header">
+				<cite id="dsq-cite-983">
+					http://blog.skilleo.me/dropbox-outage-post-mortem/						<span id="dsq-author-user-983">Dropbox: Outage post-mortem | Skilleo Blog</span>
+									</cite>
+			</div>
+			<div id="dsq-comment-body-983" class="dsq-comment-body">
+				<div id="dsq-comment-message-983" class="dsq-comment-message"><p>[&#8230;] Original post by Dropbox [&#8230;]</p>
+<p id="comment-like-983" data-liked=comment-not-liked class="comment-likes comment-not-liked"><a href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/?like_comment=983&#038;_wpnonce=1425289693" class="comment-like-link needs-login" rel="nofollow" data-blog="82525612"><span>Like</span></a><span id="comment-like-count-983" class="comment-like-feedback">Like</span></p>
+</div>
+			</div>
+		</li>
+		</li><!-- #comment-## -->
+		<li id="dsq-comment-985">
+			<div id="dsq-comment-header-985" class="dsq-comment-header">
+				<cite id="dsq-cite-985">
+											<span id="dsq-author-user-985">gary</span>
+									</cite>
+			</div>
+			<div id="dsq-comment-body-985" class="dsq-comment-body">
+				<div id="dsq-comment-message-985" class="dsq-comment-message"><p>As of Jan. 22 my Dropbox is still not working.  I am migrating to Copy.</p>
+<p id="comment-like-985" data-liked=comment-not-liked class="comment-likes comment-not-liked"><a href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/?like_comment=985&#038;_wpnonce=c777c41c9f" class="comment-like-link needs-login" rel="nofollow" data-blog="82525612"><span>Like</span></a><span id="comment-like-count-985" class="comment-like-feedback">Like</span></p>
+</div>
+			</div>
+		</li>
+		</li><!-- #comment-## -->
+		<li id="dsq-comment-987">
+			<div id="dsq-comment-header-987" class="dsq-comment-header">
+				<cite id="dsq-cite-987">
+					http://outdoordecorlights.redwingfootwearstore.com/who-sells-trans-globe-lighting-5823-rt-13-inch-high-post-top-light-rust.html						<span id="dsq-author-user-987">^ Who sells Trans Globe Lighting 5823 RT 13-Inch High Post Top Light, Rust | outdoor decor lights</span>
+									</cite>
+			</div>
+			<div id="dsq-comment-body-987" class="dsq-comment-body">
+				<div id="dsq-comment-message-987" class="dsq-comment-message"><p>[&#8230;] Rust or Black, a craftsman style collection of wall brackets, hanging lanterns, post top lamps, and pole lamps. Tea stained linen [&#8230;]</p>
+<p id="comment-like-987" data-liked=comment-not-liked class="comment-likes comment-not-liked"><a href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/?like_comment=987&#038;_wpnonce=33ed2b1054" class="comment-like-link needs-login" rel="nofollow" data-blog="82525612"><span>Like</span></a><span id="comment-like-count-987" class="comment-like-feedback">Like</span></p>
+</div>
+			</div>
+		</li>
+		</li><!-- #comment-## -->
+		<li id="dsq-comment-989">
+			<div id="dsq-comment-header-989" class="dsq-comment-header">
+				<cite id="dsq-cite-989">
+											<span id="dsq-author-user-989">leigh</span>
+									</cite>
+			</div>
+			<div id="dsq-comment-body-989" class="dsq-comment-body">
+				<div id="dsq-comment-message-989" class="dsq-comment-message"><p>All of my dropbox files are gone.<br />
+Is there a way to call someone for help.</p>
+<p id="comment-like-989" data-liked=comment-not-liked class="comment-likes comment-not-liked"><a href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/?like_comment=989&#038;_wpnonce=80e144e752" class="comment-like-link needs-login" rel="nofollow" data-blog="82525612"><span>Like</span></a><span id="comment-like-count-989" class="comment-like-feedback">Like</span></p>
+</div>
+			</div>
+		</li>
+		</li><!-- #comment-## -->
+		<li id="dsq-comment-991">
+			<div id="dsq-comment-header-991" class="dsq-comment-header">
+				<cite id="dsq-cite-991">
+											<span id="dsq-author-user-991">MadeByChipmunk</span>
+									</cite>
+			</div>
+			<div id="dsq-comment-body-991" class="dsq-comment-body">
+				<div id="dsq-comment-message-991" class="dsq-comment-message"><p>30th of January and still my dropbox sync is endlessssss!</p>
+<p id="comment-like-991" data-liked=comment-not-liked class="comment-likes comment-not-liked"><a href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/?like_comment=991&#038;_wpnonce=209ee7d658" class="comment-like-link needs-login" rel="nofollow" data-blog="82525612"><span>Like</span></a><span id="comment-like-count-991" class="comment-like-feedback">Like</span></p>
+</div>
+			</div>
+		</li>
+		</li><!-- #comment-## -->
+		<li id="dsq-comment-993">
+			<div id="dsq-comment-header-993" class="dsq-comment-header">
+				<cite id="dsq-cite-993">
+											<span id="dsq-author-user-993">scwebbie</span>
+									</cite>
+			</div>
+			<div id="dsq-comment-body-993" class="dsq-comment-body">
+				<div id="dsq-comment-message-993" class="dsq-comment-message"><p>My desktop drop box is still continuously syncing and won&#8217;t quit.  i&#8217;m about ready to boot it off my computer.  Is there a fix?</p>
+<p id="comment-like-993" data-liked=comment-not-liked class="comment-likes comment-not-liked"><a href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/?like_comment=993&#038;_wpnonce=b5d4518e92" class="comment-like-link needs-login" rel="nofollow" data-blog="82525612"><span>Like</span></a><span id="comment-like-count-993" class="comment-like-feedback">Like</span></p>
+</div>
+			</div>
+		</li>
+		</li><!-- #comment-## -->
+		</ul>
+		<a class="prev page-numbers" href="https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/comment-page-6/#comments">&laquo; Previous</a>
+<a class='page-numbers' href='https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/comment-page-1/#comments'>1</a>
+<a class='page-numbers' href='https://blogs.dropbox.com/tech/2014/01/outage-post-mortem/comment-page-2/#comments'>2</a>	</div>
+</div>
+		
+<a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+<script type="text/javascript" charset="utf-8">
+	var disqus_url = "https:\/\/blogs.dropbox.com\/tech\/2014\/01\/outage-post-mortem\/";
+	var disqus_identifier = "610 https:\/\/tech.dropbox.com\/?p=610";
+	var disqus_container_id = 'disqus_thread';
+	var disqus_domain = "disqus.com";
+	var disqus_shortname = "dropboxtech";
+		var disqus_config = function () {
+	    var config = this; // Access to the config object
+
+	    /* 
+	       All currently supported events:
+	        * preData — fires just before we request for initial data
+	        * preInit - fires after we get initial data but before we load any dependencies
+	        * onInit  - fires when all dependencies are resolved but before dtpl template is rendered
+	        * afterRender - fires when template is rendered but before we show it
+	        * onReady - everything is done
+	     */
+
+		config.callbacks.preData.push(function() {
+			// clear out the container (its filled for SEO/legacy purposes)
+			document.getElementById(disqus_container_id).innerHTML = '';
+		})
+		config.callbacks.onReady.push(function() {
+/*
+			// sync comments in the background so we don't block the page
+			var req = new XMLHttpRequest();
+			req.open('GET', '?cf_action=sync_comments&post_id=610', true);
+			req.send(null);
+*/
+		});
+		
+			};
+	
+	var facebookXdReceiverPath = "http:\/\/dropboxtechblog.wordpress.com\/wp-content\/themes\/vip\/plugins\/disqus\/xd_receiver.htm";
+</script>
+
+<script type="text/javascript" charset="utf-8">
+	var DsqLocal = {
+		'trackbacks': [
+		],
+		'trackback_url': "https:\/\/blogs.dropbox.com\/tech\/2014\/01\/outage-post-mortem\/trackback\/"	};
+</script>
+
+<script type="text/javascript" charset="utf-8">
+(function() {
+	var dsq = document.createElement('script'); dsq.type = 'text/javascript';
+	dsq.async = true;
+	dsq.src = '//' + disqus_shortname + '.' + disqus_domain + '/embed.js?pname=wordpress&pver=2.40';
+	(document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+})();
+</script>
+		</section>
+	</div><!-- #primary -->
+
+
+
+	</div><!-- #content -->
+
+	<footer id="colophon" class="site-footer" role="contentinfo">
+		<div class="footer-menus">
+						<div class="footer-block">
+								<span>Dropbox</span>
+				<div class="menu-dropbox-container"><ul id="menu-dropbox" class="menu"><li id="menu-item-15" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-15"><a href="https://www.dropbox.com/install">Install</a></li>
+<li id="menu-item-852" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-852"><a href="https://www.dropbox.com/pricing">Pricing</a></li>
+<li id="menu-item-853" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-853"><a href="https://www.dropbox.com/business">Business</a></li>
+<li id="menu-item-1005" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1005"><a href="https://www.dropbox.com/jobs">Jobs</a></li>
+</ul></div>			</div>
+			<div class="footer-block">
+								<span>Connect</span>
+				<div class="menu-connect-container"><ul id="menu-connect" class="menu"><li id="menu-item-1010" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1010"><a href="http://www.twitter.com/Dropbox">Twitter</a></li>
+<li id="menu-item-1011" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1011"><a href="https://www.facebook.com/Dropbox">Facebook</a></li>
+<li id="menu-item-1012" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1012"><a href="https://plus.google.com/+Dropbox/posts">Google+</a></li>
+<li id="menu-item-1013" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1013"><a href="https://www.youtube.com/user/dropbox">YouTube</a></li>
+</ul></div>			</div>
+			<div class="footer-block">
+								<span>Support</span>
+				<div class="menu-support-container"><ul id="menu-support" class="menu"><li id="menu-item-1006" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1006"><a href="https://www.dropbox.com/help">Help Center</a></li>
+<li id="menu-item-1007" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1007"><a href="https://www.dropbox.com/gs">Get Started</a></li>
+<li id="menu-item-1008" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1008"><a href="https://www.dropbox.com/contact">Contact us</a></li>
+<li id="menu-item-1009" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1009"><a href="https://www.dropbox.com/privacy">Privacy &amp; Terms</a></li>
+</ul></div>			</div>
+			<div class="footer-block disclaimer">
+				<aside id="text-2" class="widget widget_text">			<div class="textwidget">Please note: Sometimes we blog about upcoming products or features before they're released, but timing and exact functionality of these features may change from what's shared here. The decision to purchase our services should be made based on features that are currently available.</div>
+		</aside>
+				<div class="site-info">
+					Powered by <a href="https://vip.wordpress.com/" rel="generator nofollow" class="powered-by-wpcom">WordPress.com VIP</a>				</div><!-- .site-info -->
+
+			</div>
+					</div>
+
+	</footer><!-- #colophon -->
+</div><!-- #page -->
+
+<div id="menu-overlay"></div>
+<!-- wpcom_wp_footer -->
+	<script type="text/javascript">
+	// <![CDATA[
+		var disqus_shortname = "dropboxtech";
+		var disqus_domain = "disqus.com";
+		(function () {
+			var nodes = document.getElementsByTagName('span');
+			for (var i = 0, url; i < nodes.length; i++) {
+				if (nodes[i].className.indexOf('dsq-postid') != -1) {
+					nodes[i].parentNode.setAttribute('data-disqus-identifier', nodes[i].getAttribute('rel'));
+					url = nodes[i].parentNode.href.split('#', 1);
+					if (url.length == 1) url = url[0];
+					else url = url[1]
+					nodes[i].parentNode.href = url + '#disqus_thread';
+				}
+			}
+			var s = document.createElement('script'); s.async = true;
+			s.type = 'text/javascript';
+			s.src = '//' + disqus_domain + '/forums/' + disqus_shortname + '/count.js';
+			(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+		}());
+	//]]>
+	</script>
+		<script>
+			var _gaq = _gaq || [];
+			_gaq.push(['_setAccount', 'UA-279179-4']);
+			_gaq.push(['_setCookiePath', '/tech']);
+			_gaq.push(['_trackPageview']);
+
+			window.setTimeout(function () {
+				var ga = document.createElement('script');
+				ga.type = 'text/javascript';
+				ga.async = true;
+				var src_prefix = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www');
+				ga.src = src_prefix + '.google-analytics.com/ga.js';
+				var s = document.getElementsByTagName('script')[0];
+				s.parentNode.insertBefore(ga, s);
+			}, 0);
+		</script>
+
+		<!-- If Google Tracking Manger code isn't empty add tracking script -->
+			<script type='text/javascript' src='//0.gravatar.com/js/gprofiles.js?ver=201615y'></script>
+<script type='text/javascript'>
+/* <![CDATA[ */
+var WPGroHo = {"my_hash":""};
+/* ]]> */
+</script>
+<script type='text/javascript' src='https://s1.wp.com/wp-content/mu-plugins/gravatar-hovercards/wpgroho.js?m=1380573781h'></script>
+
+	<script>
+		//initialize and attach hovercards to all gravatars
+		jQuery( document ).ready( function( $ ) {
+
+			if (typeof Gravatar === "undefined"){
+				return;
+			}
+
+			if ( typeof Gravatar.init !== "function" ) {
+				return;
+			}			
+
+			Gravatar.profile_cb = function( hash, id ) {
+				WPGroHo.syncProfileData( hash, id );
+			};
+			Gravatar.my_hash = WPGroHo.my_hash;
+			Gravatar.init( 'body', '#wp-admin-bar-my-account' );
+		});
+	</script>
+
+		<div style="display:none">
+	</div>
+<script type='text/javascript'>
+/* <![CDATA[ */
+var HighlanderComments = {"loggingInText":"Logging In\u2026","submittingText":"Posting Comment\u2026","postCommentText":"Post Comment","connectingToText":"Connecting to %s","commentingAsText":"%1$s: You are commenting using your %2$s account.","logoutText":"Log Out","loginText":"Log In","connectURL":"https:\/\/dropboxtechblog.wordpress.com\/public.api\/connect\/?action=request","logoutURL":"https:\/\/dropboxtechblog.wordpress.com\/wp-login.php?action=logout&_wpnonce=0423aa5e74","homeURL":"https:\/\/dropboxtechblog.wordpress.com\/","postID":"610","gravDefault":"identicon","enterACommentError":"Please enter a comment","enterEmailError":"Please enter your email address here","invalidEmailError":"Invalid email address","enterAuthorError":"Please enter your name here","gravatarFromEmail":"This picture will show whenever you leave a comment. Click to customize it.","logInToExternalAccount":"Log in to use details from one of these accounts.","change":"Change","changeAccount":"Change Account","comment_registration":"0","userIsLoggedIn":"","isJetpack":"0","text_direction":"ltr"};
+/* ]]> */
+</script>
+<script type='text/javascript' src='https://s2.wp.com/_static/??/wp-content/js/jquery/jquery.autoresize.js,/wp-content/mu-plugins/highlander-comments/script.js?m=1424115551j'></script>
+<script type='text/javascript'>
+/* <![CDATA[ */
+var comment_like_text = {"loading":"Loading..."};
+/* ]]> */
+</script>
+<script type='text/javascript' src='https://s1.wp.com/_static/??-eJyVy0EOQDAQheELqQlppBtxFtoJrbbKtDg+YsNGYvu/98EWmJx8RB/BEChctcSw54YyeEwusWBTrz2B1SMSzAkTDq1XFpePs5ycOxO7kbl0B7TpgH/QK5ywcXXBueBVJURpDiM3R+U='></script>
+<script type='text/javascript' src='//s7.addthis.com/js/300/addthis_widget.js?ver=0.1.0#pubid=ra-54d8c45e227cfd16'></script>
+<script type='text/javascript' src='//platform.twitter.com/widgets.js?ver=0.1.0'></script>
+<script type='text/javascript'>
+/* <![CDATA[ */
+var dropboxSubscribe = {"ajaxurl":"https:\/\/blogs.dropbox.com\/tech\/subscribe\/mailing-list\/","nonce":"5c152af440","invalid_email_msg":"Invalid email address","enter_msg":"Please enter your email address"};
+/* ]]> */
+</script>
+<script type='text/javascript'>
+/* <![CDATA[ */
+var wpcomVipAnalytics = {"is_404":"0","is_home":"0","is_single":"1","is_front_page":"0","is_archive":"0","percentToTrack":"1"};
+/* ]]> */
+</script>
+<script type='text/javascript'>
+/* <![CDATA[ */
+var JetpackEmojiSettings = {"base_url":"https:\/\/s0.wp.com\/wp-content\/mu-plugins\/emoji\/twemoji\/"};
+/* ]]> */
+</script>
+<script type='text/javascript' src='https://s2.wp.com/_static/??-eJyNjMsKwkAMRX/INO2gggvxU2Q6hpo4L0za6t+LQkE36urC5ZyDc4VQslE2tDMlUpy44ulaal9u6FXJFEWX59jHMmiTODeiK3yz0wg1jgNnRQfPhrxS4LOPd+OgXwRKRRht/tifvJBVHy7wH71Qh7Tv1m7Ttm637eQBjxJeyA=='></script>
+<script type="text/javascript">
+// <![CDATA[
+(function() {
+try{
+  if ( window.external &&'msIsSiteMode' in window.external) {
+    if (window.external.msIsSiteMode()) {
+      var jl = document.createElement('script');
+      jl.type='text/javascript';
+      jl.async=true;
+      jl.src='/wp-content/plugins/ie-sitemode/custom-jumplist.php';
+      var s = document.getElementsByTagName('script')[0];
+      s.parentNode.insertBefore(jl, s);
+    }
+  }
+}catch(e){}
+})();
+// ]]>
+</script><script src="//stats.wp.com/w.js?51" type="text/javascript" async defer></script>
+<script type="text/javascript">
+_tkq = window._tkq || [];
+_stq = window._stq || [];
+_tkq.push(['storeContext', {'blog_id':'82525612','blog_tz':'0','user_lang':'en','blog_lang':'en','user_id':'0'}]);
+_stq.push(['view', {'blog':'82525612','v':'wpcom','tz':'0','user_id':'0','post':'610','subd':'dropboxtechblog'}]);
+function st_vt() {var x=document.createElement("img");x.src="https://pixel.wp.com/g.gif?blog=82525612&v=wpcomvt&tz=0&user_id=0&post=610&subd=dropboxtechblog&rand="+Math.random();}
+_stq.push(['extra', {'crypt':'UE40eW5QN0p8M2Y/RE1BNmNJfGhxNCVxUDExYmtib2E/SzdEJm0lUEtbdFU0fFk4cHZvcUFrZT90Tn4yQm1+R3NyNTdxeF16eiYtNkE1LXMmREhYQiwwRl1baGphZTVyWDUxXXp4QSs5QW8sLm1rfjRZd3ZNXSY9R2g9KzY9T2VQYUI/K3dnSVlyS3NaSmp5TkotbDRla3hLU0RqYzN5c3Q2VixLRiUyRU56fj1ITCxPaHJUaTFyWCxvUkZ8W1kmeW9KSXxkOUl3Z1hXLG8rJj9Ld2FMZ0NOQ0lYT3ZrVzB8M0hkfEZQRz1lR2JydnAuWHZzZDJuL1BNaXxOfnNxRGx1LH5qfg=='}]);
+_stq.push([ 'clickTrackerInit', '82525612', '610' ]);
+	</script>
+<noscript><img src="https://pixel.wp.com/b.gif?v=noscript" style="height:0px;width:0px;overflow:hidden" alt="" /></noscript>
+<script>
+if ( 'object' === typeof wpcom_mobile_user_agent_info ) {
+
+	wpcom_mobile_user_agent_info.init();
+	var mobileStatsQueryString = "";
+	
+	if( false !== wpcom_mobile_user_agent_info.matchedPlatformName )
+		mobileStatsQueryString += "&x_" + 'mobile_platforms' + '=' + wpcom_mobile_user_agent_info.matchedPlatformName;
+	
+	if( false !== wpcom_mobile_user_agent_info.matchedUserAgentName )
+		mobileStatsQueryString += "&x_" + 'mobile_devices' + '=' + wpcom_mobile_user_agent_info.matchedUserAgentName;
+	
+	if( wpcom_mobile_user_agent_info.isIPad() )
+		mobileStatsQueryString += "&x_" + 'ipad_views' + '=' + 'views';
+
+	if( "" != mobileStatsQueryString ) {
+		new Image().src = document.location.protocol + '//pixel.wp.com/g.gif?v=wpcom-no-pv' + mobileStatsQueryString + '&baba=' + Math.random();
+	}
+	
+}
+</script>
+</body>
+</html>

@@ -63,7 +63,7 @@ Tarefa de extração. Para cada arquivo em ingestion/fichas/prompts_prontos/lote
 Regras desta tarefa:
 - Use SOMENTE os arquivos de prompts_prontos/lote_NN/.
 - NÃO abra nada em ingestion/fichas/gabarito/, ingestion/fichas/saida/, ingestion/fichas/saida_teste*/,
-  ingestion/fichas/saida_lotes/ (fora do lote_NN), revisao/, nem outros arquivos do projeto.
+  ingestion/fichas/saida_lotes/ (fora do lote_NN), ingestion/reextracao/, revisao/, nem outros arquivos do projeto.
 - Faça um documento por vez, sem comparar um com o outro.
 - No fim, rode:
   multiagent_env/bin/python ingestion/fichas/validar_fichas.py ingestion/fichas/saida_lotes/lote_NN/DAN-*.json
@@ -93,6 +93,15 @@ Lista em [`../reextracao/lista.csv`](../reextracao/lista.csv): 53 documentos (os
 - DAN-053 e DAN-183 são do gabarito e ficam com o texto original, porque o lote 00 precisa receber sempre a mesma entrada.
 - DAN-072 tem 17,5 mil palavras: são 44 atualizações que repetem o estado de cada produto. A sessão vai precisar ler esse arquivo em partes.
 
-**Sem artigo (precisa de download novo):** 10 documentos. São as 7 páginas da lista anterior, mais DAN-146, DAN-173 e DAN-222, que redirecionam para o índice do blog ou para a página de produto.
+**Sem artigo (download novo):** eram 10 documentos, as 7 páginas da lista anterior mais DAN-146, DAN-173 e DAN-222, que redirecionam para o índice do blog ou para a página de produto. Resultado:
+- **DAN-209 e DAN-210 (Reddit) não precisaram de download.** O post já estava no HTML salvo, no layout antigo do Reddit, mas dentro de um `<form>`, e a primeira extração descartou esse trecho.
+- **Baixados da Wayback Machine (`id_`, HTML original):** DAN-034, 146, 173, 216 e 222. O HTML fica em `ingestion/reextracao/baixados/DAN-xxx/pagina.html` e a origem (URL pedida, URL final, sha256 e data) em `baixados/manifesto.csv`.
+- **DAN-156:** a página do catálogo é só o item do Hacker News. O link dela leva à thread "Foursquare outage post mortem" do grupo mongodb-user, de 2010, baixada da Wayback. Entra só a primeira mensagem (o postmortem de Eliot Horowitz).
+- **DAN-202 é `inutilizavel`.** O PDF do catálogo redireciona, e o original é o relatório da força-tarefa EUA–Canadá, com mais de 200 páginas. O apagão de 2003 já está coberto pela DAN-069.
+- **DAN-150 (Elastic) é `inutilizavel`.** O blog redireciona para o índice, e a cópia da Wayback chega cortada em 1 MiB, antes do artigo, porque a página tem CSS embutido enorme.
+
+Ao todo, 49 documentos têm texto novo em `extraidos/`. As fichas antigas `nao_verificavel` desses documentos (DAN-034, 156, 209, 210 e 216, em `saida/`) serão substituídas pelas fichas novas.
 
 `montar_prompts.py`, `validar_fichas.py` e `montar_revisao.py` usam o texto de `ingestion/reextracao/extraidos/` quando o documento está lá.
+
+**Lotes 17 a 21:** os 49 documentos foram sorteados com a semente 42 e acrescentados ao `lotes.csv` com o motivo `reextracao (<grupo>)`. Usam o prompt v2.19, que traz a nota de formato para status page. O lote 17 é conferido inteiro, porque o formato é novo; do 18 em diante a conferência volta a ser por amostra. No lote 21, a DAN-072 tem 17,5 mil palavras e a sessão vai precisar ler esse arquivo em partes.

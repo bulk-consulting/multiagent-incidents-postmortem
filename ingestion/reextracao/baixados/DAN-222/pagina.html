@@ -1,0 +1,458 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
+<head>
+ <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Report on October 23 Stackdriver Outage &raquo;</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">      
+
+	<style type="text/css">
+		#fancybox-close{right:-15px;top:-15px}
+		div#fancybox-content{border-color:#FFFFFF}
+		div#fancybox-title{background-color:#FFFFFF}
+		div#fancybox-outer{background-color:#FFFFFF}
+		div#fancybox-title-inside{color:#333333}
+	</style>
+
+	<script type="text/javascript">var islrsharing = true; var islrsocialcounter = true; var hybridsharing = true;</script> <script type="text/javascript" src="//share.loginradius.com/Content/js/LoginRadius.js" id="lrsharescript"></script><script type="text/javascript">LoginRadius.util.ready(function () { $SC.Providers.Selected = ["Facebook Like","Twitter Tweet","Google+ +1","LinkedIn Share","Reddit"]; $S = $SC.Interface.simple; $S.isHorizontal = true; $S.countertype = 'vertical'; $S.show("loginRadiusHorizontalSharing"); });</script>
+<!-- This site is optimized with the Yoast WordPress SEO plugin v1.5.2.7 - https://yoast.com/wordpress/plugins/seo/ -->
+<link rel="canonical" href="http://www.stackdriver.com/post-mortem-october-23-stackdriver-outage/" />
+<!-- / Yoast WordPress SEO plugin. -->
+
+<link rel="alternate" type="application/rss+xml" title=" &raquo; Feed" href="http://www.stackdriver.com/feed/" />
+<link rel="alternate" type="application/rss+xml" title=" &raquo; Comments Feed" href="http://www.stackdriver.com/comments/feed/" />
+<link rel="alternate" type="application/rss+xml" title=" &raquo; Report on October 23 Stackdriver Outage Comments Feed" href="http://www.stackdriver.com/post-mortem-october-23-stackdriver-outage/feed/" />
+<link rel='stylesheet' id='Testimonials_Widget-ie7-css'  href='//www.stackdriver.com/wp-content/plugins/testimonials-widget/assets/css/testimonials-widget-ie7.css?ver=3.9.2' type='text/css' media='all' />
+<link rel='stylesheet' id='Testimonials_Widget-css'  href='//www.stackdriver.com/wp-content/plugins/testimonials-widget/assets/css/testimonials-widget-2.14.0.css?ver=3.9.2' type='text/css' media='all' />
+<link rel='stylesheet' id='fancybox-css'  href='http://www.stackdriver.com/wp-content/plugins/fancybox-for-wordpress/fancybox/fancybox.css?ver=3.9.2' type='text/css' media='all' />
+<link rel='stylesheet' id='wpeden-bootstrap-css'  href='http://www.stackdriver.com/wp-content/themes/sensitive/bootstrap/css/bootstrap.css?ver=3.9.2' type='text/css' media='all' />
+<link rel='stylesheet' id='wpeden-bootstrap-responsive-css'  href='http://www.stackdriver.com/wp-content/themes/sensitive/bootstrap/css/bootstrap-responsive.css?ver=3.9.2' type='text/css' media='all' />
+<link rel='stylesheet' id='wpeden-main-css'  href='http://www.stackdriver.com/wp-content/themes/sensitive/style.css?ver=3.9.2' type='text/css' media='all' />
+<script type='text/javascript' src='http://www.stackdriver.com/wp-includes/js/jquery/jquery.js?ver=1.11.0'></script>
+<script type='text/javascript' src='http://www.stackdriver.com/wp-includes/js/jquery/jquery-migrate.min.js?ver=1.2.1'></script>
+<script type='text/javascript' src='http://www.stackdriver.com/wp-content/plugins/fancybox-for-wordpress/fancybox/jquery.fancybox.js?ver=1.3.4'></script>
+<script type='text/javascript' src='http://www.stackdriver.com/wp-content/themes/sensitive/bootstrap/js/bootstrap.min.js?ver=3.9.2'></script>
+<script type='text/javascript' src='http://www.stackdriver.com/wp-content/themes/sensitive/js/site.js?ver=3.9.2'></script>
+<link rel="EditURI" type="application/rsd+xml" title="RSD" href="http://www.stackdriver.com/xmlrpc.php?rsd" />
+<link rel="wlwmanifest" type="application/wlwmanifest+xml" href="http://www.stackdriver.com/wp-includes/wlwmanifest.xml" /> 
+<link rel='shortlink' href='http://www.stackdriver.com/?p=3354' />
+
+<!-- Fancybox for WordPress v3.0.2 -->
+<script type="text/javascript">
+jQuery(function(){
+
+jQuery.fn.getTitle = function() { // Copy the title of every IMG tag and add it to its parent A so that fancybox can show titles
+	var arr = jQuery("a.fancybox");
+	jQuery.each(arr, function() {
+		var title = jQuery(this).children("img").attr("title");
+		jQuery(this).attr('title',title);
+	})
+}
+
+// Supported file extensions
+var thumbnails = jQuery("a:has(img)").not(".nolightbox").filter( function() { return /\.(jpe?g|png|gif|bmp)$/i.test(jQuery(this).attr('href')) });
+
+thumbnails.addClass("fancybox").getTitle();
+jQuery("a.fancybox").fancybox({
+	'cyclic': false,
+	'autoScale': true,
+	'padding': 10,
+	'opacity': true,
+	'speedIn': 500,
+	'speedOut': 500,
+	'changeSpeed': 300,
+	'overlayShow': true,
+	'overlayOpacity': "0.3",
+	'overlayColor': "#666666",
+	'titleShow': true,
+	'titlePosition': 'inside',
+	'enableEscapeButton': true,
+	'showCloseButton': true,
+	'showNavArrows': true,
+	'hideOnOverlayClick': true,
+	'hideOnContentClick': true,
+	'width': 560,
+	'height': 340,
+	'transitionIn': "fade",
+	'transitionOut': "fade",
+	'centerOnScroll': true
+});
+
+
+})
+</script>
+<!-- END Fancybox for WordPress -->
+    
+    <style type="text/css">
+    .footer,
+    .navbar-wrapper{
+            }
+    .footer p,
+    .footer,
+    .widget-footer h3,
+    .footer a,
+    .wpeden-intro h2,
+    .wpeden-intro p{
+        
+    }
+    
+    </style>
+    
+    <style type="text/css" id="custom-background-css">
+body.custom-background { background-color: #222222; }
+</style>
+<link rel="stylesheet" id="manual-style" href="/wp-content/themes/sensitive/style.css?date=2014-04-23-a" />
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33234753-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+<link rel="shortcut icon" href="/wp-content/themes/sensitive/favicon.ico" />
+</head>
+<body class="single single-post postid-3354 single-format-standard custom-background">
+<div class="wide">
+     
+<!-- NAVBAR
+    ================================================== -->
+    <div class="navbar-wrapper main-navbar">
+      <!-- Wrap the .navbar in .container to center it within the absolutely positioned parent. -->
+      <div class="container">
+
+        <div class="navbar navbar-fixed-top">
+          <div class="navbar-inner">
+            <!-- Responsive Navbar Part 1: Button for triggering responsive navbar (not covered in tutorial). Include responsive CSS to utilize. -->
+            <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+            </a>
+            <a class="brand" href="http://www.stackdriver.com/"></a>
+            <!-- Responsive Navbar Part 2: Place all navbar contents you want collapsed withing .navbar-collapse.collapse. -->
+            <div class="nav-collapse collapse">
+                            <ul id="menu-corporate-menu-full" class="nav"><li id="menu-item-1286" class="menu-item menu-item-type-post_type menu-item-object-page  page_item page-item-333  menu-item-1286"><a title="Stackdriver &#8211; Amazon Web Services and OpenStack monitoring" href="http://www.stackdriver.com/" >Home</a></li>
+<li id="menu-item-1195" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1195 "><a title="AWS and Rackspace Monitoring Features" href="/aws-insights/" >Product</a></li>
+<li id="menu-item-1193" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1193 "><a title="About cloud monitoring provider Stackdriver" href="/about-stackdriver/" >About</a></li>
+<li id="menu-item-3133" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3133 "><a href="/pricing/" >Pricing</a></li>
+<li id="menu-item-1348" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1348 active current_page_item current-menu-item"><a title="DevOps blog for AWS, Rackspace and OpenStack news" href="/blog/" >Blog</a></li>
+<li id="menu-item-3101" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-3101"><a title="Enable cloud monitoring &#8211; sign up for Stackdriver" href="https://www.stackdriver.com/signup" onClick="_gaq.push(['_trackEvent', 'CTA', 'Click', 'Header Signup']);">Try It!</a></li>
+<li id="menu-item-1380" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1380"><a title="Log into your cloud monitoring account" href="https://app.stackdriver.com" onClick="_gaq.push(['_trackEvent', 'Login', 'Click', 'Header Login']);">App Login</a></li>
+</ul>           
+            </div><!--/.nav-collapse -->
+          </div><!-- /.navbar-inner -->
+        </div><!-- /.navbar -->
+
+      </div> <!-- /.container -->   
+            
+ 
+      
+    </div><!-- /.navbar-wrapper -->
+        
+     
+<div class="container">
+<div class="row-fluid">
+<div class="span8">
+<div  id="post-3354" class="post-3354 post type-post status-publish format-standard hentry category-company-news"> 
+ 
+<div  class="post-3354 post type-post status-publish format-standard hentry category-company-news post">
+<div class="breadcrumb">Posted on October 31, 2013 / Posted by <a href="http://www.stackdriver.com/author/patrick/">Patrick</a>
+<nav id="nav-single"> 
+                        <a href="http://www.stackdriver.com/understanding-cpu-steal-experiment/" rel="prev"><span class="meta-nav">&larr;</span> Previous Post</a>                        <a href="http://www.stackdriver.com/top-five-cloud-stories-week-7/" rel="next">Next Post<span class="meta-nav">&rarr;</span></a></nav>
+</div>
+<div class="clear"></div>
+<h1 class="entry-title">Report on October 23 Stackdriver Outage</h1>
+<div class="entry-content">
+ 
+<p>On Wednesday, October 23, around 9:45am ET, the <a href="http://www.stackdriver.com/" >Stackdriver Intelligent Monitoring</a> application suffered an outage.  We sincerely apologize for this incident.  We know that you depend on Stackdriver to help keep your application running, and when Stackdriver is unavailable, your job becomes more difficult.  We take this occurrence very seriously and will improve the service to reduce the chance of future failures.</p>
+<p><strong>Impact</strong></p>
+<p>The outage impacted customers several ways. The issue that persisted the longest was that the charts in the application had a gap of several hours where there was no data displayed. Additionally, alerting was delayed for approximately one hour and after the alerting functionality was restored to its normal state, some bad alerts were generated.</p>
+<p><strong>TL;DR</strong></p>
+<p>The Cassandra cluster hosting the time series data that is displayed in charts failed.  Backpressure from the queue feeding Cassandra propagated to other queues in the same message broker.  Because of our design for responding to congested queues, independent, healthy, functioning pipelines&#8211;most notably for alerting&#8211;were not served with new messages, degrading service even further. We restored most services by allowing messages to be delivered other subsystems independently, despite the problem on the Cassandra queue.  When attempts to restore the Cassandra cluster failed, we deployed a new Cassandra cluster and restored historical data to the cluster from an archive of all data to restore service fully.</p>
+<p><strong>Background</strong></p>
+<p>To understand the outage, consider the highly abstracted view of the Stackdriver architecture below. Data is posted to the gateway web service.  The gateway has a set of queues (shown in red) that buffer the messages as they are routed to multiple independent consumers.  The archiving consumer push data to the archival pipeline that processes the data and, eventually stores it in AWS S3.  The indexing consumer stores time series data into Cassandra.  The alerting consumer routes messages through the alerting pipeline that processes streams of data to detect conditions that produce alerts.  All of the components in the blue rectangle are deployed as a unit, or cell.  Additional cells&#8211;each with their own gateway, queues, and consumers&#8211;are deployed to support higher load.  Components in the pipeline are not shown, as indicated by the dotted arrows.</p>
+<div style="text-align: center;">
+<p><a href="http://www.stackdriver.com/wp-content/uploads/2013/10/sd_arch.png" ><img class=" wp-image-3391 " alt="The highly abstracted view of the Stackdriver architecture illustrates the queues that feed the various pipelines." src="http://www.stackdriver.com/wp-content/uploads/2013/10/sd_arch-251x300.png" width="251" height="300" /></a></p>
+<div style="width: 350px; margin-left: auto; margin-right: auto;">The highly abstracted view of the Stackdriver architecture illustrates the queues that feed the various pipelines.</div>
+</div>
+<p><strong>Postmortem</strong></p>
+<p>The timeline below shows the keys events of the outage and its resolution that are discussed below.</p>
+<div style="text-align: center;"><a href="http://www.stackdriver.com/wp-content/uploads/2013/10/timeline.png" ><img class="alignnone size-large wp-image-3396 style=" style="background-color: white;" alt="The timeline shows key events of the outage and its resolution." src="http://www.stackdriver.com/wp-content/uploads/2013/10/timeline-1024x768.png" width="960" height="720" /></a></p>
+<div style="width: 350px; margin-left: auto; margin-right: auto;">The timeline shows key events of the outage and its resolution</div>
+</div>
+<p>The primary cause of the problems was the failure of the 36-node <a href="https://cassandra.apache.org/" onclick="javascript:_gaq.push(['_trackEvent','outbound-article','http://cassandra.apache.org']);">Cassandra</a> cluster that hosts the time series data used in all of the graphs in the Stackdriver application. The cluster runs in three AZs in AWS&#8217;s US-East region.  It uses 3-way replication, a write consistency level of 1, and a read consistency level of 1.  Around 8:45 AM, we discovered that many of the nodes in the cluster had been leaking memory for several days (see below).  At 9:45 AM, nearly simultaneously, most nodes in the cluster exhausted their memory and crashed.</p>
+<div style="text-align: center;">
+<a href="http://www.stackdriver.com/wp-content/uploads/2013/10/sd_cassandra_memory.png" ><img class="size-large wp-image-3392" alt="The Stackdriver Cassandra cluster leaked memory for several days preceding the outage." src="http://www.stackdriver.com/wp-content/uploads/2013/10/sd_cassandra_memory-1024x247.png" width="960" height="231" /></a></p>
+<div style="width: 350px; margin-left: auto; margin-right: auto;">The Stackdriver Cassandra cluster leaked memory for several days preceding the outage.</div>
+</div>
+<p>We record measurements for many of the metrics relevant to the issue, and the Stackdriver service, which we use to monitor our own infrastructure, identified the trends leading to the outage. Still, a failure like this caught us by surprise because our experience with Cassandra over the past year has given us confidence in the system.  Cassandra has proven to be operationally stable and resilient to network outages, node failures, and even AZ outages.  We accept the failures leading to this outage as our own.  We do not intend in any way to deflect any blame to the Cassandra community.  We provide these details only in the spirit of transparency.</p>
+<p>As the cluster failed, the write latency to the cluster increased and writes eventually stopped. As designed, the queues buffering data to be written to Cassandra began to grow.  When the queues reach a threshold, the system is designed to spill data to disk at the gateways instead of adding to the already congested queues. This has successfully protected the system against transient failures in the past.  When spilling data to disk, messages are not published to any queues, even if some downstream consumers are keeping the backlog of messages on some queues small.  In this case, the Cassandra failure prevented messages from flowing to the archiving and alerting subsystems that were still operational. Clearly, this is a flaw in the system which we address further below.</p>
+<p>Due to the widespread failure in the Cassandra ring, we did not attempt to restore the cluster incrementally. We instead attempted a complete restart of the cluster, hoping that all the nodes would bootstrap and agree on the configuration of the cluster.  We have previously used this approach successfully. The cluster did not converge to a single view of the system. We repeated the procedure with similar results. We spent approximately 90 minutes trying to restore the existing cluster unsuccessfully. We left the cluster running, even with the inconsistent view of state, to serve reads. Because we only append data in Cassandra (i.e. there are no updates), data returned from the cluster was valid, if incomplete.</p>
+<p>When we saw that the quick restart was not going to be sufficient to return us to a normal operating mode, we broke the dependency between the queue feeding Cassandra and other subsystems. At approximately 11:00 AM, traffic began flowing through all other subsystems. This restored our ability to generate alerting notifications for new measurements. We also began to flush the older data that was buffered at the gateways through all subsystems except to Cassandra. As this buffered data&#8211;some of which was more than an hour old&#8211;was pushed through the alerting pipeline, we generated some alerts in error. The alerting pipeline is designed to handle data that is out of order on small time scales. Those mechanisms failed when presented with data that was an hour or more old.</p>
+<p>At about 11:30 AM attempts to restore the existing Cassandra cluster were abandoned. We began our disaster recovery strategy of building a new Cassandra cluster. By 1:30 PM, a new 36-node Cassandra cluster was deployed and bootstrapped.  Deployment of a new Cassandra cluster is not unprecedented in our system.  We have tooling that automates the provisioning and deployment of a Cassandra cluster.  We have previously used this tooling to build new clusters for the purpose of upgrading the version of Cassandra or changing the schema we use in the database.  Of course, previously we would maintain both clusters until we could switch all traffic when the new cluster was fully populated.</p>
+<p>When the new cluster was ready, we began to write new time series data to this new Cassandra cluster.  After observing the expected response of the cluster to writes of current data, we began the process of restoring historical data from an archive that we maintain that records all data we receive. Data restoration was completed for all users by 9am on October 26th. It should be noted that no data was lost during this incident and that during this restore process, we were able to show both data from before the outage window as well as the ongoing and current data from when we brought the new cluster online.  The only data that was consistently unavailable was for the time between 9:45 am and 1:30 pm on October 23.  But queries that spanned time periods on both sides of that window resulted in incomplete data presented in the charts.</p>
+<p>We do not yet fully understand why the Cassandra cluster failed, but we do know how to isolate and mitigate against similar problems in the future.  We are working with the Cassandra developer community, as we have done in the past, to identify the problem and work toward a fix.  We remain confident that Cassandra is the right tool for this part of our system.  The community has been very responsive to questions and issues with the software.  We have observed the stability of the system increase with each release.  As part of deploying the new cluster, we made several important changes.  We upgraded the version of Cassandra from 1.2.5 to 1.2.10, upgraded the version of Java from 1.6u45 to 1.7u40, and change the RPC_SERVER_TYPE from &#8216;sync&#8217; to &#8216;hsha&#8217;.  We had previously tested the configuration changes in production, but we did not change read traffic to point to the new cluster.</p>
+<p>Throughout the incident, we attempted to communicate regularly with our customers.  The first update to our <a href="http://status.stackdriver.com/"  title="Stackdriver status page.">status</a> page occurred at 9:45 AM, just as the Cassandra cluster was failing.  The first email to customers identifying the incident as a major event was sent at 11 AM.  The status page was updated regularly to communicate progress toward resolution.</p>
+<p><strong>Analysis</strong></p>
+<p><a title="Loose coupling" href="http://en.wikipedia.org/wiki/Loose_coupling" onclick="javascript:_gaq.push(['_trackEvent','outbound-article','http://en.wikipedia.org']);">Loose coupling</a> is an important architectural property for building distributed systems that scale.  The loose coupling is often achieved by inserting a <a title="Message queue" href="http://en.wikipedia.org/wiki/Message_queue" onclick="javascript:_gaq.push(['_trackEvent','outbound-article','http://en.wikipedia.org']);">message queue</a> between the producers and consumers.  The queue provides buffering to handle transient failures.  It provides a convenient point to measure the throughput and latency of the system, which helps gauge when capacity should be add to handle the request load.  It supports dynamic network topologies.</p>
+<p>When multiple consumers require access to the same message, the <a title="Publish-subscribe messaging" href="http://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern" onclick="javascript:_gaq.push(['_trackEvent','outbound-article','http://en.wikipedia.org']);">publish-subscribe</a> design pattern is often used.  Publisher, or producers, send messages to a message broker that filters and routes messages to queues or topics that make messages available to subscribers, or consumers, that have expressed an interest in messages of a certain type.</p>
+<p>Lost in the architectural decision to use these the time-tested distributed systems design patterns to reduce coupling among independent components is that the message broker itself may, in fact, introduce a dependency among otherwise unrelated components.  This is key to the problems that caused the Stackdriver outage.</p>
+<p>A failure of the indexing path led to an increase in the size of one queue.  The growth of that queue was not properly isolated.  Memory in the broker began to grow.  Our design to limit the impact of one slow queue in the message broker spilled all data to disk and stopped publishing any messages to the broker.  This design choice was made to protect the message broker during heavy load. This approach, however, kept messages from being processed by subsystems that were still healthy and functioning.</p>
+<p>The lesson we take away is that use of a topic-based publish-subscribe design pattern does not, in itself, ensure independence of unrelated consumers.  True independence can only be achieved with careful consideration and design, also, of the broker itself.</p>
+<p><strong>Mitigation</strong></p>
+<p>We are planning changes to the Stackdriver infrastructure to mitigate similar problems in the future. Most critically, we are planning to add a greater degree of separation for the pipelines used for real-time data display and alerting. To do this, we will break the dependencies in the queueing service that the gateways use to route input messages to the multiple subsystems that consume the message type.  This will ensure that, when one subsystem is experiencing problems, the other subsystems will continue unaffected.  More pointedly, despite other issues in the system, the real-time alerting system&#8211;the subsystem that is most critical to our customers&#8217; success&#8211;will continue functioning.</p>
+<div style='margin:0'><b></b></div><div class="loginRadiusHorizontalSharing" data-share-url="http://www.stackdriver.com/post-mortem-october-23-stackdriver-outage/" data-counter-url="http://www.stackdriver.com/post-mortem-october-23-stackdriver-outage/" ></div></div>
+</div>
+<div class="well tags" style="display:none;">
+<div class="clear"></div>
+</div>
+<div class="well social-box">
+<span class="txt">
+ Social Share <i class="icon icon-chevron-right"></i>
+ </span>
+ <div class="pull-right">
+ <a href="http://www.facebook.com/sharer/sharer.php?u=http://www.stackdriver.com/post-mortem-october-23-stackdriver-outage/" class="btn btn-info btn-mini"><i class="icon icon-share icon-white"></i> Share on Facebook</a>
+ <a href="https://twitter.com/share?url=http://www.stackdriver.com/post-mortem-october-23-stackdriver-outage/" class="btn btn-info btn-mini"><i class="icon icon-share icon-white"></i> Tweet</a>
+ </div>
+</div>
+<div class="well author-box" style="display:none;">
+ 
+ <div class="media">
+ <div class="pull-left">
+ <img alt='' src='http://0.gravatar.com/avatar/82f4cb6ca6fd77966a43a8883ec8d86c?s=90&amp;d=blank&amp;r=G' class='avatar avatar-90 photo' height='90' width='90' /> </div>
+ <div class="media-body">  <span class="txt">
+ <i class="icon icon-edit"></i> About Author: Patrick </span>
+ <div class="clear"></div>
+  </div>
+ </div>
+ </div>
+ <div class="mx_comments"> 
+	<div id="comments">
+	
+	
+	
+									<div id="respond" class="comment-respond">
+				<h3 id="reply-title" class="comment-reply-title">Leave a Reply <small><a rel="nofollow" id="cancel-comment-reply-link" href="/post-mortem-october-23-stackdriver-outage/#respond" style="display:none;">Cancel reply</a></small></h3>
+									<form action="http://www.stackdriver.com/wp-comments-post.php" method="post" id="commentform" class="comment-form">
+																			<p class="comment-notes">Your email address will not be published. Required fields are marked <span class="required">*</span></p>							<p class="comment-form-author"><label for="author">Name <span class="required">*</span></label> <input id="author" name="author" type="text" value="" size="30" aria-required='true' /></p>
+<p class="comment-form-email"><label for="email">Email <span class="required">*</span></label> <input id="email" name="email" type="text" value="" size="30" aria-required='true' /></p>
+<p class="comment-form-url"><label for="url">Website</label> <input id="url" name="url" type="text" value="" size="30" /></p>
+												<p class="comment-form-comment"><label for="comment">Comment</label> <textarea id="comment" name="comment" cols="45" rows="8" aria-required="true"></textarea></p>						<p class="form-allowed-tags">You may use these <abbr title="HyperText Markup Language">HTML</abbr> tags and attributes:  <code>&lt;a href=&quot;&quot; title=&quot;&quot;&gt; &lt;abbr title=&quot;&quot;&gt; &lt;acronym title=&quot;&quot;&gt; &lt;b&gt; &lt;blockquote cite=&quot;&quot;&gt; &lt;cite&gt; &lt;code&gt; &lt;del datetime=&quot;&quot;&gt; &lt;em&gt; &lt;i&gt; &lt;q cite=&quot;&quot;&gt; &lt;strike&gt; &lt;strong&gt; </code></p>						<p class="form-submit">
+							<input name="submit" type="submit" id="submit" value="Post Comment" />
+							<input type='hidden' name='comment_post_ID' value='3354' id='comment_post_ID' />
+<input type='hidden' name='comment_parent' id='comment_parent' value='0' />
+						</p>
+						<p style="display: none;"><input type="hidden" id="akismet_comment_nonce" name="akismet_comment_nonce" value="2170f8601c" /></p><p style="display: none;"><input type="hidden" id="ak_js" name="ak_js" value="58"/></p>					</form>
+							</div><!-- #respond -->
+			        <script type="text/javascript">
+            jQuery(document).ready(function () {
+                jQuery('#commentform').submit(function () {
+                    _gaq.push(
+                            ['_setAccount', 'UA-33234753-1'],
+                            ['_trackEvent', 'comment', 'submit']
+                    );
+                });
+            });
+        </script>
+		
+</div><!-- #comments -->
+</div>
+</div>
+</div>
+<div class="span4">
+ 
+<div class="box widget"><form role="search" method="get" id="searchform" class="searchform" action="http://www.stackdriver.com/">
+				<div>
+					<label class="screen-reader-text" for="s">Search for:</label>
+					<input type="text" value="" name="s" id="s" />
+					<input type="submit" id="searchsubmit" value="Search" />
+				</div>
+			</form></div><div class="box widget">			<div class="textwidget"><a href="http://facebook.com/Stackdriver"  title="Facebook" target="_blank" onClick="_gaq.push(['_trackEvent', 'Social', 'Click', 'Facebook']);"><img src="http://www.stackdriver.com/wp-content/plugins/social-stickers/themes/default/facebook.png"  width="32" height="32" alt="DevOps, AWS and cloud computing news on Facebook" /></a> <a href="https://plus.google.com/113517841800922451470"  title="Google+" target="_blank" onClick="_gaq.push(['_trackEvent', 'Social', 'Click', 'Google Plus']);"><img src="http://www.stackdriver.com/wp-content/plugins/social-stickers/themes/default/googleplus.png"  width="32" height="32" alt="AWS and DevOps news on Google Plus" /></a> <a href="http://twitter.com/stackdriver"  title="Twitter" target="_blank" onClick="_gaq.push(['_trackEvent', 'Social', 'Click', 'Twitter']);"><img src="http://www.stackdriver.com/wp-content/plugins/social-stickers/themes/default/twitter.png"  width="32" height="32" alt="Get DevOps and AWS news on Twitter" /></a> <a href="http://www.linkedin.com/company/stackdriver"  title="LinkedIn Corp" target="_blank" onClick="_gaq.push(['_trackEvent', 'Social', 'Click', 'LinkedIn']);"><img src="http://www.stackdriver.com/wp-content/plugins/social-stickers/themes/default/linkedin.png"  width="32" height="32" alt="Follow the DevOps experts on LinkedIn" /></a>
+<a href="http://feeds.feedburner.com/stackdriver"  target="_blank" onClick="_gaq.push(['_trackEvent', 'Social', 'Click', 'RSS']);"><img src="http://www.stackdriver.com/wp-content/plugins/social-stickers/themes/default/rss.png" width="32" height="32" alt="Subscribe to the DevOps blog" /></a>
+<a href="https://github.com/Stackdriver"  target="_blank" onClick="_gaq.push(['_trackEvent', 'Social', 'Click', 'Github']);"><img src="/wp-content/plugins/social-stickers/themes/default/github.png" width="32" height="32" alt="Find Stackdriver's cloud monitoring code on Github" /></a>
+<a href="https://www.youtube.com/user/stackdriverinc"  target="_blank" onClick="_gaq.push(['_trackEvent', 'Social', 'Click', 'YouTube']);"><img src="/wp-content/plugins/social-stickers/themes/default/youtube.png" width="32" height="32" alt="See Stackdriver's AWS Monitoring videos on YouTube" /></a></div>
+		</div><div class="box widget"><h3>Special Content</h3>			<div class="textwidget"><ul>
+
+<li><a href="/best-practices-aws-cloudwatch-monitoring-ebook/"><i class="icon-book icon-white"></i> Ebook: Best Practices for AWS CloudWatch</a></li>
+<li><a href="http://youtu.be/14p2LAGPRn4" onclick="javascript:_gaq.push(['_trackEvent','outbound-widget','http://youtu.be']);" target="_blank"><i class="icon-facetime-video icon-white"></i>Video: Sending Custom Metrics to Stackdriver</a></li>
+<li><a href="http://youtu.be/NijjaVxMGDA" onclick="javascript:_gaq.push(['_trackEvent','outbound-widget','http://youtu.be']);" target="_blank"><i class="icon-facetime-video icon-white"></i>Video: Meet the Stackdriver API</a></li>
+</ul>
+</div>
+		</div>		<div class="box widget">		<h3>Most Recent Posts</h3>		<ul>
+					<li>
+				<a href="http://www.stackdriver.com/relational-nosql-database-survey-results/">Relational or NoSQL Database? Survey Results</a>
+						</li>
+					<li>
+				<a href="http://www.stackdriver.com/3-important-agent-driven-metrics/">3 of the Most Important Agent-Driven Metrics to Monitor</a>
+						</li>
+					<li>
+				<a href="http://www.stackdriver.com/question-day-relational-nosql-database/">Question of the Day: Relational or NoSQL Database?</a>
+						</li>
+					<li>
+				<a href="http://www.stackdriver.com/little-things-joined-stackdriver/">The Little Things: Why I Joined Stackdriver</a>
+						</li>
+					<li>
+				<a href="http://www.stackdriver.com/stackdriver-adds-process-monitoring-intelligent-monitoring/">Stackdriver adds process monitoring to Intelligent Monitoring</a>
+						</li>
+				</ul>
+		</div><div class="box widget"><h3>Featured Articles</h3>			<div class="textwidget"><ul>
+
+<li><a href="/best-practices-aws-cloudwatch-monitoring-ebook/">Ebook: Best Practices for AWS CloudWatch</a></li>
+<li><a href="http://youtu.be/14p2LAGPRn4" onclick="javascript:_gaq.push(['_trackEvent','outbound-widget','http://youtu.be']);" target="_blank">Video: Sending Custom Metrics to Stackdriver</a></li>
+<li><a href="http://youtu.be/NijjaVxMGDA" onclick="javascript:_gaq.push(['_trackEvent','outbound-widget','http://youtu.be']);" target="_blank">Video: Meet the Stackdriver API</a></li>
+</ul></div>
+		</div><div class="box widget"><h3>Filter by Category</h3>		<ul>
+	<li class="cat-item cat-item-133"><a href="http://www.stackdriver.com/category/aws-3/" title="View all posts filed under AWS">AWS</a>
+</li>
+	<li class="cat-item cat-item-3"><a href="http://www.stackdriver.com/category/cloud-computing/" title="View all posts filed under Cloud Computing">Cloud Computing</a>
+</li>
+	<li class="cat-item cat-item-4"><a href="http://www.stackdriver.com/category/cloud-tech-tips/" title="View all posts filed under Cloud Tech Tips">Cloud Tech Tips</a>
+</li>
+	<li class="cat-item cat-item-5"><a href="http://www.stackdriver.com/category/company-news/" title="View all posts filed under Company News">Company News</a>
+</li>
+	<li class="cat-item cat-item-321"><a href="http://www.stackdriver.com/category/devops-focus/" title="View all posts filed under DevOps Focus">DevOps Focus</a>
+</li>
+	<li class="cat-item cat-item-325"><a href="http://www.stackdriver.com/category/engineering-2/" title="View all posts filed under Engineering">Engineering</a>
+</li>
+	<li class="cat-item cat-item-176"><a href="http://www.stackdriver.com/category/events/" title="View all posts filed under Events">Events</a>
+</li>
+	<li class="cat-item cat-item-35"><a href="http://www.stackdriver.com/category/monitoring/" title="View all posts filed under Monitoring">Monitoring</a>
+</li>
+	<li class="cat-item cat-item-159"><a href="http://www.stackdriver.com/category/product-update/" title="View all posts filed under Product Update">Product Update</a>
+</li>
+	<li class="cat-item cat-item-329"><a href="http://www.stackdriver.com/category/qotd/" title="View all posts filed under QOTD">QOTD</a>
+</li>
+	<li class="cat-item cat-item-10"><a href="http://www.stackdriver.com/category/team-member-profiles/" title="View all posts filed under Team Member Profiles">Team Member Profiles</a>
+</li>
+	<li class="cat-item cat-item-1"><a href="http://www.stackdriver.com/category/uncategorized/" title="View all posts filed under Uncategorized">Uncategorized</a>
+</li>
+	<li class="cat-item cat-item-152"><a href="http://www.stackdriver.com/category/weekly-news/" title="View all posts filed under Weekly News">Weekly News</a>
+</li>
+		</ul>
+</div><div class="box widget"><h3>Filter by Author</h3>			<div class="textwidget"><ul>
+<li><a href="http://www.stackdriver.com/author/dan/" >Dan Belcher</a></li>
+<li><a href="/author/druby/">Daniel Ruby</a></li>
+<li><a href="http://www.stackdriver.com/author/izzy/" >Izzy Azeri</a></li>
+<li><a href="http://www.stackdriver.com/author/jeremy/" >Jeremy Katz</a></li>
+<li><a href="http://www.stackdriver.com/author/joey/" >Joey Imbasciano</a></li>
+<li><a href="http://www.stackdriver.com/author/john/" >John Palmieri</a></li>
+<li><a href="http://www.stackdriver.com/author/mattb/" >Matt Baddour</a></li>
+<li><a href="http://www.stackdriver.com/author/matt/" >Matthew Tschiegg</a></li>
+<li><a href="http://www.stackdriver.com/author/michael/" >Michael Fox</a></li>
+<li><a href="http://www.stackdriver.com/author/patrick/" >Patrick Eaton</a></li>
+<li><a href="http://www.stackdriver.com/author/phil/" >Philip Jacob</a></li>
+<li><a href="http://www.stackdriver.com/author/eric/" >Eric Kilby</a></li>
+<li><a href="/author/amanda/">Amanda Lewis</a></li>
+</ul></div>
+		</div></div>
+</div>
+</div>
+
+         
+
+<div class="footer">
+<div class="container">
+<div class="row">
+<div class="header">
+<div class="span3">
+
+<h3>Product Features</h3>
+<p>
+	<a href="/aws-insights/">AWS Insights</a><br />
+	<a href="/rapid-stack-discovery/">Rapid Discovery</a><br />
+	<a href="/stack-scanner/">Stack Scanner</a><br />
+	<a href="/elastic-monitoring/">Elastic Monitoring</a><br />
+	<a href="/policy-driven-automation/">AWS Automation</a><br />
+	<a href="/uptime-monitoring/">Uptime Monitoring</a><br />
+	<a href="/event-logging/">AWS Event Logging</a><br />
+	<a href="/integrations/">Integrations</a>
+</p>
+</div>
+<div class="span3">
+<h3>About Stackdriver</h3>
+<p>
+	<a href="/about/">The Stackdriver Story</a><br />
+	<a href="/customers/">Customers and Partners</a><br />
+	<a href="/blog/">Stackdriver's DevOps Blog</a><br />
+	<a href="http://support.stackdriver.com">Knowledge Base</a><br />
+	<a href="/pricing">Pricing</a><br />
+	<a href="/privacy/">Privacy Policy</a><br />
+	<a href="/tos/">Terms of Service</a><br />
+	<a href="/community/">Community Portal</a>
+	<img src="/wp-content/uploads/2013/07/APN_Standard_Technology_Partner_Dark.jpg" width="180" style="margin-top:20px;" />
+</p>
+</div>
+<div class="span3">
+<h3>Contact Us</h3>
+<h4>Email:</h4>
+<p>
+	<a href="mailto:inquiry@stackdriver.com">General Inquiries</a><br />
+	<a href="mailto:support@stackdriver.com">Get Support</a>
+</p>
+<h4>Social:</h4>
+<p id="socialfooter">
+	<a href="http://www.facebook.com/stackdriver" target="_blank"  onClick="_gaq.push(['_trackEvent', 'Social', 'Click', 'Facebook']);"><img src="http://www.stackdriver.com/wp-content/plugins/social-stickers/themes/default/facebook.png" width="32" alt="Cloud monitoring on Facebook" /></a>
+	<a href="http://www.twitter.com/stackdriver" target="_blank"  onClick="_gaq.push(['_trackEvent', 'Social', 'Click', 'Twitter']);"><img src="http://www.stackdriver.com/wp-content/plugins/social-stickers/themes/default/twitter.png" width="32" alt="AWS monitoring news on Twitter" /></a>
+	<a href="https://plus.google.com/113517841800922451470" rel="publisher" target="_blank"  onClick="_gaq.push(['_trackEvent', 'Social', 'Click', 'Google Plus']);"><img src="http://www.stackdriver.com/wp-content/plugins/social-stickers/themes/default/googleplus.png" width="32" alt="Intelligent full-stack monitoring on Google Plus" /></a>
+	<a href="http://www.linkedin.com/company/stackdriver" target="_blank"  onClick="_gaq.push(['_trackEvent', 'Social', 'Click', 'LinkedIn']);"><img src="http://www.stackdriver.com/wp-content/plugins/social-stickers/themes/default/linkedin.png" width="32" alt="Cloud monitoring by Stackdriver on LinkedIn" /></a>
+	<a href="https://github.com/Stackdriver" target="_blank"  onClick="_gaq.push(['_trackEvent', 'Social', 'Click', 'Github']);"><img src="/wp-content/plugins/social-stickers/themes/default/github.png" width="32" height="32" alt="Find Stackdriver's cloud monitoring code on Github" /></a>
+	<a href="https://www.youtube.com/user/stackdriverinc" target="_blank" onClick="_gaq.push(['_trackEvent', 'Social', 'Click', 'YouTube']);"><img src="/wp-content/plugins/social-stickers/themes/default/youtube.png" width="32" height="32" alt="See Stackdriver's AWS Monitoring videos on YouTube" /></a>
+</p>
+</div>
+<div class="span3">
+<h3>Visit Us</h3>
+<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAKzJ_oz3vNF_OgRNkaBKhC71W9UseHxPo&sensor=true"></script>
+<script type="text/javascript">
+  function initialize() {
+        var mapOptions = {
+          center: new google.maps.LatLng(42.354122, -71.058803),
+          zoom: 14,
+          mapTypeId: google.maps.MapTypeId.ROADMAP
+        };
+        var myLatlng = new google.maps.LatLng(42.354122, -71.058803);
+        var map = new google.maps.Map(document.getElementById("map-canvas"),
+        mapOptions);
+        
+        var marker = new google.maps.Marker({
+        	position: myLatlng,
+        	map: map,
+        	title:"77 Summer Street Boston, MA"
+        });
+        
+        google.maps.event.addListener(marker, 'click', function() {
+        	window.open('http://goo.gl/maps/jdZMK', '_blank')
+        });
+
+  }
+  google.maps.event.addDomListener(window, 'load', initialize);
+</script>
+<div id="map-canvas" style="width: 250px; height: 210px;" onload="initialize()"> </div>
+</div>
+
+<div class="clear"></div>
+</div>
+</div> 
+</div>
+<div class="content">Copyright &copy 2014, Stackdriver</div>
+</div>
+ 
+
+</div>
+
+
+<script type='text/javascript' src='http://www.stackdriver.com/wp-content/plugins/akismet/_inc/form.js?ver=3.0.1'></script>
+<script type='text/javascript' src='http://www.stackdriver.com/wp-includes/js/comment-reply.min.js?ver=3.9.2'></script>
+
+
+<!-- Powered by Whitelist IP For Limit Login Attempts | URL: http://club.orbisius.com/products/wordpress-plugins/whitelist-ip-for-limit-login-attempts/ -->
+
+</body>
+</html>

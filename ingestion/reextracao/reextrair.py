@@ -21,7 +21,11 @@ Uso (a partir da raiz do repositório):
 Os documentos do gabarito (DAN-053, DAN-183) não são reextraídos: o lote 00 é teste de
 regressão e precisa receber sempre a mesma entrada.
 
-Lê:    ingestion/reextracao/lista.csv, datasets/danluu-ingestion/data/{raw,extracted}/
+Páginas sem artigo (grupo sem_artigo) só entram depois de baixadas de novo: o HTML fica em
+ingestion/reextracao/baixados/DAN-xxx/pagina.html e a origem em baixados/manifesto.csv.
+
+Lê:    ingestion/reextracao/lista.csv, datasets/danluu-ingestion/data/{raw,extracted}/,
+       ingestion/reextracao/baixados/
 Grava: ingestion/reextracao/extraidos/DAN-xxx.json
        ingestion/reextracao/checagem.csv
 """
@@ -42,6 +46,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PASTA = Path(__file__).resolve().parent
 DANLUU = ROOT / "datasets" / "danluu-ingestion" / "data"
 SAIDA = PASTA / "extraidos"
+BAIXADOS = PASTA / "baixados"
 
 DESCARTAR = {"script", "style", "noscript", "nav", "footer", "form", "aside", "svg",
              "button", "iframe", "template", "select", "input", "header"}
@@ -61,9 +66,9 @@ RODAPE = re.compile(r"^(written by|tags:?|related (posts|articles|stories)|more 
 BLOCOS = {"p", "li", "tr", "pre", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6",
           "dt", "dd", "figcaption"}
 # contêineres conhecidos, em ordem de preferência
-SELETORES = ["#mw-content-text .mw-parser-output", ".incident-updates-container", ".post .cooked", ".cooked", ".post__content",
+SELETORES = [".expando .md", "#mw-content-text .mw-parser-output", ".incident-updates-container", ".post .cooked", ".cooked", ".post__content",
              ".entry-content", ".post-content", ".article-content", ".markdown-body",
-             "article", "main", "#maia-main", ".post"]
+             ".post-body", "article", "main", "#maia-main", ".post"]
 
 
 def limpo(t: str) -> str:
@@ -77,11 +82,25 @@ def eh_lixo(el: Tag) -> bool:
     return bool(LIXO.search(rotulo)) and el.name not in ("body", "html", "main", "article")
 
 
+def descartado(no, limite: Tag) -> bool:
+    """O nó está dentro de um elemento descartável, contando só os ancestrais até `limite`."""
+    for p in no.parents:
+        if p is limite:
+            return False
+        if p.name in DESCARTAR:
+            return True
+    return False
+
+
+# linhas soltas de navegação que sobram em blogs
+LINHAS_LIXO = {"newer post", "older post", "home", "listen to this article", "## listen to this article",
+               "## thank you", "thank you for contacting us. we will get back to you shortly."}
+
+
 def texto_de(el: Tag) -> str:
     partes = []
     for d in el.descendants:
-        if isinstance(d, NavigableString) and not isinstance(d, NAO_TEXTO) and not any(
-                isinstance(p, Tag) and p.name in DESCARTAR for p in d.parents):
+        if isinstance(d, NavigableString) and not isinstance(d, NAO_TEXTO) and not descartado(d, el):
             partes.append(str(d))
         elif isinstance(d, Tag) and d.name == "br":
             partes.append(" ")
@@ -230,6 +249,24 @@ def google(sopa: BeautifulSoup) -> list[str] | None:
     return saida
 
 
+def google_groups(sopa: BeautifulSoup) -> list[str] | None:
+    """Thread antiga do Google Groups: só a primeira mensagem (o post original)."""
+    msg = sopa.select_one("#msgs .msg")
+    if msg is None:
+        return None
+    titulo = sopa.find("title")
+    saida = ["## " + texto_de(titulo)] if titulo else []
+    cab = msg.find(string=re.compile(r"^\s*From:"))
+    if cab is not None:
+        saida.append(texto_de(cab.parent))
+    corpo = msg.select_one(".mb, #inbdy")
+    if corpo is not None:
+        # o corpo é texto puro com <br>; cada linha em branco separa parágrafos
+        bruto = corpo.get_text("\n")
+        saida.extend(limpo(par) for par in re.split(r"\n\s*\n", bruto) if limpo(par))
+    return saida
+
+
 def cortar_rodape(ls: list[str]) -> list[str]:
     for i, l in enumerate(ls):
         if i > len(ls) // 2 and l.startswith("## ") and RODAPE.match(l[3:].strip()):
@@ -250,24 +287,40 @@ def dedup(ls: list[str]) -> list[str]:
     return out
 
 
-def reextrair(cid: str) -> dict:
-    html = (DANLUU / "raw" / f"{cid}.html").read_text(encoding="utf-8", errors="replace")
-    sopa = BeautifulSoup(html, "html.parser")
+def manifesto() -> dict[str, dict]:
+    arq = BAIXADOS / "manifesto.csv"
+    if not arq.exists():
+        return {}
+    return {r["catalog_id"]: r for r in csv.DictReader(arq.open(encoding="utf-8"))}
+
+
+def reextrair(cid: str, baixado: dict | None = None) -> dict:
+    if baixado:
+        # bytes: o BeautifulSoup respeita o charset declarado (páginas antigas em latin-1)
+        sopa = BeautifulSoup((BAIXADOS / cid / "pagina.html").read_bytes(), "html.parser")
+    else:
+        html = (DANLUU / "raw" / f"{cid}.html").read_text(encoding="utf-8", errors="replace")
+        sopa = BeautifulSoup(html, "html.parser")
     for el in sopa.select(REMOVER):
         el.decompose()
-    ls, metodo = statuspage(sopa), "bs4-statuspage"
+    ls, metodo = google_groups(sopa), "bs4-google-groups"
+    if ls is None:
+        ls, metodo = statuspage(sopa), "bs4-statuspage"
     if ls is None:
         ls, metodo = google(sopa), "bs4-google-status"
     if ls is None:
         ls, metodo = cortar_rodape(linhas(conteiner(sopa))), "bs4-blocos"
-    ls = dedup(ls)
+    ls = [l for l in dedup(ls) if l.lower() not in LINHAS_LIXO]
     texto = "\n\n".join(ls)
     antigo = json.loads((DANLUU / "extracted" / f"{cid}.json").read_text(encoding="utf-8"))
+    titulo = sopa.find("title")
     return {
         "catalog_id": cid,
         "source_url": antigo.get("source_url"),
-        "final_url": antigo.get("final_url"),
-        "title": antigo.get("title"),
+        "final_url": baixado["url_final"] if baixado else antigo.get("final_url"),
+        "downloaded_from": baixado["url_pedida"] if baixado else None,
+        "downloaded_at": baixado["baixado_em"] if baixado else None,
+        "title": limpo(titulo.get_text()) if baixado and titulo else antigo.get("title"),
         "company": antigo.get("company"),
         "extraction_method": metodo,
         "extracted_text": texto,
@@ -301,8 +354,9 @@ def checar(doc: dict) -> dict:
 
 
 def main() -> None:
+    baixados = manifesto()
     lista = [r["catalog_id"] for r in csv.DictReader((PASTA / "lista.csv").open(encoding="utf-8"))
-             if r["grupo"] != "sem_artigo"]
+             if r["grupo"] not in ("sem_artigo", "inutilizavel") or r["catalog_id"] in baixados]
     alvo = sys.argv[1:] or lista
     # documentos do gabarito ficam com o texto original: o lote 00 é teste de regressão
     # e precisa receber sempre a mesma entrada
@@ -314,7 +368,7 @@ def main() -> None:
     SAIDA.mkdir(exist_ok=True)
     linhas_chk = []
     for cid in alvo:
-        doc = reextrair(cid)
+        doc = reextrair(cid, baixados.get(cid))
         (SAIDA / f"{cid}.json").write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n",
                                            encoding="utf-8")
         linhas_chk.append(checar(doc))

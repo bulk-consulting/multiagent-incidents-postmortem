@@ -1,5 +1,5 @@
 <!--
-Prompt de extração da ficha (peça 2). Versão: v2.18.
+Prompt de extração da ficha (peça 2). Versão: v2.19.
 v1 guardada em prompt_extracao_v1.md. Mudanças da v2 (revisão do piloto, ver FICHA.md):
 regra 2 (trechos sustentam todo detalhe do texto), regras 3 e 4 novas (causalidade e plano x feito),
 gatilho x causa raiz, categoria pela causa raiz, detecção, resumo com desfecho, mitigação com a correção concreta.
@@ -30,6 +30,7 @@ v2.15 (amostra do lote 12, 7 ERRADOS em 7 fichas): configuration-error inclui va
 v2.16 (amostra do lote 13, 8 ERRADOS em 6 fichas): software-bug é residual; duração total do incidente não vence as marcas de impacto.
 v2.17 (amostra do lote 15, 10 ERRADOS em 6 fichas): mudança que só impediu a recuperação não é mudanca_causadora; mudança de comportamento de dependência externa é nao_se_aplica.
 v2.18 (revisão das fichas antigas): volta parcial só conta se o texto diz que o serviço afetado voltou para a maioria; várias ou nenhuma → null sem baixar a confiança.
+v2.19 (reextração): nota de formato do texto — "## " marca intertítulos; atualizações de status page vêm da mais nova para a mais antiga.
 Escrito em inglês de propósito (ver FICHA.md, seção "Idioma").
 A parte entre ===== INPUT ===== é preenchida para cada documento.
 -->
@@ -213,8 +214,12 @@ Return **only** one JSON object, no comments, no Markdown fences, matching this 
   "confianca": "alta" | "baixa",
   "motivo_confianca_baixa": "..."   (only when confianca is "baixa"),
   "observacoes": "..."              (optional),
-  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.18" }
+  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.19" }
 }
+
+## Document format
+
+The document text may mark section headings with "## " and list items with "- ". Status-page updates appear as "## <status>" (or "## Update — <date time>"), the update text, and a "Posted <date>" line, listed **newest first**: the earliest update, where the incident starts, is the last one in the text. A postmortem, when present, comes before the updates.
 
 ===== INPUT =====
 
