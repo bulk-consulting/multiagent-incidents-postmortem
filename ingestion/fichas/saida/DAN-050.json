@@ -1,0 +1,156 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-050",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A crates.io deployment contained a bug in download URL generation (a missing slash between the CDN prefix and the path), so all crate downloads from crates.io failed for about 13 minutes, producing about 3.7M failed requests including cargo retries. Service was restored by rolling back to the previous deployment; a fix was deployed later.",
+    "data_incidente": "2023-07-20",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "crates.io crate downloads",
+      "crates.io readme downloads"
+    ],
+    "tecnologias": [
+      "crates.io",
+      "object_store crate",
+      "AWS S3",
+      "cargo",
+      "Heroku",
+      "Grafana",
+      "Zulip",
+      "CDN"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "equipe_interna",
+      "descricao": {
+        "texto": "The developer triggering the production deployment was watching the crates.io Grafana dashboard and noticed elevated request-per-second numbers for the download endpoint, a symptom of cargo retrying downloads; the cause of the elevated numbers was not yet clear. About 11 minutes after the deployment, a community member notified the crates.io team via Zulip about a GitHub issue describing the failing downloads.",
+        "trechos": [
+          "The developer triggering the production deployment was monitoring the crates.io Grafana dashboard during the deployment and noticed elevated levels of request-per-second numbers for the download endpoint.",
+          "This was a symptom of cargo retrying the download multiple times before giving up.",
+          "At this point the root cause for the elevated numbers was not clear yet, but a community member notified the developer via Zulip.",
+          "About 11 minutes after the deployment, a community member notified the crates.io team via Zulip about the GitHub issue that was opened, describing the failing downloads."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A pull request that refactored how the crate and readme download endpoints generate redirect URLs introduced a bug in the production code path: the URL built from the \"CDN prefix\" and \"path\" components was missing a slash separator, so downloads redirected to an invalid host (static.crates.iocrates).",
+        "trechos": [
+          "There was a bug introduced in pull request #6834 which made it all the way into our production environment.",
+          "This pull request refactored the way the crate and readme download endpoints generated redirect URLs.",
+          "The production code path contained a bug where the URL generated from the \"CDN prefix\" and \"path\" components was missing a slash (`/`) separator.",
+          "This led to https://crates.io/api/v1/crates/smallvec/1.10.0/download redirecting to https://static.crates.iocrates/smallvec/smallvec-1.10.0.crate instead of https://static.crates.io/crates/smallvec/smallvec-1.10.0.crate."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The tests added by the pull request used values different from the environment variable content used in production, so the production code path was not tested properly; the code was structured in a way that made testing different variants and code paths hard.",
+        "trechos": [
+          "The pull request introduced a few tests for the previously untested functionality, though unfortunately it was using values different from the environment variable content that is used by crates.io in production. This led to the production code path not being tested properly.",
+          "The failing code was structured in a way that made it hard to test different variants and code paths."
+        ]
+      },
+      {
+        "texto": "The pull request was not reviewed by another developer; there is no checklist describing which pull requests should be seen as high-impact and need explicit code review.",
+        "trechos": [
+          "The pull request was not reviewed by another developer.",
+          "There is no checklist describing which pull requests should be seen as high-impact."
+        ]
+      },
+      {
+        "texto": "The crate download endpoint was not tested on the staging environment before promotion to production; the manual staging smoke test procedure does not include crate downloads.",
+        "trechos": [
+          "**Why did the bug make it into production?** The crate download endpoint was not tested on the staging environment before promoting it to production.",
+          "The smoke test procedure on the staging environment does not include crate downloads and is a manual process."
+        ]
+      },
+      {
+        "texto": "Detection could have been faster if the elevated request rate had been identified earlier as caused by cargo's retry behavior.",
+        "trechos": [
+          "The detection time from deployment to incident notification could have been faster if the symptom was identified earlier to be caused by the cargo retry behavior."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "Pull request #6834 (\"Migrate remaining `Uploaders` code into `Storage` system\"), merged at 17:41 UTC on 2023-07-19, which finished migrating crates.io to the object_store crate for AWS S3 access and refactored download redirect URL generation; the staging deployment containing it was promoted to production at 12:17 UTC on 2023-07-20.",
+        "trechos": [
+          "At 17:41 UTC on 2023-07-19 a pull request to crates.io was merged, finishing the migration of the crates.io codebase to use the object\\_store crate for AWS S3 access, instead of our previous custom solution.",
+          "17:41 UTC – https://github.com/rust-lang/crates.io/pull/6834 (Migrate remaining `Uploaders` code into `Storage` system) was merged, automatically deploying to the staging environment",
+          "This pull request refactored the way the crate and readme download endpoints generated redirect URLs.",
+          "12:17 UTC – The staging deployment was promoted to the production environment"
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "The deploying developer rolled back to the previous deployment through the Heroku user interface (taking about one minute); the deployment was rolled back at 12:30 UTC and the system immediately produced correct redirect URLs again.",
+          "trechos": [
+            "After the incident was detected, the deploying developer immediately initiated a rollback to the previous deployment through the Heroku user interface. This process took about one minute due to the login procedure and ensuring that the right buttons in the user interface are used.",
+            "12:30 UTC – The deployment was rolled back, temporarily fixing the issue for our users.",
+            "After rolling back to the previous deployment the system immediately recovered itself and produced correct redirect URLs again."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: a fix for the download URL generation (pull request #6851) was merged with more tests for the broken code path using real-world values, tested on staging and promoted to production at 14:10 UTC.",
+          "trechos": [
+            "A fix for the broken pull request was subsequently developed and merged, including more tests for the broken code path with more real-world values. The fix was then tested on the staging environment before it got deployed to production too.",
+            "13:49 UTC – https://github.com/rust-lang/crates.io/pull/6851 (Fix download URL generation) was merged, automatically deploying to the staging environment",
+            "14:10 UTC – The staging deployment was promoted to the production environment"
+          ]
+        },
+        {
+          "texto": "Include crate downloads in the smoke test plan for the staging environment (high priority).",
+          "trechos": [
+            "**HIGH** Include crate downloads in the smoke test plan for the staging environment"
+          ]
+        },
+        {
+          "texto": "Automate the staging environment smoke tests (medium priority).",
+          "trechos": [
+            "**MEDIUM** Automate the staging environment smoke tests"
+          ]
+        },
+        {
+          "texto": "Develop rules on which pull requests require explicit code review (medium priority).",
+          "trechos": [
+            "**MEDIUM** Develop rules on which pull requests require explicit code review"
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 13,
+      "trechos": [
+        "For about 13 minutes, between 12:17 and 12:30 UTC on 2023-07-20, our users experienced this incident."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The document's 'Root causes' section lists organizational causes (hard-to-test code structure, no checklist for high-impact pull requests, a manual smoke test without crate downloads); they are recorded as contributing factors, with the technical bug as causa_raiz. The text notes a previous incident that broke crate publishing, after which publishing was added to the smoke test but crate downloads were not.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.17"
+  }
+}

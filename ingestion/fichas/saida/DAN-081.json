@@ -1,0 +1,128 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-081",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On 30 January 2017, a large set of updates to a rarely used configuration of Google's shared layer 2 load balancers exposed an inefficient code path that made the canary time out, queuing all public addressing changes; newly created GCE instances, Cloud VPNs and network load balancers were unavailable for 2 hours 8 minutes. Service was restored by restarting the jobs that program load balancer changes, after which the changes were processed in a batch, zone by zone.",
+    "data_incidente": "2017-01-30",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Google Compute Engine instances",
+      "Cloud VPN",
+      "GCE network load balancers"
+    ],
+    "tecnologias": [
+      "layer 2 load balancers",
+      "canary deployment",
+      "live migration"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The first status update reported newly created VMs, and VMs undergoing live migrations, not having network connectivity.",
+        "trechos": [
+          "We are investigating an issue with newly-created VMs not having network connectivity. This also affects VMs undergoing live migrations."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "A large set of updates was applied to a rarely used load balancing configuration.",
+      "trechos": [
+        "The issue was triggered by a large set of updates which were applied to a rarely used load balancing configuration."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Applying the updates to this configuration exposed an inefficient code path that made the canary deployment test time out; from then on, all public addressing changes were queued behind changes that could not get past the testing phase.",
+        "trechos": [
+          "These load balancers are configured with changes to IP addresses for these resources, then automatically tested in a canary deployment, before changes are globally propagated.",
+          "The application of updates to this configuration exposed an inefficient code path which resulted in the canary timing out.",
+          "From this point all changes of public addressing were queued behind these changes that could not proceed past the testing phase."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "All inbound networking for GCE instances, load balancers and VPN tunnels enters via shared layer 2 load balancers whose address configuration is propagated globally; the authors are accelerating work on decentralized routing to prevent issues in this layer from having global impact.",
+        "trechos": [
+          "All inbound networking for GCE instances, load balancers and VPN tunnels enter via shared layer 2 load balancers.",
+          "Google engineers had already begun work to replace global propagation of address configuration with decentralized routing. This work is being accelerated as it will prevent issues with this layer having global impact."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A large set of updates to a rarely used load balancing configuration of the shared layer 2 load balancers; the exact updates are not named.",
+        "trechos": [
+          "The issue was triggered by a large set of updates which were applied to a rarely used load balancing configuration."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Engineers restarted the jobs responsible for programming changes to the network load balancers; after the restart the problematic changes were processed in a batch that no longer reached the inefficient code path, and normal traffic resumed. The fix was applied zone by zone between 11:36 and 12:42.",
+          "trechos": [
+            "To resolve the issue, Google engineers restarted the jobs responsible for programming changes to the network load balancers.",
+            "After restarting, the problematic changes were processed in a batch, which no longer reached the inefficient code path. From this point updates could be processed and normal traffic resumed.",
+            "This fix was applied zone by zone between 11:36 and 12:42."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Short term (in progress): increasing the canary timeout so that updates exercising the inefficient code path only slow network changes instead of stopping them.",
+          "trechos": [
+            "To prevent this issue from reoccurring in the short term, Google engineers are increasing the canary timeout so that updates exercising the inefficient code path merely slow network changes rather than completely stop them."
+          ]
+        },
+        {
+          "texto": "Long term (in progress): improving the inefficient code path and writing new tests covering a wider range of configurations.",
+          "trechos": [
+            "As a long term resolution, the inefficient code path is being improved, and new tests are being written to test behaviour on a wider range of configurations."
+          ]
+        },
+        {
+          "texto": "Accelerating already-started work to replace global propagation of address configuration with decentralized routing.",
+          "trechos": [
+            "Google engineers had already begun work to replace global propagation of address configuration with decentralized routing. This work is being accelerated as it will prevent issues with this layer having global impact."
+          ]
+        },
+        {
+          "texto": "In progress: creating additional metrics and alerting so this kind of issue can be identified sooner.",
+          "trechos": [
+            "Google engineers are also creating additional metrics and alerting that will allow the nature of this issue to be identified sooner, which will lead to faster resolution."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 128,
+      "trechos": [
+        "On Monday 30 January 2017, newly created Google Compute Engine instances, Cloud VPNs and network load balancers were unavailable for a duration of 2 hours 8 minutes."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The final summary states 2 hours 8 minutes; the same summary gives the impact window as 10:36 to 12:42 PDT (126 minutes), the page header says the incident began at 10:54 and ended at 12:50 US/Pacific, and a status update says GCE instances were fully mitigated at 12:45 and VPNs at 12:50 US/Pacific. The page starts with generic status-dashboard text, and each status entry appears twice in the extracted text.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.16"
+  }
+}

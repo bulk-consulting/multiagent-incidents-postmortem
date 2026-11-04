@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-029",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A disk array failure on GoCardless's primary Postgres node, combined with a Pacemaker configuration (a -INF colocation rule for a Backup VIP plus non-zero resource stickiness) and a simultaneous Postgres subprocess crash on the synchronous replica, prevented the cluster from promoting a new primary, taking the API and Dashboard offline for 1 hour and 50 minutes. Service was restored by manually promoting the synchronous replica and pointing the applications at its IP address.",
+    "data_incidente": "2017-10-10",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "API",
+      "Dashboard"
+    ],
+    "tecnologias": [
+      "Postgres",
+      "Pacemaker",
+      "RAID controller",
+      "Linux kernel",
+      "VIP",
+      "Write-Ahead Log (WAL)",
+      "PgBouncer",
+      "Docker",
+      "Ruby on Rails"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 15:09 monitoring detected the total outage of the API and Dashboard.",
+        "trechos": [
+          "15:09: Our monitoring detects the total outage of our API and Dashboard; engineers begin to investigate."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "A hardware failure on the primary database node: the RAID controller logged the simultaneous loss of 3 disks from the array, and all subsequent reads and writes against it failed.",
+      "trechos": [
+        "The cause of the incident was a hardware failure on our primary database node, combined with unusual circumstances that prevented our database cluster automation from promoting one of the replica database nodes to act as the new primary.",
+        "The RAID controller logged the simultaneous loss of 3 disks from the array. All subsequent read and write operations against it failed."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The Pacemaker cluster could not decide where to run a new primary and never promoted the synchronous replica. Three conditions were necessary to reproduce this: a non-zero default-resource-stickiness setting, a Backup VIP with a -INF colocation rule against the Postgres primary that was running on the synchronous replica, and a Postgres subprocess crash on the synchronous replica at about the same time as the primary failure. The -INF colocation rule was interfering with promotion even though the Backup VIP could have run on the asynchronous replica.",
+        "trechos": [
+          "The Pacemaker cluster correctly observed that Postgres was unhealthy on the primary node. It repeatedly attempted to promote a new primary, but each time it couldn't decide where that primary should run.",
+          "Through a process of elimination, we were able to remove steps from the script until we were left with three conditions that were necessary for the cluster to break:",
+          "To combat this, we set the `default-resource-stickiness` parameter to a non-zero value, so that Pacemaker will consider other options before moving a resource that is already running.",
+          "In Pacemaker terms, we set up a colocation rule with a `-INF` (negative infinity) preference to locate the Backup VIP and the Postgres primary on the same server.",
+          "At the time of the incident, the Backup VIP was running on the synchronous replica - the node that Pacemaker should have promoted to primary.",
+          "The only way to get the cluster into a state where it would never elect a new primary was to crash one of Postgres' subprocesses on the synchronous replica, which we saw in the production logs from the incident.",
+          "Somehow, the `-INF` colocation rule between the Backup VIP and the Postgres primary was interfering with the promotion process, even though there was another node - the asynchronous replica - where the Backup VIP could run."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Manual attempts to promote the replica by editing recovery.conf were undone by the cluster, which brought the replica back with its original recovery.conf each time.",
+        "trechos": [
+          "Every time, it brings the replica back with its original `recovery.conf`, and we are left with no primary."
+        ]
+      },
+      {
+        "texto": "After two years of the automation handling failures successfully, skills in manually controlling the infrastructure below it had atrophied.",
+        "trechos": [
+          "It turns out that when your automation successfully handles failures for two years, your skills in manually controlling the infrastructure below it atrophy."
+        ]
+      },
+      {
+        "texto": "The misconfiguration only surfaces when two processes crash at almost the same time, so it would not be found by basic tests or day-to-day operations.",
+        "trechos": [
+          "A misconfiguration that only surfaces when two processes crash at almost the same time isn't one that you're going to find through basic tests or day-to-day operations."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 15:17 the broken primary node was powered off, in the belief that the cluster would then promote a new primary, and at 15:18 Pacemaker error counts were cleared with crm resource cleanup; neither led the cluster to promote the synchronous replica.",
+          "trechos": [
+            "15:17: We power off the broken primary Postgres node.",
+            "We believe that with only the synchronous and asynchronous nodes online, the cluster software will promote a new primary.",
+            "It quickly becomes clear that this is not the case.",
+            "15:18: We clear the error counts (`crm resource cleanup`) in Pacemaker to prompt it to rediscover the state of the Postgres instances. Doing so has no effect. The cluster will not promote the synchronous replica."
+          ]
+        },
+        {
+          "texto": "At 16:18 the cluster was put into maintenance mode, the synchronous replica was configured as a primary and Postgres was started manually, and the backend applications were reconfigured to connect to the new primary's actual IP address.",
+          "trechos": [
+            "16:18: We decide that our attempts at this approach have run on for too long, and that we need to try something else. We set the cluster into maintenance mode one last time, configure the synchronous replica to be a primary, and start Postgres ourselves.",
+            "Since the cluster also manages the VIP, and we've set it into maintenance mode, we reconfigure our backend applications to connect to the actual IP address of the new primary."
+          ]
+        },
+        {
+          "texto": "At 16:46 the manually promoted primary was working and the configuration changes were being rolled out to the applications; at 16:59 monitoring confirmed the API and Dashboard were back up.",
+          "trechos": [
+            "16:46: Our manually promoted primary Postgres node is working, and the configuration changes are being rolled out to our applications.",
+            "16:59: Our monitoring systems confirm that our API and Dashboard are back up."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the colocation rule was specified the opposite way round (an INF preference between the Backup VIP and a replica instead of -INF against the primary), with which the cluster promotes the synchronous replica under the same failure conditions; the team was confident it had fixed the issue before migrating.",
+          "trechos": [
+            "Instead of specifying a rule with a `-INF`preference between the Backup VIP and the Postgres primary, we could specify an `INF` preference between the Backup VIP and a replica.",
+            "When specified that way round, the cluster promotes the synchronous replica just fine under the same failure conditions.",
+            "With a plan in place, and the confidence that we'd understood and fixed the issue which stopped our cluster from failing over on 10 October, we were ready to go."
+          ]
+        },
+        {
+          "texto": "Already done: a new database cluster managed by Pacemaker was provisioned, data replicated into it and traffic switched over; the old cluster was decommissioned.",
+          "trechos": [
+            "We decided that we'd provision a new cluster, replicate data into it, and switch traffic over.",
+            "Whilst this investigation was going on, the other half of the team were figuring out how to migrate from our manually managed cluster to a new cluster managed once again by Pacemaker.",
+            "Fortunately, everything went as planned on the night, and we migrated to our new database cluster without a hitch.",
+            "We decommissioned the old cluster, and closed the incident."
+          ]
+        },
+        {
+          "texto": "Planned: move away from VIPs to proxies on the application servers that direct traffic to the right node, reducing the number of resources managed by Pacemaker.",
+          "trechos": [
+            "Instead we'll be running proxies on the application servers that direct traffic to the right node based on the state of the cluster.",
+            "This will drastically reduce the number of resources managed by Pacemaker, in turn reducing the potential for weird behaviour in the cluster."
+          ]
+        },
+        {
+          "texto": "Ideas the team is keen to pursue: harsher tests of the Postgres cluster and automation like Chaos Monkey that continually injects failure.",
+          "trechos": [
+            "Harsher tests of the Postgres cluster, and automation like Chaos Monkeythat continually injects failure are both ideas we're keen to pursue."
+          ]
+        },
+        {
+          "texto": "Under consideration: adding arbitrary restrictions to game day exercises, such as the automation having failed and the service having to be restored another way.",
+          "trechos": [
+            "One possibility we're thinking of is adding arbitrary restrictions to some of our game day exercises (e.g. \"this cluster is down, the automation has failed, you can't diagnose the problem, and need to bring the service back another way\")."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 110,
+      "trechos": [
+        "On the afternoon of 10 October 2017, we experienced an outage of our API and Dashboard, lasting 1 hour and 50 minutes."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "dominio: software_servicos vs infra_fisica_datacenter. The definition says to classify \"by the origin of the problem\"; the outage started with a disk array (hardware) failure inside the data center, while the stated reason it lasted almost 2 hours instead of 1-2 minutes is a Pacemaker configuration (software/configuration), and the text presents both together as the cause.",
+  "observacoes": "Times are British Summer Time (UTC+1). An invalid WAL file archived by the failing primary and pulled by the synchronous replica was investigated and found to play no part in the failure to promote. After recovery, the team decided to introduce a manually managed VIP while Pacemaker stayed in maintenance mode, and data integrity checks found no evidence of corruption. mudanca_causadora is nao_se_aplica: the impact was set off by a hardware failure; the earlier Backup VIP with its -INF colocation rule (added to reduce load on the primary) is part of the root cause that prevented promotion, not what set the problem off.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.16"
+  }
+}

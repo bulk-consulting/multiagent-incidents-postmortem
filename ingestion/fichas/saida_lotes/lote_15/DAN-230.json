@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-230",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "Repeated Amazon S3 write failures made a Tarsnap background job that records freed blocks abort and restart 142 times, each time logging blocks again, until the log filled the filesystem; the resulting failures of other filesystem writes triggered a shutdown of all Tarsnap service code, and no archives could be created or retrieved for 85 minutes. Service was restored by deleting the runaway log file and restarting the server code.",
+    "data_incidente": "2016-07-24",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Tarsnap"
+    ],
+    "tecnologias": [
+      "Amazon S3",
+      "SSH"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 10:15:44 UTC Tarsnap's monitoring systems determined the service was not operating properly and sent a text message.",
+        "trechos": [
+          "2016-07-24 10:15:44: Tarsnap's monitoring systems determine that the Tarsnap service is not operating properly, and send me a text message."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "From around June 30, the Tarsnap server saw an increase in correlated timeout failures from Amazon S3, with about a 100x increase in requests exhausting all retries; over the following week, S3 writes failed repeatedly 142 times, each time aborting the background job. The author believes this seems to come from an as yet undiagnosed change in S3 behaviour.",
+      "trechos": [
+        "Some time around June 30th: The Tarsnap server starts to experience an increase in correlated timeout failures from Amazon S3.",
+        "While the overall S3 request failure rate did not significantly increase, the rate of failures of requests \\*which were retrying a failed request\\* increased substantially \\[1\\], resulting in a roughly 100x increase in the rate at which requests exhaust all their permitted retries and are considered to have failed.",
+        "142 times over the following week: Writes to Amazon S3 fail repeatedly, causing the aforementioned background job to abort. It automatically restarts.",
+        "While the ultimate precipitating factor seems to have be an as yet still undiagnosed change in Amazon S3 behaviour, the majority of the fault here lies in Tarsnap: Inappropriate handling of repeated S3 failures resulted in runaway disk space consumption; a lack of sufficient internal monitoring allowed it to go undetected until it became critical; and an inadequate understanding of the human factor -- that is, my ability to wake up when my phone rang -- resulted in the outage continuing for three times longer than it would have otherwise."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Inappropriate handling of repeated S3 failures: the background job that records unreferenced blocks as freed and logs this to disk was restarted after each abort, so its log came to list many blocks over a hundred times and at 10:15:19 UTC filled the filesystem; other filesystem writes then failed, which as a \"never event\" prompted an immediate shutdown of all Tarsnap service code.",
+        "trechos": [
+          "2016-07-16 12:50:02: A routine background job kicks off which identifies unreferenced blocks of data, records in S3 that those blocks are no longer needed, then logs that change of status to disk.",
+          "142 times over the following week: Writes to Amazon S3 fail repeatedly, causing the aforementioned background job to abort. It automatically restarts.",
+          "2016-07-24 10:15:19: The log of blocks being freed, which now lists many blocks over a hundred times each, fills the filesystem on which it is stored. This causes other filesystem writes to fail, and since this is a \"never event\" it prompted an immediate shutdown of all the tarsnap service code.",
+          "While the ultimate precipitating factor seems to have be an as yet still undiagnosed change in Amazon S3 behaviour, the majority of the fault here lies in Tarsnap: Inappropriate handling of repeated S3 failures resulted in runaway disk space consumption; a lack of sufficient internal monitoring allowed it to go undetected until it became critical; and an inadequate understanding of the human factor -- that is, my ability to wake up when my phone rang -- resulted in the outage continuing for three times longer than it would have otherwise."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Internal monitoring was insufficient: internal metrics such as free filesystem space, which diminished gradually over a week, were not monitored well enough; the author states better monitoring could have alerted before the outage.",
+        "trechos": [
+          "While external \"behave like a real user\" monitoring remains the gold standard, better monitoring of internal metrics -- for example, the amount of space free on a filesystem, which gradually diminished over the course of a week -- could have alerted me to a problem before it caused an outage."
+        ]
+      },
+      {
+        "texto": "The monitoring system was set to phone only once an hour; after the first text message and the 10:20:30 UTC call did not wake the operator, the next call came at 11:20:30 UTC, and the author says this made the outage last three times longer than it otherwise would have.",
+        "trechos": [
+          "I had assumed this couldn't happen, so I set the Tarsnap monitoring system to phone once an hour since I knew I wouldn't want to be bothered by further phone calls once I was working on resolving an issue.",
+          "2016-07-24 10:20:30: Tarsnap's monitoring systems determine that the Tarsnap service is still not operating properly, and phone me.",
+          "2016-07-24 11:20:30: Tarsnap's monitoring systems determine that the Tarsnap service is still not operating properly, and phone me again.",
+          "This time I wake up, and upon checking my phone discover much to my surprise that, despite my phone being about 50cm away from me with the volume turned all the way up, I had somehow managed to sleep through the first text message and phone call.",
+          "While the ultimate precipitating factor seems to have be an as yet still undiagnosed change in Amazon S3 behaviour, the majority of the fault here lies in Tarsnap: Inappropriate handling of repeated S3 failures resulted in runaway disk space consumption; a lack of sufficient internal monitoring allowed it to go undetected until it became critical; and an inadequate understanding of the human factor -- that is, my ability to wake up when my phone rang -- resulted in the outage continuing for three times longer than it would have otherwise."
+        ]
+      },
+      {
+        "texto": "An earlier increase in repeatedly failing S3 PUTs, noticed in July, was not investigated because it did not seem to affect overall performance and the code retried failures.",
+        "trechos": [
+          "Earlier in July I noticed that there had been an increase in the fraction of S3 PUTs repeatedly failing; but since it did not seem to be having any significant effect on overall system performance, and I knew that all of the relevant code would retry failures, I did not investigate the root cause."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The operator deleted the runaway log file, knowing it would be safely regenerated when the background free-block-recording process next ran.",
+          "trechos": [
+            "Over the next 20 minutes: I SSH into the server, see that the server code isn't running, and consult its error log to discover why; I notice the runaway log file and re-read the relevant code to convince myself that I'm correctly remembering how it works; and I delete that file, knowing that it will be safely regenerated when the background free-block-recording process is next run."
+          ]
+        },
+        {
+          "texto": "At 11:40:04 UTC the aborted server code was restarted and confirmed working; monitoring showed everything functioning normally at 11:40:59 UTC.",
+          "trechos": [
+            "2016-07-24 11:40:04: I restart the server code which had aborted, and confirm that it's all working properly again.",
+            "2016-07-24 11:40:59: Tarsnap monitoring shows everything functioning normally."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "Under consideration: better monitoring of internal metrics (e.g. free filesystem space), to be implemented only after weighing the security tradeoffs.",
+          "trechos": [
+            "While external \"behave like a real user\" monitoring remains the gold standard, better monitoring of internal metrics -- for example, the amount of space free on a filesystem, which gradually diminished over the course of a week -- could have alerted me to a problem before it caused an outage.",
+            "I will have to carefully consider the tradeoffs here and whether I can ensure adequate security before implementing any such new monitoring mechanisms."
+          ]
+        },
+        {
+          "texto": "Intention: keep an eye out to ensure this pattern of events does not recur.",
+          "trechos": [
+            "We can do better; and I will be specifically keeping an eye out to ensure that this particular pattern of events does not recur."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 85,
+      "trechos": [
+        "All Tarsnap customer data remained safely stored for the duration, but archives which were in the process of being created at that time would have failed (\"too many network failures\") and no further archives could be created or retrieved until the service came back online 85 minutes later at approximately 2016-07-24 11:40:40 UTC."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "The root cause within Amazon S3 of the repeated retry failures is not yet clear."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The document is a mailing-list post signed by the operator, with a signature footer and OpenPGP metadata. The author added extra logging that shows S3 InternalError responses after about 4.88 seconds and says three consecutive such failures meant all later retries failed; the author presumes this is not intended S3 behaviour. Users were credited 2 days of storage costs. No user data was lost. mudanca_causadora is nao_se_aplica: the precipitating factor the author names is an undiagnosed change in a dependency's behaviour (Amazon S3), not a persistent change of configuration, code, version or policy.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.16"
+  }
+}

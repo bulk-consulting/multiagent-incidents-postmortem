@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-086",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On leap day, the Windows Azure guest agent set transfer certificate expiry by adding one to the year, giving the invalid date February 29, 2013; certificate creation failed, VMs failed to initialize and servers were wrongly marked faulty, spreading the failure across Compute and dependent services. Service management was disabled and a fixed guest agent rolled out; a repair update to seven clusters shipped an incompatible networking plugin and disconnected their VMs until a corrected package was pushed, and they were largely operational by 8:00 AM PST.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Windows Azure Compute",
+      "Access Control Service (ACS)",
+      "Windows Azure Service Bus",
+      "SQL Azure Portal",
+      "Data Sync Services",
+      "service management"
+    ],
+    "tecnologias": [
+      "Fabric Controller (FC)",
+      "guest agent (GA)",
+      "host agent (HA)",
+      "transfer certificate",
+      "networking plugin",
+      "Update Domains"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Critical alarms on the clusters being updated automatically stopped the updates and alerted operations staff to the problem.",
+        "trechos": [
+          "The bug worked its way more slowly through clusters that were not being updated, but the critical alarms on the updating clusters automatically stopped the updates and alerted operations staff to the problem."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 4:00PM PST on February 28 (00:00 UST February 29), guest agents in new VMs tried to generate transfer certificates on leap day.",
+      "trechos": [
+        "The leap day bug immediately triggered at 4:00PM PST, February 28<sup>th</sup> (00:00 UST February 29<sup>th</sup>) when GAs in new VMs tried to generate certificates."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The guest agent calculated the transfer certificate's valid-to date by adding one to the current date's year, so on leap day it set February 29, 2013, an invalid date that made certificate creation fail. A guest agent that fails to create its certificates terminates; after three 25-minute timeouts on a clean VM, the host agent assumes a hardware fault, the server is moved to Human Investigate, and service healing moves its VMs to other servers where the bug reproduces, causing a cascade.",
+        "trechos": [
+          "The leap day bug is that the GA calculated the *valid-to* date by simply taking the current date and adding one to its year.",
+          "That meant that any GA that tried to create a transfer certificate on leap day set a *valid-to* date of February 29, 2013, an invalid date that caused the certificate creation to fail.",
+          "When a GA fails to create its certificates, it terminates. The HA has a 25-minute timeout for hearing from the GA.",
+          "If a clean VM (one in which no customer code has executed) times out its GA connection three times in a row, the HA decides that a hardware problem must be the cause since the GA would otherwise have reported an error.",
+          "The HA then reports to the FC that the server is faulty and the FC moves it to a state called Human Investigate (HI).",
+          "In a case like this, when the VMs are moved to available servers the leap day bug will reproduce during GA initialization, resulting in a cascade of servers that move to HI."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Many clusters were in the middle of rolling out new versions of the FC, HA and GA, which ensured the bug was hit immediately there and the HI threshold was reached 75 minutes later at 5:15PM PST.",
+        "trechos": [
+          "At the same time many clusters were also in the midst of the rollout of a new version of the FC, HA and GA.",
+          "That ensured that the bug would be hit immediately in those clusters and the server HI threshold hit precisely 75 minutes (3 times 25 minute timeout) later at 5:15PM PST."
+        ]
+      },
+      {
+        "texto": "The Fabric Controller assumed the hardware, not the guest agent, was faulty when operations failed, and the fault was not isolated before it propagated further.",
+        "trechos": [
+          "It incorrectly assumed the hardware, not the GA, was faulty.",
+          "We are taking steps to distinguish these faults and isolate them before they can propagate further into the system."
+        ]
+      },
+      {
+        "texto": "Guest agent failures were not surfaced until 75 minutes after a long timeout.",
+        "trechos": [
+          "GA failures were not surfaced until 75 minutes after a long timeout."
+        ]
+      },
+      {
+        "texto": "Secondary outage: the repair package with the older HA for seven partially updated clusters included the networking plugin written for the newer HA, which was incompatible; the single-server test had not checked VM network connectivity, and the package was pushed as a simultaneous \"blast\" update at 2:47 AM PST, disconnecting every VM in those clusters from the network.",
+        "trechos": [
+          "Unfortunately, in our eagerness to get the fix deployed, we had overlooked the fact that the update package we created with the older HA included the networking plugin that was written for the newer HA, and the two were incompatible.",
+          "Our test of the single server had not included testing network connectivity to the VMs on the server, which was not working.",
+          "Instead of pushing the older HA out using the standard deployment functionality, we felt confident enough with the tests to opt for a “blast” update, which simultaneously updated to the older version the HA on all servers at the same time.",
+          "At 2:47 AM PST on the 29<sup>th</sup>, we pushed the incompatible combination of components to those seven clusters and every VM, including ones that had been healthy previously, causing them to become disconnected from the network."
+        ]
+      },
+      {
+        "texto": "ACS and Windows Azure Service Bus deployments were in the seven affected clusters, so any application using them was also impacted.",
+        "trechos": [
+          "Since major services such as Access Control Service (ACS) and Windows Azure Service Bus deployments were in those clusters, any application using them was now impacted because of the loss of services on which they depended."
+        ]
+      },
+      {
+        "texto": "After the various transitions a number of servers were left in corrupted states and had to be manually restored and validated through the rest of the day.",
+        "trechos": [
+          "The clusters were largely operational again by 8:00 AM PST, but a number of servers were in corrupted states as a result of the various transitions.",
+          "Developers and operations staff worked furiously through the rest of the day manually restoring and validating these servers."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 6:55PM PST service management was disabled in all clusters worldwide to prevent customers from causing further impact by scaling out or deploying.",
+          "trechos": [
+            "To prevent customers from inadvertently causing further impact to their running applications, unsuccessfully scaling-out their applications, and fruitlessly trying to deploy new applications, we disabled service management functionality in all clusters worldwide at 6:55PM PST."
+          ]
+        },
+        {
+          "texto": "An updated guest agent was written and tested (code ready 11:20PM PST, tested in a test cluster by 1:50AM PST), rolled out to one production cluster by 2:11AM PST and then pushed to all clusters; service management was restored as clusters were updated, to the majority of clusters by 5:23AM PST.",
+          "trechos": [
+            "We created a test and rollout plan for the updated GA by approximately 10:00PM PST, had the updated GA code ready at 11:20PM PST, and finished testing it in a test cluster at 1:50AM PST, February 29<sup>th</sup>.",
+            "We next initiated rollout of the GA to one production cluster and that completed successfully at 2:11AM PST, at which time we pushed the fix to all clusters.",
+            "As clusters were updated we restored service management functionality for them and at 5:23AM PST we announced service management had been restored to the majority of our clusters."
+          ]
+        },
+        {
+          "texto": "For seven partially updated clusters, previous versions of the FC and HA with a fixed GA were pushed at 2:47 AM PST; this package had an incompatible networking plugin and disconnected the VMs.",
+          "trechos": [
+            "We restored to previous versions of the FC, HA, but with a fixed GA, instead of updating them to the new HA with a fixed new GA.",
+            "At 2:47 AM PST on the 29<sup>th</sup>, we pushed the incompatible combination of components to those seven clusters and every VM, including ones that had been healthy previously, causing them to become disconnected from the network."
+          ]
+        },
+        {
+          "texto": "A corrected HA package was produced and tested at 3:40 AM PST, verifying VM connectivity, and blasted out starting at 5:40 AM PST; the clusters were largely operational by 8:00 AM PST, and corrupted servers were manually restored through the rest of the day.",
+          "trechos": [
+            "We quickly produced a corrected HA package and at 3:40 AM PST tested again, this time verifying VM connectivity and other aspects of VM health.",
+            "Given the impact on these seven clusters, we chose to blast out the fix starting at 5:40 AM PST.",
+            "The clusters were largely operational again by 8:00 AM PST, but a number of servers were in corrupted states as a result of the various transitions.",
+            "Developers and operations staff worked furiously through the rest of the day manually restoring and validating these servers."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Improving testing to detect time-related bugs and enhancing code analysis tools to detect this class of coding issue; already done: the code base has been reviewed.",
+          "trechos": [
+            "We are taking steps that improve our testing to detect time-related bugs.  We are also enhancing our code analysis tools to detect this and similar classes of coding issues, and we have already reviewed our code base."
+          ]
+        },
+        {
+          "texto": "Distinguishing guest agent faults from hardware faults and isolating them before they propagate further.",
+          "trechos": [
+            "It incorrectly assumed the hardware, not the GA, was faulty.  We are taking steps to distinguish these faults and isolate them before they can propagate further into the system."
+          ]
+        },
+        {
+          "texto": "Finer-grained controls to disable different aspects of service management while keeping others up.",
+          "trechos": [
+            "We are taking steps to have finer granularity controls to allow disabling different aspects of the service while keeping others up and visible."
+          ]
+        },
+        {
+          "texto": "Better error classification so guest agent failures fail fast, are alerted and recovery starts, instead of surfacing after a 75-minute timeout.",
+          "trechos": [
+            "GA failures were not surfaced until 75 minutes after a long timeout.  We are taking steps to better classify errors so that we fail-fast in these cases, alert these failures and start recovery."
+          ]
+        },
+        {
+          "texto": "Continued investment in internal tooling to speed recovery and make recovery from intermediate states more predictable.",
+          "trechos": [
+            "We will continue to invest in our tools to help speed recovery and make recovery from intermediate states more predictable."
+          ]
+        },
+        {
+          "texto": "Examining processes so that infrastructure services such as ACS and Windows Azure Service Bus are recovered first.",
+          "trechos": [
+            "We are also examining our processes to make sure dependencies are factored into recovery to ensure that all Windows Azure infrastructure services, such as ACS and Windows Azure Service Bus, are recovered first to reduce the impact on customers."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 960,
+      "trechos": [
+        "The leap day bug immediately triggered at 4:00PM PST, February 28<sup>th</sup> (00:00 UST February 29<sup>th</sup>) when GAs in new VMs tried to generate certificates.",
+        "The clusters were largely operational again by 8:00 AM PST, but a number of servers were in corrupted states as a result of the various transitions."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "data_incidente is null because the text does not state the year; it can be deduced as 2012 (the bug added one year to the leap-day date and produced February 29, 2013). duracao runs from 4:00PM PST February 28 to 8:00 AM PST February 29, when the last seven clusters were largely operational; service management was restored to the majority of clusters at 5:23AM PST, and the dashboard reported all services healthy at 2:15 AM PST March 1. The document also lists customer-communication improvements (dashboard, support staffing, other channels) and a 33% service credit, not listed under prevencao.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.16"
+  }
+}

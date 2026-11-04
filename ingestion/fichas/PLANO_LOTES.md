@@ -14,7 +14,7 @@ Lista completa em [`lotes/lotes.csv`](lotes/lotes.csv): **169 documentos em 17 l
 Observações:
 - `precisa_limpeza` (7) entra: são textos repetidos em outro idioma ou parágrafos repetidos. Desde o lote 05, o `montar_prompts.py` remove do prompt os parágrafos em escrita não latina (quando sobra texto latino suficiente) e os parágrafos longos repetidos; só remove parágrafos inteiros, então os trechos continuam batendo com o texto original no validador. Age em DAN-002, 060, 062, 064, 111, 113, 114 e 155 (DAN-002 tem a versão em inglês depois do coreano). Cópias em outro idioma de escrita latina (o português da DAN-063) não são removidas.
 - DAN-216 tem 2 palavras e o inventário a marcou `ok` por engano; o esperado é `catalogo: nao_verificavel`.
-- DAN-210 tem 4.501 palavras, mas são só menus, cabeçalhos de comentários e rodapé do Reddit; saiu `nao_verificavel` no lote 03. DAN-156 (lote 04) trouxe só a página do Hacker News com um comentário. DAN-150 (lote 11) trouxe só a página índice do blog. DAN-202 (lote 13) trouxe a página da EPA sobre a licença da usina Merrimack (o PDF do catálogo redireciona), sem nada do apagão de 2003. A contagem de palavras do inventário não detecta páginas sem artigo: as cinco vão para a reextração.
+- DAN-210 tem 4.501 palavras, mas são só menus, cabeçalhos de comentários e rodapé do Reddit; saiu `nao_verificavel` no lote 03. DAN-156 (lote 04) trouxe só a página do Hacker News com um comentário. DAN-150 (lote 11) trouxe só a página índice do blog. DAN-034 e DAN-209 (lote 16) trouxeram só título e navegação do blog e do Reddit. DAN-202 (lote 13) trouxe a página da EPA sobre a licença da usina Merrimack (o PDF do catálogo redireciona), sem nada do apagão de 2003. A contagem de palavras do inventário não detecta páginas sem artigo: as sete vão para a reextração.
 
 ## Cada lote
 
@@ -41,6 +41,8 @@ Lote 11 = 5/6 (0,8) → segue por amostra, sem mudança de prompt. DAN-150 saiu 
 Lote 12 = 7/7 (1,0) → segue por amostra; gerou a v2.15 (configuration-error sem mudança recente).
 Lote 13 = 8/6 (1,3) + 1 fora da amostra (duração da DAN-013) → segue por amostra; gerou a v2.16. DAN-202 saiu catalogo nao (página errada da EPA): reextração.
 Lote 14 = 6/6 (1,0) → segue por amostra, sem mudança de prompt.
+Lote 15 = 10/6 (1,7) + 2 fora da amostra (ano deduzido em DAN-086 e 195) → passou de 1,5: o lote 16 volta a ser conferido inteiro.
+Lote 16 = 5/7 (0,7), conferido inteiro (as 7 fichas com incidente; DAN-034 e 209 saíram nao_verificavel) → extração do plano concluída.
 
 **Fichas vazias:** documentos que saem `nao_verificavel` (só menus ou rodapé) não precisam de conferência; entram na lista de reextração.
 

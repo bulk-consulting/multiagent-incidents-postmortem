@@ -1,0 +1,143 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-008",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A software release of a CDN component that added distributed tracing to the Tiered Cache logic cleared control headers that upper-tier requests needed, so a subset of requests to sites using Tiered Cache, Cloudflare Images or Bandwidth Alliance failed with HTTP 530; about 5% of all requests failed at peak. Impact ended once the release was rolled back in all data centers configured as Tiered Cache upper tiers.",
+    "data_incidente": "2022-10-25",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Content Delivery Network (CDN)",
+      "Tiered Cache",
+      "Cloudflare Images",
+      "Bandwidth Alliance"
+    ],
+    "tecnologias": [
+      "Tiered Cache",
+      "opentracing",
+      "distributed tracing",
+      "internal DNS"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "An intermittent increase in HTTP 530 errors was first noticed through customer reports after the faulty component was released to a subset of data centers; the timeline also lists an individual customer alert firing at 10:35 for an increase in 500 error codes.",
+        "trechos": [
+          "We started an investigation after receiving customer reports of an intermittent increase in 530s after the faulty component was released to a subset of data centers.",
+          "2022-10-25 10:35: An individual customer alert fires, indicating an increase in 500 error codes."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A release added distributed tracing to the Tiered Cache entrypoint by wrapping go() with the opentracing trace_fn(); the logic that injects a function into the opentracing module clears control headers on every request, but internal tiered cache traffic expects the lower tier's control headers to be passed as-is. In the affected requests the hostname for the internal DNS lookup of origin server IP addresses was missing, so a 530 DNS error was returned to the client.",
+        "trechos": [
+          "Our team recently added additional distributed tracing to our Tiered Cache logic.",
+          "The code above wraps the existing go() function with trace\\_fn() which will call the go() function and then reports its execution time.",
+          "However, the logic that injects a function to the opentracing module clears control headers on every request:",
+          "But internal tiered cache traffic expects the control headers from the lower tier to be passed as-is.",
+          "In the subset of requests affected, we were missing the hostname to resolve by our internal DNS lookup for origin server IP addresses. As a result, a 530 DNS error was returned to the client."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The problem was not caught when the change was released to the test environment; the authors attribute this to the complexity of the system and a blind spot in their tests.",
+        "trechos": [
+          "Because of the complexity of our system and a blind spot in our tests, we did not spot this when the change was released to our test environment."
+        ]
+      },
+      {
+        "texto": "Early in the investigation the indicators pointed to the internal DNS system, which also had a release rolling out at the same time; this turned out to be a side effect, and it took a number of tries to identify the actual cause.",
+        "trechos": [
+          "During the early phases of the investigation, the indicators were that this was a problem with our internal DNS system that also had a release rolling out at the same time.",
+          "As the following section shows, that was a side effect rather than the cause of the outage.",
+          "It took our teams a number of tries to identify exactly what was causing the problems."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "A software release of a CDN component that wrapped the Tiered Cache entrypoint function go() with the opentracing trace_fn() (span \"tiered_cache_rewrite\") to add distributed tracing; it began rolling out at 08:40 UTC.",
+        "trechos": [
+          "At 08:40 UTC, a software release of a CDN component containing a bug began slowly rolling out.",
+          "Our team recently added additional distributed tracing to our Tiered Cache logic.",
+          "trace_fn(ngx.ctx, \"tiered_cache_rewrite\", go)"
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "At 17:03 UTC the CDN release was rolled back in one data center (Atlanta), after which 530 errors dropped, confirming the bad release as the cause.",
+          "trechos": [
+            "We confirmed a bad release was responsible by rolling back the release in a data center at 17:03 UTC. After the rollback, we observed a drop in 530 errors.",
+            "2022-10-25 17:03: CDN Release is rolled back in Atlanta and root cause is confirmed."
+          ]
+        },
+        {
+          "texto": "An accelerated global rollback followed; impact ended once the release was reverted in all data centers configured as Tiered Cache upper tiers at 18:04 UTC.",
+          "trechos": [
+            "After this confirmation, an accelerated global rollback began and the 530s started to decrease. Impact ended once the release was reverted in all data centers configured as Tiered Cache upper tiers at 18:04 UTC."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Include a larger data center configured as a Tiered Cache upper tier in an earlier stage of the release plan, to notice similar issues before a global release.",
+          "trechos": [
+            "Include a larger data center that is configured as a Tiered Cache upper tier in an earlier stage in the release plan. This will allow us to notice similar issues more quickly, before a global release."
+          ]
+        },
+        {
+          "texto": "Expand acceptance test coverage to a broader set of configurations, including various Tiered Cache topologies.",
+          "trechos": [
+            "Expand our acceptance test coverage to include a broader set of configurations, including various Tiered Cache topologies."
+          ]
+        },
+        {
+          "texto": "Alert more aggressively when requests lack full context and need the extra host information in the control headers.",
+          "trechos": [
+            "Alert more aggressively in situations where we do not have full context on requests, and need the extra host information in the control headers."
+          ]
+        },
+        {
+          "texto": "Ensure the system fails fast in an error like this, so the problem can be identified during development and test.",
+          "trechos": [
+            "Ensure that our system correctly fails fast in an error like this, which would have helped identify the problem during development and test."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 360,
+      "trechos": [
+        "The impact lasted for almost six hours in total."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "deteccao.forma: usuarios_clientes vs alerta_automatico. The prose says the investigation started after customer reports, while the timeline lists an earlier 'individual customer alert' firing at 10:35; both satisfy 'how the problem was first noticed', with alerta_automatico ('monitoring/alerting fired') and usuarios_clientes ('users or customers reported') each matching one account, and the definition does not say which account to follow when the text gives both.",
+  "observacoes": "duracao uses the stated 'almost six hours' of impact; the timeline gives the release starting at 08:40 UTC and impact ending at 18:04 UTC (564 minutes), which does not match the stated figure. The text also says the expedited rollback completed in 87 minutes, and peak impact was at 17:28 UTC with about 5% of HTTP requests failing. The text says the bug was fixed in addition to the listed remediations, without detail. The rollback was complete at 18:30 UTC, after the impact ended.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.17"
+  }
+}

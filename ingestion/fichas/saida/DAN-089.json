@@ -1,0 +1,93 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-089",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "outro",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "When a leap second set CLOCK_REALTIME back one second, clock_was_set() was not called, so the Linux hrtimer base.offset for CLOCK_REALTIME stayed one second ahead; TIMER_ABSTIME CLOCK_REALTIME timers expired one second early and sub-second ones returned immediately, causing load spikes in applications calling them in a loop. The state persists until clock_was_set() is called; the author proposes a fix calling clock_was_set when a leap second is applied. The text does not say how affected systems were restored.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [],
+    "tecnologias": [
+      "Linux kernel",
+      "hrtimer",
+      "CLOCK_REALTIME",
+      "TIMER_ABSTIME",
+      "clock_was_set()",
+      "futex_wait",
+      "clock_nanosleep",
+      "settimeofday()"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "A leap second occurs and CLOCK_REALTIME is set back one second.",
+      "trechos": [
+        "Leap second occurs, CLOCK\\_REALTIME is set back one second."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Because clock_was_set() is not called when the leap second is applied, the hrtimer base.offset for CLOCK_REALTIME is not updated and the hrtimer code's sense of wall time is one second ahead of the timekeeping core's. At interrupt time the hrtimer code expires all CLOCK_REALTIME timers set up to one second ahead, so all TIMER_ABSTIME CLOCK_REALTIME timers expire one second early and all sub-second ones return immediately; such calls done in a loop (as commonly done with futex_wait or other timeouts) cause load spikes in those applications.",
+        "trechos": [
+          "As clock\\_was\\_set() is not called, the hrtimer base.offset value for CLOCK\\_REALTIME is not updated, thus its sense of wall time is one second ahead of the timekeeping core's.",
+          "At interrupt time (T), the hrtimer code expires all CLOCK\\_REALTIME based timers set for T+1s and before, causing early expirations for timers between T and T+1s since the hrtimer code's sense of time is one second ahead.",
+          "This causes all TIMER\\_ABSTIME CLOCK\\_REALTIME timers to expire one second early.",
+          "More problematically, all sub-second TIMER\\_ABSTIME CLOCK\\_REALTIME timers will return immediately. If any such timer calls are done in a loop (as commonly done with futex\\_wait or other timeouts), this will cause load spikes in those applications."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The faulty state persists until clock_was_set() is called (most easily done via settimeofday()).",
+        "trechos": [
+          "This state persists until clock\\_was\\_set() is called (most easily done via settimeofday())"
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "ausente",
+      "passos": []
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Proposed fix (posted as an RFC potential fix): call clock_was_set when a leap second is applied; the author reports no longer seeing the issue with this fix.",
+          "trechos": [
+            "With my fix to call clock\\_was\\_set when we apply a leapsecond, I no longer see the issue.",
+            "Re: \\[PATCH 0/2\\]\\[RFC\\] Potential fix for leapsecond caused futex issue (v2)"
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "Whether kernels older than v2.6.32.59 are affected has not been tested yet; the author is working to install an older distribution for further testing (others noted the bug has likely potentially been around since commit 746976a301ac in v2.6.22).",
+      "A to-do quoted from an earlier message remains: chase down the futex/hrtimer interaction to see whether the issue could be triggered in any other way."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The document is a Linux kernel mailing list message (Sun, 01 Jul 2012) with a diagnosis and a test case; it does not state the date of the leap second or name affected services, so data_incidente is null and servicos_afetados is empty. status_relatorio is preliminar because the message presents an RFC 'potential fix' with further testing pending. The author reproduced the behaviour on kernel versions v3.5-rc4, v2.6.37 and v2.6.32.59. The hedged origin of the bug (commit 746976a in v2.6.22) is not treated as a causing change. status_relatorio is final: the post presents a diagnosis written after the leap second; the RFC and pending tests refer to the proposed patch, not to the report.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.17"
+  }
+}

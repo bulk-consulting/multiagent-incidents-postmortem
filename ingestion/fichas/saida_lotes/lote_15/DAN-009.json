@@ -1,0 +1,185 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-009",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A release adding a \"last seen at\" field to Cloudflare Access service tokens wrote tokens back with an empty client secret, invalidating the tokens of four internal accounts, two of which power multiple Cloudflare services; WARP, Zero Trust, Cache Purge, Cache Reserve, Images and R2 were impacted for 121 minutes. Service was restored by manually restoring the correct token values and then restoring all affected tokens from a database backup.",
+    "data_incidente": "2023-01-24",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Workers platform",
+      "Zero Trust",
+      "CDN control plane",
+      "Cloudflare WARP",
+      "Cache Purge",
+      "Cache Reserve",
+      "Images",
+      "R2",
+      "Gateway"
+    ],
+    "tecnologias": [
+      "Kafka",
+      "service tokens"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "WARP device posture uploads dropped to zero, which raised an internal alert.",
+        "trechos": [
+          "WARP device posture uploads dropped to zero which raised an internal alert"
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The new \"last seen at\" update used a read-write transaction on the service token; because service token reads redact the client secret by default, the write updated the token with an empty client secret, making the tokens of impacted accounts invalid; four accounts, all internal to Cloudflare, were left in this state.",
+        "trechos": [
+          "In order to update the service token’s “last seen at” value a read write transaction is made to collect the information about the corresponding service token.",
+          "Service token read requests redact the “client secret” value by default for security reasons.",
+          "The “last seen at” update to the service token then used that information from the read did not include the “client secret” and updated the service token with an empty “client secret” on the write.",
+          "The change inadvertently overwrote other metadata about the service tokens and rendered the tokens of impacted accounts invalid for the duration of the incident.",
+          "There were a total of 4 accounts in this state, all of which are internal to Cloudflare."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The client secret database field had a \"not null\" check, but an empty string did not trigger it as a null value.",
+        "trechos": [
+          "The service token “client secret” database did have a “not null” check however in this situation an empty text string did not trigger as a null value."
+        ]
+      },
+      {
+        "texto": "Because Cloudflare runs on Cloudflare, two of the impacted accounts power multiple Cloudflare services, which began to experience failed requests and errors when their tokens were overwritten.",
+        "trechos": [
+          "The reason this release affected other services is due to the fact that Cloudflare runs on Cloudflare.",
+          "Service tokens impact the ability for accounts to authenticate, and two of the impacted accounts power multiple Cloudflare services.",
+          "When these accounts’ service tokens were overwritten, the services that run on these accounts began to experience failed requests and other unexpected errors."
+        ]
+      },
+      {
+        "texto": "Service token values are not updated across the network until the token itself is updated, which caused a staggered impact of the overwritten tokens.",
+        "trechos": [
+          "Service token values are not updated across Cloudflare’s network until the service token itself is updated (more details below). This caused a staggered impact of the service token’s that had their metadata overwritten."
+        ]
+      },
+      {
+        "texto": "During recovery, at 19:00 UTC an update to the Cloudflare API account incorrectly overwrote it again and impact restarted for Cache Purge, Cache Reserve, Images and R2.",
+        "trechos": [
+          "At 2023-01-24 19:00 An update was made to the Cloudflare API account which incorrectly overwrote the Cloudflare API account.",
+          "Impact restarted for Cache Purge, Cache Reserve, Images and R2.",
+          "All Timestamps are UTC"
+        ]
+      },
+      {
+        "texto": "Zero Trust device posture rules defaulted to a block action when the posture signal could not be received, so in some cases all Internet-bound traffic from a device was blocked.",
+        "trechos": [
+          "During this incident those rules defaulted to a block action, meaning that traffic modified by these policies would appear broken to the user.",
+          "In some cases this meant that all Internet bound traffic from a device was completely blocked leaving users unable to access anything."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "A release by the Access team that added a \"Last seen at\" field to service tokens, derived by scanning login events in each account's login event Kafka queue.",
+        "trechos": [
+          "The Access team was rolling out a new change to service tokens that added a “Last seen at” field.",
+          "The “last seen at” value was derived by scanning all new login events in an account’s login event Kafka queue."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 17:05 UTC, before impact began, the release was rolled back (after an unrelated issue was noticed), which stopped further overwrites of service token metadata.",
+          "trechos": [
+            "At 2023-01-24 17:05 a member of the Access engineering team noticed an unrelated issue and rolled back the release which stopped any further overwrites of service token metadata.",
+            "2023-01-24 17:50: The first invalid service token for Cloudflare WARP was synced to our global network.",
+            "All Timestamps are UTC"
+          ]
+        },
+        {
+          "texto": "At 18:51 UTC the service token of the Cloudflare WARP account was reverted to its original value, ending impact for WARP and Zero Trust; at 18:56 UTC the same was done on the Cloudflare API account.",
+          "trechos": [
+            "At 2023-01-24 18:51 An initial solution was identified and implemented to revert the service token to its original value for the Cloudflare WARP account, impacting WARP and Zero Trust.",
+            "Impact ended for WARP and Zero Trust.",
+            "At 2023-01-24 18:56 The same solution was implemented on the Cloudflare API account, impacting Cache Purge, Cache Reserve, Images and R2.",
+            "All Timestamps are UTC"
+          ]
+        },
+        {
+          "texto": "After a 19:00 UTC update re-broke the API account, all internal Cloudflare account changes were locked, and at 19:07 UTC the Cloudflare API account was updated with the correct service token value.",
+          "trechos": [
+            "All internal Cloudflare account changes were then locked until incident resolution.",
+            "At 2023-01-24 19:07 the Cloudflare API was updated to include the correct service token value.",
+            "At 2023-01-24 19:00 An update was made to the Cloudflare API account which incorrectly overwrote the Cloudflare API account.",
+            "All Timestamps are UTC"
+          ]
+        },
+        {
+          "texto": "At 19:51 UTC the database team restored the service tokens of all affected accounts from an older database copy, ending the incident.",
+          "trechos": [
+            "At 2023-01-24 19:51 all affected accounts had their service tokens restored from a database backup.",
+            "The database team was then able to implement a solution to restore the service tokens of all impacted accounts from an older database copy. This concluded any impact from this incident.",
+            "All Timestamps are UTC"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: the Access engineering team will add unit tests to catch similar service token overwrites before new features launch.",
+          "trechos": [
+            "**Test:** The Access engineering team will add unit tests that would automatically catch any similar issues with service token overwrites before any new features are launched."
+          ]
+        },
+        {
+          "texto": "Planned: an automatic alert for any dramatic increase in failed service token authentication requests.",
+          "trechos": [
+            "**Alert:** The Access team will implement an automatic alert for any dramatic increase in failed service token authentication requests to catch issues before they are fully launched."
+          ]
+        },
+        {
+          "texto": "The Access team has identified process improvements to allow faster rollbacks for specific database tables.",
+          "trechos": [
+            "**Process:** The Access team has identified process improvements to allow for faster rollbacks for specific database tables."
+          ]
+        },
+        {
+          "texto": "Planned: all relevant database fields will be updated to check for empty strings in addition to the existing \"not null\" checks.",
+          "trechos": [
+            "**Implementation:** All relevant database fields will be updated to include checks for empty strings on top of existing “not null checks”"
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 121,
+      "trechos": [
+        "Several Cloudflare services became unavailable for 121 minutes on January 24, 2023 due to an error releasing code that manages service tokens."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Impact began at 17:50 UTC (WARP); the stated 121 minutes matches 17:50 to 19:51 UTC, when the timeline marks 'Incident Ends' (all service tokens restored); the last explicit 'Impact ended' line is at 19:07 UTC. An incident was declared at 18:12 UTC. categoria_causa is software-bug: the tokens were not compromised, expired or mis-deployed; they were overwritten by a code defect in the read-write update. Four accounts, all internal to Cloudflare, had their client secret emptied.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.16"
+  }
+}

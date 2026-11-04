@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-083",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "Per-organization incident identifiers generated from Postgres sequences jumped forward by up to 32 after a database upgrade promoted a follower to primary, because follower nodes see the sequence state that would prevail on the primary after a crash; a significant proportion of incident ID sequences appeared to be affected. No data went missing or was misattributed. The text does not say whether the skipped IDs were corrected; ID generation was later moved to a trigger computing MAX(external_id)+1.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "incident.io incident identifiers"
+    ],
+    "tecnologias": [
+      "Postgres",
+      "Postgres sequences",
+      "nextval",
+      "Write Ahead Log (WAL)",
+      "plpgsql triggers"
+    ],
+    "categoria_causa": "other",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "Customers reported that their incident identifiers appeared to have jumped unexpectedly, e.g. a customer with 20 incidents saw their latest labelled #INC-52.",
+        "trechos": [
+          "The other day, we started getting strange reports from some customers of incident.io.",
+          "Their incident identifiers — unique numbers to identify each incident — appeared to have jumped unexpectedly. One customer with 20 incidents was reporting that we’d labelled their most recent incident as #INC-52 (!?)."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "A recent database upgrade, which involves spinning up a follower and then promoting it to be the primary.",
+      "trechos": [
+        "Whilst we hadn’t seen a crash, we *had* upgraded our database recently, which involves spinning up a follower, then promoting it to be the primary."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Incident IDs came from per-organization Postgres sequences via nextval. Postgres pre-logs 32 sequence values (SEQ_LOG_VALS) to the WAL, and follower nodes see the state that would prevail on the primary if it crashed, which is likely to be up to 32 ahead of the current value; when the follower was promoted to primary, the sequences essentially jumped 32 values forward.",
+        "trechos": [
+          "NEW.external_id := nextval('external_incident_id_seq_' || NEW.organisation_id);",
+          "#define SEQ_LOG_VALS\t32",
+          "So, Postgres pre-allocates 32 numbers in a sequence, decrements that as the numbers are dished out, and then writes to the Write Ahead Log (WAL) to let the follower nodes know, grabs another 32 and starts again.",
+          "In short, it turns out follower nodes will see the state \"that would prevail on the primary if it were to crash\", which as above, is likely to be up to 32 ahead of the current sequence value.",
+          "As part of this promotion, the follower (which in many cases had a sequence value up to 32 ahead) became the new primary, at which point all sequences essentially jumped 32 values forward."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "ausente",
+      "passos": []
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: ID generation moved from nextval on a sequence to a before-insert trigger that sets external_id to COALESCE(MAX(external_id), 0) + 1 for the organization, with an index on the organization and the id.",
+          "trechos": [
+            "We’ve since moved to a different approach which enforces the behaviour we want more explicitly when creating incidents, and we learned something along the way.",
+            "We have a trigger that runs before insert, which looks something like this, with an index on the organization and the id to make the `MAX` speedy.",
+            "NEW.external_id := (SELECT COALESCE(MAX(external_id), 0) + 1 FROM incidents WHERE organisation_id = NEW.organisation_id);"
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives no date for the incident ('The other day'). The text states that no data went missing or was misattributed. categoria_causa is 'other' because the text describes documented Postgres sequence behaviour, not a failure of the datastore or a code defect; the authors note that sequences guarantee increasing values while they wanted IDs that only go up in increments of 1. Transaction rollbacks were considered first and judged unlikely. The Hacker News update also recommends to readers keeping external API references separate from internal primary IDs. mudanca_causadora is nao_se_aplica: the database upgrade involved spinning up a follower and promoting it, and the text attributes the sequence jump to the promotion (an operational failover-like activity), not to the new version.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.17"
+  }
+}

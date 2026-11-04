@@ -1,0 +1,174 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-010",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Cloudflare's 1.1.1.1 resolver could not parse the new ZONEMD record added to the DNS root zone, so some resolvers kept using a stale root zone; when its DNSSEC signatures expired on 4 October 2023, some resolvers returned SERVFAIL to valid queries. Responses returned to normal after 1.1.1.1 was stopped from preloading the root zone file entirely.",
+    "data_incidente": "2023-10-04",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "1.1.1.1",
+      "WARP",
+      "Zero Trust",
+      "third party DNS resolvers which use 1.1.1.1"
+    ],
+    "tecnologias": [
+      "DNS",
+      "DNSSEC",
+      "ZONEMD",
+      "WebAssembly",
+      "static_zone",
+      "root zone",
+      "serve stale (RFC 8767)",
+      "RFC 7706"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "At 7:57 the first external reports of unexpected SERVFAIL responses started coming in.",
+        "trechos": [
+          "**7:57**: First external reports of unexpected SERVFAILs started coming in."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "On 4 October 2023 at 07:00 UTC the DNSSEC signatures in the root zone version from 21 September expired.",
+      "trechos": [
+        "On 4 October 2023 at 07:00 UTC, the DNSSEC signatures in the version of the root zone from 21 September expired."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The library used to parse the root zone at the edge returns a parser error on the unknown ZONEMD record instead of handling it, so the static_zone app never switched to newer root zone versions and kept using the 21 September version from memory indefinitely; with no newer usable version, some resolvers could not validate DNSSEC signatures and returned SERVFAIL.",
+        "trechos": [
+          "However, the 1.1.1.1 resolver systems that make use of that data had problems parsing the ZONEMD record.",
+          "Because of this, the library we use to parse the root zone at the edge does not make an attempt at doing so, and instead returns a parser error.",
+          "However, as parsing failed the static\\_zone app never switched to a newer version, and instead continued using the old version indefinitely.",
+          "However, others continued to rely on the known working version of the root zone still available in their memory cache, which was the version pulled on 21 September before the change.",
+          "Because there was no newer version that the Cloudflare resolver systems were able to use, some of Cloudflare’s resolver systems stopped being able to validate DNSSEC signatures and as a result started sending error responses (SERVFAIL)."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Serving a stale root zone file went unnoticed for as long as it did; the authors state that with better monitoring there would have been no impact.",
+        "trechos": [
+          "It should not have been the case that serving a stale root zone file went unnoticed for as long as it did.",
+          "If we had been monitoring this better, with the caching that exists, there would have been no impact."
+        ]
+      },
+      {
+        "texto": "The root zone was distributed internally in presentation format rather than binary format, which is why static_zone did not support the new ZONEMD record.",
+        "trechos": [
+          "The reason static\\_zone didn’t support the new ZONEMD record is because up until now we had chosen to distribute the root zone internally in its presentation format, rather than in the binary format."
+        ]
+      },
+      {
+        "texto": "Tests existed around ZONEMD parsing, but the case where the root zone fails to parse was not adequately tested.",
+        "trechos": [
+          "Despite having tests in place around this problem, including tests related to unreleased changes in parsing the new ZONEMD records, we did not adequately test what happens when the root zone fails to parse."
+        ]
+      },
+      {
+        "texto": "The first mitigation (an override rule tagging requests with rec_disable_static) did not work because the tag was not included in queries forwarded to other nodes, so static_zone kept replying with stale data until the app was disabled entirely.",
+        "trechos": [
+          "Unfortunately, the rec\\_disable\\_static tag is not included in the queries being forwarded to other nodes, which caused the static\\_zone app to continue replying with stale information until we eventually disabled the app entirely."
+        ]
+      },
+      {
+        "texto": "Impact was concentrated in the largest data centers, which had many servers that had not restarted the 1.1.1.1 service since the ZONEMD change; servers restarted in that period fell back to querying root servers.",
+        "trechos": [
+          "This prevented a total outage; impact was mainly felt in our largest data centers which had many servers that had not restarted the 1.1.1.1 service in that timeframe.",
+          "At the time of this outage, resolver server instances that were restarted between the ZONEMD change and the DNSSEC invalidation did not contribute to impact.",
+          "When it tries to parse the root zone it fails in doing so, but because it does not have an older version of the root zone to fall back on, it falls back on querying the root servers directly for incoming requests."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "On 21 September, as part of a planned change in root zone management, a new resource record type, ZONEMD, was included in the root zones for the first time.",
+        "trechos": [
+          "On 21 September, as part of a known and planned change in root zone management, a new resource record type was included in the root zones for the first time.",
+          "The new resource record is named ZONEMD, and is in effect a checksum for the contents of the root zone."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 8:50 an initial attempt was made to stop 1.1.1.1 from serving responses from the stale root zone using an override rule; it did not fully work because the tag was not carried on forwarded queries.",
+          "trechos": [
+            "**8:50**: Initial attempt made at stopping 1.1.1.1 from serving responses using the stale root zone file with an override rule.",
+            "Unfortunately, the rec\\_disable\\_static tag is not included in the queries being forwarded to other nodes, which caused the static\\_zone app to continue replying with stale information until we eventually disabled the app entirely."
+          ]
+        },
+        {
+          "texto": "At 10:30 1.1.1.1 was stopped from preloading the root zone file entirely; responses returned to normal at 10:32.",
+          "trechos": [
+            "**10:30**: Stopped 1.1.1.1 from preloading the root zone file entirely.",
+            "**10:32**: Responses returned to normal."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "In progress: adding alerts to notify when static_zone serves a stale root zone file.",
+          "trechos": [
+            "**Visibility**: We’re adding alerts to notify when static\\_zone serves a stale root zone file."
+          ]
+        },
+        {
+          "texto": "Planned: re-evaluate how the root zone is ingested and distributed internally so the pipelines handle new RRTYPEs seamlessly.",
+          "trechos": [
+            "**Resilience:** We will re-evaluate how we ingest and distribute the root zone internally.",
+            "Our ingestion and distribution pipelines should handle new RRTYPEs seamlessly, and any brief interruption to the pipeline should be invisible to end users."
+          ]
+        },
+        {
+          "texto": "Planned: improve test coverage and related processes, including what happens when the root zone fails to parse.",
+          "trechos": [
+            "We will improve our test coverage and the related processes.",
+            "Despite having tests in place around this problem, including tests related to unreleased changes in parsing the new ZONEMD records, we did not adequately test what happens when the root zone fails to parse."
+          ]
+        },
+        {
+          "texto": "Planned: manage the lifetime of cached root zone data as described in RFC 8806, so stale copies are not used past a certain point.",
+          "trechos": [
+            "We will take measures to ensure that the lifetime of cached root zone data is better managed as described in RFC 8806: Running a Root Server Local to a Resolver.",
+            "**Architecture**: We should not use stale copies of the root zone past a certain point."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 212,
+      "trechos": [
+        "**4 October 7:00 UTC**: DNSSEC signatures in the root zone obtained on 21 September expired causing an increase in SERVFAIL responses to client queries.",
+        "**10:32**: Responses returned to normal."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "deteccao.forma: usuarios_clientes vs terceiros. The text says only \"First external reports of unexpected SERVFAILs started coming in\" without saying who reported; the definitions \"users or customers reported\" and \"another company, press\" are both satisfied by an unspecified external report.",
+  "observacoes": "duracao computed from the timeline marks (impact start 7:00 UTC, responses returned to normal 10:32 UTC); the opening paragraph gives 07:00 to 11:00 UTC and the incident was closed at 11:02 UTC. The ZONEMD change was made by root zone management (outside Cloudflare); the last successful root zone pull was 21 September 6:30 UTC. Serve stale (RFC 8767) and servers that had restarted limited the impact.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.16"
+  }
+}

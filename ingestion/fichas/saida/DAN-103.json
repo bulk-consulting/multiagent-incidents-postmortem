@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-103",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A wrong half of a blade server hosting the Gearman server, Redis servers and task-retrieving daemons of Allegro's asynchronous task processing subsystem was restarted by mistake, and the system did not start automatically due to loss of settings; cart purchases of numerous offers and bulk offer editing failed, the daily newsletter partly failed and parts of the admin panel were affected. Processing was restarted, efficiency increased, and the task counter reset to the first task of 23 October; the delay ended on 24 October about 7:00 PM.",
+    "data_incidente": "2014-10-23",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "cart purchases of numerous offers",
+      "bulk offer editing (including price list editing)",
+      "daily newsletter with new offers",
+      "internal administration panel"
+    ],
+    "tecnologias": [
+      "Gearman",
+      "Redis",
+      "Oracle",
+      "blade server"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "On 23 October at 4:19 AM the wrong half of a blade server in the active datacentre, hosting the Gearman server, Redis servers and daemons that retrieve tasks from a database and add them to a queue, was restarted by mistake.",
+      "trechos": [
+        "On 23rd October, at 4:19 AM a wrong server was restarted by mistake.",
+        "In fact, it was the wrong “half” of a blade server running in the active datacentre and hosting important components of the task processing system: Gearman server, Redis servers and daemons retrieving tasks from a database and adding them to a queue."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "After the daemons were re-launched, the task processing system did not start automatically due to loss of settings. The authors note that the system includes a single point of failure (SPOF) and that a reboot or failure of one machine should not affect the site.",
+        "trechos": [
+          "After re-launching daemons, the system did not start automatically, due to loss of settings.",
+          "Still, it is absolutely unacceptable when a reboot or failure of one machine affects the site. Unfortunately, the mentioned system includes a SPOF."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The task processing mechanism was poorly monitored, so the problem was not known until 8:40 AM; most problems of the system are currently not noticed.",
+        "trechos": [
+          "Because the mechanism was poorly monitored, we had no idea about the problem until 8:40 AM.",
+          "Currently, we do not notice most of the system problems."
+        ]
+      },
+      {
+        "texto": "After rebooting, the daemons started retrieving tasks dated 11 September 2014, leaving several million tasks waiting that would take roughly 84 hours to process; the authors do not know what triggered the switch of the task counter and think it was a code bug or an error in database connection configuration, which could explain why the daemon, running continuously for months, did not save the counter.",
+        "trechos": [
+          "For reasons which we still do not understand, after rebooting, daemons started to retrieve tasks dated 11th September 2014.",
+          "At 10:04 AM, task retrieving was working, but we found another problem – several million tasks waiting to be processed, which would take roughly 84 hours.",
+          "We do not know what triggered the switch of task counter. We think it was a code bug or error in database connection configuration. It could explain why the task retrieving daemon, which was running continuously for several months, did not save the counter."
+        ]
+      },
+      {
+        "texto": "For unknown reasons the panel with statistics and settings of the task-retrieving daemons was unavailable, and new tasks could not be retrieved from the database after queued-task processing restarted.",
+        "trechos": [
+          "However, we could not retrieve any new tasks from a database. For reasons unknown, the panel with statistics and settings of daemons retrieving tasks was unavailable."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Processing of queued tasks was started at 9:20 AM, and task retrieval from the database was working at 10:04 AM.",
+          "trechos": [
+            "At 9:20 AM, we managed to start processing queued tasks.",
+            "At 10:04 AM, task retrieving was working, but we found another problem – several million tasks waiting to be processed, which would take roughly 84 hours."
+          ]
+        },
+        {
+          "texto": "The efficiency of task processing was increased, establishing new system efficiency limits about twice as high.",
+          "trechos": [
+            "We started with increasing the efficiency of task processing. As a result, we were able to establish new efficiency limits of the system, which are now about twice as high."
+          ]
+        },
+        {
+          "texto": "The task counter was set to the first task submitted on 23 October 2014, so the queue showed only the most recent tasks; this also fixed the administration panel of the task-retrieving daemons. The processing delay ended on 24 October about 7:00 PM.",
+          "trechos": [
+            "When we noticed it, we set the task counter to the first task submitted on 23rd October 2014. As a result, the queue displayed only most recent tasks waiting to be processed.",
+            "Moreover, this modification also fixed the administration panel of task retrieving daemons. The processing delay ended on 24th October about 7:00 PM."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Monitor the task processing subsystem.",
+          "trechos": [
+            "It is necessary to monitor the task processing subsystem."
+          ]
+        },
+        {
+          "texto": "Each restart of any Allegro Platform server must be supervised by an on-duty service specialist who can verify that everything works.",
+          "trechos": [
+            "Each restart of any Allegro Platform server must be supervised by an on-duty service specialist who can verify whether everything works as it should."
+          ]
+        },
+        {
+          "texto": "Take steps to increase the reliability and failure resilience of system components, since the system includes a single point of failure.",
+          "trechos": [
+            "Unfortunately, the mentioned system includes a SPOF. We need to take necessary steps to increase the reliability and resilience to failures of system components."
+          ]
+        },
+        {
+          "texto": "Old tasks will be removed from the database automatically.",
+          "trechos": [
+            "Moreover, old tasks will be removed from the database automatically."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 2321,
+      "trechos": [
+        "On 23rd October, at 4:19 AM a wrong server was restarted by mistake.",
+        "The processing delay ended on 24th October about 7:00 PM."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Why the task-retrieving daemons started retrieving tasks dated 11 September 2014 after rebooting, i.e. what triggered the switch of the task counter, is not understood (the authors think a code bug or a database connection configuration error).",
+      "Why the panel with statistics and settings of the task-retrieving daemons was unavailable is unknown."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The year 2014 comes from dates in the text ('11th September 2014', '23rd October 2014'). duracao is computed from the restart at 4:19 AM on 23 October to the end of the processing delay on 24 October 'about 7:00 PM'; the text also speaks of 'several hours of delay in task processing'. The text adds that after the restart the counter is saved properly, and that some tasks submitted after 11 September 2014 were re-executed and may not indicate their execution status correctly. To reduce the backlog, the team also decided to cancel the release scheduled on 23 October and the subscribed offer alerts due that night, and to remove tasks that could not be processed (cart purchases and overdue subscriptions); the text gives these as decisions without confirming they were carried out, so they are not listed as mitigation steps.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.17"
+  }
+}

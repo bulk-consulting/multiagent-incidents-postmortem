@@ -1,0 +1,159 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-195",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A Postgres shard (shard4) of Mandrill's sharded K/V store hit the transaction ID (XID) wraparound limit and went into safety shutdown, likely because autovacuum fell behind under the shard's higher write load (or failed outright); Mandrill had an outage from 05:35 UTC on February 4 until 22:09 UTC on February 5. Recovery came after the large Search and Url tables were truncated on the locked database, letting the vacuum complete and sending from the backlog resume.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Mandrill"
+    ],
+    "tecnologias": [
+      "Postgres",
+      "autovacuum",
+      "VACUUM",
+      "transaction ID (XID)",
+      "K/V store"
+    ],
+    "categoria_causa": "database-storage",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The first exception was logged overnight on Sunday but was drowned out by unrelated exceptions in centralized reporting; engineers opened an investigation at 11:58 UTC.",
+        "trechos": [
+          "The first exception was logged overnight on Sunday. Unrelated exceptions coming in from other systems drowned it out in our centralized reporting, which slowed our detection time.",
+          "Mandrill engineers opened an investigation at 11:58 UTC."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "On shard4, which the hashing algorithm favored and which therefore had a higher write load, the autovacuum process likely fell behind (or may have failed outright; the authors cannot determine which), and at 05:35 UTC on February 4 the XID hit the upper limit and the database went into safety shutdown mode.",
+        "trechos": [
+          "The hashing algorithm used to balance load to these favored shard4, causing it to be hotter than the others and have a higher than normal load of writes.",
+          "The autovacuum process on shard4 likely fell behind due to the higher load, though it may have failed outright—we are unable to determine for certain which occurred.",
+          "Either way, at 05:35 UTC on February 4, the XID hit the upper limit and the database went into safety shutdown mode."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The first exception was drowned out by unrelated exceptions from other systems in centralized reporting, which slowed detection.",
+        "trechos": [
+          "The first exception was logged overnight on Sunday. Unrelated exceptions coming in from other systems drowned it out in our centralized reporting, which slowed our detection time."
+        ]
+      },
+      {
+        "texto": "The potential to reach wraparound had been identified in November 2018, but the team judged it not an immediate threat and only added a backlog ticket for additional monitoring.",
+        "trechos": [
+          "In November of 2018, engineers on our Mandrill team identified the potential to reach wraparound, as the XIDs were climbing to approximately half their total limit during peak load.",
+          "Our team determined wraparound was not an immediate threat, but we added a ticket to the backlog to set up additional monitoring."
+        ]
+      },
+      {
+        "texto": "Retries of failed writes caused significantly elevated load on shard4.",
+        "trechos": [
+          "By then, attempted retries of failed writes had caused a significantly elevated load on shard4, and responders began looking for the source of the spiking load."
+        ]
+      },
+      {
+        "texto": "Jobs that needed to write to shard4 failed and queued on disk on the app servers; the job volume and failure logs ran disk space low on every Mandrill app server, and logging depends on a locally writable disk.",
+        "trechos": [
+          "The increased volume of jobs being written to disk, as well as logs detailing the failures of those jobs, caused disk space to run low on every Mandrill app server.",
+          "Logging of the Mandrill system is dependent on having a locally writable disk."
+        ]
+      },
+      {
+        "texto": "The full vacuum would have taken days or weeks (highest estimate 40 days), even after configuration tweaks.",
+        "trechos": [
+          "Even so, we determined the runtime would extend to days or even weeks. Our highest estimate was 40 days—far too long for our customers to have reduced ability to send emails."
+        ]
+      },
+      {
+        "texto": "Response was slowed by knowledge of and access to Mandrill systems being concentrated in a few individuals, logs that made it hard to separate malformed API requests from application errors, limited visibility into job health, and risky partial deployments due to disk space issues.",
+        "trechos": [
+          "Knowledge of and access to Mandrill systems and monitoring is concentrated in a small number of individuals.",
+          "Differentiating between logs for malformed API requests and actual application errors was not easy.",
+          "We had limited visibility into job health.",
+          "Partial code deployments to aid triage were risky because of disk space issues."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 14:16 UTC the vacuum was started; it was stopped and restarted with configuration tweaks to speed it up, but its runtime was still estimated at days or weeks.",
+          "trechos": [
+            "At 14:16 UTC we started the vacuum.",
+            "We stopped and restarted it with configuration tweaks to speed it up significantly. Even so, we determined the runtime would extend to days or even weeks."
+          ]
+        },
+        {
+          "texto": "In parallel, a dump and restore of the database was started, omitting the TB-sized Search and Url tables to speed it up; it was still very slow.",
+          "trechos": [
+            "We began to dump and restore the database while the vacuum was in progress. The dump and restore operation looked likely to complete at a faster rate but was still disastrously slow.",
+            "To speed up the dump and restore option, we omitted the Search and Url tables, which were on the order of TB, compared to most other tables which were in the MB range."
+          ]
+        },
+        {
+          "texto": "Storage volumes were replaced across the Mandrill app servers, and the job queue tables held on shard4 were moved to other live shards, which did not help much.",
+          "trechos": [
+            "We spun up a separate track of work to replace storage volumes across app servers in Mandrill.",
+            "We then moved these to other live shards to allow normal processing of jobs. This did not end up helping much, as the jobs which were going to be queued on shard4 generally had to write some other data to shard4."
+          ]
+        },
+        {
+          "texto": "After confirming the app could run without them and that dropping them would free the associated XIDs, the Search and Url tables were truncated on the locked database at 19:12 UTC on February 5; the vacuum completed about an hour later and sending from the backlog began at 21:36 UTC.",
+          "trechos": [
+            "By this point, we had determined it would be possible to run the app without the Search and Url tables.",
+            "After verifying that this would free the associated XIDs, we decided to truncate the tables. We executed the operation at 19:12 UTC. It worked!",
+            "At 16:30 UTC on February 5, we convened a meeting to assess more radical recovery options.",
+            "The vacuum completed roughly an hour after the truncation. Sending from the backlog began at 21:36 UTC."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: new alerting for XID wraparound was in place by 22:40 UTC.",
+          "trechos": [
+            "By 22:40 UTC, we had new alerting in place for XID wraparound, and by 01:00 UTC on February 6 the queues were down and we were back to normal."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 2434,
+      "trechos": [
+        "The outage began at 05:35 UTC on February 4, and we resolved the issue on February 5 at 22:09 UTC."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Whether the autovacuum process on shard4 fell behind due to the higher load or failed outright; the authors are unable to determine which occurred."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "data_incidente is null because the text does not state the year of the February 4 outage; 2019 is likely (refunds covered Mandrill purchases between January 1, 2019 and February 13, 2019, and the risk was first identified in November 2018). duracao is computed from 05:35 UTC February 4 to 22:09 UTC February 5 (resolution announced); queues were down and service back to normal at 01:00 UTC February 6. During the outage only 80% of queued emails were sent. Customer refunds and credits are not prevention.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.16"
+  }
+}

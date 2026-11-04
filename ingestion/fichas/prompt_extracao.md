@@ -1,5 +1,5 @@
 <!--
-Prompt de extração da ficha (peça 2). Versão: v2.16.
+Prompt de extração da ficha (peça 2). Versão: v2.17.
 v1 guardada em prompt_extracao_v1.md. Mudanças da v2 (revisão do piloto, ver FICHA.md):
 regra 2 (trechos sustentam todo detalhe do texto), regras 3 e 4 novas (causalidade e plano x feito),
 gatilho x causa raiz, categoria pela causa raiz, detecção, resumo com desfecho, mitigação com a correção concreta.
@@ -28,11 +28,12 @@ atividade operacional automática (scaling, failover) não é mudanca_causadora.
 v2.14 (amostra do lote 09, 4 ERRADOS em 7 fichas): duração com marcas de início/fim no texto; serviço de volta degradado é o fim; faixa de minutos é null.
 v2.15 (amostra do lote 12, 7 ERRADOS em 7 fichas): configuration-error inclui valor de configuração errado há muito tempo, sem mudança recente.
 v2.16 (amostra do lote 13, 8 ERRADOS em 6 fichas): software-bug é residual; duração total do incidente não vence as marcas de impacto.
+v2.17 (amostra do lote 15, 10 ERRADOS em 6 fichas): mudança que só impediu a recuperação não é mudanca_causadora; mudança de comportamento de dependência externa é nao_se_aplica.
 Escrito em inglês de propósito (ver FICHA.md, seção "Idioma").
 A parte entre ===== INPUT ===== é preenchida para cada documento.
 -->
 
-# Post-mortem extraction — prompt v2.16
+# Post-mortem extraction — prompt v2.17
 
 You are extracting a structured record ("ficha") from one public incident post-mortem. The record will be used by an incident-diagnosis assistant that must **never state anything the source does not say**. Your job is to organize what the text says, with proof. You are not writing a post-mortem, summarizing for readers, or judging the company.
 
@@ -149,7 +150,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
 - `especifica`: the exact item is named (a parameter, file, version, rule).
 - `generica`: the text says **what kind of change and where**, but not the exact item ("a configuration change to the databases", "a new feature for quota policy checks").
 - `ausente`: the text says a change happened but **nothing about what or where** ("a recent change introduced the problem") → `descricao` = `null`.
-- `nao_se_aplica`: the problem was not set off by a persistent change (hardware failure, load, attack, a latent bug with no change, a one-off operator command, an automated operational activity such as scaling or failover) → `descricao` = `null`. Running a command is not a change. An earlier change of environment (a migration, a new cluster) counts only if the text says it set off the problem; "we hadn't seen this before the migration" is context for `fatores_contribuintes`.
+- `nao_se_aplica`: the problem was not set off by a persistent change (hardware failure, load, attack, a latent bug with no change, a one-off operator command, an automated operational activity such as scaling or failover) → `descricao` = `null`. Running a command is not a change. An earlier change that only **prevented recovery or widened the impact** (e.g. a failover rule that stopped a replica from being promoted after a disk failed) belongs to `causa_raiz`, not here: if a hardware failure or a dependency set the problem off, it is `nao_se_aplica`. A change in the **behaviour of an external dependency** that the text does not diagnose ("an undiagnosed change in S3 behaviour") is `nao_se_aplica`; it can be the `gatilho`. An earlier change of environment (a migration, a new cluster) counts only if the text says it set off the problem; "we hadn't seen this before the migration" is context for `fatores_contribuintes`.
 
 **`mitigacao`** — what was done **during** the incident to restore service, in order, **up to the end of the impact**. Actions after the impact ended (reverting the change in the code repository, re-enabling automation, cleanup) are not mitigation; put them in `prevencao` as "Already done:" if they prevent recurrence. **Response steps are not mitigation either**: opening an incident, assembling a team, investigating, detecting the cause (e.g. drift detection finding the change), communicating with customers. A step goes here only if it changed something in the system to restore service (rule 4: only what was done; steps the text gives only as a plan do not go here at all). Do not copy the full timeline; it stays in the original text. Include failed attempts only when they reveal something about the cause. **When the text names the actual fix** (what was changed, and to what), the step must include it; "the recommended changes were applied" is not enough if the text says what they were.
 - `especifica`: at least one step says what was changed or acted on and in which component ("bypassed the automated control system and brought generators online manually", "took the misconfigured network device out of service").
@@ -211,7 +212,7 @@ Return **only** one JSON object, no comments, no Markdown fences, matching this 
   "confianca": "alta" | "baixa",
   "motivo_confianca_baixa": "..."   (only when confianca is "baixa"),
   "observacoes": "..."              (optional),
-  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.16" }
+  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.17" }
 }
 
 ===== INPUT =====
