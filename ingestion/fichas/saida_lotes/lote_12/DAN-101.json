@@ -1,0 +1,128 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-101",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": ["rodape_marketing"]
+  },
+  "incidente": {
+    "resumo": "Over two weeks, incident.io's application had intermittent timeouts while requests waited for a connection from the Go database/sql connection pool, spread across many pools. After a series of performance and observability changes, an unnecessary transaction opened for every Slack modal submission was removed; a few days later the team concluded that many short transactions together had caused the problem, and no database timeouts occurred in the following 4 months.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": ["incident.io application (API requests)"],
+    "tecnologias": ["Go database/sql", "connection pool", "Heroku Postgres", "gorm", "ngrok/sqlmw", "PubSub", "Slack webhooks", "Sentry", "Grafana", "Kibana", "Google Cloud Trace", "OpenCensus"],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "The slowdowns were first looked into after noticing them, receiving a report from a customer, and seeing a flurry of context canceled errors in the error reporting tool Sentry.",
+        "trechos": [
+          "We first looked into these slowdowns after noticing them, receiving a report from a customer, and seeing a flurry of `context canceled` errors in our error reporting tool, Sentry."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "An unnecessary database transaction was opened whenever a Slack modal submission was handled; a connection is held for the lifetime of a transaction, and many short transactions added together caused requests to block waiting for a connection from the database/sql connection pool.",
+        "trechos": [
+          "we noticed an unnecessary transaction we were opening whenever we were handling the submission of a Slack modal.",
+          "It wasn’t until a few days later that we realised this was the root of our problems.",
+          "Instead, it was many short transactions that, when added together, caused us some real problems.",
+          "Additionally, whenever we open a database transaction, a connection pool is held for the lifetime of the transaction, so we needed to devise a way to detect if we’re in a transaction, and alter our counting logic as required.",
+          "If all the available connections are in use, the operation is effectively blocked until it can get a connection."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The contention was widespread across many connection pools rather than a single one, and there was no single noticeably slow operation, which made it hard to narrow down the work to optimise.",
+        "trechos": [
+          "What we found was that this issue was fairly widespread—there was no single connection pool affected.",
+          "This did confirm our suspicions from earlier on—there wasn’t one noticeably slow thing that caused this issue."
+        ]
+      },
+      {
+        "texto": "Existing observability could not attribute connection hold time to operations: the ORM (gorm) hooks included time spent waiting on the pool, so a new middleware was needed.",
+        "trechos": [
+          "But we soon realised that the hooks provided by gorm *included* the time we spent waiting on a connection pool, so we’d be counting the stuff we already knew.",
+          "The golden egg we wanted was to be able to group operations over a time period and sum up the total time that operation spent holding a connection pool."
+        ]
+      },
+      {
+        "texto": "The timeouts were intermittent over a period of two weeks and did not occur every day, so confirming the cause took a while.",
+        "trechos": [
+          "Earlier this year, we experienced intermittent timeouts in our application while interacting with our database over a period of two weeks.",
+          "As the timeouts were intermittent and didn’t occur every day, it took a little while to confirm the issue."
+        ]
+      },
+      {
+        "texto": "The authors consider that with different databases for different parts of the application they would likely have tracked the issue down sooner.",
+        "trechos": [
+          "Had we been using different databases for different parts of our application, we’d likely have been able to track down this issue sooner."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The transaction was removed for most Slack modal submissions, and added explicitly only on the code paths that needed transactional guarantees; no database timeouts occurred in the following 4 months.",
+          "trechos": [
+            "We removed the transaction for most modal submissions, and in cases where we needed transactional guarantees, we added it for those code paths explicitly.",
+            "But, it’s now been 4 months and we’ve been database timeout free."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: a middleware in the ngrok/sqlmw package with a trackUsage method that records, per operation, the time spent holding a database connection, so logs and traces can be filtered by it.",
+          "trechos": [
+            "Instead, we implemented a middleware in the `ngrok/sqlmw` package which allowed us to hook into code *right* before and *right* after a query or transaction occurred. In here, we called out to a new method we added - `trackUsage` —that utilised go’s `Context` to maintain our new counter.",
+            "Now, we can filter both our logs and traces by the time each operation spends holding a database connection pool."
+          ]
+        },
+        {
+          "texto": "Already done: Slack webhook events are now forwarded straight to PubSub and processed asynchronously, avoiding database queries within the webhook request and allowing throttled database access.",
+          "trechos": [
+            "So when a Slack webhook comes in, we now just forward that straight to PubSub and avoid making any database queries.",
+            "By using PubSub, we can throttle access to the database a bit more, and if we want, we get some retry logic for free."
+          ]
+        },
+        {
+          "texto": "Already done: a one second lock timeout was added to all transactions.",
+          "trechos": [
+            "rather than playing whack-a-mole and patching query after query, to add a one second lock timeout to all of our transactions.",
+            "We deployed this change and fortunately nothing broke, but unfortunately, this meant we were still no closer to identifying the cause of our slow downs."
+          ]
+        },
+        {
+          "texto": "Already done: query optimisations, including a materialised view for policy violations, new database indices for slow queries, and rewritten queries that filter on an indexed column.",
+          "trechos": [
+            "- Moving policy violations over to using a materialised view, rather than having to pull policies and all their related incidents just to do that calculation for each request.",
+            "- Adding some new database indices to speed up slow queries.",
+            "- Re-writing some queries that joined and then filtered on columns that weren’t indexed, when they could filter on that same column in indexed table that was already present in the join."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "deteccao.forma: 'usuarios_clientes' and 'equipe_interna' both fit. The text lists three things in one sentence without saying which came first: 'noticing them, receiving a report from a customer, and seeing a flurry of context canceled errors' in Sentry. 'usuarios_clientes' (users or customers reported) and 'equipe_interna' (a person noticed it without an alert) are both satisfied by that sentence, and the definition ('how the problem was first noticed') does not decide between simultaneous signals.",
+  "observacoes": "The problem was intermittent over two weeks with no bounded outage, so duracao is null; the first occurrence returned to normal within a minute. The year is not stated ('Earlier this year'). 24 performance and observability changes were deployed in the period; the lock timeout and query optimisations did not resolve the timeouts. Category is software-bug because the root cause is the unnecessary transaction in code; the connection pool exhaustion is its effect.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.14" }
+}

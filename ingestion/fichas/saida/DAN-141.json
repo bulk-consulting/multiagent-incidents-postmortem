@@ -1,0 +1,170 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-141",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "seguranca",
+    "seguranca": "ataque",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A threat actor (GRUB1) that breached Salesloft obtained OAuth credentials of the Salesloft Drift chat agent's Salesforce integration and used a stolen credential to access Cloudflare's Salesforce tenant, exfiltrating the text of support cases (which could contain customer-shared secrets) between August 12-17, 2025. After being notified on August 23, Cloudflare disabled the Drift user account, revoked its client ID and secrets, disconnected third-party integrations, and rotated credentials including 104 Cloudflare API tokens.",
+    "data_incidente": "2025-08",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Cloudflare's Salesforce instance (customer support case data)"
+    ],
+    "tecnologias": [
+      "Salesforce",
+      "Salesloft Drift",
+      "OAuth",
+      "Salesforce Bulk API 2.0",
+      "Trufflehog",
+      "Cloudflare API tokens"
+    ],
+    "categoria_causa": "credential-auth",
+    "deteccao": {
+      "forma": "terceiros",
+      "descricao": {
+        "texto": "On August 23, 2025, Salesforce and Salesloft notified Cloudflare that the Drift integration had been abused across multiple organizations, including Cloudflare, reporting unusual Drift-related activity.",
+        "trechos": [
+          "When Salesforce and Salesloft notified us on August 23, 2025, that the Drift integration had been abused across multiple organizations, including Cloudflare, we immediately launched a company-wide Security Incident Response.",
+          "Our response to this incident began when Salesforce and Salesloft notified us of unusual Drift-related activity."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A threat actor breached Salesloft's systems and obtained OAuth credentials associated with the Salesloft Drift chat agent's Salesforce integration; on August 12, 2025 it used a stolen credential of that integration to log into Cloudflare's Salesforce tenant, and on August 17 it exfiltrated the text of support cases using a Salesforce Bulk API 2.0 job.",
+        "trechos": [
+          "As part of the breach, the threat actor was able to obtain OAuth credentials associated with the Salesloft Drift chat agent’s Salesforce integration to exfiltrate data from Salesloft customers’ Salesforce instances.",
+          "At **22:14**, GRUB1 gained access to Cloudflare’s Salesforce tenant by using a stolen credential used by the Salesloft integration.",
+          "### August 12, 2025: Initial compromise of Cloudflare",
+          "After performing one final check on the size of the case object, they launched a Salesforce Bulk API 2.0 job at **11:11:56**. In just over three minutes, they successfully exfiltrated a dataset containing the text of support cases—but not any attachments or files—in our instance of Salesforce.",
+          "### August 17, 2025: Final exfiltration and coverup"
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Customers sometimes paste keys, logs or other sensitive information into support case text fields, so the exfiltrated case bodies could contain credentials; 104 Cloudflare API tokens were found in the compromised data.",
+        "trechos": [
+          "However, in some troubleshooting scenarios, customers may paste keys, logs, or other sensitive information into the case text fields.",
+          "As part of our response to this incident, we did our own search through the compromised data to look for tokens or passwords and found 104 Cloudflare API tokens."
+        ]
+      },
+      {
+        "texto": "Salesloft revoked Drift-to-Salesforce connections across its customer base on August 20, 2025, but Cloudflare had not yet been notified and had no indication the action related to its environment until the August 23 notification.",
+        "trechos": [
+          "Salesloft revoked Drift-to-Salesforce connections across its customer base and published a notice on their website. At that point, Cloudflare had not yet been notified, and we had no indication that this vendor action might relate to our environment.",
+          "### August 20, 2025: Vendor action ahead of notification"
+        ]
+      },
+      {
+        "texto": "The threat actor queried the API limits to learn the thresholds to respect to avoid detection, and deleted the Bulk API job after exfiltration, concealing the primary evidence; the attack was reconstructed from residual logs.",
+        "trechos": [
+          "The queries run by GRUB1 provided them with insight into their level of access, the size of the case objects, and the precise API limits they needed to respect to avoid detection within our Salesforce environment.",
+          "At **11:15:42**, GRUB1 attempted to cover their tracks by deleting the API job. While this action concealed the primary evidence, our team was able to reconstruct the attack from residual logs."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "After the August 23 notification, the vendors' recommended containment steps were implemented.",
+          "trechos": [
+            "Our response to this incident began when Salesforce and Salesloft notified us of unusual Drift-related activity. We promptly implemented the vendors' recommended containment steps and engaged them to gather intelligence."
+          ]
+        },
+        {
+          "texto": "By August 25, the Drift user account was disabled, its client ID and secrets were revoked, and all Salesloft software and browser extensions were purged from Cloudflare systems.",
+          "trechos": [
+            "Our first priority was cutting off GRUB1's access at the source. We disabled the Drift user account, revoked its client ID and secrets, and completely purged all Salesloft software and browser extensions from Cloudflare systems.",
+            "### August 25, 2025: Cloudflare initiates response activity"
+          ]
+        },
+        {
+          "texto": "All third-party integrations were disconnected from Salesforce, new secrets were issued for all services, and credential rotation was extended to all third-party services connected to Salesforce and to all third-party Internet services and accounts as a precaution.",
+          "trechos": [
+            "We immediately disconnected all third-party integrations from Salesforce. We issued new secrets for all services and implemented a new process to rotate them weekly.",
+            "We expanded credential rotation to all our third-party Internet services and accounts as a precautionary measure to prevent the attacker from using compromised data to access other Cloudflare systems."
+          ]
+        },
+        {
+          "texto": "Using custom scanning tools (regex, entropy and pattern matching) on the exfiltrated data, 104 Cloudflare platform-issued API tokens were found and rotated between August 26-29.",
+          "trechos": [
+            "Our teams developed custom scanning tools using regex, entropy, and pattern-matching techniques to detect likely Cloudflare secrets at scale.",
+            "This enabled us to take direct action by rotating Cloudflare platform-issued tokens immediately upon discovery—a total of 104 API tokens were rotated.",
+            "### August 26–29, 2025: Scaling the response and proactive measures"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: a new process to rotate the secrets of services weekly.",
+          "trechos": [
+            "We issued new secrets for all services and implemented a new process to rotate them weekly."
+          ]
+        },
+        {
+          "texto": "In progress: methodically re-onboarding the terminated third-party services, each provisioned with new secrets and stricter security controls.",
+          "trechos": [
+            "We began methodically re-onboarding the terminated services, ensuring each was provisioned with new secrets and subject to stricter security controls."
+          ]
+        },
+        {
+          "texto": "Recommendation to all organizations: disconnect Salesloft connections from Salesforce, rotate credentials of third-party integrations and those shared in support cases, and implement frequent credential rotation.",
+          "trechos": [
+            "- **Disconnect Salesloft and its applications:** Immediately disconnect all Salesloft connections from your Salesforce environment and uninstall any related software or browser extensions.",
+            "- **Rotate credentials:** Reset the credentials for all third-party applications and integrations connected to your Salesforce instance.",
+            "Rotate any credentials that may have been previously shared in a support case to Cloudflare.",
+            "- **Implement frequent credential rotation:** Establish a regular rotation schedule for all API keys and other secrets used in your integrations to reduce the window of exposure."
+          ]
+        },
+        {
+          "texto": "Recommendation to all organizations: enforce least privilege for third-party applications, avoid admin accounts for vendors, and enforce IP address restrictions and session binding on third-party and B2B connections.",
+          "trechos": [
+            "- **Enforce least privilege:** Audit all third-party applications to ensure they operate with the minimum level of access (least privilege) required for their function and ensure that admin accounts are not used for vendors.",
+            "Additionally, enforce strict controls like IP address restrictions and session binding on all third-party and business-to-business (B2B) connections."
+          ]
+        },
+        {
+          "texto": "Recommendation to all organizations: deploy monitoring to detect anomalies such as large data exports or logins from unfamiliar locations, including third-party to third-party logs.",
+          "trechos": [
+            "- **Enhance monitoring and controls:** Deploy enhanced monitoring to detect anomalies such as large data exports or logins from unfamiliar locations.",
+            "While capturing third party to third party logs can be difficult, it is imperative that these logs are part of your security operations teams."
+          ]
+        },
+        {
+          "texto": "Cloudflare is committed to developing new capabilities to help defend against such attacks, to be announced later.",
+          "trechos": [
+            "We are committed to developing new capabilities to help us and our customers defend against such attacks in the future—stay tuned for announcements during Cloudflare's Birthday Week later this month."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "The source of the customer Cloudflare-issued API token that the threat actor tried to validate on August 9, 2025 is unclear."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The threat actor's activity spanned August 9 (reconnaissance) to August 17, 2025 (exfiltration); data_incidente is given as the month. No impact duration applies: the exfiltration window is not a service outage. The text calls it a supply chain attack, but per the attack rule the root-cause mechanism is stolen OAuth credentials, so categoria_causa is credential-auth. Customer notification (September 2, 2025) is communication, not mitigation. The text states no Cloudflare services or infrastructure were compromised.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.14"
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-017",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During a progressive deployment of a new Workers KV build, a latent bug in the deployment tool made production reference a script deployed to the staging account, so KV calls returned HTTP 401 and dependent Cloudflare services (Pages, Access, WARP/Zero Trust, Turnstile, Workers, dashboard and others) failed for 37 minutes. Engineers manually switched the production route via break-glass mechanisms to the previous known good build.",
+    "data_incidente": "2023-10-30",
+    "status_relatorio": "final",
+    "servicos_afetados": ["Workers KV", "Pages", "Access", "WARP / Zero Trust", "Images", "Cache Purge (single file)", "Workers", "AI Gateway", "Waiting Room", "Turnstile and Challenge Pages", "Cloudflare Dashboard"],
+    "tecnologias": ["Workers KV", "progressive deployment API", "Cloudflare Access", "JWT", "CI system"],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 19:40 UTC, continuing the rollout routed a percentage of traffic to the wrong destination, which triggered alerting; the text says automated alerting detected the issue immediately.",
+        "trechos": [
+          "| 2023-10-30 19:40 UTC | The progressive deployment API was used to continue rolling out the release. This routed a percentage of traffic to the wrong destination, triggering alerting and leading to the decision to roll back. |",
+          "Although automated alerting detected the issue immediately, there was a delay between the time we realized we were having an issue and the time we were actually able to perform the roll back."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "The Workers KV team began a progressive deployment of a new KV build to production at 18:58 UTC; at 19:40 the rollout was continued, and at 19:54 a rollback via the progressive deployment API was attempted, when traffic started to fail at scale (impact start).",
+      "trechos": [
+        "| 2023-10-30 18:58 UTC | The Workers KV team began a progressive deployment of a new KV build to production. |",
+        "| 2023-10-30 19:40 UTC | The progressive deployment API was used to continue rolling out the release. This routed a percentage of traffic to the wrong destination, triggering alerting and leading to the decision to roll back. |",
+        "| 2023-10-30 19:54 UTC | Rollback via progressive deployment API attempted, traffic starts to fail at scale. — IMPACT START — |"
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The deployment tool had a latent bug: instead of returning releases from a single environment, it returned production and staging releases together, so when promoting to production a script deployed to the staging account was referenced instead of the pre-production version on the production account. Production was pointed to a version not authorized for production access, and calls to Workers KV returned HTTP 401.",
+        "trechos": [
+          "The deployment tool had a latent bug with how it returns releases and their respective versions. Instead of returning releases from a single environment, the tool returned a broader list of releases than intended, resulting in production and staging releases being returned together.",
+          "But because of the deployment automation bug, when promoting to production, a script that had been deployed to the staging account was incorrectly referenced instead of the pre-production version on the production account.",
+          "When this happened, Workers KV became unreachable in production, as calls to the product were directed to a version that was not authorized for production access, returning a HTTP 401 error code."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Workers KV underpins many products; dependent products that stored key-value pairs in KV failed regardless of whether the pair was cached locally.",
+        "trechos": [
+          "This caused dependent products which stored key-value pairs in KV to fail, regardless of whether the key-value pair was cached locally or not.",
+          "As more teams at Cloudflare have built on Workers, we have \"organically\" ended up in a place where Workers KV now underpins a tremendous amount of our products and services."
+        ]
+      },
+      {
+        "texto": "Internal tools relied on Workers KV, including Cloudflare Access (used to verify JWTs), the dashboard used to revert the change, and authentication to the CI system; with KV down, automatic rollback via CI could not access the necessary secrets, and engineers had to use break-glass mechanisms, delaying the rollback from 19:54 to 20:15 UTC.",
+        "trechos": [
+          "As shown in the above timeline, there was a delay between the time we realized we were having an issue at 19:54 UTC and the time we were actually able to perform the rollback at 20:15 UTC.",
+          "Access uses Workers KV as part of the verification process for user JWTs (JSON Web Tokens).",
+          "These tools include the dashboard which was used to revert the change, and the authentication mechanism to access our continuous integration (CI) system.",
+          "Automatic rollbacks via our CI system had been successfully tested previously, but the authentication issues (Access relies on KV) due to the incident made accessing the necessary secrets to roll back the deploy impossible.",
+          "Due to this, we were unable to leverage our internal tooling and had to use break-glass mechanisms to bypass the normal tooling."
+        ]
+      },
+      {
+        "texto": "The authors state that not enough time had been spent testing the rollback mechanisms.",
+        "trechos": [
+          "As described below, we had not spent sufficient time testing the rollback mechanisms."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A progressive deployment of a new Workers KV build to production, using a specialized deployment tool.",
+        "trechos": [
+          "| 2023-10-30 18:58 UTC | The Workers KV team began a progressive deployment of a new KV build to production. |",
+          "The Workers KV team was progressively deploying a new release using a specialized deployment tool."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 20:15 UTC engineers manually edited the deployment routes via break-glass mechanisms, switching the production build path to the previous known good Workers KV build for the majority of traffic; KV error rates returned to normal at 20:29 UTC and impact was resolved at 20:31 UTC.",
+          "trechos": [
+            "| 2023-10-30 20:15 UTC | Cloudflare engineers manually edit (via break glass mechanisms) deployment routes to revert to last known good build for the majority of traffic. |",
+            "The fix ultimately was a manual change of the production build path to a previous and known good state.",
+            "| 2023-10-30 20:29 UTC | Workers KV error rates return to normal pre-incident levels, and impacted services recover within the following minute. |",
+            "| 2023-10-30 20:31 UTC | Impact resolved — IMPACT END — |"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Onboard KV deployments to standardized Workers deployment models that use automated systems for impact detection and recovery.",
+          "trechos": [
+            "Onboard KV deployments to standardized Workers deployment models which use automated systems for impact detection and recovery."
+          ]
+        },
+        {
+          "texto": "Ensure the rollback process has access to a known good deployment identifier and works when Cloudflare Access is down.",
+          "trechos": [
+            "Ensure that the rollback process has access to a known good deployment identifier and that it works when Cloudflare Access is down."
+          ]
+        },
+        {
+          "texto": "Add pre-checks to deployments that validate input parameters so version mismatches do not propagate to production.",
+          "trechos": [
+            "Add pre-checks to deployments which will validate input parameters to ensure version mismatches don't propagate to production environments."
+          ]
+        },
+        {
+          "texto": "Harden the progressive deployment tooling to be designed for multi-tenancy.",
+          "trechos": [
+            "Harden the progressive deployment tooling to operate in a way that is designed for multi-tenancy."
+          ]
+        },
+        {
+          "texto": "Add validation to progressive deployment scripts to verify that the deployment matches the app environment (production, staging, etc.).",
+          "trechos": [
+            "Add additional validation to progressive deployment scripts to verify that the deployment matches the app environment (production, staging, etc.)."
+          ]
+        },
+        {
+          "texto": "Revisit how to reduce the blast radius of critical dependencies, including deployment tooling sophistication and product-level controls for these dependencies.",
+          "trechos": [
+            "This incident has continued to reinforce the need for us to revisit how we can reduce the blast radius of critical dependencies, which includes improving the sophistication of our deployment tooling, its ease-of-use for our internal teams, and product-level controls for these dependencies."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 37,
+      "trechos": [
+        "Multiple Cloudflare services were unavailable for 37 minutes on October 30, 2023."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The stated 37-minute duration matches the timeline marks IMPACT START (19:54 UTC) and IMPACT END (20:31 UTC). The staging build GUID was first returned by the progressive deployment API at 19:29 UTC, and a percentage of traffic was routed to the wrong destination from 19:40 UTC, before the marked impact start.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.14" }
+}

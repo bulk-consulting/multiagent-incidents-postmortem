@@ -1,0 +1,143 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-223",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On 2015-03-31, enabling StackEgg for all logged-in users added an AJAX request per page load; with a 15-second HTTP Keep-Alive this pushed concurrent sessions on the primary HAProxy load balancers past the 40,000 frontend cap, causing a 6-minute public outage on Stack Overflow. Service returned after StackEgg was disabled on Stack Overflow and then turned fully off in the database; the session limit was raised, StackEgg requests were reduced, and on April 1 the Keep-Alive was temporarily lowered to 5 seconds.",
+    "data_incidente": "2015-03-31",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Stack Overflow"
+    ],
+    "tecnologias": [
+      "HAProxy",
+      "Puppet",
+      "HTTP Keep-Alive",
+      "AJAX",
+      "websockets",
+      "Pingdom"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "At 10:23:14 UTC on 2015-03-31, StackEgg was enabled for all logged-in users across all Stack Exchange sites, adding one AJAX request per page load to get game state, which heavily increased load on the primary load balancers.",
+      "trechos": [
+        "At 10:23:14 UTC, we enabled StackEgg for all logged-in users across all sites the Stack Exchange network.",
+        "On 2015-03-31 at 10:00:00 UTC, it was Midnight, April 1st in Samoa (GMT+14).",
+        "This resulted in a heavily increased load to our primary load balancers as a result of the additional AJAX hits to get game state.",
+        "In the initial deploy, there was an additional request per page load."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The load balancers used HTTP Keep-Alive tuned to 15 seconds and capped concurrent sessions at 40,000 in HAProxy on the affected frontend; with up to 3,444 additional requests per second, they were attempting to sustain an additional 51,660 concurrent sessions, and once the 40,000 cap was reached further sessions were queued waiting to finish their TCP connect, resulting in a 6-minute public outage on Stack Overflow.",
+        "trechos": [
+          "In our case, we had this tuned to 15 seconds.",
+          "With 3,444 requests/second and a 15s keep-alive, we were attempting to sustain an additional 51,660 concurrent sessions at the peak of the issue.",
+          "In order to maintain sanity and prevent CPU overload, we cap our concurrent sessions at 40,000 in HAProxy on the frontend affected by the issue.",
+          "Once we reached the 40,000 session capacity on the frontend, subsequent sessions are queued and waiting to finish their TCP connect.",
+          "This resulted in a 6 minute public outage on Stack Overflow."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "At 13:44:30 UTC, flipping StackEgg into Employee mode overloaded the web tier.",
+        "trechos": [
+          "13:44:30 Flipping StackEgg into Employee overloads the web tier"
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "Enabling the StackEgg feature for all logged-in users across all Stack Exchange sites, whose initial deploy made one additional AJAX request per page load.",
+        "trechos": [
+          "At 10:23:14 UTC, we enabled StackEgg for all logged-in users across all sites the Stack Exchange network.",
+          "In the initial deploy, there was an additional request per page load."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 13:42:19 UTC StackEgg was disabled on Stack Overflow externally due to load.",
+          "trechos": [
+            "13:42:19 StackEgg disabled on Stack Overflow externally due to load"
+          ]
+        },
+        {
+          "texto": "At 13:46:13 UTC StackEgg was turned fully off manually in the database; at 13:47:00 UTC Pingdom reported Stack Overflow online.",
+          "trechos": [
+            "13:46:13 StackEgg is turned fully off manually in database",
+            "13:47:00 Pingdom reports Stack Overflow online"
+          ]
+        },
+        {
+          "texto": "After identifying the bottleneck, the team raised the HAProxy frontend concurrent sessions limit through a Puppet change to relieve immediate pressure (time not stated).",
+          "trechos": [
+            "Upon identifying the bottleneck, we raised the concurrent sessions limit to relieve immediate pressure and began working to reduce the number of HTTP requests from StackEgg.",
+            "Raising our limit on the frontend was a simple HAProxy change via Puppet."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: StackEgg requests were reduced by embedding the needed data directly in the page instead of an initial AJAX request and by fetching fresh data less often, relying more on websockets; load from the StackEgg data route is now stable at 1,000 - 1,400 req/s.",
+          "trechos": [
+            "Eliminating the initial AJAX request by embedding the needed data directly in the page",
+            "Reducing the occurrences we called for fresh data and increase dependence on websockets to feed game data.",
+            "These simultaneous adjustments greatly reduced load on the load balancers but still kept us around 60,000 sessions at times of peak traffic.",
+            "The load from the StackEgg data route is now stable at 1,000 - 1,400 req/s."
+          ]
+        },
+        {
+          "texto": "Already done: after sessions again approached about 60,000 on the morning of 2015-04-01, HTTP Keep-Alive was temporarily lowered from 15s to 5s for the duration of StackEgg via an HAProxy reload at 10:37:22 UTC, dropping sessions from about 59,500 to about 19,000; the authors note possible reduced performance, which they will measure and test.",
+          "trechos": [
+            "On the morning of 2015-04-01 we again saw a traffic increase approaching approximately 60,000 simultaneous sessions again.",
+            "The decision was made to temporarily lower HTTP Keep-Alive for the duration of StackEgg from 15s to 5s.",
+            "This lowers the initial concurrent session load we began with as well as StackEgg - possibly with consequences of reduced performance (which we will be measuring and testing).",
+            "10:37:22 Keep-Alive duration change applied via HAProxy reload",
+            "This dropped our sessions from about 59,500 down to \\~19,000 where we remain stable."
+          ]
+        },
+        {
+          "texto": "Planned: monitor data center performance and measure the effect of the Keep-Alive duration via client timings, and hold the usual open internal discussion of the outage.",
+          "trechos": [
+            "We will be keeping an eye on performance in our data center as well as measure the effect of Keep-Alive duration via client timings now that StackEgg has passed.",
+            "As a matter of practice, we have an open internal discussion about any user-facing outages and will be doing the same here."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 6,
+      "trechos": [
+        "This resulted in a 6 minute public outage on Stack Overflow."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Before the outage, sessions oscillating around the 40,000 cap produced sporadic load durations. After the outage, StackEgg was re-enabled on all sites at 14:56:29 UTC and all systems were green at 15:02:39 UTC. Despite the catalog's 'DDoS' wording, the text describes no malicious action. Because a change (enabling StackEgg) was made, categoria_causa is not capacity-load; the 15s Keep-Alive and 40,000-session cap are configuration settings.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.14"
+  }
+}

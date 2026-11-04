@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-048",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A Multi-AZ failover of Razorpay's main RDS MySQL master made the API application unable to connect for around 110 seconds; because innodb_flush_log_at_trx_commit was set to 2, about 5 seconds of committed data never reached the standby, and all 5 replicas failed with duplicate-key errors. The application came back automatically after the failover; the team moved replica traffic to the master, recreated the replicas after a six-hour snapshot, corrected the data from binary logs, and later set the parameter to 1.",
+    "data_incidente": "2019-12",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "API application",
+      "API RDS (MySQL) database and its 5 replicas"
+    ],
+    "tecnologias": [
+      "AWS RDS",
+      "MySQL",
+      "Multi-AZ",
+      "EBS",
+      "InnoDB",
+      "innodb_flush_log_at_trx_commit",
+      "sync_binlog",
+      "binary logs"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "An alert from the internal monitoring tool reported unusually high numbers of 5xx errors.",
+        "trechos": [
+          "On a fateful Friday evening on December 2019, when a few of us were looking forward to packing their bags and going home, we got an alert from the internal monitoring tool that the system has started throwing unusually high numbers of 5xx errors."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "The RDS master instance of the API database went through a Multi-AZ failover, during which the application could not connect to the database.",
+      "trechos": [
+        "Looking at the RDS logs, we realized that the master instance has gone through a *Multi-AZ failover*.",
+        "The SRE team quickly realized that one of our main applications (called “API”) was not able to connect to its RDS (MySQL) database."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The MySQL parameter innodb_flush_log_at_trx_commit was set to 2 instead of 1, so transaction logs were written after each commit but not flushed to disk immediately; data committed on the master was not flushed to the primary EBS, the standby (new primary) never received it, and about 5 seconds of data were missing from the database after the failover.",
+        "trechos": [
+          "For full ACID compliance, we must set the variable to 1. However, in our case, we had set it to 2. This means even though the logs were written after every commit, they were not getting flushed to the disk immediately.",
+          "Since, we had set it to 2, the data was committed to the master instance but was not flushed to the primary EBS. Hence, the standby (new primary) never received this data; which is why we could not find it in the master instance after the failover.",
+          "We finally figured out that the RDS database had been missing 5 seconds of data."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "sync_binlog was set to 1, so the lost transactions were written to the binary logs and applied by the replicas; when the application re-inserted rows with the same auto-increment ids on the new primary, the replicas threw duplicate-key errors and replication crashed on all replicas.",
+        "trechos": [
+          "As we had set it to 1 (which is correct), the data got written to the binary logs and replicas were able to read that data.",
+          "So, when the application failed over to the standby machine, it again entered a new row with auto-increment-id as X+1. This insert, on reaching the replica, threw the duplicate-key error and crashed the replication.",
+          "While the application stopped throwing errors and started working, we received another set of alerts stating that the replication on all the replicas had failed."
+        ]
+      },
+      {
+        "texto": "After the failover, RDS had replaced the old master with a new machine, so the first snapshot from it was a full snapshot rather than an incremental one; recreating the replicas required waiting six hours for it instead of the usual 15-20 minutes.",
+        "trechos": [
+          "The AWS tech-support informed us that since the master instance has gone through a multi-AZ failover, they had replaced the old master with a new machine, which is a routine.",
+          "Since the snapshot was being taken from the new machine then and was the very first snapshot from the new machine, RDS would take a full snapshot of the data.",
+          "In the past, we had noticed that these incremental snapshots take around 15-20 minutes for the API database.",
+          "We waited six hours for the snapshot to complete and only then were we able to create the replicas and redirect the traffic back to them."
+        ]
+      },
+      {
+        "texto": "Moving all replica traffic to the master also moved the heavier selects there, increasing CPU load on the master by 50%.",
+        "trechos": [
+          "The drawback of moving all the traffic to the master was that all the heavier selects were also moved to the master, and the CPU load on the master instance increased by 50%."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "RDS automatically shifted traffic to the standby in another AZ, and the master came back after around 110 seconds with the application working without manual intervention.",
+          "trechos": [
+            "AWS automatically shifts the traffic to its standby running on a separate AZ on the same AWS region.",
+            "The failover can take up anytime between 60 and 120 seconds, and this was the reason our master instance automatically came back up after around 110 seconds and the application started working without any manual intervention."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: on the master instance, innodb_flush_log_at_trx_commit was changed from 2 to 1.",
+          "trechos": [
+            "Once our theory was proved, we immediately went to the master instance and changed the value of innodb\\_flush\\_log\\_at\\_trx\\_commit from 2 to 1; and closed the final loop."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 2,
+      "trechos": [
+        "The failover can take up anytime between 60 and 120 seconds, and this was the reason our master instance automatically came back up after around 110 seconds and the application started working without any manual intervention."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives only the month and year (December 2019). Duration is the application outage of around 110 seconds, rounded to 2 minutes; the replicas were unavailable for about six more hours while snapshots completed, and the lost data was corrected the next day. The text does not state what caused the Multi-AZ failover itself. categoria_causa is configuration-error because the root cause is the innodb_flush_log_at_trx_commit setting; the replication break is a consequence, not a datastore failure on its own. After the application came back (end of the impact), replication failed on all replicas with duplicate-key errors: replica traffic was shifted to the master to avoid stale data, the 5 replicas were recreated from a new snapshot after six hours, and the next day the missing records were corrected from the binary logs.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.14"
+  }
+}

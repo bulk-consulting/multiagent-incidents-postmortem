@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-030",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During the initial deployment of one customer's Google Cloud VMware Engine (GCVE) Private Cloud with an internal tool, an input parameter was left blank and the system assigned a then unknown default fixed 1-year term; at the end of that period the Private Cloud was deleted without customer notification. The customer and Google teams worked 24x7 over several days to recover the Private Cloud, network and security configurations, applications and data, aided by backups in Google Cloud Storage and third-party backup software.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": ["Google Cloud VMware Engine (GCVE)"],
+    "tecnologias": ["Google Cloud VMware Engine (GCVE)", "Google Cloud Storage (GCS)"],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "When Google operators used an internal tool to provision the customer's GCVE Private Cloud, one input parameter was left blank.",
+      "trechos": [
+        "However, one input parameter was left blank when using an internal tool to provision the customer’s Private Cloud."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "As a result of the blank parameter, the system assigned a then unknown default fixed 1-year term value for this parameter, defaulting the Private Cloud to a fixed term with automatic deletion at the end of that period; after the system-assigned 1-year period, the customer's GCVE Private Cloud was deleted.",
+        "trechos": [
+          "As a result of the blank parameter, the system assigned a then unknown default fixed 1 year term value for this parameter.",
+          "This had the unintended and then unknown consequence of defaulting the customer’s GCVE Private Cloud to a fixed term, with automatic deletion at the end of that period.",
+          "After the end of the system-assigned 1 year period, the customer’s GCVE Private Cloud was deleted."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "No customer notification was sent before the deletion, because the deletion was triggered by the blank parameter rather than by a customer deletion request; a customer-initiated deletion would have been preceded by a notification.",
+        "trechos": [
+          "No customer notification was sent because the deletion was triggered as a result of a parameter being left blank by Google operators using the internal tool, and not due a customer deletion request.",
+          "Any customer-initiated deletion would have been preceded by a notification to the customer."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A misconfiguration of the GCVE service made at the initial deployment of the customer's Private Cloud with an internal tool, by leaving an input parameter blank (the parameter is not named).",
+        "trechos": [
+          "During the initial deployment of a Google Cloud VMware Engine (GCVE) Private Cloud for the customer using an internal tool, there was an inadvertent misconfiguration of the GCVE service by Google operators due to leaving a parameter blank."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The customer and Google teams worked 24x7 over several days to recover the customer's GCVE Private Cloud, restore the network and security configurations, restore its applications, and recover data; the text states the customer's systems are now fully up and running.",
+          "trechos": [
+            "The customer and Google teams worked 24x7 over several days to recover the customer’s GCVE Private Cloud, restore the network and security configurations, restore its applications, and recover data to restore full operations.",
+            "With our customer’s systems fully up and running, we have completed our internal review."
+          ]
+        },
+        {
+          "texto": "Data backups stored in Google Cloud Storage in the same region, which were not impacted by the deletion, together with third-party backup software, aided the restoration.",
+          "trechos": [
+            "Data backups that were stored in Google Cloud Storage in the same region were not impacted by the deletion, and, along with third party backup software, were instrumental in aiding the rapid restoration."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: Google deprecated the internal tool that triggered the sequence of events; this aspect is now fully automated and controlled by customers via the user interface, even when specific capacity management is required.",
+          "trechos": [
+            "We deprecated the internal tool that triggered this sequence of events.",
+            "This aspect is now fully automated and controlled by customers via the user interface, even when specific capacity management is required."
+          ]
+        },
+        {
+          "texto": "Already done: Google scrubbed the system database and manually reviewed all GCVE Private Clouds to ensure that no other GCVE deployments are at risk.",
+          "trechos": [
+            "We scrubbed the system database and manually reviewed all GCVE Private Clouds to ensure that no other GCVE deployments are at risk."
+          ]
+        },
+        {
+          "texto": "Already done: Google corrected the system behavior that sets GCVE Private Clouds for deletion for such deployment workflows.",
+          "trechos": [
+            "We corrected the system behavior that sets GCVE Private Clouds for deletion for such deployment workflows."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives no date for the incident ('earlier this month') and no exact recovery duration ('several days'). How the deletion was first noticed is not stated. The blank parameter is treated as a persistent configuration (the text calls it a misconfiguration of the GCVE service), so mudanca_causadora is generica; the parameter itself is not named. The Private Cloud was deployed in early 2023 with an internal capacity-management tool to meet specific capacity placement needs; this is where the blank parameter occurred, so it is not listed as a separate contributing factor.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.14" }
+}

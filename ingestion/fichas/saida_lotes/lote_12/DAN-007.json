@@ -1,0 +1,130 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-007",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A change to Cloudflare's BGP prefix advertisement policies re-ordered policy terms on the spines of 19 MCP data centers, placing the site-local prefix terms behind an explicit reject term and withdrawing those prefixes, which took the 19 locations offline. Engineers used backup procedures to take control of the locations and reverted the change; all data centers were back online by 07:42 UTC.",
+    "data_incidente": "2022-06-21",
+    "status_relatorio": "final",
+    "servicos_afetados": ["websites and services that rely on Cloudflare", "19 Cloudflare data centers (MCP locations)"],
+    "tecnologias": ["BGP", "Multi-Colo PoP (MCP)", "Clos network", "Multimog", "Unimog"],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "While deploying a change to the prefix advertisement policies, the change on the spines re-ordered the terms of the AGGREGATES-OUT policy statement: the 4-ADV-SITE-LOCALS and 6-ADV-SITE-LOCALS terms moved behind the REJECT-THE-REST term, an explicit reject, so the site-local prefixes immediately stopped being advertised, removing direct access to the impacted locations and the servers' ability to reach origin servers.",
+        "trechos": [
+          "While deploying a change to our prefix advertisement policies, a re-ordering of terms caused us to withdraw a critical subset of prefixes.",
+          "[edit policy-options policy-statement AGGREGATES-OUT]",
+          "Specifically, the 4-ADV-SITE-LOCALS and 6-ADV-SITE-LOCALS terms moved from the top to the bottom. These terms were now behind the REJECT-THE-REST term, and as might be clear from the name, this term is an explicit reject:",
+          "As this term is now before the site-local terms, we immediately stopped advertising our site-local prefixes, removing our direct access to all the impacted locations, as well as removing the ability of our servers to reach origin servers."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The removal of the site-local prefixes also caused the internal load balancing system Multimog to stop working, as it could no longer forward requests between servers in the MCPs; smaller compute clusters then received the same traffic as the largest clusters and overloaded.",
+        "trechos": [
+          "On top of the inability to contact origins, the removal of these site-local prefixes also caused our internal load balancing system Multimog (a variation of our Unimog load-balancer) to stop working, as it could no longer forward requests between the servers in our MCPs.",
+          "This meant that our smaller compute clusters in an MCP received the same amount of traffic as our largest clusters, causing the smaller ones to overload."
+        ]
+      },
+      {
+        "texto": "Due to the prefix withdrawal, engineers had added difficulty reaching the affected locations to revert the change.",
+        "trechos": [
+          "Due to this withdrawal, Cloudflare engineers experienced added difficulty in reaching the affected locations to revert the problematic change."
+        ]
+      },
+      {
+        "texto": "Completion of the reverts was delayed because network engineers walked over each other's changes, reverting previous reverts and causing the problem to re-appear sporadically.",
+        "trechos": [
+          "**07:42**: The last of the reverts has been completed. This was delayed as network engineers walked over each other's changes, reverting the previous reverts, causing the problem to re-appear sporadically."
+        ]
+      },
+      {
+        "texto": "The stagger policy used for the change did not include an MCP data center until the final step, and the rollout steps were not small enough to catch the error before it reached all spines, despite a dry-run and peer review by multiple engineers.",
+        "trechos": [
+          "While we did use a stagger procedure for this change, the stagger policy did not include an MCP data center until the final step.",
+          "As part of the change procedure at Cloudflare, a Change Request ticket was created, which includes a dry-run of the change, as well as a stepped rollout procedure.",
+          "Before it was allowed to go out, it was also peer reviewed by multiple engineers. Unfortunately, in this case, the steps weren’t small enough to catch the error before it hit all of our spines."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "A change to standardize the BGP communities attached to site-local prefixes; on the spines it modified the AGGREGATES-OUT policy statement and moved the 4-ADV-SITE-LOCALS and 6-ADV-SITE-LOCALS terms behind the REJECT-THE-REST term.",
+        "trechos": [
+          "As part of our continued effort to standardize our infrastructure configuration, we were rolling out a change to standardize the BGP communities we attach to a subset of the prefixes we advertise. Specifically, we were adding informational communities to our site-local prefixes.",
+          "[edit policy-options policy-statement AGGREGATES-OUT]",
+          "Specifically, the 4-ADV-SITE-LOCALS and 6-ADV-SITE-LOCALS terms moved from the top to the bottom. These terms were now behind the REJECT-THE-REST term, and as might be clear from the name, this term is an explicit reject:"
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "Engineers used backup procedures to take control of the affected locations.",
+          "trechos": [
+            "We have backup procedures for handling such an event and used them to take control of the affected locations."
+          ]
+        },
+        {
+          "texto": "At 06:58 the root cause was found and work began to revert the change; the first data center was back online at 06:58 UTC, and the last revert was completed at 07:42, when all data centers were online.",
+          "trechos": [
+            "**06:58**: Root cause found and understood. Work begins to revert the problematic change.",
+            "At 06:58 UTC the first data center was brought back online and by 07:42 UTC all data centers were online and working correctly.",
+            "**07:42**: The last of the reverts has been completed."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Change procedures and automation need to include MCP-specific test and deploy procedures.",
+          "trechos": [
+            "Change procedures and automation need to include MCP-specific test and deploy procedures to ensure there are no unintended consequences."
+          ]
+        },
+        {
+          "texto": "The policy statement that caused the incorrect routing advertisement will be redesigned to prevent an unintentional incorrect ordering.",
+          "trechos": [
+            "Ultimately the policy statement that caused the incorrect routing advertisement will be redesigned to prevent an unintentional incorrect ordering."
+          ]
+        },
+        {
+          "texto": "Automation improvements will be pursued to enforce an improved stagger policy for network configuration rollouts and to provide an automated \"commit-confirm\" rollback.",
+          "trechos": [
+            "Primarily, we will be concentrating on automation improvements that enforce an improved stagger policy for rollouts of network configuration and provide an automated “commit-confirm” rollback."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 75,
+      "trechos": [
+        "A change to the network configuration in those locations caused an outage which started at 06:27 UTC.",
+        "At 06:58 UTC the first data center was brought back online and by 07:42 UTC all data centers were online and working correctly."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration computed from the stated start (06:27 UTC) and the time all data centers were online (07:42 UTC); the incident was closed at 09:00. The first data center came back at 06:58 UTC. How the problem was first noticed is not stated; the timeline only says an internal incident was declared at 06:32.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.14" }
+}

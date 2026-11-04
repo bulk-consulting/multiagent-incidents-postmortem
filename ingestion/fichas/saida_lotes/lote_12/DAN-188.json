@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-188",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On July 27, 2015, one PostgreSQL shard of Manta's metadata tier had all queries on its primary table blocked by a three-way lock interaction between data path queries wanting shared locks, a transaction wraparound autovacuum holding a shared lock for hours, and a DROP TRIGGER query wanting an exclusive table lock, so about 22% of Manta requests failed with 500-level errors from around 10:30 to 20:45 UTC. Service was restored after the PostgreSQL threshold that starts the wraparound autovacuum was tuned up around 20:40.",
+    "data_incidente": "2015-07-27",
+    "status_relatorio": "final",
+    "servicos_afetados": ["Manta", "Manta metadata tier (one PostgreSQL shard)", "Manta job-related requests"],
+    "tecnologias": ["PostgreSQL", "autovacuum", "VACUUM FREEZE", "Manatee", "ZFS", "DTrace", "prstat"],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Around 10:30 UTC the Manta service started serving a high percentage of error responses, with very high client latency and 500-level errors; the text does not say how this was first noticed.",
+        "trechos": [
+          "Around 10:30 UTC (3:30AM US Pacific), the Manta service started serving a high percentage of error responses.",
+          "Clients experienced very high latency, and ultimately received 500-level errors in response to about 22% of all types of requests, including PUT, GET, and DELETE for both objects and directories."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 10:30 UTC on July 27 the shard hit the wraparound autovacuum condition: an autovacuum \"to prevent wraparound\" started, which, unlike the normal autovacuum, does not back off under lock contention and held a shared lock for several hours.",
+      "trechos": [
+        "As mentioned above, we hit the wraparound autovacuum condition at 10:30 UTC on July 27.",
+        "However, because transaction wraparound is such a severe problem, if the system gets too close to wraparound, an autovacuum is launched that does not back off under lock contention.",
+        "During the event, one of the shard databases had all queries on our primary table blocked by a three-way interaction between the data path queries that wanted shared locks, a \"transaction wraparound\" autovacuum that held a shared lock and ran for several hours, and an errant query that wanted an exclusive table lock."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A \"DROP TRIGGER\" query, normally made when a Manta component reconnects to the database to drop and recreate a trigger, wanted an exclusive lock on the whole table; it was blocked by a shared lock held by the wraparound autovacuum, and it appears that PostgreSQL blocks new shared lock attempts while an exclusive lock is wanted, so all data path queries on the table blocked behind it.",
+        "trechos": [
+          "Instead, there was a single \"DROP TRIGGER\" query that was attempting to take an exclusive lock on the whole table.  It appears that PostgreSQL blocks new attempts to take a shared lock while an exclusive lock is wanted.",
+          "However, the exclusive lock was itself blocked on a different shared lock held by the autovacuum operation.",
+          "In Manta, the \"DROP TRIGGER\" query is normally made when a certain component reconnects to the database. It drops the trigger if it exists and then recreates it, as a simple way to idempotently make sure the trigger is present and up-to-date.",
+          "Everything before that query had acquired the shared lock and completed, while queries after that one blocked behind it."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The wraparound autovacuum is a full scan of the table and all its indexes, which exceeded system memory and induced substantial read I/O; ZFS did not prefetch files not yet read, and the autovacuum spent much of its time sleeping on filesystem reads.",
+        "trechos": [
+          "(This particular PostgreSQL operation is essentially a full scan of a table and all of its indexes -- which exceeded the memory of the system, inducing substantial read I/O.)",
+          "While ZFS identifies sequential read behavior within a file and prefetches file data, it does not prefetch files that that have not been read yet.",
+          "Using DTrace, we determined that the vast majority of time it was coming off-CPU was in order to read filesystem data."
+        ]
+      },
+      {
+        "texto": "PostgreSQL's cost-based vacuum delay made the autovacuum sleep explicitly while all database activity was blocked on it, and these tunables are not dynamically adjustable.",
+        "trechos": [
+          "Once we started prefetching data, we found that PostgreSQL was still sleeping a lot, and was coming off-CPU as a result of a PostgreSQL function that was explicitly sleeping as part of the cost-based vacuum delay mechanism, which attempts to limit resources used by vacuum operations.",
+          "Since these tunables are not dynamically adjustable, we manually patched the running process to avoid sleeping in this case."
+        ]
+      },
+      {
+        "texto": "After the first wraparound autovacuum completed, another one kicked off for the same table a few minutes later, and the same happened after the PostgreSQL restart; the reason the first did not clear the condition is unknown.",
+        "trechos": [
+          "However, a few minutes later, another autovacuum kicked off for the same table, also \"to prevent wraparound\". We still do not understand why the first autovacuum did not work to clear this problem, but it was clear that we could not wait several more hours for another operation to complete that may still not clear the issue.",
+          "This did restore service for about 5-10 minutes, but another autovacuum kicked off that shortly resulted in the same situation: all queries blocked on locks, with only the autovacuum operation actually running."
+        ]
+      },
+      {
+        "texto": "The default wraparound autovacuum configuration is aggressive: it starts when a table has gone at least 200 million transactions in total and more than 150 million since the last freeze vacuum, although a table can go about 2 billion transactions without freezing.",
+        "trechos": [
+          "The default configuration is aggressive: although a table can go about 2 billion transactions without freezing, a \"wraparound autovacuum\" is kicked off if a table has gone at least 200 million transactions in total and more than 150 million transactions since the last \"freeze\" vacuum."
+        ]
+      },
+      {
+        "texto": "Autovacuum operations were not monitored closely; the team had relied on background autovacuum having little impact, and the authors state they need to monitor these operations much more closely.",
+        "trechos": [
+          "We had been optimistic that background autovacuum operations would address these issues with little impact to service, or at least that performance degradation would be gradual. This optimism was clearly not warranted, and as part of this outage we learned that we need to monitor these operations much more closely."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Around 14:11 PostgreSQL was restarted after saving lock status and running query data; service was restored for about 5-10 minutes until another wraparound autovacuum blocked all queries again.",
+          "trechos": [
+            "In attempt to restore service as quickly as possible, we decided to restart PostgreSQL around 14:11.",
+            "To help root-cause the problem after restoring service, we saved the data that PostgreSQL makes available around locking status for locks both held and wanted, as well as the list of queries running. (More on this data later.) Then we restarted PostgreSQL.",
+            "This did restore service for about 5-10 minutes, but another autovacuum kicked off that shortly resulted in the same situation: all queries blocked on locks, with only the autovacuum operation actually running."
+          ]
+        },
+        {
+          "texto": "To speed up the autovacuum, the filesystem data it was reading was manually prefetched and the running PostgreSQL process was manually patched to avoid the cost-based vacuum delay sleep; after several hours the autovacuum completed and service was restored, but a few minutes later another wraparound autovacuum started on the same table.",
+          "trechos": [
+            "We manually prefetched this data, which improved autovacuum speed considerably.",
+            "Since these tunables are not dynamically adjustable, we manually patched the running process to avoid sleeping in this case. This improved performance considerably.",
+            "After several hours, it successfully completed and updated the \"last\\_autovacuum\\_time\" metadata for the table. The blocked queries completed and service was restored.",
+            "However, a few minutes later, another autovacuum kicked off for the same table, also \"to prevent wraparound\"."
+          ]
+        },
+        {
+          "texto": "Around 20:40 the PostgreSQL configuration was changed to tune up the threshold at which the wraparound autovacuum starts; service was quickly restored and the error rate returned to zero by 20:45 UTC.",
+          "trechos": [
+            "By this point, we'd learned that we could tune up the threshold at which PostgreSQL kicks off this operation, and that doing so was very safe as a short-term measure.",
+            "We made the change around 20:40, service was quickly restored, and the incident ended.",
+            "By 20:45 UTC, the error rate returned back to zero."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Avoid the query that takes the exclusive table lock by no longer dropping and recreating the trigger.",
+          "trechos": [
+            "Fortunately, we expect to be able to resolve this issue by simply avoiding dropping and recreating the trigger.",
+            "We believe this is safe for quite some time, but we will be prioritizing work to avoid the query that attempted to take the exclusive table lock, manually vacuum the table to deal with the wraparound threat, and monitor statistics that will tell us that autovacuum is proceeding regularly."
+          ]
+        },
+        {
+          "texto": "With the trigger fix in place, perform a manual \"VACUUM FREEZE\" on all shards to deal with the wraparound threat.",
+          "trechos": [
+            "With that change in place, we expect to be able to perform a manual \"VACUUM FREEZE\" on all shards without disruption to deal with the wraparound issue."
+          ]
+        },
+        {
+          "texto": "Monitor the PostgreSQL statistics used to calculate when the wraparound autovacuum should happen, and make sure normal autovacuum operations complete regularly and update these statistics.",
+          "trechos": [
+            "To deal with this in the future, we will be monitoring the PostgreSQL statistics that are used to calculate when the wraparound autovacuum should happen. We'll be making sure that normal autovacuum operations complete regularly, and that these statistics are updated when they do."
+          ]
+        },
+        {
+          "texto": "Examine the autovacuum tunables and validate the settings in the pre-production environment under high load.",
+          "trechos": [
+            "We will take this opportunity to carefully examine the relevant tunables to make sure they're configured to run autovacuum appropriately. We'll validate those settings in our pre-production environment under high load."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 615,
+      "trechos": [
+        "Around 10:30 UTC (3:30AM US Pacific), the Manta service started serving a high percentage of error responses.",
+        "This lasted until about 20:45 UTC (1:45PM US Pacific). By 20:45 UTC, the error rate returned back to zero."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Why the completed autovacuum did not resolve the wraparound issue.",
+      "Whether this was the first time a wraparound autovacuum was seen on these shards."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "Duration computed from the stated start (around 10:30 UTC) and end (about 20:45 UTC); service was briefly restored for 5-10 minutes after the 14:11 restart and for a few minutes after the first autovacuum completed. Error rates were about 22% of requests, peaking near 27%. Category is software-bug because the root cause is Manta's own DROP TRIGGER query pattern; the authors call it 'our own locking issue'.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.14" }
+}

@@ -1,0 +1,267 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-106",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During a network capacity upgrade in one US East Availability Zone, a traffic shift was executed incorrectly onto the lower-capacity EBS replication network, isolating many EBS nodes; when it was rolled back, mass re-mirroring exhausted the cluster's free capacity, leaving about 13% of the zone's volumes stuck and degrading the regional EBS control plane, EC2 and RDS. AWS isolated the cluster from the control plane, throttled node communication, added relocated capacity, built a partitioned control plane and restored volumes from snapshots over several days; 0.07% could not be restored.",
+    "data_incidente": "2011-04-21",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Amazon EC2",
+      "Amazon EBS",
+      "EBS APIs",
+      "Amazon RDS"
+    ],
+    "tecnologias": [
+      "EBS",
+      "EBS control plane",
+      "EBS primary network",
+      "EBS replication network",
+      "EC2",
+      "RDS",
+      "S3"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "At 12:47 AM PDT on April 21st, during a network change to upgrade the capacity of the primary network in one US East Availability Zone, the traffic shift off one of the redundant primary routers was executed incorrectly and routed traffic onto the lower-capacity redundant EBS network instead of the other primary router, leaving many EBS nodes completely isolated from one another.",
+      "trechos": [
+        "At 12:47 AM PDT on April 21st, a network change was performed as part of our normal AWS scaling activities in a single Availability Zone in the US East Region.",
+        "The configuration change was to upgrade the capacity of the primary network.",
+        "The traffic shift was executed incorrectly and rather than routing the traffic to the other router on the primary network, the traffic was routed onto the lower capacity redundant EBS network.",
+        "As a result, many EBS nodes in the affected Availability Zone were completely isolated from other EBS nodes in its cluster."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "When the incorrect traffic shift was rolled back, the large number of EBS nodes that had lost their replicas concurrently searched the cluster for space to re-mirror; the cluster's free capacity was quickly exhausted, leaving nodes stuck in a loop searching for free space (a re-mirroring storm), with about 13% of the volumes in the Availability Zone stuck. The authors state that with additional excess capacity the cluster would have absorbed the requests and avoided the storm.",
+        "trechos": [
+          "When the incorrect traffic shift was rolled back and network connectivity was restored, these nodes rapidly began searching the EBS cluster for available server space where they could re-mirror data.",
+          "In this case, because the issue affected such a large number of volumes concurrently, the free capacity of the EBS cluster was quickly exhausted, leaving many of the nodes “stuck” in a loop, continuously searching the cluster for free space.",
+          "At this point, about 13% of the volumes in the affected Availability Zone were in this “stuck” state.",
+          "With additional excess capacity, the degraded EBS cluster would have more quickly absorbed the large number of re-mirroring requests and avoided the re-mirroring storm."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The EBS control plane, and the create volume API in particular, was configured with a long time-out, so slow calls to the degraded cluster backed up and caused thread starvation in the regional thread pool, making the control plane fail API requests for other Availability Zones as well.",
+        "trechos": [
+          "Because the EBS control plane (and the create volume API in particular) was configured with a long time-out period, these slow API calls began to back up and resulted in thread starvation in the EBS control plane.",
+          "When these threads were completely filled up by the large number of queued requests, the EBS control plane had no ability to service API requests and began to fail API requests for other Availability Zones in that Region as well."
+        ]
+      },
+      {
+        "texto": "Nodes that could not find space did not back off aggressively enough and kept searching; as data was not re-mirrored, retries and new requests increased negotiations with the EBS control plane, and the load browned out the control plane, affecting EBS APIs across the Region again by 5:30 AM PDT.",
+        "trechos": [
+          "First, the nodes failing to find new nodes did not back off aggressively enough when they could not find space, but instead, continued to search repeatedly.",
+          "Because data was not being successfully re-mirrored, the number of these calls increased as the system retried and new requests came in.",
+          "The load caused a brown out of the EBS control plane and again affected EBS APIs across the Region.",
+          "By 5:30 AM PDT, error rates and latencies again increased for EBS API calls across the Region."
+        ]
+      },
+      {
+        "texto": "A low-probability race condition in the EBS node code caused nodes to fail when concurrently closing a large number of replication requests; the extremely high volume of connection attempts during the storm triggered it more often, and the failed nodes left more volumes needing to re-mirror (an additional 5% of the zone's volumes became stuck).",
+        "trechos": [
+          "There was also a race condition in the code on the EBS nodes that, with a very low probability, caused them to fail when they were concurrently closing a large number of requests for replication.",
+          "In a normally operating EBS cluster, this issue would result in very few, if any, node crashes; however, during this re-mirroring storm, the volume of connection attempts was extremely high, so it began triggering this issue more frequently.",
+          "Nodes began to fail as a result of the bug, resulting in more volumes left needing to re-mirror.",
+          "Before this change was deployed, the failed servers resulting from the race condition resulted in an additional 5% of the volumes in the affected Availability Zone becoming “stuck”."
+        ]
+      },
+      {
+        "texto": "Alarming was initially not fine-grained enough for the EBS control plane API used to attach new instances to volumes, so errors on new EBS-backed EC2 launches in other Availability Zones were overshadowed by the general error from the degraded cluster.",
+        "trechos": [
+          "New EBS-backed EC2 launches were being affected by a specific API in the EBS control plane that is only needed for attaching new instances to volumes.",
+          "Initially, our alarming was not fine-grained enough for this EBS control plane API and the launch errors were overshadowed by the general error from the degraded EBS cluster."
+        ]
+      },
+      {
+        "texto": "Two things delayed getting capacity online: failed nodes are not reused until every replica is re-mirrored, so new capacity had to be physically relocated from across the US East Region and installed; and the changes that reduced node-to-node communication made it difficult to incorporate the new capacity, requiring careful changes to negotiation throttles.",
+        "trechos": [
+          "First, when a node fails, the EBS cluster does not reuse the failed node until every data replica is successfully re-mirrored.",
+          "This required the time-consuming process of physically relocating excess server capacity from across the US East Region and installing that capacity into the degraded EBS cluster.",
+          "Second, because of the changes made to reduce the node-to-node communication used by peers to find new capacity (which is what stabilized the cluster in the step described above), the team had difficulty incorporating the new capacity into the cluster.",
+          "The team had to carefully make changes to their negotiation throttles to allow negotiation to occur with the newly-built servers without again inundating the old servers with requests that they could not service."
+        ]
+      },
+      {
+        "texto": "2.5% of RDS multi-AZ database instances in US East did not automatically fail over, because the rapid succession of network interruption and stuck I/O on the primary triggered a previously un-encountered bug that left the primary isolated and required manual intervention.",
+        "trechos": [
+          "Of multi-AZ database instances in the US East Region, 2.5% did not automatically failover after experiencing “stuck” I/O.",
+          "The primary cause was that the rapid succession of network interruption (which partitioned the primary from the secondary) and “stuck” I/O on the primary replica triggered a previously un-encountered bug.",
+          "This bug left the primary replica in an isolated state where it was not safe for our monitoring agent to automatically fail over to the secondary replica without risking data loss, and manual intervention was required."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A network configuration change to upgrade the capacity of the primary EBS network in a single US East Availability Zone; the exact configuration item is not named.",
+        "trechos": [
+          "The configuration change was to upgrade the capacity of the primary network.",
+          "The trigger for this event was a network configuration change."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The incorrect traffic shift was rolled back and network connectivity was restored, after which the nodes began re-mirroring.",
+          "trechos": [
+            "When the incorrect traffic shift was rolled back and network connectivity was restored, these nodes rapidly began searching the EBS cluster for available server space where they could re-mirror data."
+          ]
+        },
+        {
+          "texto": "At 2:40 AM PDT on April 21st the team deployed a change that disabled all new Create Volume requests in the affected Availability Zone; by 2:50 AM PDT latencies and error rates for all other EBS APIs recovered.",
+          "trechos": [
+            "At 2:40 AM PDT on April 21st, the team deployed a change that disabled all new Create Volume requests in the affected Availability Zone, and by 2:50 AM PDT, latencies and error rates for all other EBS related APIs recovered."
+          ]
+        },
+        {
+          "texto": "At 8:20 AM PDT the team began disabling all communication between the degraded EBS cluster and the EBS control plane; this prevented EBS API access in the affected zone, and latencies and error rates returned to normal for EBS APIs in the rest of the Region.",
+          "trechos": [
+            "At 8:20 AM PDT, the team began disabling all communication between the degraded EBS cluster in the affected Availability Zone and the EBS control plane.",
+            "While this prevented all EBS API access in the affected Availability Zone (we will discuss recovery of this in the next section), other latencies and error rates returned to normal for EBS APIs for the rest of the Region."
+          ]
+        },
+        {
+          "texto": "At 11:30 AM PDT the team made a change preventing EBS servers in the degraded cluster from futilely contacting other servers without affecting other essential node communication; after it, the cluster stopped degrading and no more volumes were at risk of becoming stuck.",
+          "trechos": [
+            "At 11:30AM PDT, the team developed a way to prevent EBS servers in the degraded EBS cluster from futilely contacting other servers (who didn’t have free space at this point anyway) without affecting the other essential communication between nodes in the cluster.",
+            "After this change was made, the cluster stopped degrading further and additional volumes were no longer at risk of becoming “stuck”."
+          ]
+        },
+        {
+          "texto": "At 11:30 AM PDT a change to the EBS control plane fixed the elevated errors on new EBS-backed EC2 launches, which returned to near-normal at Noon PDT.",
+          "trechos": [
+            "At 11:30 AM PDT, a change to the EBS control plane fixed this issue and latencies and error rates for new EBS-backed EC2 instances declined rapidly and returned to near-normal at Noon PDT."
+          ]
+        },
+        {
+          "texto": "The team installed physically relocated server capacity into the degraded cluster and adjusted negotiation throttles; at about 02:00 AM PDT on April 22nd it started adding significant new capacity, and all but about 2.2% of the zone's volumes were restored by 12:30 PM PDT on April 22nd.",
+          "trechos": [
+            "This required the time-consuming process of physically relocating excess server capacity from across the US East Region and installing that capacity into the degraded EBS cluster.",
+            "The team had to carefully make changes to their negotiation throttles to allow negotiation to occur with the newly-built servers without again inundating the old servers with requests that they could not service.",
+            "At about 02:00AM PDT on April 22nd, the team successfully started adding significant amounts of new capacity and working through the replication backlog.",
+            "Volumes were restored consistently over the next nine hours and all but about 2.2% of the volumes in the affected Availability Zone were restored by 12:30PM PDT on April 22nd."
+          ]
+        },
+        {
+          "texto": "The team built a separate EBS control plane instance partitioned to the affected Availability Zone and finer-grain throttles (after initial throttles proved too coarse-grained), began processing the state backlog shortly after 11:30 AM PDT on April 23rd, finished enabling control plane access to the zone by 3:35 PM PDT, and restored EBS API access there at 6:15 PM PDT on April 23rd.",
+          "trechos": [
+            "We also began building out a separate instance of the EBS control plane, one we could keep partitioned to the affected Availability Zone to avoid impacting other Availability Zones in the Region, while we processed the backlog.",
+            "We rapidly developed throttles that turned out to be too coarse-grained to permit the right requests to pass through and stabilize the system.",
+            "By Saturday morning, we had finished work on the dedicated EBS control plane and the finer-grain throttles.",
+            "Initial tests of traffic against the EBS control plane demonstrated progress and shortly after 11:30 AM PDT on April 23rd we began steadily processing the backlog.",
+            "By 3:35PM PDT, we finished enabling access to the EBS control plane to the degraded Availability Zone.",
+            "At 6:15 PM PDT on April 23rd, API access to EBS resources was restored in the affected Availability Zone."
+          ]
+        },
+        {
+          "texto": "The team began restoring the remaining 2.2% of volumes from S3 snapshots taken early in the event, using newly developed restore code; by 12:30 PM PDT on April 24 all but 1.04% of affected volumes were recovered, the team then began restoring volumes from failed machines after forensics, and 0.07% of the zone's volumes could not be restored in a consistent state.",
+          "trechos": [
+            "The team had snapshotted these volumes to S3 backups early in the event as an extra precaution against data loss while the event was unfolding.",
+            "At this point, the team finished developing and testing code to restore volumes from these snapshots and began processing batches through the night.",
+            "At 12:30 PM PDT on April 24, we had finished the volumes that we could recover in this way and had recovered all but 1.04% of the affected volumes.",
+            "At this point, the team began forensics on the remaining volumes which had suffered machine failure and for which we had not been able to take a snapshot.",
+            "At 3:00 PM PDT, the team began restoring these.",
+            "Ultimately, 0.07% of the volumes in the affected Availability Zone could not be restored for customers in a consistent state."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: audit the change process and increase automation to prevent the traffic-shift mistake.",
+          "trechos": [
+            "We will audit our change process and increase the automation to prevent this mistake from happening in the future."
+          ]
+        },
+        {
+          "texto": "Already done: the capacity buffer was increased significantly. Planned: modify capacity planning and alarming to carry the safety capacity needed for large-scale failures, with the new capacity expected in a few weeks.",
+          "trechos": [
+            "We now understand the amount of capacity needed for large recovery events and will be modifying our capacity planning and alarming so that we carry the additional safety capacity that is needed for large scale failures.",
+            "We have already increased our capacity buffer significantly, and expect to have the requisite new capacity in place in a few weeks."
+          ]
+        },
+        {
+          "texto": "Planned (work begun): modify the retry logic in EBS server nodes to back off more aggressively during large interruptions and focus on re-establishing connectivity with previous replicas instead of searching for new nodes.",
+          "trechos": [
+            "We will also modify our retry logic in the EBS server nodes to prevent a cluster from getting into a re-mirroring storm.",
+            "When a large interruption occurs, our retry logic will back off more aggressively and focus on re-establishing connectivity with previous replicas rather than futilely searching for new nodes with which to re-mirror.",
+            "We have begun working through these changes and are confident we can address the root cause of the re-mirroring storm by modifying this logic."
+          ]
+        },
+        {
+          "texto": "Planned: test and deploy, in the next couple of weeks, a fix for the identified race condition that led to EBS node failure.",
+          "trechos": [
+            "Finally, we have identified the source of the race condition that led to EBS node failure.",
+            "We have a fix and will be testing it and deploying it to our clusters in the next couple of weeks."
+          ]
+        },
+        {
+          "texto": "Planned: improve the EBS control plane timeout logic to prevent thread exhaustion when a single Availability Zone cluster is slow, make the control plane more Availability Zone aware with intelligent load shedding, and move more control plane functionality into per-EBS-cluster services in the same zone.",
+          "trechos": [
+            "The first is that we will immediately improve our timeout logic to prevent thread exhaustion when a single Availability Zone cluster is taking too long to process requests.",
+            "To address the cause of the second API impact, we will also add the ability for our EBS control plane to be more Availability Zone aware and shed load intelligently when it is over capacity.",
+            "By moving more functionality out of the EBS control plane and creating per-EBS cluster deployments of these services (which run in the same Availability Zone as the EBS cluster they are supporting), we can provide even better Availability Zone isolation for the EBS control plane."
+          ]
+        },
+        {
+          "texto": "In progress: a fix for the RDS multi-AZ bug that prevented automatic failover.",
+          "trechos": [
+            "This bug left the primary replica in an isolated state where it was not safe for our monitoring agent to automatically fail over to the secondary replica without risking data loss, and manual intervention was required.",
+            "We are actively working on a fix to resolve this issue."
+          ]
+        },
+        {
+          "texto": "Planned: build the fine-grained control and throttling used in the recovery directly into the EBS nodes, automate the volume recovery models, and look at adding the ability to snapshot a stuck volume.",
+          "trechos": [
+            "We have a number of operational tools for managing an EBS cluster, but the fine-grained control and throttling the team used to recover the cluster will be built directly into the EBS nodes.",
+            "We will also automate the recovery models that we used for the various types of volume recovery that we had to do.",
+            "We will also look at what changes we can make to preserve volume functionality during periods of degraded cluster operation, including adding the ability to take a snapshot of a “stuck” volume."
+          ]
+        },
+        {
+          "texto": "Planned: give VPC customers access to multiple Availability Zones and provide better tools for multi-AZ applications.",
+          "trechos": [
+            "We will be adjusting our roadmap to give VPC customers access to multiple Availability Zones as soon as possible.",
+            "We will look to provide customers with better tools to create multi-AZ applications that can support the loss of an entire Availability Zone without impacting application availability."
+          ]
+        },
+        {
+          "texto": "In progress: tools to let customers see via the APIs whether their instances are impaired. Already done: AWS switched to more regular updates part of the way through the event and plans to keep that frequency in the future.",
+          "trechos": [
+            "We also can do a better job of making it easier for customers to tell if their resources have been impacted, and we are developing tools to allow you to see via the APIs if your instances are impaired.",
+            "We switched to more regular updates part of the way through this event and plan to continue with similar frequency of updates in the future."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "duracao: null vs a value computed from 12:47 AM PDT April 21 to one of several stated restoration times. The text marks no single end of the impact, and the definition ('If it marks no end but says service came back at a stated time, even in a degraded or partial form ... that time is the end of the impact') is satisfied by several stated partial restorations (outage contained to one zone at 12:04 PM April 21; all but 2.2% of volumes restored at 12:30 PM April 22; EBS API access restored in the zone at 6:15 PM April 23; all but 1.04% of volumes at 12:30 PM April 24), so it does not pick one; the weaker option (null) was chosen.",
+  "observacoes": "The year 2011 comes from the date 'April 29, 2011' at the top of the extracted text, with the event described as 'last week'. Errors on new EBS-backed EC2 launches in other zones lasted approximately 11 hours (to Noon PDT April 21); regional EBS API impact occurred from 12:50 AM to 2:40 AM PDT and again from about 5:30 AM to 8:20 AM PDT. 0.4% of single-AZ RDS instances in the affected zone had an unrecoverable EBS volume. AWS describes the event as several root causes interacting; the incorrect traffic shift is the gatilho and the re-mirroring storm caused by insufficient free capacity is the causa_raiz.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.14"
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-126",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A Destiny 2 fix that disabled timestamp resetting for quests also disabled too much of the inventory clean-up process, so the game calculated wrong caps for stacked items and players lost currency and materials when Hotfix 2.7.1 launched on January 28th; on February 11th, after Hotfix 2.7.1.1, some WorldServers that crashed on startup and were manually restarted skipped the server-side fix and its verification, and the loss re-emerged for a small percentage of players. Both times character data was rolled back; on February 11th accounts were restored from the backup taken before 2.7.1.1.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Destiny 2 player inventories and character data",
+      "WorldServers"
+    ],
+    "tecnologias": [
+      "WorldServers",
+      "backing database",
+      "server setting override",
+      "version verification systems"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "On February 11th, as the game came back on after the 2.7.1.1 deployment, the team started seeing player reports of lost currency.",
+        "trechos": [
+          "Today, as the game came back on after the 2.7.1.1 deployment, we started seeing player reports of lost currency."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Shared cause of both incidents: to fix quest log sorting, the timestamp-resetting behavior of the inventory clean-up process was disabled for quests, but through subtle side effects this disabled too much of the clean-up process, so the game calculated the wrong cap quantity for stacked items such as currencies and materials and items above the cap were lost.",
+        "trechos": [
+          "Since both of these incidents are identical in cause and the effect on our players, and because both incidents happened within a close window of time, we wanted to give you a picture of what went wrong, how we fixed it, and how we’re planning on making sure this doesn’t happen again in the future.",
+          "We decided to fix this by disabling the timestamp-resetting behavior for quests.",
+          "That fix was conceptually reasonable but, through subtle side effects, it ended up disabling too much of the clean-up process.",
+          "The net result was that the game calculated the wrong cap quantity for stacked items (such as currencies and materials), which caused items above the cap to be lost."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "First incident: the change was reviewed by two domain experts without the bug being spotted, and when internal test teams caught the issue a few days later it was incorrectly attributed to a tooling failure in debug workflows used for testing, so the bug went live in 2.7.1.",
+        "trechos": [
+          "We knew this code was critical and, per our typical process, we had two domain experts provide code reviews for the change – but sadly, we didn’t spot the bug.",
+          "A few days later, our internal test teams caught this issue. However, we incorrectly concluded that it was caused by a tooling failure with debug workflows we use for testing, and not an actual bug within the game.",
+          "Having dodged all our diligence, the issue went live in 2.7.1."
+        ]
+      },
+      {
+        "texto": "The fix for 2.7.1 was applied as a server setting overriding the game code used to process character data, picked up by restarting the WorldServers, rather than as a full build of the game code.",
+        "trechos": [
+          "To fix that issue quickly, we applied a patch to the servers instead of trying to get a full build of the game code deployed.",
+          "This involved making a change to a server setting to override the game code used to process character data and then restarting the WorldServers to pick up that change."
+        ]
+      },
+      {
+        "texto": "Second incident: since October, running more WorldServers than ever before made a small percentage (less than 1 percent) crash on start-up because the volume of servers overwhelmed a backing database, handled by manually restarting them; after the 2.7.1.1 rollout some WorldServers crashed this way and were manually restarted, and the crash meant they did not apply the character data corruption fix, so they ran the old code with the bug.",
+        "trechos": [
+          "Back in October, in order to handle increased CPU and player load for Shadowkeep’s launch, we spun up additional servers (in this case, called WorldServers); more servers, in fact, than we have ever used before for this task.",
+          "For example, one issue was that a small percentage (less than 1 percent) of these servers would crash on start-up due to the volume of servers overwhelming one of the backing databases.",
+          "Our workaround for this was to simply manually restart the crashed servers each time we detected this issue, and this appeared to address the problem without any discernable side effects for players.",
+          "After launch, some of the WorldServers once again crashed on startup because of a high volume of servers starting simultaneously. Once again we manually restarted those servers and thought everything was fine.",
+          "Unbeknownst to us, this crash resulted in those WorldServers **not** applying the previous character data corruption fix.",
+          "This meant that a small percentage of WorldServers were running the old code and the bug that was corrupting character data."
+        ]
+      },
+      {
+        "texto": "The crashes and manual restarts also made the servers skip the verification process that detects version misconfigurations, which the team had believed to be impossible.",
+        "trechos": [
+          "We have verification systems that detect these sorts of version misconfigurations, but the WorldServer crashes and subsequent manual restarts caused the servers to also skip the verification process.",
+          "Prior to this morning, we had believed skipping these overrides and verifications to be impossible."
+        ]
+      },
+      {
+        "texto": "Manual build verification with test accounts hit only correctly configured servers among the hundreds in the retail environment and missed the small percentage in a bad state, so the all clear was given.",
+        "trechos": [
+          "Because we have hundreds of servers in our retail environment, every manual test we performed was (un)lucky enough to hit the “good” servers, and all of them missed the small percentage of servers that were in a bad state.",
+          "So we gave the all clear."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "The change that disabled the timestamp-resetting behavior for quests in the inventory clean-up process, which went live in Hotfix 2.7.1.",
+        "trechos": [
+          "We decided to fix this by disabling the timestamp-resetting behavior for quests.",
+          "Having dodged all our diligence, the issue went live in 2.7.1."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "First incident (January 28th): player accounts were rolled back, the first ever rollback of character data.",
+          "trechos": [
+            "This comes after the first incidence of this issue, which caused all players to lose currency and materials on January 28th with the launch of Hotfix 2.7.1, and resulted in player account rollbacks.",
+            "The 2.7.1 update had the aforementioned bug that caused character data corruption and resulted in our first ever rollback of character data."
+          ]
+        },
+        {
+          "texto": "First incident: a patch was applied to the servers by changing a server setting to override the game code used to process character data and restarting the WorldServers to pick up the change.",
+          "trechos": [
+            "To fix that issue quickly, we applied a patch to the servers instead of trying to get a full build of the game code deployed.",
+            "This involved making a change to a server setting to override the game code used to process character data and then restarting the WorldServers to pick up that change."
+          ]
+        },
+        {
+          "texto": "Second incident (February 11th): the team took the game down at 10:30 AM PST.",
+          "trechos": [
+            "The team began investigating immediately and took the game down at 10:30 AM PST."
+          ]
+        },
+        {
+          "texto": "Second incident: the team decided to restore all character data from the backup taken just before the 2.7.1.1 patch rolled out, rather than identify each affected account, and accounts were rolled back to their state as of 8:30 AM PST.",
+          "trechos": [
+            "With today’s incident, we have taken similar steps and rolled back accounts to the state they were in as of 8:30 AM PST (before the launch of 2.7.1.1).",
+            "Once we determined this was the same issue that occurred on January 28th and we understood how it happened, the team decided that our best path forward – rather than trying to identify each affected account and risk missing something in the process – was to restore all character data from the backup that took place just before the 2.7.1.1 patch rolled out."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "The team has identified a number of additional safeguards that should prevent this particular issue from happening in the future; the safeguards are not listed in the extracted text.",
+          "trechos": [
+            "The team has identified a number of additional safeguards that should prevent this particular issue from happening in the future."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "deteccao.forma: usuarios_clientes vs equipe_interna. The definition says 'how the problem was first noticed'; the catalog covers both occurrences, and the text says the February 11th re-emergence was noticed through player reports (usuarios_clientes), while for the original bug it says internal test teams caught the issue days before 2.7.1 went live but attributed it to a tooling failure (equipe_interna); how the January 28th live incident was noticed is not stated. Both values satisfy 'first noticed' depending on which occurrence is taken, so the definition does not decide.",
+  "observacoes": "The catalog describes two occurrences of the same issue (January 28th with Hotfix 2.7.1 and February 11th with Hotfix 2.7.1.1); the authors state both are identical in cause, so the shared cause is in causa_raiz with gatilho null and each occurrence's mechanism in fatores_contribuintes. Dates are given without a year, so data_incidente is null. The 'Preventive Measures' section announces safeguards but the list is missing from the extracted text. The text does not say when the game came back after being taken down on February 11th.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.14"
+  }
+}

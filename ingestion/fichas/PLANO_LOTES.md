@@ -14,7 +14,7 @@ Lista completa em [`lotes/lotes.csv`](lotes/lotes.csv): **169 documentos em 17 l
 Observações:
 - `precisa_limpeza` (7) entra: são textos repetidos em outro idioma ou parágrafos repetidos. Desde o lote 05, o `montar_prompts.py` remove do prompt os parágrafos em escrita não latina (quando sobra texto latino suficiente) e os parágrafos longos repetidos; só remove parágrafos inteiros, então os trechos continuam batendo com o texto original no validador. Age em DAN-002, 060, 062, 064, 111, 113, 114 e 155 (DAN-002 tem a versão em inglês depois do coreano). Cópias em outro idioma de escrita latina (o português da DAN-063) não são removidas.
 - DAN-216 tem 2 palavras e o inventário a marcou `ok` por engano; o esperado é `catalogo: nao_verificavel`.
-- DAN-210 tem 4.501 palavras, mas são só menus, cabeçalhos de comentários e rodapé do Reddit; saiu `nao_verificavel` no lote 03. DAN-156 (lote 04) trouxe só a página do Hacker News com um comentário. A contagem de palavras do inventário não detecta páginas sem artigo: as três vão para a reextração.
+- DAN-210 tem 4.501 palavras, mas são só menus, cabeçalhos de comentários e rodapé do Reddit; saiu `nao_verificavel` no lote 03. DAN-156 (lote 04) trouxe só a página do Hacker News com um comentário. DAN-150 (lote 11) trouxe só a página índice do blog. A contagem de palavras do inventário não detecta páginas sem artigo: as quatro vão para a reextração.
 
 ## Cada lote
 
@@ -37,6 +37,8 @@ Resultado da amostra por lote (ERRADOS procedentes / fichas da amostra): lote 06
 Lote 08 = 6/5 (1,2), amostra ampliada com as 2 fichas que a autorrevisão passou de baixa para alta (124, 240; a 197 já tinha sido sorteada): nenhuma das 3 viradas foi contestada → segue por amostra, sem mudança de prompt.
 Lote 09 = 4/7 (0,6) → segue por amostra; gerou a v2.14 (regra de duração que só existia no lembrete da revisão).
 Lote 10 = 6/5 (1,2), amostra com 3 sorteadas + 2 escolhidas (157, 187), todas alta → segue por amostra, sem mudança de prompt.
+Lote 11 = 5/6 (0,8) → segue por amostra, sem mudança de prompt. DAN-150 saiu nao_verificavel (página índice do blog): reextração.
+Lote 12 = 7/7 (1,0) → segue por amostra; gerou a v2.15 (configuration-error sem mudança recente).
 
 **Fichas vazias:** documentos que saem `nao_verificavel` (só menus ou rodapé) não precisam de conferência; entram na lista de reextração.
 

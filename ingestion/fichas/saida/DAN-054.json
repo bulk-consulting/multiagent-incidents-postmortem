@@ -1,0 +1,151 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-054",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "After Travis CI turned its automated GCE image cleanup service back on, the service, which queried only a hard-coded 100 newest image names from the internal catalog, did not see the oldest stable images and irrevocably deleted them, stopping GCE builds. Builds were running again about 90 minutes after the deletion by rolling forward to the available development images, which were not fully tested and broke builds for many users.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": ["Travis CI builds on Google Compute Engine (travis-ci.com, travis-ci.org)"],
+    "tecnologias": ["Google Compute Engine", "VM images", "internal image catalog service", "automated cleanup service", "docker", "docker-compose"],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The deletion of the stable images immediately stopped builds from running; the text does not say how this was noticed.",
+        "trechos": [
+          "This immediately stopped builds from running."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "The automated image cleanup service, which had been briefly disabled to troubleshoot a potential race condition, was turned back on.",
+      "trechos": [
+        "In addition, our cleanup service had been briefly disabled to troubleshooting a potential race condition.",
+        "Then we turned the automated cleanup back on."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The cleanup service, which deletes GCE images that are not in the internal image catalog, queried a default hard-coded amount of 100 image names sorted newest first; the stable images, being the oldest, were not included, so the service treated them as no longer in the catalog and irrevocably deleted all of them.",
+        "trechos": [
+          "To avoid running out of space, we have an automated cleanup service in place to delete images that have been removed from our internal image catalog service.",
+          "The service had a **default hard coded** amount of how many image names to query from our internal image catalog and it was set to 100.",
+          "When we started the cleanup service, the list of 100 image names, sorted by newest first, did not include our *stable* images, which were the *oldest*, did not get included in the results.",
+          "Our cleanup service then promptly started deleting the older images from GCE, because its view of the world told it that those older images where no longer in use, i.e it looked like they were not in our catalog and all of our stable images got irrevocably deleted."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "While developing an improved image provisioning process, many more images had been published than in the previous 5-6 months.",
+        "trechos": [
+          "During development, we had started publishing many many more images than we had in the previous 5-6 months."
+        ]
+      },
+      {
+        "texto": "Recreating the deleted images exactly as before was unachievable because of the way provisioning worked when the images were built almost a year earlier.",
+        "trechos": [
+          "After identifying the issue, we realized that recreating images exactly as before was unachievable, due to the way our provisioning used to work when we built the images almost a year ago."
+        ]
+      },
+      {
+        "texto": "Images had not been updated in nine months, which the authors give as the main reason the incident had such a major impact.",
+        "trechos": [
+          "**More frequent image updates.** The main reason this had such a major impact was that we hadn’t updated images in nine months."
+        ]
+      },
+      {
+        "texto": "The new images available for the roll-forward had not gone through full QA testing; the first version shipped without docker-compose, which broke builds for many users.",
+        "trechos": [
+          "We had new images in place, and had some early adopters using them, but the images hadn’t gone through full QA testing yet.",
+          "But it broke the builds for many. For instance, the first version of our new VMs did ship without docker-compose."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Travis CI decided to roll forward to the available development images, which had builds up and running approximately 90 minutes after the VM images had been deleted.",
+          "trechos": [
+            "We therefore decided to roll forward to the available development images.",
+            "This allowed us to have builds up and running approximately 90 minutes after the VM images had been deleted."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: a reproducible image provisioning process that allows rebuilding an exact image if it is deleted.",
+          "trechos": [
+            "**Reproducible image provisioning process.** This allows us to rebuild an exact image easily if it should be deleted."
+          ]
+        },
+        {
+          "texto": "Already done: more frequent image updates.",
+          "trechos": [
+            "**More frequent image updates.** The main reason this had such a major impact was that we hadn’t updated images in nine months."
+          ]
+        },
+        {
+          "texto": "Already done: checks in multiple places in the system to automatically prevent deletion of production images.",
+          "trechos": [
+            "**Checks to make sure we don’t delete production images.** Our system now has checks in multiple places to automatically prevent such deletions in the future."
+          ]
+        },
+        {
+          "texto": "Already done: an automated test suite run against the VM images to make sure certain software is installed and set up properly; the tests will keep being improved.",
+          "trechos": [
+            "We have created an automated test suite to run against our images.",
+            "This will make sure that certain software is installed and set up properly on the images. We will keep improving these tests."
+          ]
+        },
+        {
+          "texto": "Already done: automatic VM image cleanup is disabled for now.",
+          "trechos": [
+            "**Disable automatic cleanup.** For now, no automatic VM image cleanup is running."
+          ]
+        },
+        {
+          "texto": "Planned: a unified image release process, intended to communicate better to users when and what updates are rolled out and to make it easier to configure whether to receive updates early.",
+          "trechos": [
+            "We are working on a new image rollout process, which hopefully will also communicate to our users better when and what updates we’re rolling out.",
+            "We also want to make it easier for users to configure whether they want updates early or not."
+          ]
+        },
+        {
+          "texto": "Planned: a new on-call schedule starting October 24, including an explanation of incident handling procedures and responsibilities.",
+          "trechos": [
+            "Internally, we are putting a new on call schedule in place starting October 24.",
+            "This includes a thorough explanation of incident handling procedures and responsibilities and has been greatly influenced by this incident."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 90,
+      "trechos": [
+        "A 90 minute, unscheduled outage is something we try our best to avoid."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text dates the incident 'August 9' without a year, so data_incidente is null. The backlog was cleared less than two hours after builds resumed, and broken builds on the new images continued afterwards (all-hands support for more than a week); duracao uses the stated 90-minute outage. Re-enabling the cleanup service is an operational action, not a persistent configuration or code change, and the 100-name limit was a latent hard-coded default, so mudanca_causadora is nao_se_aplica.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.14" }
+}

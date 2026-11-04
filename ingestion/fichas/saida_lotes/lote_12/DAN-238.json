@@ -1,0 +1,117 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-238",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "After planned hosting-provider maintenance moved Yeller's servers onto newer network infrastructure, the cluster's internal network was split into partitions, delaying processing of 42 exceptions and affecting account and billing changes. A rolling restart of the cluster, suggested by the provider, resolved the partition at 0930 UTC for reasons the author says are unclear (cached routes are suspected), and the timed-out exceptions were manually reprocessed.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Yeller exception processing",
+      "account sign-up, password changes and resets, billing changes and project invitations"
+    ],
+    "tecnologias": [
+      "Riak",
+      "Datomic",
+      "firewall software",
+      "load balancers",
+      "statuspage.io"
+    ],
+    "categoria_causa": "other",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "The author was paged by the alerting and monitoring systems within seconds of the network partition being in place.",
+        "trechos": [
+          "On the alerting and monitoring front, I was paged within seconds of the network partition being in place."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "incerta",
+      "descricao": {
+        "texto": "Planned maintenance by the hosting provider at 1100 UTC to move Yeller's servers onto newer network infrastructure was followed, after its completion at 1200 UTC, by three partitions in Yeller's internal networking; why the partition persisted until a cluster restart is unclear, and the author suspects cached routes on some level.",
+        "trechos": [
+          "On Tuesday at 1100 UTC, my hosting provider did some planned maintenance to move Yeller’s servers onto newer network infrastructure. After the maintenance was completed (at 1200 UTC), there were three different partitions in Yeller’s internal networking.",
+          "There was some maintenance at the datacenter Yeller uses, which ended up causing several network partitions in the cluster of servers that Yeller uses.",
+          "It is unclear at this time why this restart solved the partition - I suspect cached routes on some level (the ip addresses involved didn’t change), because the restart eliminated these caches it is (as far as I can tell) near impossible to figure out the root cause at this point."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Exceptions that ran into Riak write timeouts during the partition had to be manually reprocessed; the author is investigating improved retry logic so the system will not need human intervention for timing-out writes.",
+        "trechos": [
+          "These exceptions ran into riak write timeouts, and had to be manually reprocessed by me.",
+          "I’m investigating improved retry logic so that if Yeller does see a partition like this in the future, the system won’t need human intervention to process timing out exception writes."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "After the hosting provider suggested it at 0804 UTC, a careful rolling restart of the cluster was performed, and the network partition was resolved at 0930 UTC.",
+          "trechos": [
+            "After a lot of investigation, and debugging attempts spanning the next 17 hours or so (until 0804 UTC), my hosting provider suggested that I try restarting the cluster.",
+            "After a careful rolling restart of the cluster (to minimize customer impact), the network partition was resolved (at 0930UTC)."
+          ]
+        },
+        {
+          "texto": "The 42 delayed exceptions that ran into Riak write timeouts were manually reprocessed.",
+          "trechos": [
+            "The first was processing delays on exactly 42 exceptions.",
+            "These exceptions ran into riak write timeouts, and had to be manually reprocessed by me."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Improved retry logic is being investigated so that timing-out exception writes during a future partition are processed without human intervention.",
+          "trechos": [
+            "I’m investigating improved retry logic so that if Yeller does see a partition like this in the future, the system won’t need human intervention to process timing out exception writes."
+          ]
+        },
+        {
+          "texto": "In future outages, at least one machine with a bad state will be left running but removed from the load balancers, so the root cause can be better determined.",
+          "trechos": [
+            "In future outages, I will leave at least one machine with a bad state running (but removed from the load balancers), so that the root cause can be better determined."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 1140,
+      "trechos": [
+        "Yeller had nearly 19 hours of delayed processing, and I only posted a few status updates in that time."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Why the rolling restart of the cluster solved the network partition is unclear; the author considers the root cause near impossible to determine because the restart eliminated the suspected caches."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "gatilho is null because the text describes no separate pre-existing condition (cached routes are only suspected and not described as pre-existing). categoria_causa is other because no mechanism is stated (cached routes are only suspected). The cluster restart was not attempted until the provider suggested it at 0804 UTC, because the IP addresses remained the same and the issue was believed to be on the provider's side.The text gives several durations: 'nearly 19 hours of delayed processing' (used), '18 hours of a 4 way network partition', and times from 1200 UTC (end of maintenance) to 0930 UTC the next day (about 21.5 hours). Individual exceptions were delayed up to about 7 hours. The incident date is not stated in the text ('Tuesday and Wednesday last week'). Outage communication changes (status page moved to statuspage.io, chat bot integration, status shown in the web UI) are already done but address communication, not recurrence. The author restarted firewall software early on to rule out a local issue.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.14"
+  }
+}

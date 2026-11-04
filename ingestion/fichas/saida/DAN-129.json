@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-129",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "About two hours after Supermarket became Chef's official community site, it had increased latency and intermittent unresponsiveness, affecting Supermarket and related community and Berkshelf API sites. The text names undersized application servers, health check timeouts set too low (nodes dropping out of the load balancer pool in a domino effect) and skipped load planning; service was stabilized by adding instances and moving to five m3.xlarge instances.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": ["supermarket.getchef.com", "community.opscode.com", "cookbooks.opscode.com", "api.berkshelf.com", "Supermarket API", "cookbook downloads and uploads"],
+    "tecnologias": ["AWS", "m3.medium", "m3.xlarge", "RDS", "ElasticCache Redis", "Elastic Load Balancer (ELB)", "Rails", "unicorn", "Nginx", "Berkshelf"],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "About two hours after becoming the official community site, Supermarket started to experience increased latency and intermittent unresponsiveness; the text does not say how this was first noticed.",
+        "trechos": [
+          "Approximately two hours after Supermarket became the official community site it started to experience increased latency and intermittent unresponsiveness."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The application servers, three m3.medium instances at launch, were undersized for the traffic: the single CPU core of an m3.medium was not enough to keep up with demand.",
+        "trechos": [
+          "The application servers were woefully undersized for the traffic we needed to be able to handle. The single CPU core of an m3.medium was just not enough CPU to keep up with demand.",
+          "At launch, it was hosted on three m3.medium instances, with an RDS database, ElasticCache Redis cache, with an Elastic Load Balancer (ELB) in front of the instances."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Health check timeouts were set too low to be effective: nodes were taken out of the pool, the remaining nodes saw a significant increase in traffic, timed out and fell out of the pool in a domino effect.",
+        "trechos": [
+          "The health check timeouts were set too low to be effective. We ended up in a state where nodes were being taken out of the pool causing a domino effect.",
+          "As one node would be pulled out, the other nodes would see a significant increase in traffic, causing them to time out and fall out of the pool."
+        ]
+      },
+      {
+        "texto": "The load planning step was skipped to launch as soon as possible after the cut-over was held for implementing the /universe endpoint.",
+        "trechos": [
+          "As such we held off on cutting over to get that implemented but still wanted to launch as soon as possible and skipped over the load planning step in our haste.",
+          "We realized at the time of soft launch that we couldn’t cut-over to the new site without supporting the /universe endpoint."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "New instances were added and the production instance type was changed; five m3.xlarge instances now serve traffic.",
+          "trechos": [
+            "We added new instances and changed the instance type we were using in production. We now have five m3.xlarge instances serving traffic."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Change the behavior of the Berkshelf API servers to use the new /universe endpoint.",
+          "trechos": [
+            "Change the behavior of the Berkshelf API Servers, to use the new `/universe` endpoint. (Berkshelf Core Team)"
+          ]
+        },
+        {
+          "texto": "Adjust the number of unicorn workers on each node as necessary.",
+          "trechos": [
+            "Adjust the number of unicorn workers on each node as necessary."
+          ]
+        },
+        {
+          "texto": "Improve the performance of download handling, including making metrics collection non-blocking.",
+          "trechos": [
+            "Improve performance with the way downloads are handled. This will include ensure that the metrics collection is non-blocking."
+          ]
+        },
+        {
+          "texto": "Add additional alerting around nodes falling out of the ELB.",
+          "trechos": [
+            "Add additional alerting around nodes falling out of the ELB. (Chef Operations)"
+          ]
+        },
+        {
+          "texto": "Get updates from status.getchef.com into the #chef channel on irc.freenode.net.",
+          "trechos": [
+            "Get updates from http://status.getchef.com into #chef on irc.freenode.net."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "causa_raiz (and categoria_causa): the text lists three 'contributing factors that led to this outage' (skipped load planning, health check timeouts set too low, undersized app servers) without saying which one started the impact. The causa_raiz definition says 'If the text describes more than one mechanism, causa_raiz holds the one that started the impact' and 'If the text does not make clear which one started the impact, that is a judgment call'. Undersized servers (capacity-load) and too-low health check timeouts (configuration-error) both fit.",
+  "observacoes": "The text does not give the incident date (only the URL does), the duration, or how the problem was detected. A written postmortem and a video of the open postmortem meeting are referenced but not included in the text.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.14" }
+}

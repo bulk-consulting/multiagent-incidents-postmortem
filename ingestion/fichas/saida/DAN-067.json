@@ -1,0 +1,213 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-067",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "In an account the authors partly label informed speculation, a ground fault on a utility transformer at Flexential's PDX-04 data center made protective measures also shut down its generators; the UPS ran out and Cloudflare's control plane and analytics went down, partly because services meant to be highly available depended on services only in PDX-04. Most of the control plane was restored at a European disaster recovery site by 17:57 UTC on November 2; full service returned on November 4 at 04:25 UTC after a complete bootstrap of PDX-04.",
+    "data_incidente": "2023-11-02",
+    "status_relatorio": "final",
+    "servicos_afetados": ["Cloudflare control plane (dashboard and APIs)", "analytics services", "logging and raw log services", "log push", "Stream", "Magic WAN"],
+    "tecnologias": ["Kafka", "ClickHouse", "UPS batteries", "generators", "circuit breakers", "high availability cluster", "configuration management servers"],
+    "categoria_causa": "hardware-power",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Cloudflare was first notified of issues in the data center when the two routers that connect the facility to the rest of the world went offline at 11:44 UTC; the text does not say whether an alert fired.",
+        "trechos": [
+          "We were first notified of issues in the data center when the two routers that connect the facility to the rest of the world went offline at 11:44 UTC."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At approximately 11:40 UTC there was a ground fault on a PGE transformer at PDX-04; the authors believe, without confirmation, that it was the transformer for the second utility feed that was still running.",
+      "trechos": [
+        "At approximately 11:40 UTC, there was a ground fault on a PGE transformer at PDX-04.",
+        "We believe, but have not been able to get confirmation from Flexential or PGE, that this was the transformer that stepped down power from the grid for the second feed that was still running as it entered the data center."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "In a section the authors describe as partly informed speculation, the protective measure triggered by the ground fault also shut down all of PDX-04's generators, so both the utility lines and the 10 generators were offline; the UPS batteries, meant to last about 10 minutes, started to fail after 4 minutes, and between 11:44 and 12:01 UTC, with the generators not fully restarted, they ran out and all customers of the data center lost power.",
+        "trechos": [
+          "Some of what follows is informed speculation based on the most likely series of events as well as what individual Flexential employees have shared with us unofficially.",
+          "Ground faults with high voltage (12,470 volt) power lines are very bad. Electrical systems are designed to quickly shut down to prevent damage when one occurs.",
+          "Unfortunately, in this case, the protective measure also shut down all of PDX-04’s generators.",
+          "This meant that the two sources of power generation for the facility — both the redundant utility lines as well as the 10 generators — were offline.",
+          "These batteries are supposedly sufficient to power the facility for approximately 10 minutes.",
+          "In reality, the batteries started to fail after only 4 minutes based on what we observed from our own equipment failing.",
+          "Between 11:44 and 12:01 UTC, with the generators not fully restarted, the UPS batteries ran out of power and all customers of the data center lost power."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "A subset of services that were supposed to be on the high availability cluster depended on services running only in PDX-04, in particular Kafka and ClickHouse; the high availability cluster had never been tested with the entire PDX-04 facility offline, so these dependencies were missed.",
+        "trechos": [
+          "Unfortunately, we discovered that a subset of services that were supposed to be on the high availability cluster had dependencies on services exclusively running in PDX-04.",
+          "In particular, two critical services that process logs and power our analytics — Kafka and ClickHouse — were only available in PDX-04 but had services that depended on them that were running in the high availability cluster.",
+          "However, we had never tested fully taking the entire PDX-04 facility offline.",
+          "As a result, we had missed the importance of some of these dependencies on our data plane."
+        ]
+      },
+      {
+        "texto": "New products were not formally required to integrate with the high availability cluster before being declared generally available, and some newer products, including Stream, had no fully implemented and tested disaster recovery procedure and did not properly get stood up on the disaster recovery sites.",
+        "trechos": [
+          "While, over time, our practice is to migrate the backend for these services to our best practices, we did not formally require that before products were declared generally available (GA).",
+          "A handful of products did not properly get stood up on our disaster recovery sites.",
+          "These tended to be newer products where we had not fully implemented and tested a disaster recovery procedure.",
+          "These included our Stream service for uploading new videos and some other services."
+        ]
+      },
+      {
+        "texto": "Flexential did not inform Cloudflare that it had failed over to generator power after a utility feed went down at 08:50 UTC, and none of Cloudflare's observability tools could detect the change of power source; the first message from Flexential about an issue came at 12:28 UTC.",
+        "trechos": [
+          "On November 2 at 08:50 UTC Portland General Electric (PGE), the utility company that services PDX-04, had an unplanned maintenance event affecting one of their independent power feeds into the building.",
+          "Counter to best practices, Flexential did not inform Cloudflare that they had failed over to generator power.",
+          "None of our observability tools were able to detect that the source of power had changed.",
+          "The first message to us from Flexential that they were experiencing an issue was at 12:28 UTC."
+        ]
+      },
+      {
+        "texto": "According to employees, without official confirmation, three things hampered restarting the generators: they had to be physically accessed and manually restarted because of how the ground fault tripped circuits, the access control system was not on battery backup and was offline, and the overnight staffing did not include an experienced operations or electrical expert.",
+        "trechos": [
+          "While we haven't gotten official confirmation, we have been told by employees that three things hampered getting the generators back online.",
+          "First, they needed to be physically accessed and manually restarted because of the way the ground fault had tripped circuits.",
+          "Second, Flexential's access control system was not powered by the battery backups, so it was offline.",
+          "And third, the overnight staffing at the site did not include an experienced operations or electrical expert — the overnight shift consisted of security and an unaccompanied technician who had only been on the job for a week."
+        ]
+      },
+      {
+        "texto": "When Flexential attempted to power back up Cloudflare's circuits, the circuit breakers were discovered to be faulty, and more were bad than Flexential had on hand, so new breakers had to be sourced.",
+        "trechos": [
+          "When Flexential attempted to power back up Cloudflare's circuits, the circuit breakers were discovered to be faulty.",
+          "That required them to source new breakers because more were bad than they had on hand in the facility."
+        ]
+      },
+      {
+        "texto": "When services were turned up at the disaster recovery site, a thundering herd of previously failing API calls overwhelmed them.",
+        "trechos": [
+          "When services were turned up there, we experienced a thundering herd problem where the API calls that had been failing overwhelmed our services."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 12:48 UTC Flexential restarted the generators and power returned to portions of the facility.",
+          "trechos": [
+            "At 12:48 UTC, Flexential was able to get the generators restarted. Power returned to portions of the facility."
+          ]
+        },
+        {
+          "texto": "At 13:40 UTC Cloudflare decided to fail over to its disaster recovery sites in Europe and turned up the first services there at 13:43 UTC; only a small percentage of the control plane needed to fail over.",
+          "trechos": [
+            "Because more services were offline than we expected, and because Flexential could not give us a time for restoration of our services, we made the call at 13:40 UTC to fail over to Cloudflare's disaster recovery sites located in Europe.",
+            "Thankfully, we only needed to fail over a small percentage of Cloudflare’s overall control plane.",
+            "We turned up the first services on the disaster recovery site at 13:43 UTC."
+          ]
+        },
+        {
+          "texto": "Cloudflare implemented rate limits to bring the thundering-herd request volume under control; by 17:57 UTC the services moved to the disaster recovery site were stable and most customers were no longer directly impacted.",
+          "trechos": [
+            "We implemented rate limits to get the request volume under control.",
+            "By 17:57 UTC, the services that had been successfully moved to the disaster recovery site were stable and most customers were no longer directly impacted."
+          ]
+        },
+        {
+          "texto": "For products that did not stand up on the disaster recovery sites, the team worked on two tracks: reimplementing them on the disaster recovery sites and migrating them to the high availability cluster.",
+          "trechos": [
+            "Our team worked two simultaneous tracks to get these services restored: 1) reimplementing them on our disaster recovery sites; and 2) migrating them to our high-availability cluster."
+          ]
+        },
+        {
+          "texto": "Flexential replaced the failed circuit breakers, restored both utility feeds and confirmed clean power at 22:48 UTC.",
+          "trechos": [
+            "Flexential replaced our failed circuit breakers, restored both utility feeds, and confirmed clean power at 22:48 UTC."
+          ]
+        },
+        {
+          "texto": "Beginning on November 3, Cloudflare restored PDX-04 through a complete bootstrap of the facility: physically booting network gear, manually bringing the configuration management servers online (3 hours), then rebuilding the other servers (10 minutes to 2 hours each); services were fully restored on November 4, 2023 at 04:25 UTC.",
+          "trechos": [
+            "Beginning first thing on November 3, our team began restoring service in PDX-04. That began with physically booting our network gear then powering up thousands of servers and restoring their services.",
+            "Our only safe process to recover was to follow a complete bootstrap of the entire facility.",
+            "This involved a manual process of bringing our configuration management servers online to begin the restoration of the facility. Rebuilding these took 3 hours.",
+            "Each server took between 10 minutes and 2 hours to rebuild.",
+            "Services are now fully restored as of November 4, 2023, at 04:25 UTC."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned (Code Orange): remove dependencies on the core data centers for control plane configuration of all services and move them wherever possible to be powered first by the distributed network.",
+          "trechos": [
+            "Remove dependencies on our core data centers for control plane configuration of all services and move them wherever possible to be powered first by our distributed network"
+          ]
+        },
+        {
+          "texto": "Planned: ensure the control plane running on the network continues to function even if all core data centers are offline.",
+          "trechos": [
+            "Ensure that the control plane running on the network continues to function even if all our core data centers are offline"
+          ]
+        },
+        {
+          "texto": "Planned: require all Generally Available products and features to rely on the high availability cluster (if they rely on core data centers), without software dependencies on specific facilities, and to have a tested disaster recovery plan.",
+          "trechos": [
+            "Require that all products and features that are designated Generally Available must rely on the high availability cluster (if they rely on any of our core data centers), without having any software dependencies on specific facilities",
+            "Require all products and features that are designated Generally Available have a reliable disaster recovery plan that is tested"
+          ]
+        },
+        {
+          "texto": "Planned: test the blast radius of system failures and implement more rigorous chaos testing of all data center functions, including the full removal of each core data center facility.",
+          "trechos": [
+            "Test the blast radius of system failures and minimize the number of services that are impacted by a failure",
+            "Implement more rigorous chaos testing of all data center functions including the full removal of each of our core data center facilities"
+          ]
+        },
+        {
+          "texto": "Planned: thorough auditing of all core data centers, with a plan to reaudit them.",
+          "trechos": [
+            "Thorough auditing of all core data centers and a plan to reaudit to ensure they comply with our standards"
+          ]
+        },
+        {
+          "texto": "Planned: a logging and analytics disaster recovery plan that ensures no logs are dropped even if all core facilities fail.",
+          "trechos": [
+            "Logging and analytics disaster recovery plan that ensures no logs are dropped even in the case of a failure of all our core facilities"
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 2441,
+      "trechos": [
+        "The incident lasted from November 2 at 11:44 UTC until November 4 at 04:25 UTC."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Flexential has not given clarity on the root cause of the power failure or some of its decisions; the post will be updated as more information comes from Flexential and PGE.",
+      "Why Flexential ran utility power and generator power at the same time has not been clearly answered.",
+      "Whether the DSG program with PGE was active at the time, and whether it contributed to Flexential's decisions, is unknown.",
+      "Which transformer had the ground fault and whether it was caused by PGE's unplanned maintenance have not been confirmed.",
+      "It is not known whether the circuit breakers failed due to the ground fault or another surge, or had been bad before."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The opening sentence gives 11:43 UTC as the start; duracao uses the stated incident window 11:44 UTC Nov 2 to 04:25 UTC Nov 4. Most of the control plane was restored at the disaster recovery facility at 17:57 UTC on November 2; log processing, some bespoke APIs and raw logs remained unavailable until PDX-04 was restored. The power chain started the impact, so it holds causa_raiz; Cloudflare's own dependencies on PDX-04-only services, which the authors present as what made critical systems unavailable, are in fatores_contribuintes. Part of the power-failure account is labelled by the authors as informed speculation.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.14" }
+}

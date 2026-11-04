@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-112",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "After power was lost to servers hosting multiple SimpleDB storage nodes in one US East data center, the lock service's rapid de-registration of those nodes raised handshake latencies above the handshake timeout, so healthy storage and metadata nodes removed themselves from the cluster and SimpleDB was unavailable to nearly all API calls from 9:16 PM to 11:16 PM PDT. Service was restored by manually increasing the handshake timeout and restarting a subset of metadata nodes; CreateDomain and DeleteDomain were throttled until 1:30 AM.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Amazon SimpleDB (US East Region)"
+    ],
+    "tecnologias": [
+      "SimpleDB",
+      "lock service",
+      "storage nodes",
+      "metadata nodes"
+    ],
+    "categoria_causa": "cascading-failure",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "Power was lost to the servers on which multiple SimpleDB storage nodes lived, making them unavailable simultaneously in a single data center.",
+      "trechos": [
+        "In this event, multiple storage nodes became unavailable simultaneously in a single data center (after power was lost to the servers on which these nodes lived)."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The lock service's rapid de-registration of the failed storage nodes sharply increased its load, raising handshake latencies between healthy nodes and the lock service; the nodes could not complete their handshakes within the handshake timeout, a value the authors say was too low, and after several retries and timeouts storage and metadata nodes removed themselves from the production cluster and API requests returned HTTP 500 errors.",
+        "trechos": [
+          "While SimpleDB can handle multiple simultaneous node failures, and has successfully endured larger infrastructure failures in the past without incident, the server failure pattern in this event resulted in a sudden and significant increase in load on the lock service as it rapidly de-registered the failed storage nodes from their respective replication groups.",
+          "This simultaneous volume resulted in elevated handshake latencies between healthy SimpleDB nodes and the lock service, and the nodes were not able to complete their handshakes prior to exceeding a set “handshake timeout” value.",
+          "After several handshake retries and subsequent timeouts, SimpleDB storage and metadata nodes removed themselves from the SimpleDB production cluster, and SimpleDB API requests returned error messages (http response code 500 for server-side error).",
+          "The original intent behind the low handshake timeout value we set was to enable rapid detection of replica failure.",
+          "However, hindsight shows the value was too low."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Nodes removed themselves from the cluster immediately after multiple handshake timeouts instead of waiting and retrying later with a longer timeout; the authors state this behavior increased the scope of the event and caused the API errors.",
+        "trechos": [
+          "Second, the behavior of nodes removing themselves from the SimpleDB cluster immediately after experiencing multiple handshake timeouts increased the scope of the event and caused SimpleDB API errors.",
+          "Instead, the nodes should have waited and retried handshake requests later with an increased handshake timeout value."
+        ]
+      },
+      {
+        "texto": "Storage nodes could not rejoin the cluster without authorization from metadata nodes, and the metadata nodes were also down because of the same handshake timeout issue.",
+        "trechos": [
+          "The affected storage nodes were not able to rejoin the SimpleDB cluster and serve API requests until receiving authorization to rejoin from metadata nodes.",
+          "However, in this case the metadata nodes were also down due to the same handshake timeout issue, and therefore could not authenticate the storage nodes."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The team manually increased the handshake timeout values and restarted a subset of metadata nodes so they could authorize the storage nodes, which rejoined the cluster; at 11:16 PM all APIs except CreateDomain and DeleteDomain were functioning normally.",
+          "trechos": [
+            "Once the problem was identified, we had to manually increase the handshake timeout values and restart a subset of metadata nodes so that they could authorize the storage nodes.",
+            "This allowed the affected storage nodes to rejoin the SimpleDB cluster and resume serving customer data requests.",
+            "At this point (11:16 PM), all APIs but CreateDomain and DeleteDomain were functioning normally."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned (being addressed immediately and rolled out to all SimpleDB Regions): set a longer lock service handshake timeout.",
+          "trechos": [
+            "First, we will set a longer lock service handshake timeout.",
+            "We are addressing these two issues immediately and rolling out fixes to all SimpleDB Regions."
+          ]
+        },
+        {
+          "texto": "Planned (being addressed immediately and rolled out to all SimpleDB Regions): change node behavior so that, instead of removing themselves from the cluster after multiple handshake timeouts, nodes wait and retry handshakes later with an increased timeout.",
+          "trechos": [
+            "Instead, the nodes should have waited and retried handshake requests later with an increased handshake timeout value.",
+            "We are addressing these two issues immediately and rolling out fixes to all SimpleDB Regions."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 120,
+      "trechos": [
+        "The service was unavailable to all API calls (except a fraction of the eventually consistent read calls) from 9:16 PM to 11:16 PM (PDT)."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives the date as 'June 13' without a year, so data_incidente is null. Elevated error rates for CreateDomain and DeleteDomain continued from 11:16 PM to 1:30 AM; duracao uses the full-unavailability window 9:16 PM to 11:16 PM PDT. The low handshake timeout was originally set to enable rapid detection of replica failure. dominio is infra_fisica_datacenter: the problem originated with a power loss to servers in a data center; the handshake timeout that turned it into an outage is the root cause, not the origin. After the impact ended at 11:16 PM, CreateDomain and DeleteDomain calls were throttled until 1:30 AM to let the remaining metadata nodes fully recover.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.14"
+  }
+}

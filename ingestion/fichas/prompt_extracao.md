@@ -1,5 +1,5 @@
 <!--
-Prompt de extração da ficha (peça 2). Versão: v2.14.
+Prompt de extração da ficha (peça 2). Versão: v2.15.
 v1 guardada em prompt_extracao_v1.md. Mudanças da v2 (revisão do piloto, ver FICHA.md):
 regra 2 (trechos sustentam todo detalhe do texto), regras 3 e 4 novas (causalidade e plano x feito),
 gatilho x causa raiz, categoria pela causa raiz, detecção, resumo com desfecho, mitigação com a correção concreta.
@@ -26,11 +26,12 @@ software de controle físico do data center; bug antigo sem queda delimitada.
 v2.13 (amostra do lote 06, 6 ERRADOS em 6 fichas): equipe_interna só quando o texto diz que alguém notou sem alerta;
 atividade operacional automática (scaling, failover) não é mudanca_causadora.
 v2.14 (amostra do lote 09, 4 ERRADOS em 7 fichas): duração com marcas de início/fim no texto; serviço de volta degradado é o fim; faixa de minutos é null.
+v2.15 (amostra do lote 12, 7 ERRADOS em 7 fichas): configuration-error inclui valor de configuração errado há muito tempo, sem mudança recente.
 Escrito em inglês de propósito (ver FICHA.md, seção "Idioma").
 A parte entre ===== INPUT ===== é preenchida para cada documento.
 -->
 
-# Post-mortem extraction — prompt v2.14
+# Post-mortem extraction — prompt v2.15
 
 You are extracting a structured record ("ficha") from one public incident post-mortem. The record will be used by an incident-diagnosis assistant that must **never state anything the source does not say**. Your job is to organize what the text says, with proof. You are not writing a post-mortem, summarizing for readers, or judging the company.
 
@@ -105,7 +106,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
 **`servicos_afetados`** — services or products the text says were impacted. **`tecnologias`** — technical components the text names as involved (e.g. `PostgreSQL`, `BGP`, `Kubernetes`, `systemd`). Use the names as written; empty list if none.
 
 **`categoria_causa`** — classifies the **`causa_raiz`, not the `gatilho`** (`null` if `causa_raiz.status` is `ausente`). Examples: a policy change (trigger) reaches code with no error handling (root cause) → `software-bug`; a password rotation (trigger) is not applied to one service's configuration, which can no longer authenticate (root cause) → `credential-auth`; an operator runs a destructive command on the wrong host, and the text gives no other condition → `human-error`. If the root cause has no stated mechanism that fits a category (e.g. "the correction didn't register"), use `other`, even if the article's headline blames something else.
-- `configuration-error`: a change to configuration, rules or policy caused it.
+- `configuration-error`: a configuration, rule or policy value caused it, either a recent change or a long-standing wrong setting (e.g. a timeout set too low, a durability parameter set to an unsafe value); `mudanca_causadora` says which.
 - `human-error`: an operator action (wrong command, parameter or target).
 - `credential-auth`: compromised, expired or mis-deployed credentials.
 - `database-storage`: the datastore itself failed (limits, corruption, replication break).
@@ -209,7 +210,7 @@ Return **only** one JSON object, no comments, no Markdown fences, matching this 
   "confianca": "alta" | "baixa",
   "motivo_confianca_baixa": "..."   (only when confianca is "baixa"),
   "observacoes": "..."              (optional),
-  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.14" }
+  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.15" }
 }
 
 ===== INPUT =====

@@ -1,0 +1,145 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-113",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On September 2, 2021, a subset of network devices in one layer of the AWS Direct Connect network path to the Tokyo Region failed, causing intermittent connectivity issues and elevated packet loss for Direct Connect customers; AWS later confirmed a latent defect in the network device operating system, triggered by customer traffic with a very specific packet signature. Service was restored by disabling a new failover-optimization protocol, with connectivity fully resolved by 1:42 PM JST.",
+    "data_incidente": "2021-09-02",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "AWS Direct Connect (Tokyo AP-NORTHEAST-1 Region)"
+    ],
+    "tecnologias": [
+      "AWS Direct Connect",
+      "network device operating system",
+      "network failover protocol",
+      "VPC"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 7:30 AM JST on September 2, 2021, internal alarms alerted AWS engineers to elevated packet loss for Direct Connect customers connecting to the Tokyo Region.",
+        "trechos": [
+          "On September 2, 2021 at 7:30 AM JST, internal alarms alerted AWS engineers to elevated packet loss for Direct Connect customers connecting to the Tokyo Region."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "Customer traffic consistently generated packets matching the very specific set of packet attributes and contents needed to trigger the defect; AWS states it has no reason to suspect malicious intent.",
+      "trechos": [
+        "Over the last several days, engineers have been able to identify the defect in the network operating system and determined that it requires a very specific set of packet attributes and contents to trigger the issue.",
+        "While these conditions are very specific and unlikely, this event was triggered by customer traffic that was able to consistently generate packets that matched this signature.",
+        "We have no reason to suspect malicious intent."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A latent issue in the network device operating system version that enables a new protocol to improve network failover time caused several devices in a single layer of the Direct Connect network to fail and stop forwarding traffic correctly.",
+        "trechos": [
+          "We have now confirmed that this event was caused by a latent issue within the network device operating system.",
+          "This version of the operating system enables a new protocol which is used to improve the failover time of our network.",
+          "These alarms identified that the impact was caused by the failure of several devices in a single layer of the Direct Connect network.",
+          "While these devices were not correctly forwarding traffic, they were not being removed from the network through the normal automated processes that monitor and remove failed network devices."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The failed devices were not correctly forwarding traffic but were not removed from the network by the normal automated processes that monitor and remove failed devices; automation instead alerted engineers to a higher-than-normal rate of failed devices.",
+        "trechos": [
+          "While these devices were not correctly forwarding traffic, they were not being removed from the network through the normal automated processes that monitor and remove failed network devices.",
+          "Our automation instead noticed a higher rate of failed devices than normal and alerted engineers to investigate and take remediation action."
+        ]
+      },
+      {
+        "texto": "After impacted devices were removed, several other network devices began to experience the same failure, and resetting failed devices and slowly bringing them back did not stop the failures, so engineers could not maintain adequate healthy capacity.",
+        "trechos": [
+          "While the removal of additional devices provided temporary remediation, several other network devices subsequently began to experience the same failure, resulting in network congestion, connectivity issues, or elevated packet loss for Direct Connect customers.",
+          "Engineers attempted several mitigations, such as resetting failed devices and slowly bringing them back into service, but the failures continued and the engineers were unable to maintain adequate healthy capacity to fully mitigate the customer impact."
+        ]
+      },
+      {
+        "texto": "The new operating system and protocol had been gradually deployed to production in all AWS Regions since January 2021 and served Direct Connect traffic for 8 months without any indication of the latent issue; lab testing cannot cover every traffic and packet permutation.",
+        "trechos": [
+          "The new protocol and the operating system were first deployed to production in January 2021.",
+          "Over the last 8 months, this new protocol and the operating system have been gradually released to production in all AWS Regions and has been serving Direct Connect customer traffic without any indication of the latent issue.",
+          "Even with this comprehensive testing, it is not possible to test every traffic and packet permutation in a lab environment."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A network device operating system version enabling a new protocol to improve network failover time, first deployed to production in January 2021; AWS states the new protocol triggered the issue. The exact version is not named.",
+        "trechos": [
+          "This version of the operating system enables a new protocol which is used to improve the failover time of our network.",
+          "The new protocol and the operating system were first deployed to production in January 2021.",
+          "We have disabled the new protocol that triggered this issue in the AWS Tokyo Region."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Engineers removed the impacted devices from service so traffic could be handled by other healthy devices; this gave only temporary remediation as other devices then failed the same way.",
+          "trechos": [
+            "When engineers were alerted, they determined that there was enough redundancy at this layer and began removing the impacted devices from service so that traffic could be handled by other healthy devices.",
+            "While the removal of additional devices provided temporary remediation, several other network devices subsequently began to experience the same failure, resulting in network congestion, connectivity issues, or elevated packet loss for Direct Connect customers."
+          ]
+        },
+        {
+          "texto": "After suspecting by 12:00 PM JST an interaction between the new protocol and a new traffic pattern, engineers disabled the new protocol, first in a single Availability Zone while preparing the change for the whole Tokyo Region; customers reported recovery by 12:30 PM JST and by 1:42 PM JST the devices were stable and Direct Connect returned to normal operations.",
+          "trechos": [
+            "By 12:00 PM JST, engineers suspected that the failure may be related to a new protocol that was introduced to optimize the network’s reaction time to infrequent network convergence events and fiber cuts.",
+            "However, engineers suspected that the failure was related to the interaction of this new protocol and a new traffic pattern on the network devices at this layer of the Direct Connect network.",
+            "Engineers started disabling this new protocol in a single Availability Zone to monitor and establish sustained recovery, while in parallel preparing the change to be deployed across the Tokyo Region.",
+            "Customers started reporting recovery to their applications by 12:30 PM JST and by 1:42 PM JST affected networking devices were restored to a stable operational state and the Direct Connect service returned to normal operations.",
+            "While disabling the new protocol resolved the event, engineering teams have continued working to identify the underlying root cause."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the new protocol that triggered the issue has been disabled in the AWS Tokyo Region.",
+          "trechos": [
+            "We have disabled the new protocol that triggered this issue in the AWS Tokyo Region."
+          ]
+        },
+        {
+          "texto": "Already done: AWS developed an enhanced way to detect and remediate this issue before customer impact, while carefully applying the change to all other AWS Regions (in progress).",
+          "trechos": [
+            "We have also developed an enhanced way to detect and remediate this issue before customer impact, as we carefully apply this change to all other AWS Regions."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 372,
+      "trechos": [
+        "Beginning 7:30 AM JST, Direct Connect customers began to experience intermittent connectivity issues and elevated packet loss for their traffic destined towards the Tokyo Region.",
+        "Customers started seeing recovery by 12:30 PM JST and by 1:42 PM JST, connectivity issues were fully resolved."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Customers started seeing recovery at 12:30 PM JST; duracao runs from 7:30 AM JST to the stated full resolution at 1:42 PM JST. The defect is in network device operating system software, classified as software_servicos. The extracted text notes that paragraphs in another language and repeated paragraphs were removed.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.14"
+  }
+}

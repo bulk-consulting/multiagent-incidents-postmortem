@@ -1,0 +1,124 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-085",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "secundaria",
+    "tipo": "artigo_tecnico",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "The WebKit Subversion repository had problems after a developer committed Google's two example files that have different content but the same SHA1; Subversion's representation sharing stored only a pointer to the first file for the second, so checkout/update of the second file failed with an MD5 checksum mismatch. The WebKit repository resolved it with a Subversion authz rule blocking access to the files.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "WebKit Subversion repository"
+    ],
+    "tecnologias": [
+      "Subversion",
+      "Representation Sharing",
+      "SHA1",
+      "MD5",
+      "SQLite",
+      "FSFS (db/fsfs.conf)",
+      "authz",
+      "svnsync",
+      "git-svn",
+      "Apache"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The problem shows up when someone fetches the second file via checkout/update: the client finds that the checksum no longer matches and throws a checksum mismatch error (svn: E200014).",
+        "trechos": [
+          "The way this problem manifests later on is when someone tries to fetch the second file doing checkout/update etc.",
+          "On the client when it receives all of this data the checksum no longer matches and so it throws an error to let you know.",
+          "`svn: E200014: Checksum mismatch for 'shattered-2.pdf':`"
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "A WebKit developer committed the two example files produced by Google, which have differing content but the same SHA1, to be used in test cases for SHA1 collisions.",
+      "trechos": [
+        "If you are following this story then you may have also seen that the Webkit Subversion repository had problems after a user committed these example files to their repository so that they could be used in test cases for SHA1 collisions.",
+        "In the case of Webkit, a developer committed the two example files that Google produced but there are now websites that will generate other examples."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Subversion's Representation Sharing feature (added in 1.6) calculates the SHA1 of the bytes to be stored and looks it up in a SQLite database; if found, it stores only a pointer to the existing data. With two different files sharing a SHA1, the second file is effectively lost, stored only as a pointer to the first, while its size and MD5 checksum metadata refer to its own content, so the client detects a checksum mismatch.",
+        "trechos": [
+          "The problem that happens is caused by a feature that was added in Subversion 1.6 called “Representation Sharing”.",
+          "In any case, before the data is written to disk, Subversion calculates the SHA1 of the bytes and then consults a small SQLite database to see if it has stored these bytes before. If it has, then instead of storing the bytes again, it just stores a pointer to the data it already has stored.",
+          "Unfortunately, in this scenario where two “different” files have the same SHA1, the incorrect behavior that happens is that the first file is stored to disk but the second file is effectively lost as the only thing stored for that file is a pointer to the first file.",
+          "The file content in the repository is pointing to the first file, which has different content, but there was also some other metadata stored in the repository including the size and a different checksum for the full file data.",
+          "Obviously SHA1 is not being used for these internal checksums (it is MD5) or else they would have matched here as well."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The WebKit repository created a Subversion permission rule (authz) that blocks access to the problematic file(s), so the server does not send the bad file, which also works with svnsync and git-svn.",
+          "trechos": [
+            "Another option is the one the Webkit repository used and that is to create a Subversion permission rule (authz) that blocks access to the file(s). This will work with tools like svnsync and git-svn as the server will not even try sending them the bad file."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Recommendation to Subversion administrators: disable representation sharing by setting enable-rep-sharing = false in the [rep-sharing] section of the repository's db/fsfs.conf; it affects only future commits.",
+          "trechos": [
+            "To disable this feature, you edit the “`db/fsfs.conf`” file in the folder on the server for the repository.",
+            "`enable-rep-sharing = false`",
+            "Only future commits will be impacted in that they will not bother looking for the space savings."
+          ]
+        },
+        {
+          "texto": "Recommendation to Subversion administrators: optionally install a pre-commit hook that rejects files containing the signature byte sequence shared by the known collision examples; the author does not recommend it for most people because of its cost and because new examples will likely appear.",
+          "trechos": [
+            "Another option exists to prevent the problem, and that is to install a pre-commit hook to prevent committing these files. The hook script works by examining every file in the commit and looking for a “signature byte sequence” that all of the currently known examples will have in common.",
+            "The cost of running it will be pretty high and slow down all commits, particularly really large commits of lots of files.",
+            "There will likely be new examples someday so this will not work forever. Personally, I would not recommend this hook script for most people."
+          ]
+        },
+        {
+          "texto": "Recommendation to security researchers: store research files in a zip file, version the zip file, and have test cases extract the files when running.",
+          "trechos": [
+            "Store your research files in a zip file and version the zip file. Have your test cases extract the files from the zip file when running the tests and the problem is solved."
+          ]
+        },
+        {
+          "texto": "The author expects (not a commitment) that the fix in Subversion itself will be to make representation sharing recognize this scenario as two different files and not share the content.",
+          "trechos": [
+            "The solution to this problem in Subversion itself will be to fix the representation sharing feature so that it recognizes this scenario as two different files and does not try to share the content.",
+            "There will also likely be some future updates to Subversion that avoid it entirely so if you regularly update your server and client when new releases come out you are probably safe not doing anything and just waiting for an update to happen."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "triagem.catalogo: 'sim' and 'parcial' both fit. The article is a third-party explanation of the Subversion SHA1 collision problem in general, using the WebKit repository as the motivating case; WebKit-specific details (the commit and the authz fix) are a small part. 'sim' requires the document to be 'mainly about the incident described in the catalog' and 'parcial' covers 'the incident appears but is a small part of a text about something else'; here the 'something else' is the incident's own mechanism, and the definitions do not say whether a general treatment of the incident's mechanism counts as being about the incident.",
+  "observacoes": "Written by a third party (CollabNet VersionOne blog), not by the WebKit project. Prevention consists only of recommendations to Subversion administrators and security researchers and the author's expectation of a future Subversion fix; no commitments by the WebKit project. No incident date is given in the text other than an update dated 2017-02-28; how the WebKit problem was first noticed and its duration are not stated. Remediation options the author describes for an affected repository: deleting the second file fixes normal checkout but not svnsync or git-svn; removing the revision via svnadmin dump/load; adding the authz rule and using svnsync to move the history to a new repository (restart Apache if served via Apache). The author also warns that Subversion 1.7+ client working copies keep only one copy of two files with the same SHA1, without errors.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.14"
+  }
+}
