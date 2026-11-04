@@ -16,6 +16,9 @@ Uso (a partir da raiz do repositório):
     multiagent_env/bin/python ingestion/fichas/montar_revisao.py 08 --amostra DAN-124 DAN-240
                                                                                # amostra + fichas citadas (ex.: as que a
                                                                                # autorrevisão passou de baixa para alta)
+    multiagent_env/bin/python ingestion/fichas/montar_revisao.py saida --amostra DAN-062 DAN-111
+                                                                               # fichas já aceitas (saida/), só as citadas;
+                                                                               # saída em revisao/saida/
 
 Lê:
     ingestion/fichas/saida_lotes/lote_NN/DAN-xxx.json
@@ -61,8 +64,9 @@ Regras do prompt que costumam ser esquecidas na revisão (não marque como erro 
 - mitigação "generica" quando todos os passos são ações genéricas (reiniciar, reverter), mesmo com o componente nomeado;
 - notas que não são dúvida de classificação ficam em "observacoes" e não baixam a confiança.
 - duracao: marcas do texto ("Impact starts"/"Impact ends") valem mais que outros horários; sem marca de fim,
-  o horário em que o serviço voltou, mesmo degradado ou parcial, é o fim do impacto (não exija null nem a
-  restauração completa); null quando o texto não diz quando voltou ou só dá uma faixa ("10-15 minutes");
+  vale o horário em que o serviço afetado voltou para a maioria, mesmo degradado (não exija a restauração
+  completa); volta de um subsistema, de outra região ou "a pior parte durou X" não contam; várias voltas
+  desse tipo, nenhuma, ou só uma faixa ("10-15 minutes") → null, sem baixar a confiança;
 - data_incidente pode vir de um cabeçalho dentro do texto extraído (não do título da página).
 
 FORMATO DA RESPOSTA (siga à risca, seja breve):
@@ -104,6 +108,8 @@ def main() -> None:
         sys.exit(__doc__)
     lote, extras = args[0].zfill(2), set(args[1:])
     origem = PASTA / "saida_lotes" / f"lote_{lote}"
+    if lote == "saida":  # fichas já aceitas: só as citadas, sem sorteio
+        origem = PASTA / "saida"
     fichas = sorted(origem.glob("DAN-*.json"))
     if not fichas:
         sys.exit(f"Nenhuma ficha em {origem.relative_to(ROOT)}")
@@ -111,11 +117,13 @@ def main() -> None:
         dados = {c: json.loads(c.read_text(encoding="utf-8")) for c in fichas}
         baixas = [c for c in fichas if dados[c]["confianca"] == "baixa" and dados[c]["incidente"]]
         altas = [c for c in fichas if dados[c]["confianca"] == "alta" and dados[c]["incidente"]]
-        sorteadas = sorted(random.Random(int(lote)).sample(altas, min(3, len(altas))))
+        sorteadas = [] if lote == "saida" else sorted(random.Random(int(lote)).sample(altas, min(3, len(altas))))
+        if lote == "saida":
+            baixas = []
         fichas = sorted(set(baixas + sorteadas) | {c for c in fichas if c.stem in extras})
         print("amostra: " + ", ".join(f"{c.stem} ({dados[c]['confianca']})" for c in fichas))
 
-    destino = ROOT / "revisao" / f"lote_{lote}"
+    destino = ROOT / "revisao" / (lote if lote == "saida" else f"lote_{lote}")
     destino.mkdir(parents=True, exist_ok=True)
     for velho in destino.rglob("*"):
         if velho.is_file():

@@ -1,6 +1,6 @@
 # Ficha de post-mortem — formulário
 
-**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.17
+**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.18
 
 Cada documento do danluu vira uma ficha `DAN-xxx.json`. A ficha **não substitui** o texto original: o RAG continua indexando e citando o original. A ficha organiza o que o texto diz, para triagem, metadados e chunking.
 
@@ -132,6 +132,7 @@ Regra do IPA mantida: **classificar pela origem, não pelo efeito**. A categoria
 - **v2.15** (amostra do lote 12: 7 ERRADOS em 7 fichas, 1,0 por ficha): `configuration-error` passa a cobrir também um valor de configuração errado há muito tempo, sem mudança recente (antes a definição exigia "a change" e esses casos não tinham categoria). Não muda nenhuma ficha aceita (DAN-001 já estava assim).
 - **v2.16** (amostra do lote 13: 8 ERRADOS em 6 fichas, 1,3 por ficha): `software-bug` é residual (outra categoria que caiba vence; código que funcionava não é `software-bug`); "total duration of the incident" diferente das marcas de impacto não vence as marcas. Os dois casos entram na lista de dúvidas que a regra já decide.
 - **v2.17** (amostra do lote 15: 10 ERRADOS em 6 fichas, 1,7 por ficha, acima do limite; o lote 16 volta a ser conferido inteiro): mudança antiga que só impediu a recuperação ou ampliou o impacto fica na causa raiz, não em `mudanca_causadora` (disparo por hardware ou dependência → `nao_se_aplica`); mudança não diagnosticada no comportamento de uma dependência externa é `nao_se_aplica` (pode ser o gatilho).
+- **v2.18** (revisão das fichas antigas, quando o GPT e eu escolhemos recuperações parciais diferentes para a mesma ficha): a volta parcial só encerra o impacto se o texto disser que o serviço afetado voltou para a maioria; volta de subsistema, de outra região ou "a pior parte durou X" não contam; várias voltas desse tipo ou nenhuma → `null`, sem baixar a confiança. DAN-062, 106 e 111 passaram de `baixa` para `alta` com duração `null`.
 
 ## Validação
 

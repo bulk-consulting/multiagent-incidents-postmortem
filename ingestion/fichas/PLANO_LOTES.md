@@ -73,3 +73,9 @@ Regras desta tarefa:
   o próprio prompt pronto. Rode o validador de novo e, no resumo final, diga o que mudou em cada ficha.
   No fim do resumo, liste numa linha as fichas cuja confianca mudou na autorrevisão (ex.: "baixa→alta: DAN-x, DAN-y").
 ```
+
+## Revisão das fichas antigas (2026-11-04)
+
+As 70 fichas geradas antes da v2.13 foram relidas só nos campos que as regras novas mudaram (detecção `equipe_interna`, duração, `software-bug` residual, mudança causadora, motivos de `baixa`). Mudei 4; a conferência no GPT derrubou 2, que voltaram ao valor anterior: DAN-179 ("the worst of its impact lasted 4 hours" não diz quando o serviço voltou: duração `null`) e DAN-111 (há mais de uma recuperação parcial com horário: continua `baixa`). Ficaram 2, com o motivo em `observacoes` ("Revised on 2026-11-04 under prompt v2.17 rules"): DAN-217 (detecção `nao_informada`, duração 14) e DAN-062 (`baixa` pela duração, como DAN-106). As correções foram feitas em `saida/`; as cópias em `saida_lotes/` ficam como histórico da extração. Conferência das 4 no GPT: `montar_revisao.py saida --amostra DAN-062 DAN-111 DAN-179 DAN-217`.
+
+Depois dessa conferência veio a v2.18 (regra de volta parcial mais estrita; fim ambíguo dá duração `null` sem baixar a confiança). Com ela, DAN-062, 106 e 111 passaram de `baixa` para `alta`, com duração `null` e os horários candidatos em `observacoes`.

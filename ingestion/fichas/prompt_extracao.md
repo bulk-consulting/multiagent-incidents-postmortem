@@ -1,5 +1,5 @@
 <!--
-Prompt de extração da ficha (peça 2). Versão: v2.17.
+Prompt de extração da ficha (peça 2). Versão: v2.18.
 v1 guardada em prompt_extracao_v1.md. Mudanças da v2 (revisão do piloto, ver FICHA.md):
 regra 2 (trechos sustentam todo detalhe do texto), regras 3 e 4 novas (causalidade e plano x feito),
 gatilho x causa raiz, categoria pela causa raiz, detecção, resumo com desfecho, mitigação com a correção concreta.
@@ -29,11 +29,12 @@ v2.14 (amostra do lote 09, 4 ERRADOS em 7 fichas): duração com marcas de iníc
 v2.15 (amostra do lote 12, 7 ERRADOS em 7 fichas): configuration-error inclui valor de configuração errado há muito tempo, sem mudança recente.
 v2.16 (amostra do lote 13, 8 ERRADOS em 6 fichas): software-bug é residual; duração total do incidente não vence as marcas de impacto.
 v2.17 (amostra do lote 15, 10 ERRADOS em 6 fichas): mudança que só impediu a recuperação não é mudanca_causadora; mudança de comportamento de dependência externa é nao_se_aplica.
+v2.18 (revisão das fichas antigas): volta parcial só conta se o texto diz que o serviço afetado voltou para a maioria; várias ou nenhuma → null sem baixar a confiança.
 Escrito em inglês de propósito (ver FICHA.md, seção "Idioma").
 A parte entre ===== INPUT ===== é preenchida para cada documento.
 -->
 
-# Post-mortem extraction — prompt v2.17
+# Post-mortem extraction — prompt v2.18
 
 You are extracting a structured record ("ficha") from one public incident post-mortem. The record will be used by an incident-diagnosis assistant that must **never state anything the source does not say**. Your job is to organize what the text says, with proof. You are not writing a post-mortem, summarizing for readers, or judging the company.
 
@@ -166,7 +167,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
 **`duracao`** — the duration of the **impact** of the catalog incident (from the start of the impact to recovery), as `{"minutos": <integer>, "trechos": [...]}`, only if the text states it or gives start and end times that let you compute it; otherwise `null`.
 - **A duration the text states explicitly ("approximately an hour", "Duration: 3 hours") wins over one computed from times, but only if it measures the impact.** The length of the attack, of the power outage or of a window in which data may have been exposed is not the impact when service came back later. Compute only when no impact duration is stated, and then include both passages. If the text does not say when service came back, `null`.
 - If the text states two different durations, use the later or final report and note the other in `observacoes`.
-- **Start and end of the impact.** If the text marks them (a timeline line "Impact starts" / "Impact ends", "resolved"), use those marks over other times in the text, and note any other start or end time in `observacoes`. If it marks no end but says service came back at a stated time, even in a degraded or partial form ("limited access to archives", "largely flowing as normal", "substantially recovered"), that time is the end of the impact; the later full restoration goes to `observacoes`. These cases are decided by this rule, not judgment calls.
+- **Start and end of the impact.** If the text marks them (a timeline line "Impact starts" / "Impact ends", "resolved"), use those marks over other times in the text, and note any other start or end time in `observacoes`. If it marks no end but says the **affected service as a whole** came back **for most users** at a stated time, even degraded ("back up with limited access to archives", "largely flowing as normal", "substantially recovered", "over 80% back online"), that time is the end of the impact; the later full restoration goes to `observacoes`. These do **not** count: one subsystem or dependency recovering ("DNS errors recovered", "network devices recovered"), service coming back in another region or zone, or "the worst of the impact lasted X". If the text gives more than one such time, or none, `duracao` is `null` and the candidate times go to `observacoes`. These cases are decided by this rule, not judgment calls: a missing or ambiguous end time does not lower `confianca`.
 - Vague amounts ("several hours", "more than two hours") and ranges ("10-15 minutes") → `null`; note a range in `observacoes`.
 - **A long-standing bug without a bounded outage** (it happened from time to time over months or years): `duracao` is `null`, and the code fix that ended it is the `mitigacao` step; do not repeat it in `prevencao`.
 
@@ -212,7 +213,7 @@ Return **only** one JSON object, no comments, no Markdown fences, matching this 
   "confianca": "alta" | "baixa",
   "motivo_confianca_baixa": "..."   (only when confianca is "baixa"),
   "observacoes": "..."              (optional),
-  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.17" }
+  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.18" }
 }
 
 ===== INPUT =====
