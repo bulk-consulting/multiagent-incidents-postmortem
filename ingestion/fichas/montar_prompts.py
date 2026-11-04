@@ -11,7 +11,8 @@ escrita não latina, quando sobra texto latino suficiente) e parágrafos longos 
 Assim todo trecho citado continua existindo no extracted_text original, que é contra
 o que o validar_fichas.py confere.
 
-Só lê datasets/danluu-ingestion/; não altera nada lá.
+Só lê datasets/danluu-ingestion/; não altera nada lá. Para os documentos reextraídos
+(ingestion/reextracao/extraidos/), usa o texto novo.
 
 Uso (a partir da raiz do repositório):
     multiagent_env/bin/python ingestion/fichas/montar_prompts.py DAN-024 DAN-027 ...
@@ -37,6 +38,14 @@ GABARITO = PASTA / "gabarito"
 SAIDA = PASTA / "prompts_prontos"
 LOTES = PASTA / "lotes" / "lotes.csv"
 DANLUU = ROOT / "datasets" / "danluu-ingestion" / "data"
+EXTRAIDOS = DANLUU / "extracted"
+REEXTRAIDOS = ROOT / "ingestion" / "reextracao" / "extraidos"
+
+
+def caminho_extraido(cid: str) -> Path:
+    """Texto reextraído (ingestion/reextracao/extraidos/) quando existir; senão, o original do danluu."""
+    novo = REEXTRAIDOS / f"{cid}.json"
+    return novo if novo.exists() else EXTRAIDOS / f"{cid}.json"
 
 MIN_LATINO = 1000      # só remove outros idiomas se sobrar pelo menos isso de texto latino
 MIN_REPETIDO = 200     # parágrafos repetidos menores que isso ficam (linhas de tabela, títulos)
@@ -94,7 +103,7 @@ def main() -> None:
 
     saida.mkdir(parents=True, exist_ok=True)
     for cid in ids:
-        doc = json.loads((DANLUU / "extracted" / f"{cid}.json").read_text(encoding="utf-8"))
+        doc = json.loads(caminho_extraido(cid).read_text(encoding="utf-8"))
         cat = catalogo[cid]
         extraido, feito = limpar(doc.get("extracted_text") or "")
         rotulo = "Document (extracted text):"

@@ -79,3 +79,20 @@ Regras desta tarefa:
 As 70 fichas geradas antes da v2.13 foram relidas só nos campos que as regras novas mudaram (detecção `equipe_interna`, duração, `software-bug` residual, mudança causadora, motivos de `baixa`). Mudei 4; a conferência no GPT derrubou 2, que voltaram ao valor anterior: DAN-179 ("the worst of its impact lasted 4 hours" não diz quando o serviço voltou: duração `null`) e DAN-111 (há mais de uma recuperação parcial com horário: continua `baixa`). Ficaram 2, com o motivo em `observacoes` ("Revised on 2026-11-04 under prompt v2.17 rules"): DAN-217 (detecção `nao_informada`, duração 14) e DAN-062 (`baixa` pela duração, como DAN-106). As correções foram feitas em `saida/`; as cópias em `saida_lotes/` ficam como histórico da extração. Conferência das 4 no GPT: `montar_revisao.py saida --amostra DAN-062 DAN-111 DAN-179 DAN-217`.
 
 Depois dessa conferência veio a v2.18 (regra de volta parcial mais estrita; fim ambíguo dá duração `null` sem baixar a confiança). Com ela, DAN-062, 106 e 111 passaram de `baixa` para `alta`, com duração `null` e os horários candidatos em `observacoes`.
+
+## Reextração (2026-11-04)
+
+Lista em [`../reextracao/lista.csv`](../reextracao/lista.csv): 53 documentos (os 44 `precisa_reextracao` do inventário, as listas perdidas DAN-035 e 040 e as 7 páginas sem artigo).
+
+**Do HTML já baixado** ([`../reextracao/reextrair.py`](../reextracao/reextrair.py), só lê `datasets/`): 41 documentos, com o texto novo em `ingestion/reextracao/extraidos/` e a checagem em `ingestion/reextracao/checagem.csv`.
+- Intertítulos viram `## `, listas viram `- ` e tabelas viram células separadas por ` | `.
+- Statuspage: o postmortem e depois cada atualização (`## <status>`, texto, `Posted <data>`), na ordem da página.
+- Painel do Google Cloud: título, "Incident affecting…", "Incident began at… ended at…" e cada atualização da tabela (`## Update — <data hora>`).
+- Comentários HTML, menus e rodapés de blog (Written by, Tags, related posts, marketing) são descartados. Na Wikipedia, saem as referências e as caixas de navegação.
+- Checagem: em todos os 41, mais de 82% do texto antigo continua no novo. Conferi o que sobrou de fora: é biografia de autor, aviso fixo da página de status, marcação de tabela ou referência da Wikipedia.
+- DAN-053 e DAN-183 são do gabarito e ficam com o texto original, porque o lote 00 precisa receber sempre a mesma entrada.
+- DAN-072 tem 17,5 mil palavras: são 44 atualizações que repetem o estado de cada produto. A sessão vai precisar ler esse arquivo em partes.
+
+**Sem artigo (precisa de download novo):** 10 documentos. São as 7 páginas da lista anterior, mais DAN-146, DAN-173 e DAN-222, que redirecionam para o índice do blog ou para a página de produto.
+
+`montar_prompts.py`, `validar_fichas.py` e `montar_revisao.py` usam o texto de `ingestion/reextracao/extraidos/` quando o documento está lá.

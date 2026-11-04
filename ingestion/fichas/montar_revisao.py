@@ -37,6 +37,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PASTA = Path(__file__).resolve().parent
 EXTRAIDOS = ROOT / "datasets" / "danluu-ingestion" / "data" / "extracted"
+REEXTRAIDOS = ROOT / "ingestion" / "reextracao" / "extraidos"
+
+
+def caminho_extraido(cid: str) -> Path:
+    """Texto reextraído (ingestion/reextracao/extraidos/) quando existir; senão, o original do danluu."""
+    novo = REEXTRAIDOS / f"{cid}.json"
+    return novo if novo.exists() else EXTRAIDOS / f"{cid}.json"
 
 PEDIDO = """# Revisão da ficha {cid}
 
@@ -138,7 +145,7 @@ def main() -> None:
     for caminho in fichas:
         ficha = json.loads(caminho.read_text(encoding="utf-8"))
         cid = ficha["catalog_id"]
-        doc = json.loads((EXTRAIDOS / f"{cid}.json").read_text(encoding="utf-8"))
+        doc = json.loads(caminho_extraido(cid).read_text(encoding="utf-8"))
         texto = PEDIDO.format(
             cid=cid,
             versao=ficha["extracao"]["versao_prompt"],

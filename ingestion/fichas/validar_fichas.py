@@ -33,6 +33,13 @@ PASTA = Path(__file__).resolve().parent
 SCHEMA = PASTA / "ficha.schema.json"
 SAIDA = PASTA / "saida"
 EXTRAIDOS = ROOT / "datasets" / "danluu-ingestion" / "data" / "extracted"
+REEXTRAIDOS = ROOT / "ingestion" / "reextracao" / "extraidos"
+
+
+def caminho_extraido(cid: str) -> Path:
+    """Texto reextraído (ingestion/reextracao/extraidos/) quando existir; senão, o original do danluu."""
+    novo = REEXTRAIDOS / f"{cid}.json"
+    return novo if novo.exists() else EXTRAIDOS / f"{cid}.json"
 
 # Mesma ideia do validate.py do agent-postmortems: palavras de culpa não entram
 # nos campos factuais. Aqui é aviso, não falha.
@@ -102,7 +109,7 @@ def validar(caminho: Path, validador: Draft202012Validator) -> dict:
     if cid and caminho.stem != cid:
         avisos.append(f"nome do arquivo ({caminho.name}) diferente do catalog_id ({cid})")
 
-    extraido = EXTRAIDOS / f"{cid}.json"
+    extraido = caminho_extraido(cid)
     if not extraido.exists():
         erros.append(f"documento original não encontrado: {extraido.relative_to(ROOT)}")
     else:
