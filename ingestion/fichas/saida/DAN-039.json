@@ -1,0 +1,149 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-039",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A race condition in the configuration pipeline that propagates customer configuration rules to Google External Proxy Load Balancing (GCLB) pushed a corrupted configuration file, and most endpoints served by global GCLB load balancers returned 404 errors, affecting downstream services such as Cloud Run, App Engine, Cloud Functions and Apigee. A rollback to the last known good configuration resolved the 404 errors; customer configuration changes were suspended until the fix was validated and pushes resumed at 11:28 PT.",
+    "data_incidente": "2021-11-16",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Google Cloud Networking",
+      "Google Cloud Load Balancing",
+      "Google Cloud Run",
+      "Google App Engine",
+      "Google App Engine Flex",
+      "Google Cloud Functions",
+      "Apigee",
+      "Firebase"
+    ],
+    "tecnologias": [
+      "Google External Proxy Load Balancing (GCLB)",
+      "serverless network endpoint groups",
+      "HTTP/S"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Engineers were alerted via automated alerting at 09:50 PT to GCLB returning Google 404 errors to HTTP/S requests; the alert aligned with incoming customer support requests.",
+        "trechos": [
+          "Affected customers received Google 404 errors in response to HTTP/S requests.",
+          "Google engineers were alerted to the issue via automated alerting at 09:50 PT, which aligned with incoming customer support requests, and we immediately started to mitigate the issue by rolling back to the last known good configuration."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A bug in the configuration pipeline that propagates customer configuration rules to GCLB, introduced 6 months earlier, allowed a race condition that in very rare cases pushed a corrupted configuration file to GCLB; the race could corrupt the file near the end of the pipeline, past its validation checks. On 16 November the race condition manifested in a cluster not yet patched, and the outage started.",
+        "trechos": [
+          "This incident was caused by a bug in the configuration pipeline that propagates customer configuration rules to GCLB.",
+          "The bug was introduced 6 months ago and allowed a race condition (when behavior depends on the timing of data accesses) that would, in very rare cases, push a corrupted configuration file to GCLB.",
+          "The GCLB update pipeline contains extensive validation checks to prevent corrupt configurations, but the race condition was one that could corrupt the file near the end of the pipeline.",
+          "On Tuesday, 16 November, as the patch A rollout was within 30 minutes of completing, the race condition did manifest in an unpatched cluster, and the outage started."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The bug had been discovered on 12 November and fixes were ready by 13 November, but the team chose a controlled, gradual rollout instead of a same-day emergency patch; the race condition manifested in an unpatched cluster while the patch A rollout was within 30 minutes of completing.",
+        "trechos": [
+          "A Google engineer discovered this bug on 12 November, which caused us to declare an internal high-priority incident because of the latent risk to production systems.",
+          "Thus the team believed the lowest-risk path, especially given the proximity to BFCM, was to roll out fixes in a controlled manner as opposed to a same-day emergency patch.",
+          "Both patches were ready and verified to fix the problem by 13 November.",
+          "On Tuesday, 16 November, as the patch A rollout was within 30 minutes of completing, the race condition did manifest in an unpatched cluster, and the outage started."
+        ]
+      },
+      {
+        "texto": "Patch B, which added input validation to the binary receiving the configuration and had completed rollout, did not prevent the corrupted configuration from being accepted, because the actual race condition produced a different form of error than the one observed during testing.",
+        "trechos": [
+          "We developed two mitigations: patch A closed the race condition itself; and patch B added additional input validation to the binary receiving the configuration to prevent it from accepting the new configuration, even if the race condition occurred.",
+          "Additionally, even though patch B did protect against the kind of input errors observed during testing, the actual race condition produced a different form of error in the configuration, which the completed rollout of patch B did not prevent from being accepted."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Rolled back to the last known good configuration; the rollback completed at 10:08 PT and resolved the 404 errors.",
+          "trechos": [
+            "A rollback to the last known good configuration completed at 10:08 PT, which resolved the 404 errors."
+          ]
+        },
+        {
+          "texto": "Suspended customer-initiated configuration changes in GCLB to avoid a recurrence; customers could not change their load balancing configuration between 10:04 and 11:28 PT.",
+          "trechos": [
+            "To avoid the risk of a recurrence, our engineers suspended customer-initiated configuration changes in GCLB.",
+            "As a result, GCLB service customers were unable to make changes to their load balancing configuration between 10:04 and 11:28 PT."
+          ]
+        },
+        {
+          "texto": "During the suspension, validated the fix and deployed additional proctoring and monitoring; customer configuration pushes resumed by 11:28 PT and normal service was restored.",
+          "trechos": [
+            "During the change suspension period, we validated the fix to safeguard against recurrence and deployed additional proctoring and monitoring to ensure safe resumption of service.",
+            "By 11:28 PT, customer configuration pushes resumed, and normal service was restored."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: fixed the underlying bug; patch A was developed to close the race condition, and the fix was completed and verified after the root cause was identified.",
+          "trechos": [
+            "We have fixed the underlying bug and are taking the following actions to prevent recurrence: We immediately added additional alerting, which will notify us to similar issues significantly faster going forward.",
+            "We developed two mitigations: patch A closed the race condition itself; and patch B added additional input validation to the binary receiving the configuration to prevent it from accepting the new configuration, even if the race condition occurred.",
+            "Once the root cause was identified, our engineers mitigated the issue by restoring a known-good configuration, and completed and verified the fix, which eliminates the risk of recurrence."
+          ]
+        },
+        {
+          "texto": "Already done: added additional alerting to notify the team of similar issues significantly faster.",
+          "trechos": [
+            "We have fixed the underlying bug and are taking the following actions to prevent recurrence: We immediately added additional alerting, which will notify us to similar issues significantly faster going forward."
+          ]
+        },
+        {
+          "texto": "In progress: adding safeguards that provide strengthened automated correctness-checking of configurations before they are applied.",
+          "trechos": [
+            "We are adding safeguards to prevent similar issues from occurring in the future.",
+            "These safeguards provide strengthened automated correctness-checking to configurations before they are applied."
+          ]
+        },
+        {
+          "texto": "In progress: accelerating planned architectural changes to improve how such issues are isolated and resolved.",
+          "trechos": [
+            "We are accelerating planned architectural changes that will improve how we isolate and resolve such issues in the future."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 113,
+      "trechos": [
+        "The total duration of impact was 1 hour and 53 minutes."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The final incident report states a total impact of 1 hour and 53 minutes (09:35 to 11:28 PT); the preliminary report gives 1 hour, 54 minutes (09:34 to 11:28). The 404 errors lasted from 09:35 to 10:08 PT (10:10 in the status updates); afterwards customers could not change load balancer configurations until 11:28 PT. The bug was introduced 6 months before the incident; it is treated as a latent bug rather than a change that set off the incident, so mudanca_causadora is nao_se_aplica.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
+  }
+}

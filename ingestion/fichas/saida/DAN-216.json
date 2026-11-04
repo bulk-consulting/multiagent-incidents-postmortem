@@ -2,15 +2,133 @@
   "schema_version": "1.0",
   "catalog_id": "DAN-216",
   "triagem": {
-    "catalogo": "nao_verificavel",
-    "autoria": null,
-    "tipo": null,
-    "dominio": null,
-    "seguranca": null,
-    "problemas_texto": ["sem_conteudo"]
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
   },
-  "incidente": null,
+  "incidente": {
+    "resumo": "Skyliner was unavailable twice (January 19 and January 23, 2017) because an unbounded, non-evicting cache (clojure.core/memoize) in the third-party library Amazonica accumulated AWS SDK client objects until the JVM heap was exhausted; customers could not deploy using Skyliner. The text does not say how service came back the first time; the second time some instances were rebooted, and the application was patched and deployed by January 24.",
+    "data_incidente": "2017-01",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Skyliner",
+      "skyliner.io"
+    ],
+    "tecnologias": [
+      "JVM",
+      "clojure.core/memoize",
+      "Amazonica",
+      "AWS SDK",
+      "jmap",
+      "Pagerduty"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 00:59 PST on 1/19/17 response times for skyliner.io began to rise, by 01:06 requests were timing out, and external monitoring triggered an alert.",
+        "trechos": [
+          "At 00:59 PST on 1/19/17, response times for skyliner.io began to rise, and by 01:06 requests were timing out.",
+          "Our external monitoring triggered an alert, and by 01:13 we were actively responding."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "An unbounded, non-evicting, strongly-referencing cache (clojure.core/memoize) in the third-party library Amazonica stored AWS SDK client objects keyed by the credentials and configurations used to construct them; because Skyliner uses short-duration temporary AWS credentials across all 14 public regions, the cache accumulated hundreds of thousands of client objects, exhausting the JVM heap and sending the garbage collector into a death spiral.",
+        "trechos": [
+          "Analysis of the heap dump identified an unbounded, non-evicting, strongly-referencing cache (clojure.core/memoize) in a third-party library (Amazonica) which stored AWS SDK client objects given the credentials and configurations which were used to originally construct the objects.",
+          "Skyliner is a multi-tenant application which uses temporary AWS credentials of short duration to manage customer resources across all 14 public regions.",
+          "As a result, the cache quickly accumulated hundreds of thousands of client objects, eventually exhausting the JVM’s heap and sending the garbage collector into a death spiral."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "After the first outage there was not enough forensic information to confirm the suspected memory leak.",
+        "trechos": [
+          "Our hunch was that the outage was due to a memory leak of some sort, but we didn’t have enough forensic information to confirm this."
+        ]
+      },
+      {
+        "texto": "After the second outage a full heap dump could not be secured at first; securing one required resolving tooling conflicts with the container's base image to run jmap and increasing instance disk space.",
+        "trechos": [
+          "The GC logging indicated our application’s heap was exhausted, but we were unable to secure a full heap dump which would allow us to examine the heap’s contents in detail.",
+          "Resolved tooling conflicts with our container’s base image to allow us to run jmap.",
+          "Increased our application instance’s disk space to allow us to secure a full JVM heap dump."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "During the second outage, based on the memory-leak hypothesis, rebooted some of the application instances; service was restored by 12:56 PST.",
+          "trechos": [
+            "Given our working hypothesis, we rebooted some of the instances and service was restored by 12:56 PST."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: patched and deployed the application by 09:35 PST 1/24/17 and confirmed a stable heap size.",
+          "trechos": [
+            "By 09:35 PST 1/24/17, our application was patched, deployed, and confirmed to have a stable heap size."
+          ]
+        },
+        {
+          "texto": "In progress: reported the problem to the Amazonica library's author and working with them on a long-term fix.",
+          "trechos": [
+            "We have also reached out to the library’s author to report the problem and are working with them on a long-term fix."
+          ]
+        },
+        {
+          "texto": "Already done (after the first outage): improved the ability to enable SSH on application instances during an incident, enabled slow query logging on the database server, enabled full GC logging on application instances, and added periodic logging of key JVM metrics.",
+          "trechos": [
+            "Improved our ability to enable SSH on application instances during an incident.",
+            "Enabled slow query logging on our database server.",
+            "Enabled full GC logging on our application instances.",
+            "Added periodic logging of key JVM metrics."
+          ]
+        },
+        {
+          "texto": "In progress: alerting on overall response latency and on logged GC failures to decrease time-to-detection.",
+          "trechos": [
+            "We identified several areas of possible improvement and began implementation of the following:",
+            "Decrease time-to-detection by alerting on overall response latency.",
+            "Decrease time-to-detection by alerting on logged GC failures."
+          ]
+        },
+        {
+          "texto": "In progress: ensuring the ability to page team members using Pagerduty, improving alerts for customer questions about outages, and making the Skyliner problems channel easier to find in slack.skyliner.io.",
+          "trechos": [
+            "We identified several areas of possible improvement and began implementation of the following:",
+            "Decrease time-to-response by ensuring our ability to page team members using Pagerduty.",
+            "Improve our alerts for customer questions about outages, and make it easier for customers to find the channel for Skyliner problems in https://slack.skyliner.io."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
   "confianca": "alta",
-  "observacoes": "The extracted text contains only the site name ('skyliner.io') and no article content.",
-  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.7" }
+  "observacoes": "The catalog entry covers two outages: 00:59-01:26 PST on January 19 (27 minutes) and 12:49-12:56 PST on January 23 (7 minutes; response times began to rise at 12:25). With two separate impact windows, duracao is null. The text does not say what restored service in the first outage. Steps taken to secure a heap dump (resolving jmap tooling conflicts, increasing disk space, securing a dump) were diagnostic. The second outage was announced on Twitter only at 13:36 PST.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
+  }
 }

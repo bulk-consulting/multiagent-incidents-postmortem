@@ -2,22 +2,213 @@
   "schema_version": "1.0",
   "catalog_id": "DAN-210",
   "triagem": {
-    "catalogo": "nao_verificavel",
-    "autoria": null,
-    "tipo": null,
-    "dominio": null,
-    "seguranca": null,
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
     "problemas_texto": [
-      "sem_conteudo",
       "rodape_marketing"
     ]
   },
-  "incidente": null,
+  "incidente": {
+    "resumo": "Upgrading Reddit's Kubernetes cluster for the legacy stack from 1.23 to 1.24 broke cluster networking because the Calico route reflector configuration selected nodes by the label node-role.kubernetes.io/master, which 1.24 removed; the site was down for 314 minutes. Service was restored by restoring the control plane from backup, generating new TLS certificates so new control plane nodes could join, and ramping traffic back from 1% to 100%.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Reddit",
+      "Old Reddit (legacy stack)"
+    ],
+    "tecnologias": [
+      "Kubernetes 1.23",
+      "Kubernetes 1.24",
+      "kubeadm",
+      "Calico",
+      "calico-node",
+      "calico-typha",
+      "calico-kube-controllers",
+      "route reflectors",
+      "CRI-O",
+      "Consul",
+      "DNS",
+      "Open Policy Agent (OPA)",
+      "etcd",
+      "AWS",
+      "terraform",
+      "cluster autoscaler",
+      "TLS"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "About 2 minutes after the upgrade was kicked off just after 19:00 UTC, the site came to a screeching halt all at once.",
+        "trechos": [
+          "The engineer doing the work kicked off the upgrade just after 19:00 UTC, and everything seemed fine, for about 2 minutes. Then? Chaos.",
+          "All at once the site came to a screeching halt."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "Just after 19:00 UTC, an upgrade from Kubernetes 1.23 to 1.24 was kicked off on the cluster running the Legacy part of Reddit's stack.",
+      "trechos": [
+        "Upgrading from Kubernetes 1.23 to 1.24 on the particular cluster we were working on bit us in a new and subtle way we’d never seen before.",
+        "This upgrade cycle was one of our team’s big-ticket items this quarter, and one of the most important clusters in the company, the one running the Legacy part of our stack (affectionately referred to by the community as Old Reddit), was ready to be upgraded to the next version.",
+        "The engineer doing the work kicked off the upgrade just after 19:00 UTC, and everything seemed fine, for about 2 minutes. Then? Chaos."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The Calico route reflectors were configured with the control plane nodes as reflectors, with nodeSelector and peerSelector targeting the label node-role.kubernetes.io/master; Kubernetes 1.24 removed references to \"master\", even from running clusters, and the calico-node daemon across the cluster began dropping all routes for all nodes.",
+        "trechos": [
+          "In doing the research, we discovered that the way that the route reflectors were configured was to set the control plane nodes as the reflectors, and everything else to use them.",
+          "The nodeSelector and peerSelector for the route reflectors target the label `node-role.kubernetes.io/master`.",
+          "In the 1.20 series, Kubernetes changed its terminology from “master” to “control-plane.” And in 1.24, they removed references to “master,” even from running clusters.",
+          "Two seconds before the chaos broke loose, the calico-node daemon across the cluster began dropping routes to the first control plane node we upgraded.",
+          "What wasn’t expected was that all routes for all nodes began dropping as well."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The route reflector configuration was set up several years earlier, everyone who knew of it had moved on, and it was committed nowhere because Calico requires it to be fetched, hand-edited and uploaded via its CLI and no custom tooling had been written; the authors name cluster inconsistency (bespoke clusters) as the more systemic cause.",
+        "trechos": [
+          "The route reflectors were set up several years ago by the precursor to the current Compute team.",
+          "Time passed, and with attrition and growth, everyone who knew they existed moved on to other roles or other companies.",
+          "Part of the route reflector configuration requires fetching down Calico-specific data that’s expected to only be managed by their CLI interface (not the standard Kubernetes API), hand-edited, and uploaded back.",
+          "The route reflector configuration was thus committed nowhere, leaving us with no record of it, and no breadcrumbs for engineers to follow.",
+          "The actual cause is more systemic, and a big part of what we’ve been unwinding for years: Inconsistency."
+        ]
+      },
+      {
+        "texto": "The affected cluster lost all metrics, leaving responders without visibility; the main visible symptom was DNS failing for Consul and in-cluster records while public DNS resolved.",
+        "trechos": [
+          "The first thing we realized was that the affected cluster had completely lost all metrics (the above graph shows stats at our CDN edge, which is intentionally separated).",
+          "We couldn’t resolve records for entries in Consul (a service we run for cross-environment dynamic DNS), or for in-cluster DNS entries. But, weirdly, it was resolving requests for public DNS records just fine."
+        ]
+      },
+      {
+        "texto": "Kubernetes has no supported downgrade procedure, so reverting required a restore from backup; the restore procedure had not been kept up to date and had never been used against a production cluster, so the team first chose to fix forward, and later had to rewrite the procedure live because it was written for an end-of-life Kubernetes version and for Docker rather than CRI-O.",
+        "trechos": [
+          "But, dear Redditor… Kubernetes has no supported downgrade procedure.",
+          "While the restore had been tested repeatedly and extensively in our pilot clusters, it hadn’t been kept fully up to date with changes in our environment, and we’d never had to use it against a production cluster, let alone this cluster.",
+          "The decision was made to continue investigating and attempt to fix forward.",
+          "This made for several confounding variables where command syntax had changed, arguments were no longer valid, and the procedure had to be rewritten live to accommodate."
+        ]
+      },
+      {
+        "texto": "The backup could be taken on any control plane node but the restore had to be performed on the same one, and it was not; because control plane hostnames are AWS defaults, the restored node's TLS certificates were not valid for other members and new control plane nodes could not connect to etcd.",
+        "trechos": [
+          "Every single time, they’d get stuck, with no error, due to being unable to connect to etcd on the first node.",
+          "Our backup was written to be executed on any control plane node, but the restore had to be performed on the same one. And it wasn’t.",
+          "This meant that the TLS certificates being presented by the working node weren’t valid for anything else to talk to it, because of the hostname mismatch."
+        ]
+      },
+      {
+        "texto": "AWS capacity was exhausted for the control plane instance type, which further delayed the response.",
+        "trechos": [
+          "We brought up the next two and ran into our next sticking point: AWS capacity was exhausted for our control plane instance type.",
+          "This further delayed our response, as canceling a ‘terraform apply` can have strange knock-on effects with state and we didn’t want to run the risk of making things even worse."
+        ]
+      },
+      {
+        "texto": "The cluster ran the most critical legacy node in the dependency graph, so the blast radius included most user flows even though modern service API layers stayed up.",
+        "trechos": [
+          "Not everything went down. Our modern service API layers all remained up and resilient, but this impacted the most critical legacy node in our dependency graph, so the blast radius still included most user flows; more work remains in our modernization drive."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "The upgrade of the legacy cluster from Kubernetes 1.23 to 1.24, which removed the \"master\" node label targeted by the route reflector configuration.",
+        "trechos": [
+          "Upgrading from Kubernetes 1.23 to 1.24 on the particular cluster we were working on bit us in a new and subtle way we’d never seen before.",
+          "The nodeSelector and peerSelector for the route reflectors target the label `node-role.kubernetes.io/master`.",
+          "In the 1.20 series, Kubernetes changed its terminology from “master” to “control-plane.” And in 1.24, they removed references to “master,” even from running clusters."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "After the outage had gone on for over two hours, decided to restore from backup and terminated all worker nodes, which took about 20 minutes.",
+          "trechos": [
+            "We were running low on constructive ideas, and the outage had gone on for over two hours at this point. It was time to make the hard call; we would make the restore from backup.",
+            "Knowing that most of the worker nodes we had running would be invalidated by the restore anyway, we started terminating all of them, so we wouldn’t have to deal with the long reconciliation after the control plane was back up.",
+            "As our largest cluster, this was unfortunately time-consuming as well, taking about 20 minutes for all the API calls to go through."
+          ]
+        },
+        {
+          "texto": "Restored the control plane from backup: terminated two control plane nodes, downgraded the components of the remaining one, restored the data to it and launched new control plane nodes; the restore of the first node succeeded and networking worked again, and the cluster autoscaler was shut off to regain a known state.",
+          "trechos": [
+            "Terminate two control plane nodes.",
+            "Downgrade the components of the remaining one.",
+            "Restore the data to the remaining node.",
+            "Launch new control plane nodes and join them to sync.",
+            "The restore for the first node was completed successfully, and we were back in business.",
+            "This was a great sign because it indicated that networking was working again. However, we weren’t ready for that quite yet and shut off the autoscaler to buy ourselves time to get things back to a known state."
+          ]
+        },
+        {
+          "texto": "Generated new TLS certificates that worked, after which the new control plane members joined and the high-availability control plane was working again.",
+          "trechos": [
+            "With a bit of fumbling due to a lack of documentation, we were able to generate new certificates that worked. New members joined successfully. We had a working, high-availability control plane again."
+          ]
+        },
+        {
+          "texto": "Brought traffic back conservatively, starting at about 1% and increasing in steps (5%, 10%, 20%, 35%, 55%, 80%, 100%), and carefully turned back on legacy services that had been stopped manually; the outage was then over.",
+          "trechos": [
+            "This was the longest down period we’d seen in a long time… so we started extremely conservatively, at about 1%.",
+            "From 1%, we took small increments: 5%, 10%, 20%, 35%, 55%, 80%, 100%. The site was (mostly) live, again.",
+            "Some particularly touchy legacy services had been stopped manually to ensure they wouldn’t misbehave when traffic returned, and we carefully turned those back on.",
+            "Success! The outage was over."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "In progress: standardizing components shared between environments, adding pre-production clusters for testing, and building tooling to manage the lifecycle of whole clusters so they look as close to the same as possible.",
+          "trechos": [
+            "More components are being standardized and shared between environments, instead of bespoke configurations everywhere.",
+            "More pre-production clusters exist that we can test confidently with, instead of just a YOLO to production.",
+            "We’re working on tooling to manage the lifecycle of whole clusters to make them all look as close to the same as possible and be re-creatable or replicable as needed."
+          ]
+        },
+        {
+          "texto": "In progress: codifying everything possible for consistent application and a historical record of choices, and documenting in detail what cannot be codified while evaluating replacements for those exceptions.",
+          "trechos": [
+            "Especially, we’re codifying everything that we can, both to ensure consistent application and to have a clear historical record of the choices that we’ve made to get where we are.",
+            "Where we can’t codify, we’re documenting in detail, and (most importantly) evaluating how we can replace those exceptions with better alternatives."
+          ]
+        },
+        {
+          "texto": "Planned: improve the backup restore process and make cluster upgrades safe.",
+          "trechos": [
+            "Restoring from a backup is scary, and we hate it. The process we have for this is laden with pitfalls and must be improved.",
+            "Never waste a good crisis – we’re resolute in using this outage to change some of the major architectural and process decisions we’ve lived with for a long time and we’re going to make our cluster upgrades safe."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 314,
+      "trechos": [
+        "Unfortunately, if you were browsing the site, or at least trying, during the afternoon of March 14th during US hours, you may have seen our unfortunate Snoo during the 314-minute outage Reddit faced (on Pi day no less!)"
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
   "confianca": "alta",
-  "observacoes": "The extracted text contains only Reddit navigation menus, the post title (\"You Broke Reddit: The Pi-Day Outage\"), comment headers without comment bodies, and the site footer; the article body is missing, so there is nothing to compare with the catalog description.",
+  "observacoes": "The text gives the date as March 14th (Pi day, 3/14) without a year, so data_incidente is null. The cause was identified only after service was restored, during the postmortem research. The post ends with a hiring call for the Compute team.",
   "extracao": {
     "modelo": "Claude Opus 5.5 (Claude Code)",
-    "data": "2026-11-03",
-    "versao_prompt": "v2.9"
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
   }
 }

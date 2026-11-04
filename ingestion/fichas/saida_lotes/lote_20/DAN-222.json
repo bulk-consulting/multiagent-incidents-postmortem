@@ -1,0 +1,152 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-222",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Most nodes of Stackdriver's 36-node Cassandra time series cluster exhausted their memory and crashed at about 9:45 AM after leaking memory for several days, leaving a gap of several hours in charts; because the gateways spilled data to disk and stopped publishing to every queue, healthy pipelines such as alerting were starved and alerting was delayed about an hour. Most services were restored around 11:00 AM by breaking the dependency on the Cassandra queue; a new cluster was deployed by 1:30 PM and historical data restored from an archive by October 26.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Stackdriver Intelligent Monitoring application",
+      "charts",
+      "alerting"
+    ],
+    "tecnologias": [
+      "Cassandra 1.2.5",
+      "Cassandra 1.2.10",
+      "Java",
+      "AWS US-East",
+      "AWS S3",
+      "message broker",
+      "RPC_SERVER_TYPE"
+    ],
+    "categoria_causa": "database-storage",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Around 8:45 AM the team discovered that many Cassandra nodes had been leaking memory for several days; the Stackdriver service used to monitor its own infrastructure had identified the trends leading to the outage.",
+        "trechos": [
+          "Around 8:45 AM, we discovered that many of the nodes in the cluster had been leaking memory for several days (see below).",
+          "We record measurements for many of the metrics relevant to the issue, and the Stackdriver service, which we use to monitor our own infrastructure, identified the trends leading to the outage."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The 36-node Cassandra cluster hosting the time series data for all graphs failed: many nodes had been leaking memory for several days, and at 9:45 AM most nodes exhausted their memory and crashed nearly simultaneously; why the cluster failed is not yet fully understood.",
+        "trechos": [
+          "The primary cause of the problems was the failure of the 36-node Cassandra cluster that hosts the time series data used in all of the graphs in the Stackdriver application.",
+          "Around 8:45 AM, we discovered that many of the nodes in the cluster had been leaking memory for several days (see below).",
+          "At 9:45 AM, nearly simultaneously, most nodes in the cluster exhausted their memory and crashed.",
+          "We do not yet fully understand why the Cassandra cluster failed, but we do know how to isolate and mitigate against similar problems in the future."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "When the queues feeding Cassandra reached a threshold, the gateways by design spilled data to disk and stopped publishing messages to any queue, so messages did not flow to the still-operational archiving and alerting subsystems; the authors call this a flaw and say the shared message broker introduced a dependency among otherwise unrelated components.",
+        "trechos": [
+          "When the queues reach a threshold, the system is designed to spill data to disk at the gateways instead of adding to the already congested queues.",
+          "When spilling data to disk, messages are not published to any queues, even if some downstream consumers are keeping the backlog of messages on some queues small.",
+          "In this case, the Cassandra failure prevented messages from flowing to the archiving and alerting subsystems that were still operational. Clearly, this is a flaw in the system which we address further below.",
+          "Lost in the architectural decision to use these the time-tested distributed systems design patterns to reduce coupling among independent components is that the message broker itself may, in fact, introduce a dependency among otherwise unrelated components."
+        ]
+      },
+      {
+        "texto": "Complete restarts of the Cassandra cluster did not converge to a single view of the system, and about 90 minutes were spent trying to restore the existing cluster unsuccessfully.",
+        "trechos": [
+          "The cluster did not converge to a single view of the system. We repeated the procedure with similar results.",
+          "We spent approximately 90 minutes trying to restore the existing cluster unsuccessfully."
+        ]
+      },
+      {
+        "texto": "When buffered data more than an hour old was flushed through the alerting pipeline, its mechanisms for handling out-of-order data failed and some erroneous alerts were generated.",
+        "trechos": [
+          "As this buffered data–some of which was more than an hour old–was pushed through the alerting pipeline, we generated some alerts in error.",
+          "The alerting pipeline is designed to handle data that is out of order on small time scales. Those mechanisms failed when presented with data that was an hour or more old."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Attempted a complete restart of the Cassandra cluster twice; it did not converge, and the cluster was left running with an inconsistent view of state to serve reads.",
+          "trechos": [
+            "We instead attempted a complete restart of the cluster, hoping that all the nodes would bootstrap and agree on the configuration of the cluster.",
+            "The cluster did not converge to a single view of the system. We repeated the procedure with similar results.",
+            "We left the cluster running, even with the inconsistent view of state, to serve reads."
+          ]
+        },
+        {
+          "texto": "Broke the dependency between the queue feeding Cassandra and the other subsystems; at approximately 11:00 AM traffic began flowing through all other subsystems, restoring alerting notifications for new measurements, and older buffered data was flushed through all subsystems except Cassandra.",
+          "trechos": [
+            "When we saw that the quick restart was not going to be sufficient to return us to a normal operating mode, we broke the dependency between the queue feeding Cassandra and other subsystems.",
+            "At approximately 11:00 AM, traffic began flowing through all other subsystems.",
+            "This restored our ability to generate alerting notifications for new measurements.",
+            "We also began to flush the older data that was buffered at the gateways through all subsystems except to Cassandra."
+          ]
+        },
+        {
+          "texto": "At about 11:30 AM abandoned restoring the existing cluster and, using tooling that automates provisioning, deployed and bootstrapped a new 36-node Cassandra cluster by 1:30 PM, upgrading Cassandra from 1.2.5 to 1.2.10 and Java from 1.6u45 to 1.7u40 and changing RPC_SERVER_TYPE from 'sync' to 'hsha'.",
+          "trechos": [
+            "At about 11:30 AM attempts to restore the existing Cassandra cluster were abandoned.",
+            "By 1:30 PM, a new 36-node Cassandra cluster was deployed and bootstrapped.",
+            "We have tooling that automates the provisioning and deployment of a Cassandra cluster.",
+            "We upgraded the version of Cassandra from 1.2.5 to 1.2.10, upgraded the version of Java from 1.6u45 to 1.7u40, and change the RPC_SERVER_TYPE from ‘sync’ to ‘hsha’."
+          ]
+        },
+        {
+          "texto": "Began writing new time series data to the new cluster and then restored historical data from the archive of all received data; restoration was completed for all users by 9am on October 26th.",
+          "trechos": [
+            "When the new cluster was ready, we began to write new time series data to this new Cassandra cluster.",
+            "After observing the expected response of the cluster to writes of current data, we began the process of restoring historical data from an archive that we maintain that records all data we receive.",
+            "Data restoration was completed for all users by 9am on October 26th."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: add greater separation for the real-time data display and alerting pipelines by breaking the dependencies in the queueing service the gateways use to route input messages to multiple subsystems, so one subsystem's problems do not affect the others.",
+          "trechos": [
+            "Most critically, we are planning to add a greater degree of separation for the pipelines used for real-time data display and alerting.",
+            "To do this, we will break the dependencies in the queueing service that the gateways use to route input messages to the multiple subsystems that consume the message type."
+          ]
+        },
+        {
+          "texto": "In progress: working with the Cassandra developer community to identify the problem and work toward a fix.",
+          "trechos": [
+            "We are working with the Cassandra developer community, as we have done in the past, to identify the problem and work toward a fix."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "Why the Cassandra cluster failed is not yet fully understood; the authors are working with the Cassandra developer community to identify the problem."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives the date as Wednesday, October 23, without a year, so data_incidente is null. The outage began around 9:45 AM ET; candidate end times are approximately 11:00 AM (most services and alerting restored; alerting was delayed for approximately one hour), 1:30 PM (new Cassandra cluster online; data between 9:45 AM and 1:30 PM consistently unavailable) and 9am on October 26 (historical data restored for all users), so duracao is null. No data was lost. The first status page update was at 9:45 AM and the first customer email at 11 AM.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
+  }
+}

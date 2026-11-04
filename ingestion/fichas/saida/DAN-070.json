@@ -1,0 +1,166 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-070",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A brief disruption in the power systems of GitHub's primary data center rebooted slightly over 25% of servers; servers of one hardware class then failed to boot because a known firmware issue left their drives unrecognized, Redis clusters went offline, and application processes with a hard boot dependency on Redis failed to start; GitHub was unavailable for two hours and six minutes, serving HTTP 503 errors. Service was restored after Redis cluster data was restored onto standby equipment and application servers returned to the load balancer pool.",
+    "data_incidente": "2016-01-28",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "GitHub"
+    ],
+    "tecnologias": [
+      "Redis",
+      "HAProxy",
+      "ChatOps",
+      "firmware"
+    ],
+    "categoria_causa": "hardware-power",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "The partially operational infrastructure generated alerts to multiple on-call engineers; initial notifications were for unreachable servers and a spike in exceptions related to Redis connectivity.",
+        "trechos": [
+          "This left our infrastructure in a partially operational state and generated alerts to multiple on-call engineers.",
+          "Initial notifications for unreachable servers and a spike in exceptions related to Redis connectivity directed our team to investigate a possible outage in our internal network."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 00:23 UTC on January 28th, 2016, the primary data center experienced a brief disruption in the systems that supply power to servers and equipment, and slightly over 25% of servers and several network devices rebooted.",
+      "trechos": [
+        "At 00:23am UTC on Thursday, January 28th, 2016 (4:23pm PST, Wednesday, January 27th) our primary data center experienced a brief disruption in the systems that supply power to our servers and equipment.",
+        "Slightly over 25% of our servers and several network devices rebooted as a result."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Servers of one hardware class failed to boot after the power cycle because their physical drives were no longer recognized, which the authors identified as a known firmware issue.",
+        "trechos": [
+          "Using this, we determined that all of the offline servers shared the same hardware class, and the ones that rebooted without issue were a different hardware class.",
+          "Remote access console screenshots from the failed hardware showed boot failures because the physical drives were no longer recognized.",
+          "We identified the hardware issue resulting in servers being unable to view their own drives after power-cycling as a known firmware issue that we are updating across our fleet."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The application code had a hard dependency on the Redis cluster being available within its boot path, so application processes failed to start while the Redis clusters were offline.",
+        "trechos": [
+          "These explained that the lack of backend capacity was a result of processes failing to start due to our Redis clusters being offline.",
+          "We had inadvertently added a hard dependency on our Redis cluster being available within the boot path of our application code."
+        ]
+      },
+      {
+        "texto": "The affected servers spanned many racks and rows, so several clusters had all of their member servers reboot even though their members were distributed across different racks.",
+        "trechos": [
+          "The affected servers spanned many racks and rows in our data center, which resulted in several clusters experiencing reboots of all of their member servers, despite the clusters’ members being distributed across different racks."
+        ]
+      },
+      {
+        "texto": "Many ChatOps systems were on servers that had rebooted, which caused some confusion and delay at the very beginning of the response despite built-in redundancy.",
+        "trechos": [
+          "Our early response to the event was complicated by the fact that many of our ChatOps systems were on servers that had rebooted.",
+          "We do have redundancy built into our ChatOps systems, but this failure still caused some amount of confusion and delay at the very beginning of our response."
+        ]
+      },
+      {
+        "texto": "A number of crucial internal systems resided on the offline hardware, which made provisioning new servers more difficult during recovery.",
+        "trechos": [
+          "These efforts were complicated by a number of crucial internal systems residing on the offline hardware.",
+          "This made provisioning new servers more difficult."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "One group of engineers worked with on-site facilities technicians to bring the servers that were not booting back online, draining the flea power to bring them up from a cold state so the disks would be visible.",
+          "trechos": [
+            "One group of engineers split off to work with the on-site facilities technicians to bring these servers back online by draining the flea power to bring them up from a cold state so the disks would be visible."
+          ]
+        },
+        {
+          "texto": "Another group began rebuilding the affected Redis clusters on alternate hardware; once the Redis cluster data was restored onto standby equipment, the Redis-server processes were brought back online.",
+          "trechos": [
+            "Another group began rebuilding the affected Redis clusters on alternate hardware.",
+            "Once the Redis cluster data was restored onto standby equipment, we were able to bring the Redis-server processes back online."
+          ]
+        },
+        {
+          "texto": "Application processes recovered and the HAProxy load balancers returned the healthy application servers to the backend pool; after verifying site operation, the maintenance page was removed and status moved to yellow, two hours and six minutes after the initial outage.",
+          "trechos": [
+            "Internal checks showed application processes recovering, and a healthy response from the application servers allowed our HAProxy load balancers to return these servers to the backend server pool.",
+            "After verifying site operation, the maintenance page was removed and we moved to status yellow.",
+            "This occurred two hours and six minutes after the initial outage."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "In progress: updating firmware across the fleet to fix the known firmware issue that left servers unable to view their own drives after power-cycling.",
+          "trechos": [
+            "We identified the hardware issue resulting in servers being unable to view their own drives after power-cycling as a known firmware issue that we are updating across our fleet."
+          ]
+        },
+        {
+          "texto": "Planned: update tooling to automatically open issues for the team when new firmware updates are available, so changelogs are reviewed against the environment.",
+          "trechos": [
+            "Updating our tooling to automatically open issues for the team when new firmware updates are available will force us to review the changelogs against our environment."
+          ]
+        },
+        {
+          "texto": "Planned: update the application's test suite to explicitly ensure application processes start even when certain external systems are unavailable; in progress: improving circuit breakers to gracefully degrade functionality when backend services are down.",
+          "trechos": [
+            "We will be updating our application’s test suite to explicitly ensure that our application processes start even when certain external systems are unavailable and we are improving our circuit breakers so we can gracefully degrade functionality when these backend services are down."
+          ]
+        },
+        {
+          "texto": "In progress: reviewing the availability requirements of internal systems responsible for crucial operations tasks such as provisioning new servers, so they are on par with user-facing systems.",
+          "trechos": [
+            "We are reviewing the availability requirements of our internal systems that are responsible for crucial operations tasks such as provisioning new servers so that they are on-par with our user facing systems."
+          ]
+        },
+        {
+          "texto": "In progress: less technical improvements, including strengthening cross-team communications, predefining escalation strategies for all-hands situations, and improving messaging to users during events.",
+          "trechos": [
+            "A number of less technical improvements are also being implemented.",
+            "Strengthening our cross-team communications would have shaved minutes off the recovery time.",
+            "Predefining escalation strategies during situations that require all hands on deck would have enabled our incident coordinators to spend more time managing recovery efforts and less time navigating documentation.",
+            "Improving our messaging to you during this event would have helped you better understand what was happening and set expectations about when you could expect future updates."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 126,
+      "trechos": [
+        "Last week GitHub was unavailable for two hours and six minutes."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The authors describe the event as a cascading failure; the root cause recorded is the firmware issue that kept servers from booting after the power disruption, and the Redis boot dependency that propagated the failure to application processes is listed as a contributing factor. The status page was set to red at 00:32 UTC, eight minutes after the site became inaccessible (a communication delay, not a factor).",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
+  }
+}

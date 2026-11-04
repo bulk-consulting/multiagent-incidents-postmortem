@@ -1,0 +1,134 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-175",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "seguranca",
+    "seguranca": "ataque",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A threat actor used a compromised token for a Heroku machine account, obtained from an archived private GitHub repository containing Heroku source code, to access Heroku databases and download customer GitHub integration OAuth tokens, hashed customer passwords and pipeline-level config vars; according to GitHub, the actor used the tokens to enumerate repository metadata and accessed private repositories of Heroku and some customers. Heroku disabled the compromised token and account, revoked all GitHub integration tokens and rotated credentials.",
+    "data_incidente": "2022-04",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Heroku Dashboard GitHub integration",
+      "Heroku customer accounts",
+      "Review Apps",
+      "Heroku CI"
+    ],
+    "tecnologias": [
+      "GitHub",
+      "OAuth",
+      "MFA"
+    ],
+    "categoria_causa": "credential-auth",
+    "deteccao": {
+      "forma": "terceiros",
+      "descricao": {
+        "texto": "On April 13, 2022, GitHub notified the Heroku security team of a potential security issue it had identified on April 12, 2022.",
+        "trechos": [
+          "On April 13, 2022, GitHub notified our security team of a potential security issue they identified on April 12, 2022, and we immediately launched an investigation."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "On April 7, 2022, a threat actor obtained access to a Heroku database and downloaded stored customer GitHub integration OAuth tokens; initial access was obtained by leveraging a compromised token for a Heroku machine account.",
+      "trechos": [
+        "We began investigating how the user’s OAuth token was compromised and determined that, on April 7, 2022, a threat actor obtained access to a Heroku database and downloaded stored customer GitHub integration OAuth tokens.",
+        "We began investigating how the threat actor gained initial access to the environment and determined it was obtained by leveraging a compromised token for a Heroku machine account."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The token for a Heroku machine account was obtainable from an archived private GitHub repository containing Heroku source code; the threat actor gained access to the machine account from that repository, which Heroku assessed was accessed via a third-party integration with the repository.",
+        "trechos": [
+          "We determined that the unidentified threat actor gained access to the machine account from an archived private GitHub repository containing Heroku source code.",
+          "We assessed that the threat actor accessed the repository via a third-party integration with that repository."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Within three hours of GitHub's April 13, 2022 notification, disabled the identified compromised user's OAuth token and GitHub account.",
+          "trechos": [
+            "On April 13, 2022, GitHub notified our security team of a potential security issue they identified on April 12, 2022, and we immediately launched an investigation.",
+            "Within three hours, we took action and disabled the identified compromised user’s OAuth token and GitHub account."
+          ]
+        },
+        {
+          "texto": "On April 15, 2022, revoked all existing tokens from the Heroku Dashboard GitHub integration and prevented new OAuth tokens from being created.",
+          "trechos": [
+            "When this was detected, we notified customers on April 15, 2022, revoked all existing tokens from the Heroku Dashboard GitHub integration, and prevented new OAuth tokens from being created."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: decided on May 5, 2022, to rotate customer accounts, after the actor exfiltrated the database of usernames and hashed and salted passwords, because not all customers had MFA enabled and passwords might be reused.",
+          "trechos": [
+            "Further investigation determined that the actor accessed and exfiltrated data from the database storing usernames and uniquely hashed and salted passwords for customer accounts.",
+            "While the passwords were hashed and salted, we made the decision to rotate customer accounts on May 5, 2022, out of an abundance of caution due to not all of the customers having multi-factor authentication (MFA) enabled at the time and potential for password reuse."
+          ]
+        },
+        {
+          "texto": "Already done: placed further restrictions on token permissions, database access, and architecture changes.",
+          "trechos": [
+            "During this time, we placed further restrictions on token permissions, database access, and architecture changes."
+          ]
+        },
+        {
+          "texto": "Already done: implemented a production moratorium and disabled or rotated credentials of other critical accounts; took further measures including additional credential and key rotation, re-encryption, disabling internal automation, installing more threat detection tools, and shutting down non-essential systems.",
+          "trechos": [
+            "Over the course of our investigation we implemented a production moratorium and disabled or rotated credentials of other critical accounts.",
+            "We took further proactive measures, including additional credential and key rotation, re-encryption, disabling internal automation, installing more threat detection tools, and shutting down non-essential systems."
+          ]
+        },
+        {
+          "texto": "In progress: reviewing third-party integrations and removing any not aligned with Heroku's security standards.",
+          "trechos": [
+            "We are continuing to review our third-party integrations and removing any that are not aligned with our security standards and commitment to improving the shared security model."
+          ]
+        },
+        {
+          "texto": "Planned: explore with GitHub RFC-8705 based mutual TLS and private key protection for OAuth, and full fidelity between the Heroku GitHub OAuth integration and the GitHub App model.",
+          "trechos": [
+            "As we believe RFC-8705 based mutual TLS and private key protection for OAuth, as well as full fidelity between the Heroku GitHub OAuth integration and the GitHub App model provides more modular access privileges to connected repositories, we intend to explore these paths with GitHub."
+          ]
+        },
+        {
+          "texto": "Recommendation to customers: never reuse passwords across Heroku and other websites, enable MFA on Heroku accounts, and audit GitHub repositories, organizations and connected integrations.",
+          "trechos": [
+            "Never re-use your passwords across Heroku and other websites.",
+            "Enable MFA on your Heroku account to significantly reduce the probability of password based compromise.",
+            "Audit your GitHub repositories and organizations against GitHub best practices and consider enabling GitHub repository security policies when possible."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "Heroku has been unable to definitively confirm the third-party integration that was the source of the attack."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The authors describe the attack as 'part of a supply-chain type attack'; the root cause recorded is the compromised machine-account token, so categoria_causa is credential-auth, since the text describes no tampered material. Data exposed: customer GitHub integration OAuth tokens, a subset of Heroku private repositories, private repositories of a small number of customers, hashed and salted customer passwords, and pipeline-level config vars for Review Apps and Heroku CI. Heroku reports no evidence of unauthorized access by this actor since April 14, 2022; later credential rotations and restrictions are listed as already-done prevention. Containment actions (cutting off the GitHub integration, rotating credentials) also impacted customers.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
+  }
+}

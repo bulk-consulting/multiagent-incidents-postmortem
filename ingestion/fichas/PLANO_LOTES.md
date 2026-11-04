@@ -46,6 +46,7 @@ Lote 16 = 5/7 (0,7), conferido inteiro (as 7 fichas com incidente; DAN-034 e 209
 Lote 17 = 7/10 (0,7), primeiro lote reextraído (v2.19), conferido inteiro → o lote 18 volta a ser conferido por amostra, sem mudança de prompt. A virada da DAN-143 de baixa para alta se manteve.
 Lote 18 = 5/6 (0,8): 4 dos 5 na DAN-097, por datas sem trecho e ações em andamento marcadas como planejadas → segue por amostra; gerou a v2.20 ("paged/alerted" é alerta_automatico, contestado no 17 e no 18).
 Lote 19 = 5/5 (1,0), amostra com a DAN-209 virada de baixa para alta (a virada se manteve) → segue por amostra; gerou a v2.21 (ação em andamento é "In progress:", erro repetido nas DAN-097 e 160). A DAN-156 foi reextraída lendo windows-1252, porque a página declara ISO-8859-1.
+Lote 20 = 6/5 (1,2), nenhuma baixa; amostra com 3 sorteadas, a DAN-034 virada (a virada se manteve) e a DAN-145 (duração) → segue por amostra, sem mudança de prompt.
 
 **Fichas vazias:** documentos que saem `nao_verificavel` (só menus ou rodapé) não precisam de conferência; entram na lista de reextração.
 
