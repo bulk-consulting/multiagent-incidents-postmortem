@@ -1,0 +1,134 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-049",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A Terraform deployment to crates.io production that combined a new TLS certificate for the CDN with updated DNS records first removed the current certificate and DNS records, leaving static.crates.io without a DNS record for an estimated 10-15 minutes while the new certificate was issued, so users experienced build failures. The outage resolved itself once Terraform recreated the DNS record; traffic was back to normal by 9:40 UTC.",
+    "data_incidente": "2023-01-25",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "static.crates.io",
+      "crates.io crate downloads"
+    ],
+    "tecnologias": [
+      "Terraform",
+      "DNS",
+      "TLS certificate",
+      "Content Delivery Network (CDN)",
+      "Git"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "During the deployment, the DNS record for static.crates.io failed to resolve and users experienced build failures because crates could not be downloaded; the text does not say how this was first noticed.",
+        "trechos": [
+          "During the deployment, the DNS record for\n`static.crates.io` failed to resolve for an estimated time of 10-15 minutes.",
+          "Users experienced build failures during this time, because crates could not be\ndownloaded."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The production deployment contained two changes tested individually on staging, a new TLS certificate for the current CDN and updated DNS records; when applied, Terraform first removed the current certificate and DNS records, then issued a new certificate, which took around 10 minutes, during which there was no DNS record for static.crates.io, and only then recreated the DNS records.",
+        "trechos": [
+          "The deployment to `production` contained two changes that were developed,\ndeployed, and tested individually on `staging`: a new TLS certificate for the\ncurrent Content Delivery Network and updated DNS records.",
+          "When we deployed this configuration to `production`, Terraform first removed the\ncurrent certificate and DNS records.",
+          "It then started to issue a new certificate,\nwhich took around 10 minutes.",
+          "During this time, there was no DNS record for\n`static.crates.io` and users experienced build failures.",
+          "After the new\ncertificate was provisioned, Terraform recreated the DNS records."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The new environment tooling locks production to a specific Git commit; as in past deployments it was set to the latest commit on master, so the deployment applied multiple changes simultaneously. This was one of the first times the tooling was used to deploy to production.",
+        "trechos": [
+          "This was one of the first times that we used the new tooling around environments\nto deploy changes to `production`.",
+          "One of its features is that the `production`\nenvironment is locked to a specific Git commit.",
+          "When deploying in the past, we\nset this to the latest commit on `master`.",
+          "This was done here as well, with the\nconsequence that the deployment applied multiple changes simultaneously."
+        ]
+      },
+      {
+        "texto": "Production and staging had diverged over time because changes were not deployed when merged into the main branch; the authors state that deploying at merge time would have isolated the DNS change.",
+        "trechos": [
+          "Another way to look at this is that `production` and `staging` diverged too much\nover time, because we did not deploy the changes when we merged them into the\nmain branch.",
+          "If we had deployed the changes when they were merged into the main\nbranch, we would have isolated the DNS change."
+        ]
+      },
+      {
+        "texto": "For some users the outage lasted a few minutes longer due to caches in their DNS server.",
+        "trechos": [
+          "For some users, the outage lasted a few\nminutes longer due to caches in their DNS server."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "A Terraform configuration deployment to crates.io production containing a new TLS certificate for the current CDN and updated DNS records for static.crates.io.",
+        "trechos": [
+          "On Wednesday, 2023-01-25 at 09:15 UTC, we deployed changes to the production\ninfrastructure for crates.io.",
+          "The deployment to `production` contained two changes that were developed,\ndeployed, and tested individually on `staging`: a new TLS certificate for the\ncurrent Content Delivery Network and updated DNS records.",
+          "During the deployment, the DNS record for\n`static.crates.io` failed to resolve for an estimated time of 10-15 minutes."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "No manual action is described: the outage resolved itself after Terraform finished the deployment and created a new DNS record for static.crates.io; around 9:30 UTC the record started to propagate again and by 9:40 UTC traffic had returned to normal levels.",
+          "trechos": [
+            "The outage resolved itself after Terraform finished the deployment and created a\nnew DNS record for `static.crates.io`.",
+            "Around 9:30 UTC, the DNS record started to get propagated again and\nby 9:40 UTC traffic had returned to normal levels."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: document the process of deploying changes to production, in particular how to pick the Git commit and how to review the changeset.",
+          "trechos": [
+            "We need to document the process of deploying changes to production, in particular how to pick the Git commit and how to review the changeset."
+          ]
+        },
+        {
+          "texto": "Planned: changes developed and tested in isolation on staging should be deployed individually and in sequence to production, and this will be added to the documentation.",
+          "trechos": [
+            "Changes that have been developed and tested in isolation on `staging` should\nbe deployed individually and in sequence to `production`.",
+            "We need to add\nthis to the documentation."
+          ]
+        },
+        {
+          "texto": "Planned: ensure that changes merged into the main branch also get deployed to production, avoiding drift between the configuration in Git and what is deployed.",
+          "trechos": [
+            "When we merge changes into the main branch, we need to ensure that they get\ndeployed to `production` as well.",
+            "This avoids a drift between the\nconfiguration in Git and what is deployed."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text says the rollout was scheduled and announced for January 25th. The authors state the outage could have been avoided by deploying the TLS certificate and DNS record changes individually. The text gives the impact as a range ('an estimated time of 10-15 minutes'), so duracao is null per the v2.14 rule.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

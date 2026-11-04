@@ -1,0 +1,158 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-155",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "exposicao_dados",
+    "problemas_texto": ["rodape_marketing"]
+  },
+  "incidente": {
+    "resumo": "On 21 April 2020 the Flowdock application database hung due to high CPU usage from a sudden surge in user activity, potentially linked to more users working remotely; after a restart, a corrupted user ID sequence table caused recently generated user IDs to be assigned to users of other organizations, exposing cross-organization flows. The application was unavailable for about 22 hours; service was restored by restoring a pre-crash database snapshot twice, invalidating all sessions and verifying, which lost user activity from the incident window.",
+    "data_incidente": "2020-04-21",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "CA Flowdock",
+      "Rally integrations with Flowdock"
+    ],
+    "tecnologias": [],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Flowdock went down around 13:30 UTC on April 21; the text does not say how this was first noticed.",
+        "trechos": [
+          "1. Flowdock went down and was restarted (April 21, ~13:30 UTC)"
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The application database hung due to high CPU usage caused by a sudden surge in user activity from multiple organizations, which the text says was potentially due to higher usage from many users working remotely, despite resources having already been increased.",
+        "trechos": [
+          "The application database was hung due to high CPU usage caused by a sudden",
+          "surge in user activities from multiple organizations potentially due to an increased",
+          "higher usage of Flowdock due a multitude of users working remotely, despite",
+          "having already increased resources available to the systems"
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "A database table maintaining user ID sequences was corrupted in step 1 (when Flowdock went down and was restarted) and reset to a number almost 80 days old; when the database was restarted, the application assigned recently generated user IDs to users of other organizations during log-in, giving cross-organization access to flows.",
+        "trechos": [
+          "It was found that a database table was corrupted in step #1. This table maintains",
+          "user ID sequences and was reset to a number that is almost 80 days old",
+          "When the database was restarted in step #1, due to this corrupted table, the",
+          "application assigned some already generated user ID’s which were created",
+          "recently, to the users of other organizations during the log-in process."
+        ]
+      },
+      {
+        "texto": "After the first snapshot restore, cross-organizational access still occurred for some users because the erroneously generated user IDs were still in the cache.",
+        "trechos": [
+          "It was found that cross-organizational access for some users still occurred as the",
+          "user IDs generated in #2 were still in the cache."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Around 13:30 UTC on April 21, the application was restarted, including the database services.",
+          "trechos": [
+            "1. Flowdock went down and was restarted (April 21, ~13:30 UTC)",
+            "The application was restarted including the database services."
+          ]
+        },
+        {
+          "texto": "Around 21:30 UTC on April 21, Flowdock was taken down manually; a stable pre-crash snapshot of the database was restored, which also repaired the corrupted table, the application services were restarted and Flowdock was brought back online.",
+          "trechos": [
+            "3. Flowdock application was taken down manually to investigate the problem (April",
+            "21, ~21:30 UTC)",
+            "To remediate the problem, a stable snapshot of the database (pre-crash) was",
+            "restored, which also repaired the corrupted table, and the application services",
+            "were restarted.",
+            "Flowdock was brought back online for users."
+          ]
+        },
+        {
+          "texto": "Around 06:30 UTC on April 22, Flowdock was taken down again; a stable pre-crash snapshot of the primary database was restored again to remove erroneous transactions from the incident window, all active user sessions were invalidated, and end-to-end tests established there was no cross-organizational access.",
+          "trechos": [
+            "5. Flowdock application was taken down manually for a full verification (April 22,",
+            "~6:30 UTC)",
+            "A stable snapshot of the primary database (pre-crash) was restored again to",
+            "remove erroneous transactions from the Incident Window. Due to the data",
+            "All active user sessions were invalidated.",
+            "A full verification was performed. It was established through the end-to-end tests",
+            "that there is no cross-organizational access of flows for any user."
+          ]
+        },
+        {
+          "texto": "Flowdock was brought online around 21:30 UTC on April 22.",
+          "trechos": [
+            "6. Flowdock was brought online (April 22, ~21.30 UTC)",
+            "Flowdock services were made live. Customers were notified. Customers were also"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Being introduced: increased hardware resources for the database server to handle higher loads.",
+          "trechos": [
+            "Increased h/w resources for database server to handle higher loads in addition to already"
+          ]
+        },
+        {
+          "texto": "Being introduced: improved monitoring of database server response time at more fine-grained intervals.",
+          "trechos": [
+            "Improved monitoring of database server response time at more fine-grained time"
+          ]
+        },
+        {
+          "texto": "Being introduced: enhance the failover mechanism to switch the application to a secondary database on an unrecoverable failure of the primary database server.",
+          "trechos": [
+            "Enhancing the current failover mechanism to switch the application to a secondary",
+            "database in the event of an unrecoverable failure on the primary database server."
+          ]
+        },
+        {
+          "texto": "Being introduced: include a Database Administrator in the emergency change approval committee to evaluate database failures before applications are restarted.",
+          "trechos": [
+            "Inclusion of a Database Administrator in the emergency change approval committee to",
+            "evaluate database failures before applications are restarted."
+          ]
+        },
+        {
+          "texto": "Being introduced: process and technology improvements to invalidate logged-in user sessions and cached data when the application is restored or restarted.",
+          "trechos": [
+            "Process and technology improvements to invalidate logged-in user sessions and cached",
+            "data, by providing them a maintenance notification in advance, when the application is"
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 1320,
+      "trechos": [
+        "April 22, 21:30 UTC) leading to the unavailability of the application for about 22 hours (”Outage"
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The overview gives a major incident of about 32 hours (written as April 21, 1:30 UTC to April 22, 21:30 UTC, while the timeline starts at ~13:30 UTC) and an unavailability of about 22 hours; the duration uses the stated unavailability. The document title says 22nd & 23rd April 2020, but the body dates the events April 21-22. Restoring the snapshot lost user activity from the incident window (new flows, new or updated users, users added to flows, failed Rally integration calls that removed integrations). The authors state the affected user IDs suggest very limited exposure of 1-1 conversations and that no .doc, .xls, .pdf or .csv files were downloaded. Page footers (copyright notice, page numbers) are included in the extracted text.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.14" }
+}

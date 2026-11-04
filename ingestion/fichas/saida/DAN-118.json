@@ -1,0 +1,202 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-118",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On 5 April 2022, a script meant to delete a legacy app was run with site IDs instead of app IDs; the deletion API accepted both identifier types with no warning, and 883 sites (775 customers) were deleted between 07:38 and 08:01 UTC, making Jira, Confluence, Atlassian Access, Opsgenie and Statuspage unavailable to them. Sites were restored from backups through two successive restoration approaches, the first customers on April 8th and all by April 18th.",
+    "data_incidente": "2022-04-05",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Jira family of products",
+      "Confluence",
+      "Atlassian Access",
+      "Opsgenie",
+      "Statuspage"
+    ],
+    "tecnologias": [
+      "AWS",
+      "Micros",
+      "Catalogue Service"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "The first support ticket was created by an impacted customer at 07:46 UTC on April 5th; internal monitoring did not detect an issue because the sites were deleted via a standard workflow.",
+        "trechos": [
+          "The first support ticket was created by an impacted customer at 07:46 UTC on April 5th.",
+          "Our internal monitoring did not detect an issue because the sites were deleted via a standard workflow."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "A Production run of the existing deletion script, meant to delete the standalone legacy Insight app, included site IDs in place of Insight app IDs and executed against 883 sites from 07:38 to 08:01 UTC on April 5th, deleting the sites sequentially.",
+      "trechos": [
+        "Our engineering teams used an existing script and process to delete instances of this standalone application.",
+        "The script for the subsequent Production run included site IDs in place of Insight app IDs and executed against a set of 883 sites.",
+        "The script started running on April 5th at 07:38 UTC and was completed at 08:01 UTC.",
+        "The script deleted sites sequentially based on the input list, so the first customer’s site was deleted shortly after the script started running at 07:38 UTC."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The API used to perform the deletion accepted both site and app identifiers and assumed the input was correct, so a site ID deleted a whole site, with no warning signal to confirm the type of deletion (site or app) being requested.",
+        "trechos": [
+          "The API used to perform the deletion accepts both site and app identifiers and assumes the input is correct – this means that if a site ID is passed, a site will be deleted; if an app ID is passed, an app will be deleted.",
+          "There was no warning signal to confirm the type of deletion (site or app) being requested."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "A communication gap between the team that requested the deletion and the team that ran it: the IDs of the entire cloud sites were provided instead of the IDs of the app to be deleted.",
+        "trechos": [
+          "There was a communication gap between the team that requested the deletion and the team that ran it.",
+          "Instead of providing the IDs of the intended app being marked for deletion, the team provided the IDs of the entire cloud site where the apps were to be deleted."
+        ]
+      },
+      {
+        "texto": "The peer review of the script focused on which endpoint was called and how and did not cross-check whether the IDs referred to the app or the site; the Staging test could not detect the wrong IDs because they did not exist in Staging.",
+        "trechos": [
+          "The script that was executed followed our standard peer-review process, which focused on which endpoint was being called and how.",
+          "It did not cross-check the provided cloud site IDs to validate whether they referred to the app or to the entire site.",
+          "The script was tested in Staging per our standard change management processes, however, it would not have detected that the IDs input were incorrect as the IDs did not exist in the Staging environment."
+        ]
+      },
+      {
+        "texto": "Internal monitoring did not detect the issue because the sites were deleted via a standard workflow.",
+        "trechos": [
+          "Our internal monitoring did not detect an issue because the sites were deleted via a standard workflow."
+        ]
+      },
+      {
+        "texto": "There was no ability to restore a large set of customer sites with all their inter-connected products from backups; site-level deletion had no runbooks that could be quickly automated for this scale.",
+        "trechos": [
+          "At the time of the incident, we did not have the ability to select a large set of customer sites and restore all of their inter-connected products from backups to a previous point in time.",
+          "The site-level deletion did not have runbooks that could be quickly automated for the scale of this event which required tooling and automation across all the products and services to happen in a coordinated way."
+        ]
+      },
+      {
+        "texto": "Because each multi-tenant data store also holds data of other customers still in use, deleted data had to be manually extracted and restored piece by piece from backups.",
+        "trechos": [
+          "Because the data deleted in this incident was only a portion of data stores that are continuing to be used by other customers, we have to manually extract and restore individual pieces from our backups."
+        ]
+      },
+      {
+        "texto": "The first restoration approach created new sites with new immutable identifiers such as cloudId, requiring large quantities of data to be updated; switching to a second approach added overhead because scripts had to be modified and the new process had to be tested and validated before scaling it up.",
+        "trechos": [
+          "The new site would come with new identifiers such as `cloudId`.",
+          "These identifiers are all considered immutable, meaning that many systems embed these identifiers in data records.",
+          "Using a new approach meant that we needed to test and validate the Restoration 2 process before scaling it up, which required duplicating validation work that was previously completed for Restoration 1.",
+          "As a result, we needed to update large quantities of data if these identifiers changed, which is particularly problematic for third-party ecosystem apps.",
+          "However, the move from the Restoration 1 to the Restoration 2 approach added substantial overhead in the incident response:",
+          "Many of the automation scripts and processes established in the Restoration 1 approach had to be modified for Restoration 2."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Restoration 1: a new site was created for each deleted one, followed by every downstream product, service and data store restoring its data; once optimized it took about 48 hours per batch and recovered 53% of impacted users across 112 sites between April 5th and April 14th.",
+          "trechos": [
+            "It required the creation of a new site for each deleted one, followed by every downstream product, service, and data store needing to restore their data.",
+            "Once optimized, the Restoration 1 approach took approximately 48 hours to restore a batch of sites, and was used for the recovery of 53% of impacted users across 112 sites between April 5th and April 14th."
+          ]
+        },
+        {
+          "texto": "Restoration 2, proposed on April 9th: re-creation (un-deletion) of the site's records across all systems, beginning with the Catalogue Service record and re-using the old site identifiers; it took about 12 hours per site and recovered about 47% of impacted users across 771 sites between April 14th and 17th.",
+          "trechos": [
+            "Therefore, we proposed a new approach on April 9th to speed up the restoration of all sites, Restoration 2 (see *figure 8* below).",
+            "Restoration 2 involved the re-creation (or un-deletion) of records associated with the site across all respective systems, beginning with the Catalogue Service record.",
+            "A key element of this new approach was to *re-use all of the old site identifiers*.",
+            "The accelerated Restoration 2 approach took approximately 12 hours to restore a site and was used for the recovery of approximately 47% of impacted users across 771 sites between April 14th and 17th."
+          ]
+        },
+        {
+          "texto": "Tooling was developed to front-load and parallelize long-running steps such as database restorations and Identity synchronizations, and automation was built to validate restored sites.",
+          "trechos": [
+            "We developed the tooling and guard rails needed to *front-load* and *parallelize* long-running steps like database restorations and Identity synchronizations so that they were completed in advance of other restoration steps.",
+            "Automation was built to validate sites were functioning correctly after all restoration steps were completed."
+          ]
+        },
+        {
+          "texto": "For most customers, the main product data stores were restored to a point five minutes prior to the deletion of sites; non-primary data stores were restored to the same point or by replaying recorded events.",
+          "trechos": [
+            "For most customers during this incident, we identified the main data stores for our products and decided on using a restore point of five minutes prior to the deletion of sites as a safe synchronization point.",
+            "The non-primary data stores were restored to the same point or by replaying the recorded events."
+          ]
+        },
+        {
+          "texto": "450+ support engineers were mobilized in 24/7 shifts to run manual validation checks on restored sites.",
+          "trechos": [
+            "We had to create an independent stream of standard operating procedures (SOPs), workflows, handoffs, and staffing rosters to mobilize 450+ support engineers to run validation checks, with shifts providing 24/7 coverage, to accelerate restores into the hands of customers."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: bulk site deletes were immediately blocked until appropriate changes can be made.",
+          "trechos": [
+            "We have immediately blocked bulk sites deletes until appropriate changes can be made."
+          ]
+        },
+        {
+          "texto": "Planned: implement a soft delete policy in the provisioning workflows and all relevant data stores, preventing external scripts or systems from deleting customer data in Production until a retention period expires; the Tenant Platform team will verify data deletions can only happen after deactivations.",
+          "trechos": [
+            "We will implement a “soft delete” policy, preventing external scripts or systems from deleting customer data in a Production environment.",
+            "The data will only be deleted from the Production environment after a retention period has expired.",
+            " **Implement a “soft delete” in the provisioning workflows and all relevant data stores:** Additionally, the Tenant Platform team will verify that data deletions can only happen after deactivations, as well as other safeguards in this space."
+          ]
+        },
+        {
+          "texto": "Planned: enforce staged rollout of soft-delete actions (first tested within Atlassian's own sites) and require a tested rollback plan and tested restoration before running in production.",
+          "trechos": [
+            "**Enforce staged rollout of any soft-delete actions:** All new operations that require deletion will first be tested within our own sites to validate our approach and verify automation.",
+            "**Soft-delete actions must have a tested rollback plan:** Any activity to soft-delete data must test restoration of the deleted data prior to running in production and have a tested rollback plan."
+          ]
+        },
+        {
+          "texto": "Planned: accelerate the DR program to automate multi-product, multi-site restorations and meet the RTO for this scale of incident, and regularly run DR exercises restoring all products for a large set of sites.",
+          "trechos": [
+            "We will leverage the automation and learnings from this incident to accelerate the DR program to meet the RTO as defined in our policy for this scale of incident.",
+            "**Automate and add the verification of this case to the DR testing:** We will regularly run DR exercises that involve restoring all products for large set of sites."
+          ]
+        },
+        {
+          "texto": "Planned: define a playbook and tooling for large-scale incidents and run simulated exercises.",
+          "trechos": [
+            "**Define a playbook and tooling for large-scale incidents and conduct simulated exercises:** Define and document the types of incidents that may be considered large-scale and require this level of response."
+          ]
+        },
+        {
+          "texto": "Planned: back up authorized account contact information outside of the product instance, and create mechanisms for customers without a valid site URL or Atlassian ID to contact technical support.",
+          "trechos": [
+            "**Improve the backup of key contacts:** Backup authorized account contact information outside of the product instance.",
+            "**Retrofit support tooling:** Create mechanisms for customers without a valid site URL or Atlassian ID to make direct contact with our technical support team."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration is null: the text says the outage spanned up to 14 days for a subset of customers, starting 07:38 UTC on April 5th, with the first customers restored on April 8th and all by April 18th, but gives no end time. The same script also deleted customer contact information and identifiers, which blocked customers from filing support tickets and delayed outreach; the report also covers communication improvements (incident communications playbook, escalation system, 24/7 escalation coverage). For 57 customers restored early, some Confluence and Insight databases were restored to a point more than five minutes before deletion; the remaining data has since been recovered. Atlassian states RPO was met and RTO was missed.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.14" }
+}

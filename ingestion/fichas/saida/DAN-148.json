@@ -1,0 +1,207 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-148",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "Extreme load from a new peak of 3.4 million concurrent Fortnite players caused 6 incidents on February 3rd and 4th, with partial and total disruptions: MCP matchmaking database write queuing, database connection pool starvation after a thread configuration change, an Account Service outage from Memcached and Nginx saturation, and an XMPP presence outage after a Friends Service load balancer overload. Recovery involved repeated manual database failovers, a thread configuration rollback and an XMPP cluster failover; recovery of the Account Service is not described.",
+    "data_incidente": "2018-02",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Fortnite",
+      "MCP (game profiles, statistics, items, matchmaking)",
+      "Account Service (sign in)",
+      "Epic Games Launcher",
+      "XMPP Service (presence, parties, chat)",
+      "Friends Service"
+    ],
+    "tecnologias": [
+      "MongoDB",
+      "Nginx",
+      "Memcached",
+      "Redis",
+      "JVM (Java, JAXRS)",
+      "ELB",
+      "XMPP",
+      "AWS c4.8xlarge instances",
+      "VPC subnets"
+    ],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "vaga",
+      "descricao": {
+        "texto": "The authors attribute the 6 incidents between Saturday and Sunday to the extreme load of a new peak of 3.4 million concurrent players.",
+        "trechos": [
+          "Fortnite hit a new peak of **3.4 million concurrent players** last Sunday… and that didn’t come without issues!",
+          "The extreme load caused 6 different incidents between Saturday and Sunday, with a mix of partial and total service disruptions to Fortnite."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "MCP database: at peak the matchmaking MongoDB shard begins queuing writes waiting on writer resources, with update times spiking to 40k+ ms and blocking MCP threads; the issue does not recover and the db process becomes unresponsive. Why writes are queued is still unclear.",
+        "trechos": [
+          "At peak we see an issue where the matchmaking shard begins queuing writes waiting on available writer resources.",
+          "This can cause db update times to spike in the 40k+ ms range per operation causing MCP threads to block.",
+          "We have investigated this in detail and it is currently unclear to us and support why our writes are being queued in this way but we are working towards a root cause.",
+          "This issue does not recover and the db process soon becomes unresponsive, at which point we need to perform a manual primary failover in order to restore functionality."
+        ]
+      },
+      {
+        "texto": "MCP thread configuration: a recent performance pass reverted a bug that had limited MCP service threads to the previously intended value; once deployed live, requests saw increased latency (\"double ms average to double seconds\"), diagnosed as db connection pool starvation, which was not present in pre-production and only revealed at peak production workloads.",
+        "trechos": [
+          "As part of that we introduced a bug limiting the number of available service threads below what we considered to be a safe default for our scale at the time.",
+          "As part of a recent performance pass, this mistake was corrected by reverting it to our previous intended value.",
+          "However once deployed to our live environment, we noticed requests experiencing increased latency (double ms average to double seconds) that was not present in our pre-production environments.",
+          "This was diagnosed as db connection pool starvation via real-time cpu sampling through a diagnostics endpoint.",
+          "What we expected to be a performance improvement resulted in the opposite and was only revealed at peak production workloads. "
+        ]
+      },
+      {
+        "texto": "Account Service (2018-02-04 18:30 to 20:20 UTC): Memcached started failing under load due to network and connection saturation; the Nginx proxy in front of the Java application got stuck timing out Memcached calls, ran out of worker threads and could not serve other traffic or health checks, so the load balancer pulled all nodes out of rotation, causing full service downtime.",
+        "trechos": [
+          "2018-02-04 18:30 UTC - 2018-02-04 20:20 UTC",
+          "Our memcached component started failing under the load due to network and connection saturation.",
+          "Nginx was next in line and got stuck on timing out Memcached calls (100ms) quickly running out of free worker threads and becoming unable to serve other traffic. Including health-check calls.",
+          "Missed health check requests caused the load balancer to pull all the nodes out of rotation effectively imposing full service downtime."
+        ]
+      },
+      {
+        "texto": "XMPP (2018-02-04 22:00 to 2018-02-05 00:15 UTC): a recently introduced memory leak, whose effect was significantly increased by Game Services and Account Service instability, caused XMPP to start losing nodes at 22:00 UTC; after a decision to immediately fail over to a stand-by cluster, the landrush of reconnecting players at the time killed one of the Friends Service load balancers, paralyzing presence flow so the UI showed everyone offline.",
+        "trechos": [
+          "2018-02-04 22:00 UTC - 2018-02-05 00:15 UTC",
+          "Due to a recently introduced memory leak, XMPP was on a monitored path to falling into unstable state.",
+          "Unfortunately, Game Services and Account Service instability significantly increased the effect of the leak. And at 22:00 UTC on Sunday we started losing cluster nodes and disconnecting players.",
+          "A decision was made to immediately failover to a stand-by cluster via green/blue deployment strategy, when we instantly flip all the traffic to another set of endpoints.",
+          "Unfortunately, landrush of reconnecting people at the time has effectively killed one of the **Friends Service** load balancers paralyzing our ability to setup presence flow on new connections.",
+          "As a result, though people did actually connect to XMPP, the UI showed everyone as offline due to missing presence flow."
+        ]
+      },
+      {
+        "texto": "The Friends Service ELB could not quickly recover because of its failover process and outdated network configuration: the ELB subnet was short on free IPs to provision a replacement. Shared subnets, instance changes and scaling across many services had exhausted available IPs, which extended load balancer recovery times.",
+        "trechos": [
+          "ELB could not quickly recover due to specifics of failover process and outdated network configuration - ELB subnet was short on free IPs to provision replacement.",
+          "Multiple factors such as shared subnets, instance changes and scaling across many services caused us to run out of IPs.",
+          "While we were able to shift many components without any interruption, due to other events described above, it caused extended load balancer recovery times."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Manual primary failovers of the unresponsive MCP matchmaking database were performed to restore functionality, repeated multiple times per hour during the outages, each causing a brief window of matchmaking instability followed by recovery.",
+          "trechos": [
+            "This issue does not recover and the db process soon becomes unresponsive, at which point we need to perform a manual primary failover in order to restore functionality.",
+            "During these outages this procedure was being repeated multiple times per hour.",
+            "Each failover causing a brief window of matchmaking instability followed by recovery."
+          ]
+        },
+        {
+          "texto": "The MCP was rolled back to its previous thread pool configuration to remediate the connection pool starvation.",
+          "trechos": [
+            "In order to quickly remediate the issue we rolled back to our previous thread pool configuration."
+          ]
+        },
+        {
+          "texto": "XMPP traffic was failed over to a stand-by cluster with the memory leak already fixed, via a blue/green deployment that flips all traffic to another set of endpoints; the Friends Service load balancer, once recovered, handled all queued traffic.",
+          "trechos": [
+            "We planned to replace it with another ready and stand-by cluster with the leak already fixed.",
+            "A decision was made to immediately failover to a stand-by cluster via green/blue deployment strategy, when we instantly flip all the traffic to another set of endpoints.",
+            "At the top - instability and connection migration from Blue cluster to Green cluster (time in UTC).",
+            "On the right - traffic handled by Friends load balancer. Once recovered, it was able to handle all queued traffic."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned for Account Service: use Level 7 routing in ALB to send all non-verify traffic directly to the Java application, significantly increase Memcached capacity, and then remove the Nginx and Memcached pair altogether.",
+          "trechos": [
+            "Leveraging Level 7 routing in ALB to direct all non-verify traffic directly to our Java application, which in turn has a number of protection measures implemented against saturation like this.",
+            "Significantly increasing Memcached capacity.",
+            "Followed by removing Nginx + Memcached couple altogether out of equation."
+          ]
+        },
+        {
+          "texto": "In progress: upgrading the load-balancer solution for Friends Service and other platform services, and fixing the VPC configuration to ensure subnet capacity.",
+          "trechos": [
+            "We’re in a process of upgrading load-balancer solution for Friends Service and other platform services to address issues like above.",
+            "We’re fixing our VPC configuration to ensure subnet capacity."
+          ]
+        },
+        {
+          "texto": "Identify and resolve the root cause of the DB performance issues; Mongo experts have been flown on-site to analyze the DB and usage and provide real-time support during heavy weekend load.",
+          "trechos": [
+            "**Identify and resolve the root cause of our DB performance issues.** We’ve flown Mongo experts on-site to analyze our DB and usage, as well as provide real-time support during heavy load on weekends."
+          ]
+        },
+        {
+          "texto": "Planned: optimize how matchmaking session data is stored, prototyping in-memory database solutions and restructuring the current data to make it properly shardable.",
+          "trechos": [
+            "**Optimize how we store the matchmaking session data in our DB.**",
+            "We’re prototyping in-memory database solutions that may be more suited to this use case, and looking at how we can restructure our current data in order to make it properly shardable."
+          ]
+        },
+        {
+          "texto": "Planned: optimize, reduce and eliminate unnecessary backend calls from clients and servers, such as periodic entitlement verification, per-player session registration that could be done in bulk, and XMPP connections during login/logout.",
+          "trechos": [
+            "**Optimize, reduce, and eliminate all unnecessary calls to the backend from the client or servers.**",
+            "Some examples are periodically verifying user entitlements when this is already happening implicitly with each game service call.",
+            "Registering and unregistering individual players on a game play session when these calls can be done more efficiently in bulk, Deferring XMPP connections to avoid thrashing during login/logout scenarios."
+          ]
+        },
+        {
+          "texto": "Planned: improve alerting and monitoring of known cloud provider limits and subnet IP utilization.",
+          "trechos": [
+            "**Improve our alerting and monitoring of known cloud provider limits, and subnet IP utilization.**"
+          ]
+        },
+        {
+          "texto": "Planned: reduce blast radius by expanding to additional cloud providers and supporting core services in multiple geographical locations.",
+          "trechos": [
+            "While we operate game servers all over the world, expanding to additional cloud providers and supporting core services in multiple geographical locations will help reduce player impact when services fail."
+          ]
+        },
+        {
+          "texto": "Planned: MCP re-architecture, moving specific functionality out of MCP to microservices, event sourcing data models for user data and actor-based modeling of user sessions.",
+          "trechos": [
+            "**MCP Re-architecture**  - Move specific functionality out of MCP to microservices",
+            "Event sourcing data models for user data",
+            "Actor based modeling of user sessions"
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "Why the matchmaking shard's writes are being queued is still unclear to Epic and support; they are working towards a root cause."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "causa_raiz.status is vaga: the shared cause the authors state for the set of incidents is 'The extreme load' (a new peak of 3.4 million concurrent players); it says why but not what failed, which concreta requires, while the per-incident mechanisms are in fatores_contribuintes. The catalog describes a set of incidents, so catalogo is sim, gatilho is null and each incident's mechanism is listed in fatores_contribuintes. The post is dated 2.8.2018 and covers the February 3rd and 4th outages, so data_incidente is 2018-02. duracao is null because the set has no single impact window; the text gives Account Service 18:30-20:20 UTC (110 minutes) and XMPP 22:00-00:15 UTC (135 minutes). How the Account Service outage was resolved is not described. Cloud capacity limits and API rate limits were also hit but the text says they caused no disruption to the game. The text includes job recruitment calls.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

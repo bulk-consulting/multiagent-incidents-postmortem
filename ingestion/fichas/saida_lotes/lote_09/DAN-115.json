@@ -1,0 +1,155 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-115",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During a routine deployment, an internal Kinesis Data Streams cell in US-EAST-1 concentrated a very large number of low-throughput shards on a few hosts; their oversized status messages led the cell management system to mark healthy hosts unhealthy and redistribute shards, overloading the secure-connection provisioning component. CloudWatch Logs, Firehose, S3 events, ECS, Lambda, Redshift and Glue saw errors and latency from 2:45 PM to 9:37 PM PDT; service was restored by shedding load and adding connection provisioning capacity.",
+    "data_incidente": "2024-07-30",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Amazon Kinesis Data Streams (one internal cell in US-EAST-1)",
+      "CloudWatch Logs",
+      "Amazon Data Firehose",
+      "Amazon S3 event framework",
+      "Amazon Elastic Container Service (ECS)",
+      "AWS Lambda",
+      "Amazon Redshift",
+      "AWS Glue",
+      "Amazon Managed Workflows for Apache Airflow (MWAA)",
+      "API Gateway (logging)"
+    ],
+    "tecnologias": [
+      "Amazon Kinesis Data Streams",
+      "Kinesis cell management system",
+      "awslogs log driver",
+      "ECS Fargate"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "By 2:45 PM PDT, requests to the impacted Kinesis cell began to experience elevated latency and error rates; the text does not say how this was first noticed.",
+        "trechos": [
+          "By 2:45 PM PDT, requests made to the impacted Kinesis cell began to experience elevated latency and error rates."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 9:09 AM PDT a routine deployment began in a single availability zone of the Kinesis cell with the novel workload profile; the change itself did not affect operations, but taking hosts in and out of service triggered the issue.",
+      "trechos": [
+        "At 9:09 AM PDT on July 30th, 2024, a routine deployment began in a single availability zone of the Kinesis cell with this novel workload profile.",
+        "The change did not affect operations, but the act of taking hosts in and out of service triggered the issue that impacted the cell and degraded performance."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The cell management system did not effectively distribute the cell's unusually high number of very low-throughput shards, so a few hosts received very large numbers of shards. Their periodic status messages became very large and could not be transmitted and processed in time, delaying status messages from other hosts; the cell management system then incorrectly determined healthy hosts were unhealthy and redistributed their shards, and the spike in redistribution overloaded a component that provisions secure connections to Kinesis data plane subsystems, impairing traffic processing.",
+        "trechos": [
+          "The impacted Kinesis cell had an unusually high number of low throughput shards which the cell management system did not effectively distribute to all the healthy hosts in the cell.",
+          "As a result, a small number of hosts received a very large number of these low throughput shards to process.",
+          "For the hosts hosting the unusually large number of shards, the status messages became very large in size.",
+          "With this increase in message size, these messages were unable to be transmitted to, and processed by, the cell management system in a timely fashion and the processing of status messages from some other hosts became delayed.",
+          "When the cell management system did not receive status messages in a timely fashion, the cell management system incorrectly determined that the healthy hosts were unhealthy and began redistributing shards that those hosts had been processing to other hosts.",
+          "This created a spike in the rate of shard redistribution across the impacted Kinesis cell and eventually overloaded another component that is used to provision secure connections for communication to Kinesis data plane subsystems, which in turn impaired Kinesis traffic processing."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "ECS tasks configured to use the awslogs log driver in the default blocking mode were blocked when logs could not be sent to CloudWatch Logs and could not respond to health checks; other services such as Redshift, MWAA and Glue were affected by these Fargate task failures and CloudWatch Logs errors.",
+        "trechos": [
+          "Some Amazon Elastic Container Service (ECS) customers experienced impact to running tasks when these tasks were configured to use the awslogs log driver in the default blocking mode.",
+          "Blocking mode prevents log loss but also results in the task being blocked when logs can't be sent to CloudWatch Logs.",
+          "This in turn leads to tasks being unable to respond to health checks.",
+          "Other AWS services were affected by the ECS Fargate task failures as well as CloudWatch Logs elevated error rates.",
+          "For example, Amazon Redshift customers experienced intermittent issues connecting to Redshift clusters when using the Amazon Redshift Query Editor v2 or via applications using JDBC, ODBC, or Python drivers in the Northern Virginia (US-EAST-1) Region.",
+          "MWAA and Glue latencies and API errors recovered when Fargate task launch errors and CloudWatch Logs availability improved."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 4:25 PM PDT engineers deployed a change to shed load by reducing incoming stream volume from less time-sensitive internal workloads; at 5:39 PM PDT error rates and latencies began to improve.",
+          "trechos": [
+            "At 4:25 PM PDT, engineers deployed a change to shed load by reducing incoming stream volume from less time-sensitive internal workloads.",
+            "This reduced the total volume of data being processed by the cell management system and, at 5:39 PM PDT, error rates and latencies began to show signs of improvement."
+          ]
+        },
+        {
+          "texto": "Engineers added capacity to a subsystem involved in provisioning secure connections; by 5:55 PM PDT the cell management system could establish secure connections, and at 6:04 PM PDT the majority of requests were processed successfully.",
+          "trechos": [
+            "Engineers continued to restore the health of the cell management system by adding additional capacity to a subsystem involved in provisioning secure connections.",
+            "By 5:55 PM PDT, the cell management system was able to effectively establish secure connections for processing Kinesis requests to the cell.",
+            "At 6:04 PM PDT, the majority of incoming requests to the affected cell were being processed successfully."
+          ]
+        },
+        {
+          "texto": "At 6:32 PM PDT engineers added more capacity to further improve connection provisioning, reducing error rates; by 7:21 PM PDT the vast majority of requests were processed normally.",
+          "trechos": [
+            "At 6:32 PM PDT, engineers added more capacity to further improve connection provisioning, which led to a further reduction in error rates.",
+            "By 7:21 PM PDT, the vast majority of requests to the Kinesis Data Streams cell were being processed normally."
+          ]
+        },
+        {
+          "texto": "Changes made during the event also included operationalizing additional load-shedding tooling and changing connection limits; services reached normal operations by 9:37 PM PDT with the recovery of the cell.",
+          "trechos": [
+            "These changes included increasing the capacity to provision data plane connections, operationalizing additional tooling to shed load, changing connection limits, and other changes that will remain in place in US-EAST-1.",
+            "These services experienced elevated error rates and latencies when the Kinesis Data Streams cell was impacted at 2:45 PM PDT with initial improvement to error rates at 5:39 PM PDT, significant improvement by 7:21 PM PDT, and normal operations by 9:37 PM PDT with the recovery of the cell."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the changes made during the event (increased capacity to provision data plane connections, additional load-shedding tooling, changed connection limits) remain in place in US-EAST-1.",
+          "trechos": [
+            "During the course of the event, we made a number of changes to restore normal operations to the impacted Kinesis Data Streams cell that mitigated impact and improved the cell management subsystem’s ability to handle workloads that generated a very high number of very low throughput shards.",
+            "These changes included increasing the capacity to provision data plane connections, operationalizing additional tooling to shed load, changing connection limits, and other changes that will remain in place in US-EAST-1."
+          ]
+        },
+        {
+          "texto": "Already done: the same changes were made in all other AWS Regions that have cells with the new Kinesis Data Streams architecture.",
+          "trechos": [
+            "We have also already made these same changes in all other AWS Regions that have cells with the new Kinesis Data Streams architecture."
+          ]
+        },
+        {
+          "texto": "Planned: further updates to the cell management system to better manage the workload that triggered the issue.",
+          "trechos": [
+            "These changes will protect the system from a similar event while we work on further updates to the cell management system to better manage the workload that triggered the issue."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 412,
+      "trechos": [
+        "Between 2:45 PM PDT and 9:37 PM PDT on July 30th, some AWS services in the Northern Virginia (US-EAST-1) Region experienced increased latencies and elevated error rates."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration computed from the stated window 2:45 PM to 9:37 PM PDT; backlog processing continued afterwards (CloudWatch Logs until 5:50 AM PDT on July 31st, S3 events until 2:38 AM PDT on August 1st). The cell had been migrated to the new architecture in the months before the event; the text attributes the root cause to the cell management system's behavior with the novel workload profile, not to the migration itself.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

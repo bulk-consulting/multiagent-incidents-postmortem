@@ -1,0 +1,176 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-186",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Instapaper's \"bookmarks\" table on a MySQL Amazon RDS instance exceeded the 2TB file size limit of the ext3 filesystem used by RDS instances created before April 2014, so inserts failed; backups were subject to the same limit. Service was down for 31 hours until a temporary instance with limited archive access was launched; full service was restored on February 14 after AWS engineers rsynced the data to an ext4-backed instance, which was synced and promoted to master.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Instapaper service",
+      "Instapaper archives"
+    ],
+    "tecnologias": [
+      "MySQL",
+      "Amazon Relational Database Service (RDS)",
+      "ext3",
+      "ext4",
+      "Amazon Aurora",
+      "EC2-classic",
+      "RAID-0",
+      "i2.8xlarge",
+      "rsync",
+      "row-based replication"
+    ],
+    "categoria_causa": "database-storage",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "After the bookmarks table exceeded the limit at 12:30PM PT on February 9, attempts to insert new entries into the bookmarks table began to throw an error; the text does not say how this was first noticed.",
+        "trechos": [
+          "On Wednesday, February 9 at 12:30PM PT our “bookmarks” table that stores articles saved by Instapaper users exceeded the 2TB file size limit.",
+          "Subsequent attempts to insert new entries into the bookmarks table began to throw the following error:"
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The bookmarks table exceeded a 2TB file size limit that applies to MySQL RDS instances created before April 2014, which used an ext3 filesystem. The production instance, although created in March 2015, was created as a read replica of the original June 2013 instance and inherited the same filesystem and 2TB limit.",
+        "trechos": [
+          "In short, the data failure was caused by a 2TB file size limit for RDS instances created before April 2014.",
+          "On Wednesday, February 9 at 12:30PM PT our “bookmarks” table that stores articles saved by Instapaper users exceeded the 2TB file size limit.",
+          "The reason this limitation exists is because MySQL RDS instances created before April 2014 used an ext3 filesystem which has a 2TB file size limit.",
+          "Although this instance was created after April 2014, it was created as a read replica from the original June 2013 RDS instance, and, as such, inherited the same filesystem and 2TB file size limitation."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "As far as the authors can tell, the RDS console offered no monitoring, alerts or logging indicating that the database was approaching or subject to the 2TB file size limit, and any knowledge of the limit likely left with the 2013-era contractors who performed the migration.",
+        "trechos": [
+          "As far as we can tell, there’s no information in the RDS console in the form of monitoring, alerts or logging that would have let us know we were approaching the 2TB file size limit, or that we were subject to it in the first place.",
+          "If we ever had knowledge of the file size limit, it likely left with the 2013-era betaworks contractors that performed the Softlayer migration."
+        ]
+      },
+      {
+        "texto": "The automated daily RDS backups are filesystem snapshots, so they were also subject to the 2TB file size limit.",
+        "trechos": [
+          "However, since those backups are all filesystem snapshots, they’re also subject to the 2TB file size limit."
+        ]
+      },
+      {
+        "texto": "There was no disaster recovery plan for this failure, so the time to dump and restore the database was not understood: the initial estimate of six to eight hours was based on row counts, but the first 25 percent of bookmarks account for only 10 percent of the data; the authors say the first day of downtime could have been drastically cut with that understanding.",
+        "trechos": [
+          "We didn’t have a good disaster recovery plan in the event our MySQL instance failed with a critical filesystem issue that all of our backups were also subject to.",
+          "Our initial estimate for the database dump was six to eight hours.",
+          "However, we made that estimate using the number of rows, and later learned the first 25 percent of Instapaper bookmarks account for only 10 percent of overall data.",
+          "We could have drastically cut our initial day of downtime if we understood that rebuilding the database would be a multi-day effort and that we needed to launch directly into limited service restoration."
+        ]
+      },
+      {
+        "texto": "The only interface into the hosted instances is MySQL, which made filesystem-level solutions like rsync impossible without direct assistance from Amazon engineers.",
+        "trechos": [
+          "This was further complicated by the fact that our only interface into the hosted instances is MySQL, which made filesystem-level solutions like rsync impossible without the direct assistance from Amazon engineers."
+        ]
+      },
+      {
+        "texto": "Rebuilding indexes on a new MySQL RDS instance was slow: importing data without secondary indexes took 8 hours and each of three secondary indexes took roughly 16 hours.",
+        "trechos": [
+          "Create a new MySQL RDS instance, import all of the data without secondary indexes (8 hours) and create three secondary indexes after the data was imported (each secondary index took roughly 16 hours)."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Guided by Pinterest's SRE team, the production database was dumped to a 5.5TB RAID-0 disk on an i2.8xlarge instance; the first effort took 24 hours and a second, parallelized effort took 10 hours.",
+          "trechos": [
+            "As quickly as possible, Pinterest’s SRE team guided us through dumping Instapaper’s production database to a 5.5TB RAID-0 disk provided by an i2.8xlarge instance.",
+            "When it became clear the dump would take far too long (first effort took 24 hours, second effort with parallelization took 10 hours), we began executing on a contingency plan to get an instance in a working state with limited access to Instapaper’s archives."
+          ]
+        },
+        {
+          "texto": "As a contingency, an instance with limited access to Instapaper's archives was created in roughly six hours and launched into production after 31 hours of downtime.",
+          "trechos": [
+            "This short-term solution launched into production after 31 hours of downtime.",
+            "The total time to create that instance and launch it into production was roughly six hours."
+          ]
+        },
+        {
+          "texto": "An Amazon engineer mounted an ext4 filesystem to the failed production database and ran an rsync from the ext3 filesystem to the ext4 filesystem in roughly 8 hours, producing a new ext4-backed database instance with all data and indexing restored.",
+          "trechos": [
+            "After realizing that the secondary index creation was taking an unacceptably long time, one of the Amazon engineers mounted an ext4 filesystem to our failed production database and performed an rsync between the ext3 filesystem and ext4 filesystem.",
+            "The rsync ran in roughly 8 hours, which ultimately got us a new, ext4-backed database instance with all of the data and indexing restored."
+          ]
+        },
+        {
+          "texto": "Using binary logs from the temporary production database, RDS engineers set up row-based replication to sync the new ext4-backed database with changes made between Thursday and Monday, taking roughly three hours.",
+          "trechos": [
+            "Using the binary logs from the temporary production database (with limited archives), RDS engineers set up the new ext4-backed database with row-based replication to the temporary production database in order to sync up with the changes made between Thursday and Monday.",
+            "The total time for this replication was roughly three hours."
+          ]
+        },
+        {
+          "texto": "The new database was promoted to master and the application code was deployed to point to it, completing full recovery on February 14.",
+          "trechos": [
+            "Once we had the new ext4-backed database with full data and indexes synced up to the temporary production database, the final step was to promote the new database to master and deploy the application code to point to the new database.",
+            "Today, February 14, we completed the full recovery of the service."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "In progress: defining a workflow for system-wide Instapaper outages that escalates issues immediately to Pinterest's Site Reliability Engineering team.",
+          "trechos": [
+            "As part of our retrospective process at Pinterest, we’re defining a better workflow for system-wide Instapaper outages that escalate issues immediately to Pinterest’s Site Reliability Engineering team."
+          ]
+        },
+        {
+          "texto": "Planned: test MySQL backups every month instead of every three months.",
+          "trechos": [
+            "Additionally, we’re going to be more aggressive with testing our MySQL backups.",
+            "We used to test backups every three months, and now we’ll test every month."
+          ]
+        },
+        {
+          "texto": "Planned: work with Pinterest's Site Reliability Engineering team to ensure a process is in place to recover from this type of failure.",
+          "trechos": [
+            "Additionally, I take responsibility for the lack of an appropriate disaster recovery plan and will be working closely with Pinterest’s Site Reliability Engineering team to ensure we have a process in place to recover from this type of failure in the event it ever happens again."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 1860,
+      "trechos": [
+        "This short-term solution launched into production after 31 hours of downtime.",
+        "The Instapaper service experienced an extended outage between Wednesday, February 9 at 12:30PM PT through Thursday, February 10 at 7:30pm PT."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives dates (February 9, February 14) without a year, so data_incidente is null. The authors say neither action item would have prevented this issue. An Aurora read replica (completed in about 24 hours) and a new MySQL RDS instance with rebuilt indexes were pursued in parallel; the rsync to an ext4 filesystem produced the instance used for full restoration. The RDS team took a feature request about adding information on ext3-backed databases. The authors list a full dump and restore or an Aurora read replica as the only ways they could have prevented the issue. After the 31 hours of downtime, the service ran with limited access to archives until full recovery on February 14 ('five days of limited access'); per the v2.14 rule the end of the impact is when service came back.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

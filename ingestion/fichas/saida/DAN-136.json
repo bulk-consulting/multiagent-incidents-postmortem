@@ -1,0 +1,166 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-136",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "exposicao_dados",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A latent pointer bug in Cloudflare's Ragel-based HTML parser caused edge servers to run past the end of a buffer and return memory containing private data such as cookies, authentication tokens and POST bodies, some of which was cached by search engines; the bug became exploitable when the new cf-html parser changed NGINX buffering. After a report from Google Project Zero, Cloudflare disabled the three affected features with global kill switches and a patch, stopping the leak on 18 February 2017.",
+    "data_incidente": "2017-02",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Cloudflare edge servers (HTTP responses)",
+      "Email Obfuscation",
+      "Automatic HTTPS Rewrites",
+      "Server-Side Excludes"
+    ],
+    "tecnologias": [
+      "Ragel",
+      "cf-html",
+      "NGINX",
+      "C"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "terceiros",
+      "descricao": {
+        "texto": "A researcher from Google's Project Zero contacted Cloudflare to report a security problem: corrupted web pages were being returned by some HTTP requests run through Cloudflare.",
+        "trechos": [
+          "Last Friday, Tavis Ormandy from Google’s Project Zero contacted Cloudflare to report a security problem with our edge servers.",
+          "He was seeing corrupted web pages being returned by some HTTP requests run through Cloudflare."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "The introduction of the new cf-html parser, implemented as an NGINX module alongside the old Ragel parser, subtly changed the buffering between NGINX filter modules, which enabled the leakage although cf-html itself had no problems; the features were rolled out from 2016-09-22 (Automatic HTTP Rewrites) through 2017-02-13 (Email Obfuscation partially migrated to the new parser).",
+      "trechos": [
+        "Introducing cf-html subtly changed the buffering which enabled the leakage even though there were no problems in cf-html itself.",
+        "Both cf-html and the old Ragel parser are implemented as NGINX modules compiled into our NGINX builds.",
+        "2016-09-22 Automatic HTTP Rewrites enabled",
+        "2017-02-13 Email Obfuscation partially migrated to new parser"
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A bug present for years in the Ragel-based parser: the error handler ($lerr) of script_consume_attr lacked an fhold, so when a page ended with a broken tag in the last buffer, the pointer stepped past the end of the buffer, and the generated end-of-buffer check used the equality operator instead of >=, so the buffer overrun was not caught and memory past the buffer was returned.",
+        "trechos": [
+          "It turned out that the underlying bug that caused the memory leak had been present in our Ragel-based parser for many years but no memory was leaked because of the way the internal NGINX buffers were used.",
+          "If you have a keen eye you may have noticed that the `@{ }` transition also did a `fgoto` but right before it did `fhold` and the `$lerr{ }` block did not.",
+          "It’s the missing `fhold` that resulted in the memory leakage.",
+          "For example, in certain circumstances (detailed below) if the web page *ended* with a broken HTML tag like this:",
+          "But if this is the last buffer, then the `$lerr` is executed.",
+          "The root cause of the bug was that reaching the end of a buffer was checked using the equality operator and a pointer was able to step past the end of the buffer.",
+          "Had the check been done using >= instead of == jumping over the buffer end would have been caught.",
+          "The equality check is generated automatically by Ragel and was not part of the code that we wrote.",
+          "It turned out that in some unusual circumstances, which I’ll detail below, our edge servers were running past the end of a buffer and returning memory that contained private information such as HTTP cookies, authentication tokens, HTTP POST bodies, and other sensitive data."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The Email Obfuscation feature, changed on February 13 to use both the old and new parsers, would have enabled the bug on the most Cloudflare sites and was the primary cause of the leaked memory; the greatest potential impact occurred for four days starting on February 13.",
+        "trechos": [
+          "The Email Obfuscation feature had been changed on February 13 and was the primary cause of the leaked memory, thus disabling it quickly stopped almost all memory leaks.",
+          "Additionally, the Email Obfuscation feature (which uses both parsers and would have enabled the bug to happen on the most Cloudflare sites) was only enabled on February 13 (four days before Tavis’ report).",
+          "The greatest potential impact occurred for four days starting on February 13 because Automatic HTTP Rewrites wasn’t widely used and Server-Side Excludes only activate for malicious IP addresses."
+        ]
+      },
+      {
+        "texto": "Search engines such as Google had cached some of the leaked memory through their normal crawling and caching processes.",
+        "trechos": [
+          "An additional problem was that Google (and other search engines) had cached some of the leaked memory through their normal crawling and caching processes."
+        ]
+      },
+      {
+        "texto": "Because Cloudflare operates a large shared infrastructure, a request to a vulnerable Cloudflare site could reveal information about an unrelated Cloudflare site.",
+        "trechos": [
+          "Because Cloudflare operates a large, shared infrastructure an HTTP request to a Cloudflare web site that was vulnerable to this problem could reveal information about an unrelated other Cloudflare site."
+        ]
+      },
+      {
+        "texto": "Server-Side Excludes had no global kill switch because it preceded their implementation, so stopping it required implementing a kill switch and deploying a patch, which took roughly three hours.",
+        "trechos": [
+          "We then discovered that a third feature, Server-Side Excludes, was also vulnerable and did not have a global kill switch (it was so old it preceded the implementation of global kills).",
+          "From realizing Server-Side Excludes were a problem to deploying a patch took roughly three hours."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "The migration of features from the old Ragel parser to the new cf-html parser: Automatic HTTP Rewrites enabled on 2016-09-22, Server-Side Excludes migrated on 2017-01-30, and Email Obfuscation partially migrated on 2017-02-13.",
+        "trechos": [
+          "We first used this new parser for the Automatic HTTP Rewrites feature and have been slowly migrating functionality that uses the old Ragel parser to cf-html.",
+          "2016-09-22 Automatic HTTP Rewrites enabled",
+          "2017-01-30 Server-Side Excludes migrated to new parser",
+          "2017-02-13 Email Obfuscation partially migrated to new parser"
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The Email Obfuscation global kill was activated 47 minutes after receiving details of the problem (Email Obfuscation disabled worldwide at 01:19 UTC on 2017-02-18), which quickly stopped almost all memory leaks.",
+          "trechos": [
+            "We activated the Email Obfuscation global kill 47 minutes after receiving details of the problem and the Automatic HTTPS Rewrites global kill 3h05m later.",
+            "2017-02-18 0119 Email Obfuscation disabled worldwide",
+            "The Email Obfuscation feature had been changed on February 13 and was the primary cause of the leaked memory, thus disabling it quickly stopped almost all memory leaks."
+          ]
+        },
+        {
+          "texto": "The Automatic HTTPS Rewrites global kill was activated 3h05m later (disabled worldwide at 04:24 UTC).",
+          "trechos": [
+            "We activated the Email Obfuscation global kill 47 minutes after receiving details of the problem and the Automatic HTTPS Rewrites global kill 3h05m later.",
+            "2017-02-18 0424 Automatic HTTPS Rewrites disabled worldwide"
+          ]
+        },
+        {
+          "texto": "A global kill for Server-Side Excludes was implemented and a patch deployed to the fleet worldwide (patch implementing a kill switch for the cf-html parser deployed at 07:22 UTC).",
+          "trechos": [
+            "We implemented a global kill for Server-Side Excludes and deployed a patch to our fleet worldwide.",
+            "2017-02-18 0722 Patch implementing kill switch for cf-html parser deployed worldwide"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: explicit pointer checks (SAFE_CHAR) were added to every pointer access in the generated parser code to prevent future overruns and log errors to the global error logging infrastructure; the SAFE_CHAR fix was deployed globally on 2017-02-20.",
+          "trechos": [
+            "At that point it was decided to add explicit pointer checks to every pointer access in the generated code to prevent any future problem and to log any errors seen in the wild.",
+            "The errors generated were fed to our global error logging infrastructure for analysis and trending.",
+            "2017-02-20 2159 SAFE\\_CHAR fix deployed globally"
+          ]
+        },
+        {
+          "texto": "Started: fuzzing of the generated code for other pointer overruns, test cases built from malformed web pages found in the wild, and a manual inspection of the generated code.",
+          "trechos": [
+            "Part of the infosec team started fuzzing the generated code to look for other possible pointer overruns.",
+            "Another team built test cases from malformed web pages found in the wild.",
+            "A software engineering team began a manual inspection of the generated code looking for problems."
+          ]
+        },
+        {
+          "texto": "Ongoing: the internal infosec team is undertaking a project to fuzz older software looking for other potential security problems.",
+          "trechos": [
+            "Our internal infosec team is now undertaking a project to fuzz older software looking for potential other security problems."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "data_incidente uses the month of the report, the leak stop (2017-02-18) and the period of greatest impact (from February 13); the text says the earliest date memory could have leaked is 2016-09-22. Duration is null: the leak was a long-standing condition from 2016-09-22 to 2017-02-18 rather than a bounded outage; the text says the fix was completely finished globally in under 7 hours with an initial mitigation in 47 minutes. After the leak was stopped, the infosec team, with Google, Yahoo, Bing and others, identified and purged 770 cached URIs (161 domains) containing leaked memory, and the three features were re-enabled worldwide on 2017-02-21. Customer SSL private keys were not leaked; a private key used for machine-to-machine encryption and a small number of internal secrets were present in leaked memory. No evidence of malicious exploitation was found.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.14" }
+}

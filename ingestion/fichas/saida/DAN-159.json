@@ -1,0 +1,181 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-159",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "After GitHub migrated its access switches onto new aggregation switches, a bug in the aggregation switches left many MAC addresses unlearned, so traffic was flooded to all ports and saturated the access/aggregation links, causing slow responses and intermittent errors for a whole day; during troubleshooting, an unsupported partial link failure setting disabled redundant links and caused 18 minutes of complete unavailability. The setting was removed, and restarting core processes on the aggregation switches the next morning restored normal traffic and performance.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "GitHub",
+      "fileserver pair hosting a small percentage of repositories"
+    ],
+    "tecnologias": [
+      "aggregation switches",
+      "access switches",
+      "MAC address table",
+      "ethernet"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "After the migration was completed, the expected performance levels were not seen, and all connections between the access and aggregation switches were found to be completely saturated; the text does not say whether an alert or a person first noticed it.",
+        "trechos": [
+          "we were not seeing the performance levels we expected. As we",
+          "dug deeper we saw that all of the connections between the access",
+          "switches and the aggregation switches were completely"
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A bug in the aggregation switches: they were unable to learn a significant percentage of MAC addresses, so they flooded traffic for those devices across all their ports, sending a large share of traffic to every access switch; this traffic saturated all links between the access and aggregation switches, causing the poor performance throughout the day.",
+        "trechos": [
+          "discovered a bug in the aggregation switches was to blame.",
+          "switches were missing a number of MAC addresses from their tables, and",
+          "thus were flooding any traffic that was sent to those devices across",
+          "switches were unable to learn a significant percentage of our MAC",
+          "addresses and this aggregate traffic was enough to saturate all of the",
+          "links between the access and aggregation switches, causing the poor",
+          "performance we saw throughout the day."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "A setting on the access switches intended to detect partial link failure is not supported between the aggregation and access switch models; when an individual link was shut down during troubleshooting, this watchdog erroneously triggered and disabled all the links, and the 18 minutes of hard downtime occurred when connectivity to multiple switches was lost simultaneously.",
+        "trechos": [
+          "detect partial link failure between two links. Essentially it would",
+          "supported between the aggregation and access switch models. When we",
+          "shut down an individual link, this watchdog process would erroneously",
+          "trigger and force all the links to be disabled. The 18 minute period of",
+          "hard downtime we had was during this troubleshooting process when we",
+          "lost connectivity to multiple switches simultaneously."
+        ]
+      },
+      {
+        "texto": "When the final A switch was connected, a misconfiguration on that switch pair caused a bridge loop and the switches disabled links, losing connectivity with the B switch in the same cabinet.",
+        "trechos": [
+          "connected the final A switch, we lost connectivity with the B switch in",
+          "misconfiguration on this pair of switches that caused what’s called a",
+          "of problem and to protect the network by disabling links where",
+          "they detect an issue, and that’s what happened in this case."
+        ]
+      },
+      {
+        "texto": "The saturation was initially diagnosed as a broadcast storm from an undetected bridge loop; the authors say they fixated for a long time on the bridge loop idea and it blinded them to other possible causes.",
+        "trechos": [
+          "saturated. We initially diagnosed this as a “broadcast",
+          "response. We fixated for a very long time on the idea of a bridge loop",
+          "and it blinded us to other possible causes. We hope to begin doing more"
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The bridge loop problem was resolved and the affected B switch returned to service, completing the migration.",
+          "trechos": [
+            "We were able to quickly resolve the initial problem and return the",
+            "affected B switch to service, completing the migration. Unfortunately,"
+          ]
+        },
+        {
+          "texto": "The misconfigured partial link failure setting was removed from the access switches, after which failover functioned as expected and any single aggregation or access switch could be removed without impacting servers.",
+          "trechos": [
+            "Once we removed the misconfigured setting on our access switches we",
+            "were able to continue testing links and our failover functioned as",
+            "expected. We were able to remove any single switch at either the",
+            "aggregation or access layer without impacting the underlying servers."
+          ]
+        },
+        {
+          "texto": "In a maintenance window scheduled for Saturday morning at 06:00 Pacific, some core processes on the aggregation switches were restarted to let them learn MAC addresses again; the workaround was successful and traffic and performance returned to normal levels.",
+          "trechos": [
+            "review. Once we had a mitigation plan, we scheduled a network",
+            "maintenance window on Saturday morning at 0600 Pacific to attempt to",
+            "work around the problem. The workaround involved restarting some core",
+            "processes on the aggregation switches in order to attempt to allow them",
+            "to learn MAC addresses again. This workaround was successful and",
+            "traffic and performance returned to normal levels."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: deploy a software update to the switches when the vendor's final fix for the MAC learning issue arrives, expected within the next week or so; meanwhile, aggregation-to-access layer capacity is closely monitored and a workaround process exists.",
+          "trechos": [
+            "learning issues. We expect a final fix for this issue within the next",
+            "week or so and will be deploying a software update to our switches at",
+            "that time. In the mean time we are closely monitoring our aggregation",
+            "to access layer capacity and have a workaround process if the problem"
+          ]
+        },
+        {
+          "texto": "Planned: invest in a duplicate of the network stack, from routers through access layer switches, as a staging environment to test such changes more fully.",
+          "trechos": [
+            "planning to invest in a duplicate of our network stack from our routers",
+            "all the way through our access layer switches to be used in a staging",
+            "environment. This will allow us to more fully test these kinds of"
+          ]
+        },
+        {
+          "texto": "In progress: adding automated network monitoring to alert sooner on similar issues.",
+          "trechos": [
+            "3. We are working on adding additional automated monitoring to our",
+            "network to alert us sooner if we have similar issues."
+          ]
+        },
+        {
+          "texto": "Planned: more scheduled incident response exercises with scenarios that reinforce avoiding tunnel vision.",
+          "trechos": [
+            "and it blinded us to other possible causes. We hope to begin doing more",
+            "scheduled incident response exercises in the coming months and will",
+            "build scenarios that reinforce this."
+          ]
+        },
+        {
+          "texto": "Planned: contact the network vendor's support team at the first sign of trouble in the network.",
+          "trechos": [
+            "about engaging support. In the future, we will contact their support",
+            "team at the first sign of trouble in the network."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 18,
+      "trechos": [
+        "minutes of complete unavailability along with sporadic bursts of slow"
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The 18 minutes is the stated period of complete unavailability; slow responses and intermittent errors continued for the entire day until the Saturday 06:00 Pacific workaround. The year is not stated in the text (only Friday, November 30th), so data_incidente is null. A fileserver pair was offline for a large part of the day, affecting a small percentage of repositories, as a side effect of the network problems on high-availability clustering. The degradation followed the migration of access switches to new aggregation switches; the text attributes it to a bug in the aggregation switches, whose root cause the vendor found from GitHub's diagnostic data. dominio set to infra_fisica_datacenter because the origin is in the data center's physical network switches and their software.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.14"
+  }
+}

@@ -1,0 +1,210 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-157",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "seguranca",
+    "seguranca": "ataque",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On 28 June 2018 an unknown entity gained the password of a Gentoo GitHub organization administrator, removed all developers' access and pushed malicious commits (including rm -rf payloads) to the gentoo, musl and systemd repositories on GitHub; GitHub was unavailable for Gentoo use for approximately 5 days. GitHub froze the organization, Gentoo removed the compromised account's access, force-pushed the repositories back to their known-good state, and GitHub later unlocked the organization.",
+    "data_incidente": "2018-06-28",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Gentoo GitHub Organization",
+      "gentoo/gentoo GitHub repository",
+      "gentoo/musl GitHub repository",
+      "gentoo/systemd GitHub repository",
+      "Pull request CI",
+      "Gentoo Proxy Maintainers Project"
+    ],
+    "tecnologias": [
+      "GitHub",
+      "git"
+    ],
+    "categoria_causa": "credential-auth",
+    "deteccao": {
+      "forma": "equipe_interna",
+      "descricao": {
+        "texto": "Removing all developers caused everyone to get emailed (earliest removal email at 20:26 UTC); at 20:29 the first person noticed something was going on with the GitHub organization, and at 20:36 it was first reported to Infra.",
+        "trechos": [
+          "The attack was loud; removing all developers caused everyone to get emailed.",
+          "20:26 Earliest email timestamp of someone being removed from the organization.",
+          "20:29 First person notices that something is going on with the GitHub organization",
+          "20:36 First report to Infra that something is going on with the GitHub organization."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 20:19 UTC on 2018-06-28, after trying a bad password on the account, the attacker gained administrative access to the Gentoo GitHub organization, and at 20:25 started removing valid users.",
+      "trechos": [
+        "20:19 Attacker tries a bad password on the account.",
+        "20:19 Attacker successfully gains administrative access",
+        "20:25 Attacker starts removing valid users"
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The attacker gained access to the password of an organization administrator; the evidence collected suggests a password scheme where disclosure on one site made it easy to guess passwords for unrelated webpages.",
+        "trechos": [
+          "The attacker gained access to a password of an organization administrator.",
+          "Evidence collected suggests a password scheme where disclosure on one site made it easy to guess passwords for unrelated webpages."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "GitHub did not block access to the repositories via git, so the malicious commits were externally accessible until Gentoo force-pushed over them.",
+        "trechos": [
+          "GitHub failed to block access to the repositories via git, resulting in the malicious commits being externally accessible.",
+          "Gentoo had to force-push over them as soon as this was discovered that."
+        ]
+      },
+      {
+        "texto": "Credential revocation procedures were incomplete; during the access revocation, some hosts were missed.",
+        "trechos": [
+          "Credential revocation procedures were incomplete.",
+          "Note: During the access revocation, some hosts were missed."
+        ]
+      },
+      {
+        "texto": "There was no backup copy of the Gentoo GitHub Organization detail.",
+        "trechos": [
+          "We did not have a backup copy of the Gentoo GitHub Organization detail."
+        ]
+      },
+      {
+        "texto": "The systemd repository is not mirrored from Gentoo infrastructure but stored directly on GitHub.",
+        "trechos": [
+          "The systemd repo is not mirrored from Gentoo, but is stored directly on GitHub."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Gentoo escalated to GitHub support (abuse reports from 20:49, formal ticket at 21:05), and at 21:28 GitHub support responded and froze the Gentoo GitHub organization.",
+          "trechos": [
+            "Gentoo Developers & Infrastructure escalated to GitHub support and the Gentoo Organization was frozen by GitHub staff.",
+            "20:49 First abuse report to GitHub support",
+            "21:05 Infra's formal ticket to GitHub Support",
+            "21:28 GitHub support responds; Gentoo GitHub org frozen."
+          ]
+        },
+        {
+          "texto": "At 22:45 GitHub locked the suspected entry point; at 23:40 Gentoo determined which account was the entry point and preemptively removed all access for that account from primary Gentoo properties (git repos, bugs, email, etc.).",
+          "trechos": [
+            "22:45 GitHub locks suspected entry point",
+            "23:40 Gentoo determines which account was the entry point. Gentoo Infra preemptively removes all access for that account from primary Gentoo properties (git repos, bugs, email, etc.)"
+          ]
+        },
+        {
+          "texto": "At Gentoo's request, GitHub re-hid the organization at 00:25 on 2018-06-29 while Gentoo carried out repairs; Gentoo Infra restored the billing email at 05:27.",
+          "trechos": [
+            "00:05 Gentoo emails GitHub, requesting the org be hidden again while Gentoo affects repairs. Of particular concern are the PRs and how we can audit them.",
+            "00:25 GitHub responds saying they have re-hidden the org, and will wait for confirmation before un-hiding it again, but are concerned about proper operation for organization members",
+            "05:27 Gentoo Infra restores billing email."
+          ]
+        },
+        {
+          "texto": "Between 06:57 and 06:59 on 2018-06-29, Gentoo Infra force-pushed gentoo/systemd, gentoo/gentoo and gentoo/musl back to their last legitimate commits to restore state.",
+          "trechos": [
+            "06:57 Gentoo Infra does force-push on *gentoo/systemd* to restore state. c46d8bbf->bf0e0a4d.",
+            "06:58 Gentoo Infra does force-push on *gentoo/gentoo* to restore state. e6db0eb4->73b72409.",
+            "06:59 Gentoo Infra does force-push on *gentoo/musl* to restore state. e6db0eb4->60461ca1."
+          ]
+        },
+        {
+          "texto": "At 13:05 on 2018-06-29 GitHub unlocked the compromised account and reset its password.",
+          "trechos": [
+            "13:05 GitHub unlocks the compromised account and resets the password."
+          ]
+        },
+        {
+          "texto": "At 11:46 on 2018-07-03, GitHub unlocked the Gentoo GitHub Organization, making it publicly visible again.",
+          "trechos": [
+            "11:46 GitHub responds and unlocks the Gentoo GitHub Organization, making it publicly visible once again,"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the Gentoo GitHub Organization requires 2FA to join.",
+          "trechos": [
+            "**Done: Gentoo GitHub Organization currently requires 2FA to join.**"
+          ]
+        },
+        {
+          "texto": "Already done: the Gentoo Foundation partnered with NitroKey to equip all Gentoo Developers with USB keys for hardware-based 2FA.",
+          "trechos": [
+            "action-item: sponsor potential for hardware based 2FA for Gentoo's devs? (C.f. nitrokey / Linux Foundation)",
+            "**Done: Gentoo Foundation partnered with NitroKey to equip all Gentoo Developers with USB keys.**"
+          ]
+        },
+        {
+          "texto": "Already done: an incident plan for communications is in place; logs for the compromised account were audited and its credentials rotated.",
+          "trechos": [
+            "action-item: Document an incident plan for communications.",
+            "**Done: Incident plan is in place.**",
+            "action-item: Audit logs for compromised account.",
+            "action-item: Rotate credentials for compromised account.",
+            "This item is complete."
+          ]
+        },
+        {
+          "texto": "In progress: bugs open to retire inactive infra members; draft guidelines for local password managers and a published password policy under review; mirroring the systemd and musl repositories on git.gentoo.org.",
+          "trechos": [
+            "*In-Progress: Bugs open to retire inactive infra members.*",
+            "action-item: prod gentoo-infra members to start using local password managers (pass, gopass, etc.)",
+            "action-item: Publish clear password policy for the org, including recommendations for password management.",
+            "*In-Progress: Draft guidelines are being reviewed.*",
+            "action-item: mirror systemd and musl repos on git.gentoo.org",
+            "*In-Progress*"
+          ]
+        },
+        {
+          "texto": "Planned: make frequent offline backups of GitHub settings, stream the GitHub audit log into Gentoo infrastructure, reduce the number of people with GitHub owner power, and receive email as people are added to the org (a hook keeping an off-GitHub log is under development).",
+          "trechos": [
+            "action-item: make frequent offline backup of GH settings",
+            "action-item: stream GH audit log into gentoo infra",
+            "action-item: reduce number of people with GitHub owner power",
+            "https://developer.github.com/v3/activity/events/types/#organizationevent; a hook is under development to keep an off-GitHub log."
+          ]
+        },
+        {
+          "texto": "Planned: apply 2FA protection to Gentoo services generally for all users, and audit Gentoo system logins for 90 days to verify no unexpected activity.",
+          "trechos": [
+            "action-item: Apply 2fa protection to gentoo services generally for all users.",
+            "action-item: Audit gentoo system logins for 90d to verify no unexpected activity."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 7200,
+      "trechos": [
+        "Approximately 5 days of GitHub being unavailable for Gentoo use."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration uses the stated approximately 5 days; the timeline runs from administrative access at 20:19 UTC on 2018-06-28 to the organization being unlocked at 11:46 UTC on 2018-07-03. Malicious content was available in initial clones of gentoo/gentoo, gentoo/musl and gentoo/systemd between about 20:38 on 2018-06-28 and 06:59 on 2018-06-29. The Gentoo-hosted master repositories were not affected. Logs indicate GitHub accounts were probed between 2018-04-08 and 2018-06-27. All past pull requests were apparently disconnected from their commits and closed. The text says the rm -rf payloads were unlikely to be executed by end users due to technical guards. Gentoo recommends that anyone who cloned gentoo/gentoo, gentoo/musl or gentoo/systemd during the listed intervals recreate the clone from a new clone (remediation, not prevention).",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.14"
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-114",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On 13 June 2023 in US-EAST-1, the Lambda Frontend fleet, while scaling, crossed a capacity threshold never reached within a single cell, triggering a latent software defect that left allocated Execution Environments unused; Lambda invocations in the affected cell saw increased errors and latencies, also affecting STS, the Management Console, EKS, Connect, EventBridge and others. Engineers initiated a scale down of the Frontend fleet below the triggering level; synchronous invocations recovered by 1:45 PM PDT and all services by 3:37 PM PDT.",
+    "data_incidente": "2023-06-13",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "AWS Lambda",
+      "Amazon STS",
+      "AWS Management Console",
+      "Amazon EKS",
+      "Amazon Connect",
+      "Amazon EventBridge",
+      "AWS Sign-in",
+      "AWS Support Center"
+    ],
+    "tecnologias": [
+      "Lambda Frontend",
+      "Lambda Invocation Manager",
+      "Lambda Execution Environments",
+      "SAML"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Starting at 11:49 AM PDT, customers experienced increased error rates and latencies for Lambda function invocations in US-EAST-1; the text does not say how the problem was first noticed.",
+        "trechos": [
+          "Starting at 11:49 AM PDT on June 13th, 2023, customers experienced increased error rates and latencies for Lambda function invocations within the Northern Virginia (US-EAST-1) Region."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 11:49 AM PDT, the Lambda Frontend fleet, scaling since 10:01 AM PDT in response to normal daily traffic growth, crossed a capacity threshold that had never been reached within a single cell.",
+      "trechos": [
+        "At 10:01 AM PDT, the Lambda Frontend fleet started scaling in response to an increase in service traffic, within the normal daily traffic patterns, in the Northern Virginia (US-EAST-1) Region.",
+        "At 11:49 AM PDT, the Lambda Frontend fleet, while adding additional compute capacity to handle the increase in service traffic, crossed a capacity threshold that had previously never been reached within a single cell."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Crossing the threshold triggered a latent software defect that caused Lambda Execution Environments to be successfully allocated for incoming requests but never fully utilized by the Lambda Frontend; since Lambda could not provision new Execution Environments, invocations in the affected cell saw increased error rates and latencies.",
+        "trechos": [
+          "This triggered a latent software defect which caused Lambda Execution Environments to be successfully allocated for incoming requests, but never fully utilized by the Lambda Frontend.",
+          "Since Lambda was not able to provision new Lambda Execution Environments for incoming requests, function invocations within the affected cell experienced increased error rates and latencies."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The authors state the event uncovered a gap in the Lambda cellular architecture for the scaling of the Lambda Frontend, which allowed a latent bug to cause impact as the affected cell scaled.",
+        "trechos": [
+          "This event also uncovered a gap in our Lambda cellular architecture for the scaling of the Lambda Frontend, which allowed a latent bug to cause impact as the affected cell scaled."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "After identifying the latent defect by 12:26 PM PDT, engineers confirmed traffic levels had subsided and initiated a scale down of the Lambda Frontend fleet to a level that no longer triggered the defect; by 1:30 PM PDT new invocations began to see recovery and by 1:45 PM PDT Lambda was fully recovered for synchronous invocations.",
+          "trechos": [
+            "By 12:26 PM PDT, engineers had identified the latent software defect and the impact on the provisioning of underlying compute capacity.",
+            "As an immediate mitigation, engineers were able to confirm that traffic levels had subsided, and initiated a scale down of the Lambda Frontend fleet to a level that no longer triggered the latent software defect.",
+            "By 1:30 PM PDT, new Lambda function invocations began to see recovery.",
+            "By 1:45 PM PDT, Lambda was fully recovered for synchronous function invocations."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the scaling activities for the Lambda Frontend fleet that triggered the event were immediately disabled while the latent bug was addressed.",
+          "trechos": [
+            "We immediately disabled the scaling activities for the Lambda Frontend fleet activities that triggered the event, while we worked to address the latent bug that caused the issue; this bug has since been resolved and deployed to all Regions."
+          ]
+        },
+        {
+          "texto": "Already done: the latent bug has been resolved and the fix deployed to all Regions.",
+          "trechos": [
+            "We immediately disabled the scaling activities for the Lambda Frontend fleet activities that triggered the event, while we worked to address the latent bug that caused the issue; this bug has since been resolved and deployed to all Regions."
+          ]
+        },
+        {
+          "texto": "Already done: Lambda completed several action items to address the immediate concern with cellular scaling.",
+          "trechos": [
+            "Lambda has already completed several action items to address the immediate concern with cellular scaling and remains on track to complete a larger effort later this year to ensure that all cells are bounded to a well-tested size to avoid future unexpected scaling issues."
+          ]
+        },
+        {
+          "texto": "Planned: a larger effort later in the year to ensure all Lambda cells are bounded to a well-tested size to avoid unexpected scaling issues.",
+          "trechos": [
+            "Lambda has already completed several action items to address the immediate concern with cellular scaling and remains on track to complete a larger effort later this year to ensure that all cells are bounded to a well-tested size to avoid future unexpected scaling issues."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 116,
+      "trechos": [
+        "Starting at 11:49 AM PDT on June 13th, 2023, customers experienced increased error rates and latencies for Lambda function invocations within the Northern Virginia (US-EAST-1) Region.",
+        "Lambda function invocations began to return to normal levels at 1:45 PM PDT, and all affected services had fully recovered by 3:37 PM PDT."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration computed from 11:49 AM PDT (start) to 1:45 PM PDT, when Lambda invocations returned to normal levels and synchronous invocations were fully recovered. New invocations began to see recovery at 1:30 PM PDT; the async event backlog was processed until 3:37 PM PDT, when all affected services had fully recovered. Dependent services have their own windows (e.g. Management Console 11:48 AM to 2:02 PM, STS until 2:10 PM, Support Center until 2:38 PM PDT). The text does not say how the problem was detected; it says engineering teams were immediately engaged.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.14" }
+}

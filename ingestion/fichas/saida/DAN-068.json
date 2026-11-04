@@ -1,0 +1,154 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-068",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On 26 March 2024 Cloudflare's PDX01 data center lost all power after a reported simultaneous failure of four Flexential-operated circuit switch boards; an initial assessment points to breaker settings set too low as one contributing factor. Control plane services failed over automatically and APIs and dashboards were normal by 15:05 UTC, while Analytics stayed impacted until later that day; after Flexential reset the breakers, the data center was cold-started in roughly 10 hours.",
+    "data_incidente": "2024-03-26",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "PDX01 data center",
+      "Cloudflare control plane (APIs and Dashboards)",
+      "Analytics platform"
+    ],
+    "tecnologias": [
+      "Circuit Switch Boards (CSBs)",
+      "circuit breakers",
+      "switchboards",
+      "Highly Available (HA) database topology",
+      "Kubernetes",
+      "Logpush"
+    ],
+    "categoria_causa": "hardware-power",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Cloudflare was alerted immediately that it had lost connectivity to the PDX01 data center, and very quickly knew it had lost all power.",
+        "trechos": [
+          "Just like in November 2023, we were alerted immediately that we had lost connectivity to our PDX01 data center.",
+          "Unlike in November, we very quickly knew with certainty that we had once again lost all power, putting us in the exact same situation as five months prior."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "incerta",
+      "descricao": {
+        "texto": "At 14:58 UTC PDX01 had a total loss of power following a reportedly simultaneous failure of four Flexential-owned and operated switchboards (Circuit Switch Boards) serving all of Cloudflare's cages, deactivating both primary and redundant power paths. An initial assessment points to incorrectly set breaker coordination settings within the four CSBs as one contributing factor: the breaker settings were reportedly too low relative to downstream provisioned power capacities, and when one or more breakers tripped, a cascading failure of the remaining active CSB boards resulted.",
+        "trechos": [
+          "On March 26, 2024, at 14:58 UTC, PDX01 experienced a total loss of power to Cloudflare’s physical infrastructure following a reportedly simultaneous failure of four Flexential-owned and operated switchboards serving all of Cloudflare’s cages.",
+          "This meant both primary and redundant power paths were deactivated across the entire environment.",
+          "During the Flexential investigation, engineers focused on a set of equipment known as Circuit Switch Boards, or CSBs.",
+          "Initial assessment of the root cause of Flexential’s CSB failures points to incorrectly set breaker coordination settings within the four CSBs as one contributing factor.",
+          "In our case, Flexential’s breaker settings within the four CSBs were reportedly too low in relation to the downstream provisioned power capacities.",
+          "When one or more of these breakers tripped, a cascading failure of the remaining active CSB boards resulted, thus causing a total loss of power serving Cloudflare’s cage and others on the shared infrastructure."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The Analytics platform is reliant on the PDX01 data center, so it was impacted and not fully restored until later that day; work to remove this dependency, begun after the November 2023 incident, was not yet complete.",
+        "trechos": [
+          "Our Analytics platform, which provides a view into customer traffic, was impacted and wasn’t fully restored until later that day.",
+          "This was expected behavior as the Analytics platform is reliant on the PDX01 data center.",
+          "Just like the Control Plane work, we began building new Analytics capacity immediately after the November 2, 2023, incident.",
+          "However, the scale of the work requires that it will take a bit more time to complete."
+        ]
+      },
+      {
+        "texto": "A few specific services required human intervention and therefore took longer to recover.",
+        "trechos": [
+          "There were a few specific services that required human intervention and therefore took a bit longer to recover, however the primary interface mechanism was operating as expected."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Control plane services failed over automatically: more than 100 databases across over 20 database clusters failed out of PDX01 and restored service automatically, and by 15:05 UTC APIs and Dashboards were operating normally without human intervention.",
+          "trechos": [
+            "On March 26, 2024, at 14:58 UTC, PDX01 lost power and our systems began to react.",
+            "By 15:05 UTC, our APIs and Dashboards were operating normally, all without human intervention.",
+            "More than 100 databases across over 20 different database clusters simultaneously failed out of the affected facility and restored service automatically."
+          ]
+        },
+        {
+          "texto": "Stream products handed off to the Amsterdam facility to continue operations, and logs were pushed from the Portland region by the Logpush infrastructure.",
+          "trechos": [
+            "Our Stream products, which use a lot of compute resources to transcode videos, were able to seamlessly hand off to our Amsterdam facility to continue operations.",
+            "Another significant improvement is the updates to our Logpush infrastructure.",
+            "During this event, we saw that the fixes we’d made since then worked, and we were able to push logs from the Portland region."
+          ]
+        },
+        {
+          "texto": "According to what Cloudflare was told, the Flexential facilities team noticed the incorrect trip settings, reset the CSBs and adjusted them to the expected values, enabling Cloudflare to power up its servers in a staged and controlled fashion.",
+          "trechos": [
+            "During the triage of the incident, we were told that the Flexential facilities team noticed the incorrect trip settings, reset the CSBs and adjusted them to the expected values, enabling our team to power up our servers in a staged and controlled fashion."
+          ]
+        },
+        {
+          "texto": "After validating the control plane services, the team completed the cold start of the data center in roughly 10 hours.",
+          "trechos": [
+            "Once we had validated the functionality of our Control Plane services, we were faced yet again with the cold start of a very large data center.",
+            "This activity took roughly 72 hours in November 2023, but this time around we were able to complete this in roughly 10 hours."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned (top priority): completing the resilience program for the Analytics platform to remove its dependency on PDX01.",
+          "trechos": [
+            "Our top priority is completing the resilience program for our Analytics platform.",
+            "We have been working as fast as we can to remove this dependency, and we expect to complete this work in the near future."
+          ]
+        },
+        {
+          "texto": "Data and action items have been collected for each service that still required manual intervention, to ensure further manual action is not required; production cut tests will continue to be used to prove these changes.",
+          "trechos": [
+            "There were some services that still required manual intervention to properly recover, and we have collected data and action items for each of them to ensure that further manual action is not required.",
+            "We will continue to use production cut tests to prove all of these changes and enhancements provide the resiliency that our customers expect."
+          ]
+        },
+        {
+          "texto": "Planned: continue to refine data center cold start procedures to make them faster.",
+          "trechos": [
+            "There is still work to be done to make that even faster in the future, and we will continue to refine our procedures in case we have a similar incident in the future."
+          ]
+        },
+        {
+          "texto": "Planned: follow-up activities with Flexential to understand their operational and review procedures, turned into a process giving a similar view into all critical data center facilities.",
+          "trechos": [
+            "We will continue to work with Flexential on follow-up activities to expand our understanding of their operational and review procedures to the greatest extent possible.",
+            "While this incident was limited to a single facility, we will turn this exercise into a process that ensures we have a similar view into all of our critical data center facilities."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "When the incorrect breaker settings were established is not known."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The document also recounts the earlier November 2, 2023 power loss at the same facility and the Code Orange resilience work done afterwards; only the March 26, 2024 incident is extracted. Duration is null: the control plane was usable seven minutes after PDX01 was lost (by 15:05 UTC), but Analytics was only restored 'later that day' and some services took longer, so the end of impact is not stated. The cause is reported by Cloudflare from Flexential's investigation ('reportedly', 'initial assessment').",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

@@ -35,6 +35,8 @@ Observações:
 
 Resultado da amostra por lote (ERRADOS procedentes / fichas da amostra): lote 06 = 6/6 (1,0) → segue por amostra; gerou a v2.13. Lote 07 = 5/5 (1,0), 4 dos 5 por detalhe sem trecho → segue por amostra, sem mudança de prompt.
 Lote 08 = 6/5 (1,2), amostra ampliada com as 2 fichas que a autorrevisão passou de baixa para alta (124, 240; a 197 já tinha sido sorteada): nenhuma das 3 viradas foi contestada → segue por amostra, sem mudança de prompt.
+Lote 09 = 4/7 (0,6) → segue por amostra; gerou a v2.14 (regra de duração que só existia no lembrete da revisão).
+Lote 10 = 6/5 (1,2), amostra com 3 sorteadas + 2 escolhidas (157, 187), todas alta → segue por amostra, sem mudança de prompt.
 
 **Fichas vazias:** documentos que saem `nao_verificavel` (só menus ou rodapé) não precisam de conferência; entram na lista de reextração.
 
@@ -63,4 +65,5 @@ Regras desta tarefa:
 - Depois que o validador passar, faça a autorrevisão: leia ingestion/fichas/autorrevisao.md
   (pode abrir esse arquivo) e siga o checklist dele em cada ficha, uma por vez, conferindo contra
   o próprio prompt pronto. Rode o validador de novo e, no resumo final, diga o que mudou em cada ficha.
+  No fim do resumo, liste numa linha as fichas cuja confianca mudou na autorrevisão (ex.: "baixa→alta: DAN-x, DAN-y").
 ```

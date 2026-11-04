@@ -1,0 +1,159 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-025",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "comentarios"
+    ]
+  },
+  "incidente": {
+    "resumo": "An unannounced GCP change made HTTP/3 the default on Firefox's Telemetry load balancers; Telemetry requests sent through the viaduct library with a lower-cased Content-Length header hit a case-sensitive lookup in Necko's HTTP/3 code, which looped indefinitely on the socket thread and made Firefox unable to load web content for close to two hours. Users were unblocked when HTTP/3 was explicitly disabled on GCP at 09:12 UTC.",
+    "data_incidente": "2022-01-13",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Firefox"
+    ],
+    "tecnologias": [
+      "HTTP/3",
+      "HTTP/2",
+      "Google Cloud Platform (GCP)",
+      "load balancers",
+      "Necko",
+      "viaduct",
+      "Rust",
+      "Telemetry"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "equipe_interna",
+      "descricao": {
+        "texto": "Shortly after the change, the team noticed a spike in crashes reported through the crash reporter and also received several reports from inside and outside of Mozilla describing a hang of the browser.",
+        "trechos": [
+          "Our load balancers were set to the “Automatic (default)” setting and on January 13, 2022 at 07:28 UTC, GCP deployed an unannounced change to make HTTP/3 the default.",
+          "Shortly after, we noticed a spike in crashes being reported through our crash reporter and also received several reports from inside and outside of Mozilla describing a hang of the browser."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "On January 13, 2022 at 07:28 UTC, GCP deployed an unannounced change making HTTP/3 the default for load balancers set to \"Automatic (default)\", so some Firefox connections to the services infrastructure used HTTP/3 instead of HTTP/2; logs showed the Telemetry load balancers serving HTTP/3 connections they had not served before.",
+      "trechos": [
+        "Our load balancers were set to the “Automatic (default)” setting and on January 13, 2022 at 07:28 UTC, GCP deployed an unannounced change to make HTTP/3 the default.",
+        "As Firefox uses HTTP/3 when supported, from that point forward, some connections that Firefox makes to the services infrastructure would use HTTP/3 instead of the previously used HTTP/2 protocol.¹",
+        "We then discovered through logs that for some reason, the load balancers for our Telemetry service were serving HTTP/3 connections while they hadn’t done that before."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The viaduct library, used by Rust components such as Telemetry to call into the Necko networking stack, lower-cases each header; Necko's API checks for Content-Length are case-insensitive but the lower-level HTTP/3 code is case-sensitive, so it did not find the header, treated the request as complete with the body unsent, and looped indefinitely instead of returning an error. Because all network requests go through one socket thread, the loop blocked all network communication and made Firefox unresponsive.",
+        "trechos": [
+          "However, Rust components that need direct network access are not using Necko directly, but are calling into it through an intermediate library called *`viaduct`*.",
+          "When requests pass through `viaduct` first, however, `viaduct` will lower-case each header and pass it on to Necko.",
+          "And here is the problem: the API checks in Necko are case-**insensitive** while the lower-level HTTP/3 code is case-**sensitive**.",
+          "It just so happens that Telemetry is currently the only Rust-based component in Firefox Desktop that uses the network stack and adds a `Content-Length` header.",
+          "When handling a request, the code looked up the field in a case-sensitive way and failed to find the header as it had been lower-cased by `viaduct`.",
+          "Without the header, the request was determined by the Necko code to be complete, leaving the real request body unsent.",
+          "This unexpected state caused the code to loop indefinitely rather than returning an error.",
+          "Because all network requests go through one *socket thread*, this loop blocked any further network communication and made Firefox unresponsive, unable to load web content."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "GCP's deployment of HTTP/3 as default was unannounced; the authors consider an announcement would likely have triggered more controlled experiments and deployment, though it might not have entirely mitigated the risk.",
+        "trechos": [
+          "GCP’s deployment of HTTP/3 as default was unannounced.",
+          "We realize that an announcement (as is usually sent) might not have entirely mitigated the risk of an incident, but it would likely have triggered more controlled experiments (e.g. in a staging environment) and deployment."
+        ]
+      },
+      {
+        "texto": "The load balancers were set to \"Automatic (default)\" instead of a more explicit choice, which allowed the deployment to take place automatically.",
+        "trechos": [
+          "Our setting of “Automatic (default)” on the load balancers instead of a more explicit choice allowed the deployment to take place automatically."
+        ]
+      },
+      {
+        "texto": "The combination of HTTP/3 and viaduct on Firefox Desktop was not covered in continuous integration; existing HTTP/3 tests covered the low-level protocol and the Necko layer as used by web content.",
+        "trechos": [
+          "The particular combination of HTTP/3 and `viaduct` on Firefox Desktop was not covered in our continuous integration system.",
+          "Current HTTP/3 tests cover the low-level protocol behavior and the Necko layer as it is used by web content."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "GCP's unannounced change making HTTP/3 the default for load balancers whose HTTP/3 support setting was \"Automatic (default)\"; Mozilla found it had not shipped updates or configuration changes that could have caused the problem, and none of its settings were changed.",
+        "trechos": [
+          "For those services hosted on Google Cloud Platform (GCP) these load balancers have settings related to the HTTP protocol they should advertise and one of these settings is HTTP/3 support with three states: “Enabled”, “Disabled” or “Automatic (default)”.",
+          "Our load balancers were set to the “Automatic (default)” setting and on January 13, 2022 at 07:28 UTC, GCP deployed an unannounced change to make HTTP/3 the default.",
+          "We found that we had not shipped updates or configuration changes that could have caused this problem.",
+          "On closer inspection, none of our settings were changed."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "HTTP/3 was explicitly disabled on GCP at 09:12 UTC, which unblocked users, although the root cause was not yet known.",
+          "trechos": [
+            "We disabled HTTP/3 explicitly on GCP at 09:12 UTC.",
+            "This unblocked our users, but we were not yet certain about the root cause and without knowing that, it was impossible for us to tell if this would affect additional HTTP/3 connections."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "In progress: working with GCP to improve the situation around unannounced deployments.",
+          "trechos": [
+            "GCP’s deployment of HTTP/3 as default was unannounced.",
+            "We are actively working with them to improve the situation."
+          ]
+        },
+        {
+          "texto": "In progress: reviewing all service configurations to avoid settings like \"Automatic (default)\" allowing similar automatic deployments.",
+          "trechos": [
+            "Our setting of “Automatic (default)” on the load balancers instead of a more explicit choice allowed the deployment to take place automatically.",
+            "We are reviewing all service configurations to avoid similar mistakes in the future."
+          ]
+        },
+        {
+          "texto": "Proposed: running more system tests with different HTTP versions, which the authors say could have revealed this problem.",
+          "trechos": [
+            "We should run more system tests with different HTTP versions and doing so could have revealed this problem."
+          ]
+        },
+        {
+          "texto": "Under investigation: action points to make the browser more resilient towards such problems and to make incident response faster.",
+          "trechos": [
+            "We are also investigating action points both to make the browser more resilient towards such problems and to make incident response even faster."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 120,
+      "trechos": [
+        "On January 13th 2022, Firefox became unusable for close to two hours for users worldwide."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "deteccao.forma: the same sentence gives two first signals, 'we noticed a spike in crashes being reported through our crash reporter' (equipe_interna: 'a person noticed it without an alert') and 'received several reports from inside and outside of Mozilla describing a hang' (usuarios_clientes: 'users or customers reported'). The definition ('how the problem was first noticed') does not say which wins when the text gives both at once; equipe_interna was chosen.",
+  "observacoes": "The stated duration 'close to two hours' was used; the times in the text (GCP change at 07:28 UTC, HTTP/3 disabled at 09:12 UTC) would give 104 minutes, but 07:28 is the time of the GCP change, not a stated impact start. Users who disabled Telemetry saw the problem resolved. Critical services such as updates use a beConservative flag that prevents HTTP/3.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

@@ -1,5 +1,5 @@
 <!--
-Prompt de extração da ficha (peça 2). Versão: v2.13.
+Prompt de extração da ficha (peça 2). Versão: v2.14.
 v1 guardada em prompt_extracao_v1.md. Mudanças da v2 (revisão do piloto, ver FICHA.md):
 regra 2 (trechos sustentam todo detalhe do texto), regras 3 e 4 novas (causalidade e plano x feito),
 gatilho x causa raiz, categoria pela causa raiz, detecção, resumo com desfecho, mitigação com a correção concreta.
@@ -25,11 +25,12 @@ v2.12 (revisão do lote 05, 15 ERRADOS em 10 fichas): objetivo não é resultado
 software de controle físico do data center; bug antigo sem queda delimitada.
 v2.13 (amostra do lote 06, 6 ERRADOS em 6 fichas): equipe_interna só quando o texto diz que alguém notou sem alerta;
 atividade operacional automática (scaling, failover) não é mudanca_causadora.
+v2.14 (amostra do lote 09, 4 ERRADOS em 7 fichas): duração com marcas de início/fim no texto; serviço de volta degradado é o fim; faixa de minutos é null.
 Escrito em inglês de propósito (ver FICHA.md, seção "Idioma").
 A parte entre ===== INPUT ===== é preenchida para cada documento.
 -->
 
-# Post-mortem extraction — prompt v2.13
+# Post-mortem extraction — prompt v2.14
 
 You are extracting a structured record ("ficha") from one public incident post-mortem. The record will be used by an incident-diagnosis assistant that must **never state anything the source does not say**. Your job is to organize what the text says, with proof. You are not writing a post-mortem, summarizing for readers, or judging the company.
 
@@ -162,7 +163,8 @@ You are extracting a structured record ("ficha") from one public incident post-m
 **`duracao`** — the duration of the **impact** of the catalog incident (from the start of the impact to recovery), as `{"minutos": <integer>, "trechos": [...]}`, only if the text states it or gives start and end times that let you compute it; otherwise `null`.
 - **A duration the text states explicitly ("approximately an hour", "Duration: 3 hours") wins over one computed from times, but only if it measures the impact.** The length of the attack, of the power outage or of a window in which data may have been exposed is not the impact when service came back later. Compute only when no impact duration is stated, and then include both passages. If the text does not say when service came back, `null`.
 - If the text states two different durations, use the later or final report and note the other in `observacoes`.
-- Vague amounts ("several hours", "more than two hours") → `null`.
+- **Start and end of the impact.** If the text marks them (a timeline line "Impact starts" / "Impact ends", "resolved"), use those marks over other times in the text, and note any other start or end time in `observacoes`. If it marks no end but says service came back at a stated time, even in a degraded or partial form ("limited access to archives", "largely flowing as normal", "substantially recovered"), that time is the end of the impact; the later full restoration goes to `observacoes`. These cases are decided by this rule, not judgment calls.
+- Vague amounts ("several hours", "more than two hours") and ranges ("10-15 minutes") → `null`; note a range in `observacoes`.
 - **A long-standing bug without a bounded outage** (it happened from time to time over months or years): `duracao` is `null`, and the code fix that ended it is the `mitigacao` step; do not repeat it in `prevencao`.
 
 **`perguntas_em_aberto`** — things the text **explicitly** says remain unknown or under investigation. Empty list if none. Do not add your own questions, and do not turn a hedged cause ("likely") into a question: that is already `causa_raiz.status = incerta`.
@@ -207,7 +209,7 @@ Return **only** one JSON object, no comments, no Markdown fences, matching this 
   "confianca": "alta" | "baixa",
   "motivo_confianca_baixa": "..."   (only when confianca is "baixa"),
   "observacoes": "..."              (optional),
-  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.13" }
+  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.14" }
 }
 
 ===== INPUT =====

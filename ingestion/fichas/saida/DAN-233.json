@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-233",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "On 7 September 2021, during a manual, repetitive procedure to re-trigger a GitHub invitation, the Azure Active Directory security group that controls access to trivago's GitHub organization was deleted instead of a user being removed from it, and SCIM de-provisioned all synced users, so employees lost access to the organization for 1h 19min. A new AAD group was created, administrators were restored via the sync bot account, and affected users were re-added to the group and re-invited via SCIM.",
+    "data_incidente": "2021-09-07",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "GitHub organization github.com/trivago"
+    ],
+    "tecnologias": [
+      "GitHub",
+      "Azure Active Directory",
+      "SCIM",
+      "SAML single sign-on",
+      "GitHub Enterprise Application",
+      "Microsoft Exchange Online"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "Employees lost access to the GitHub organization and received an email saying they had been removed; at 16:17 CEST the first user reported in Slack that they had lost their membership and could not git push/pull.",
+        "trechos": [
+          "trivago talents lost access to our GitHub organization github.com/trivago, weren’t able to interact with the source code stored under this GitHub organization, and received an email that they have been removed from this GitHub organization.",
+          "2021-09-07 16:17 First user reported in Slack that they have lost their membership in github.com/trivago and can’t git push/pull anymore"
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 16:13 CEST on 2021-09-07, while removing a user from the Azure Active Directory security group (step 1 of re-triggering a GitHub invitation for an employee removed by the 2FA enforcement), the security group itself was deleted.",
+      "trechos": [
+        "2021-09-07 16:13 Azure Active Directory security group was removed",
+        "While taking action on step 1, the Azure Active Directory security group got deleted rather than the Azure Active Directory user account removed from the group.",
+        "On Monday, the 6th of September, 2 Factor Authentication (2FA) was enforced for all members of our GitHub organization github.com/trivago (incl. external contributors).",
+        "Employees who didn’t do this were removed automatically from the GitHub organization github.com/trivago.",
+        "One employee requested access to our GitHub organization github.com/trivago again for this reason."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Re-granting access required a manual, repetitive procedure of removing the user from and re-adding them to the AAD security group that controls access to the GitHub organization; while taking the first step, the AAD security group was deleted instead of the user being removed from it. The authors attribute this to human error due to the repetitive task. Deleting the group removed its users from the GitHub Enterprise Application, which de-provisioned all users of the group from GitHub via SCIM.",
+        "trechos": [
+          "All Azure Active Directory users of a particular group get synced with GitHub.",
+          "Therefore, to regain access, a new GitHub invitation email needed to be triggered. To do this:",
+          "the Azure Active Directory user had to be removed from the Azure Active Directory security group",
+          "the Azure Active Directory user had to be added to the Azure Active Directory security group",
+          "While taking action on step 1, the Azure Active Directory security group got deleted rather than the Azure Active Directory user account removed from the group.",
+          "The root cause boils down to a human error due to a repetitive task in combination with missing concentration.",
+          "Respectively the Azure Active Directory users got removed from the “GitHub Enterprise Application” in Azure Active Directory and de-provisioned all users of this group from GitHub via SCIM 💥"
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Azure Active Directory security groups cannot be restored, so a new group had to be created and users re-added to it.",
+        "trechos": [
+          "A quick Google search revealed that Azure Active Directory security groups could not be restored.",
+          "A new Azure Active Directory security group was created and assigned to the GitHub Enterprise Application in Azure Active Directory."
+        ]
+      },
+      {
+        "texto": "All human GitHub organization owners were removed as well.",
+        "trechos": [
+          "All (human) GitHub organization owners got removed as well."
+        ]
+      },
+      {
+        "texto": "Some GitHub invite emails were not sent and some invitation links did not work (5-10 of 430 cases), requiring removing, re-adding and re-provisioning via SCIM; reassigning rejoined members to their previous teams did not work in all cases.",
+        "trechos": [
+          "Some GitHub invite emails were not sent, and some invitation links did not work (Invite not found), resulting in manual work on our side and removing, re-adding, and re-provisioning via SCIM to re-trigger the invitation for those (5-10 out of 430 cases).",
+          "Assigning members that rejoined the organization to the teams that they were part of before leaving didn’t work in all cases."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "A new AAD security group was created (16:33 CEST) and assigned to the GitHub Enterprise Application.",
+          "trechos": [
+            "2021-09-07 16:33 Azure Active Directory security group was recreated",
+            "A new Azure Active Directory security group was created and assigned to the GitHub Enterprise Application in Azure Active Directory."
+          ]
+        },
+        {
+          "texto": "By logging in via the SCIM sync bot account, which was directly assigned to the Enterprise Application and not removed, the previous administrators were promoted to organization administrators again (Organization Owner status re-granted at 17:01 CEST).",
+          "trechos": [
+            "This bot account is an Azure Active Directory user who is directly assigned to the GitHub Enterprise Application and therefore did not get removed when removing the Azure Active Directory security group.",
+            "By logging in via this bot account, the previous GitHub organization administrators could be promoted to organization administrators again.",
+            "2021-09-07 17:01 The same administrators have been re-granted their Organization Owner status"
+          ]
+        },
+        {
+          "texto": "Affected users were identified with an email message trace on Exchange Online and the Enterprise Application provisioning logs, re-added to the new AAD group, and SCIM provisioning was restarted so GitHub sent new invitations (first batch at 17:15, all remaining users at 17:32 CEST).",
+          "trechos": [
+            "An email message trace was run on our Microsoft Exchange Online server to find out who received a “You’ve been removed from the “trivago N.V.” organization” email.",
+            "Provisioning logs from the Azure GitHub Enterprise Application were checked to find users deprovisioned since the deletion of the group at 16:13 CEST.",
+            "This list of users was then re-added to the new Azure Active Directory security group, and provisioning via SCIM was restarted.",
+            "2021-09-07 17:15 The first batch of users have been re-added to the Azure Active Directory security group and received new invites into the Github organization",
+            "2021-09-07 17:32 All remaining users have been re-added to the Azure Active Directory security group and received new invites into the Github organization"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the previous GitHub organization administrators were assigned to the GitHub Enterprise Application directly, without an AAD security group, which prevents their de-provisioning in a similar event.",
+          "trechos": [
+            "The previous GitHub organization administrators (a few trivago employees) have been assigned to the GitHub Enterprise Application directly, without a particular Azure Active Directory security group.",
+            "This prevents the de-provisioning of GitHub organization administrators in case of a similar event."
+          ]
+        },
+        {
+          "texto": "Already done: GitHub admins are now assigned to the Enterprise Application directly, not via an AAD security group, so they will not be de-provisioned if the group is deleted again.",
+          "trechos": [
+            "GitHub admins are now assigned to the Enterprise Application directly, not via an Azure Active Directory security group. In case of repeated group deletion, the admins will not be de-provisioned."
+          ]
+        },
+        {
+          "texto": "Planned: create a regular, automated backup of Azure AD security group membership.",
+          "trechos": [
+            "Backups: Create a regular and automated backup of AzureAD security group membership."
+          ]
+        },
+        {
+          "texto": "Planned: review all users and their access to AAD, and consider more granular permissions and requiring re-login to a different account for destructive actions.",
+          "trechos": [
+            "Access and roles: Review all users and their respective access to AAD. Think about establishing more granular permissions and require re-login to a different account to execute destructive actions."
+          ]
+        },
+        {
+          "texto": "Planned: automate the Rights Management ticket process with a self-service portal or similar.",
+          "trechos": [
+            "Automation: Automate the Rights Management ticket process with a self-service portal or similar."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 79,
+      "trechos": [
+        "The incident lasted 1h 19min."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The access request that started the procedure came from an employee removed automatically after 2FA was enforced for the GitHub organization on 6 September. The impact section says access was lost for at least 1h 19min, matching the 16:13 to 17:32 CEST timeline; users regained access only after accepting the new invitations. External contributors were not affected because they do not log in via SSO. Public visibility of organization membership was not restored automatically.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.14"
+  }
+}

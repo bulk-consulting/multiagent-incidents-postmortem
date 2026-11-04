@@ -1,6 +1,6 @@
 # Ficha de post-mortem — formulário
 
-**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.13
+**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.14
 
 Cada documento do danluu vira uma ficha `DAN-xxx.json`. A ficha **não substitui** o texto original: o RAG continua indexando e citando o original. A ficha organiza o que o texto diz, para triagem, metadados e chunking.
 
@@ -128,6 +128,7 @@ Regra do IPA mantida: **classificar pela origem, não pelo efeito**. A categoria
 - **v2.11** (revisão do lote 04: 14 ERRADOS em 9 fichas; 4 de 5 `baixa` com dúvida legítima): pedido a outra equipe ("asked X to") não é feito; detecção sem passos de resposta; fator contribuinte não é afirmação sobre pessoa; cabeçalho dentro do texto extraído vale para a data; verificação detalhe a detalhe também em cada passo de mitigação e ação de prevenção.
 - **v2.12** (revisão do lote 05: 15 ERRADOS em 10 fichas; taxa estável em ~1,5 por ficha desde o lote 03): objetivo ("to determine", "to ensure") não é resultado; "decided at X" numa timeline não é "did at X"; horário vindo de parágrafo de resumo entra como trecho; software de controle de sistemas físicos do data center é `infra_fisica_datacenter`; bug antigo sem queda delimitada tem duração `null` e a correção é a mitigação. A partir do lote 06, a sessão de extração faz uma autorrevisão ([`autorrevisao.md`](autorrevisao.md)) e a conferência no GPT passa a ser por amostra.
 - **v2.13** (amostra do lote 06: 6 ERRADOS em 6 fichas, 1,0 por ficha, contra 1,5 no lote 05): `equipe_interna` só quando o texto diz que uma pessoa notou sem alerta; "detected internally" ou só o sintoma é `nao_informada`. Atividade operacional automática (scaling, failover) é `nao_se_aplica` em `mudanca_causadora`.
+- **v2.14** (amostra do lote 09: 4 ERRADOS em 7 fichas, 0,6 por ficha): a regra de duração que só existia no lembrete do pedido de revisão entrou no prompt. Marcas "Impact starts"/"Impact ends" no texto valem mais que outros horários; sem marca de fim, o horário em que o serviço voltou (mesmo degradado) é o fim; faixa ("10-15 minutes") dá `null`. O lembrete da revisão foi alinhado ao prompt.
 
 ## Validação
 

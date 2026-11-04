@@ -1,0 +1,200 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-011",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A database permissions change on a ClickHouse cluster made the Bot Management feature-file query return duplicate rows; the larger file exceeded a 200-feature limit in Cloudflare's core proxy, which panicked and returned HTTP 5xx errors across the network, also affecting Workers KV, Access, Turnstile and the dashboard. Service was restored by stopping propagation of the bad file, inserting a known good file and restarting the core proxy; main impact was resolved at 14:30 and all services by 17:06.",
+    "data_incidente": "2025-11-18",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Core CDN and security services",
+      "Turnstile",
+      "Workers KV",
+      "Dashboard",
+      "Email Security",
+      "Access",
+      "Bot Management"
+    ],
+    "tecnologias": [
+      "ClickHouse",
+      "FL2",
+      "FL",
+      "Rust"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "An automated test detected the issue at 11:31, after the first errors on customer HTTP traffic were observed at 11:28; the initial symptom appeared to be a degraded Workers KV response rate.",
+        "trechos": [
+          "The first automated test detected the issue at 11:31 and manual investigation started at 11:32.",
+          "| 11:28 | Impact starts. | Deployment reaches customer environments, first errors observed on customer HTTP traffic. |",
+          "The initial symptom appeared to be degraded Workers KV response rate causing downstream impact on other Cloudflare services."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 11:05 a database access control change was deployed that made users' implicit access to the underlying tables in the ClickHouse r0 database explicit, so users could see the metadata of these tables.",
+      "trechos": [
+        "Since users already have implicit access to underlying tables in `r0`, we made a change at 11:05 to make this access explicit, so that users can see the metadata of these tables as well.",
+        "Database access control change deployed."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The Bot Management feature file generation logic queried system.columns without filtering by database name, assuming only the default database would be returned; after the change it also returned the r0 columns, more than doubling the features in the file. The FL2 proxy's Bot Management module preallocates memory for a limit of 200 features, and when the file with more than 200 features reached the servers the limit was hit and the Rust code panicked on an unhandled error, returning 5xx errors.",
+        "trechos": [
+          "Unfortunately, there were assumptions made in the past, that the list of columns returned by a query like this would only include the “`default`” database:",
+          "Note how the query does not filter for the database name.",
+          "This, unfortunately, was the type of query that was performed by the Bot Management feature file generation logic to construct each input “feature” for the file mentioned at the beginning of this section.",
+          "However, as part of the additional permissions that were granted to the user, the response now contained all the metadata of the `r0` schema effectively more than doubling the rows in the response ultimately affecting the number of rows (i.e. features) in the final file output.",
+          "Currently that limit is set to 200, well above our current use of \\~60 features. Again, the limit exists because for performance reasons we preallocate memory for the features.",
+          "When the bad file with more than 200 features was propagated to our servers, this limit was hit — resulting in the system panicking.",
+          "The FL2 Rust code that makes the check and was the source of the unhandled error is shown below:",
+          "This resulted in the following panic which in turn resulted in a 5xx error:"
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The file was generated every five minutes on a ClickHouse cluster that was being gradually updated, and bad data was only generated on updated parts, so the system alternately recovered and failed; this fluctuation made it unclear what was happening and initially led the team to believe it might be an attack.",
+        "trechos": [
+          "The explanation was that the file was being generated every five minutes by a query running on a ClickHouse database cluster, which was being gradually updated to improve permissions management.",
+          "Bad data was only generated if the query ran on a part of the cluster which had been updated.",
+          "This fluctuation made it unclear what was happening as the entire system would recover and then fail again as sometimes good, sometimes bad configuration files were distributed to our network.",
+          "Initially, this led us to believe this might be caused by an attack."
+        ]
+      },
+      {
+        "texto": "Cloudflare's status page, hosted off Cloudflare's infrastructure, went down at the same time by coincidence, which led some of the team diagnosing the issue to believe an attacker may be targeting both.",
+        "trechos": [
+          "The status page is hosted completely off Cloudflare’s infrastructure with no dependencies on Cloudflare.",
+          "While it turned out to be a coincidence, it led some of the team diagnosing the issue to believe that an attacker may be targeting both our systems as well as our status page."
+        ]
+      },
+      {
+        "texto": "Latency of CDN responses increased significantly because large amounts of CPU were consumed by debugging and observability systems that automatically enhance uncaught errors with additional debugging information.",
+        "trechos": [
+          "As well as returning HTTP 5xx errors, we observed significant increases in latency of responses from our CDN during the impact period.",
+          "This was due to large amounts of CPU being consumed by our debugging and observability systems, which automatically enhance uncaught errors with additional debugging information."
+        ]
+      },
+      {
+        "texto": "After the feature configuration data was restored, a backlog of login attempts combined with retry attempts overwhelmed the dashboard, causing elevated latency and reduced dashboard availability.",
+        "trechos": [
+          "The second period of impact to the dashboard occurred after restoring the feature configuration data.",
+          "A backlog of login attempts began to overwhelm the dashboard.",
+          "This backlog, in combination with retry attempts, resulted in elevated latency, reducing dashboard availability."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "A database access control change deployed at 11:05 that made users' access to the underlying tables in the r0 database explicit (explicit grants rolled out gradually to users of a ClickHouse cluster).",
+        "trechos": [
+          "Since users already have implicit access to underlying tables in `r0`, we made a change at 11:05 to make this access explicit, so that users can see the metadata of these tables as well.",
+          "With us gradually rolling out the explicit grants to users of a given ClickHouse cluster, after the change at 11:05 the query above started returning “duplicates” of columns because those were for underlying tables stored in the r0 database."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 13:05 internal system bypasses were implemented for Workers KV and Cloudflare Access so they fell back to a prior version of the core proxy, reducing impact.",
+          "trechos": [
+            "| 13:05 | Workers KV and Cloudflare Access bypass implemented — impact reduced. |",
+            "During investigation, we used internal system bypasses for Workers KV and Cloudflare Access so they fell back to a prior version of our core proxy."
+          ]
+        },
+        {
+          "texto": "At 14:24 automatic creation and deployment of new Bot Management configuration files was stopped.",
+          "trechos": [
+            "| 14:24 | Stopped creation and propagation of new Bot Management configuration files. |",
+            "We stopped automatic deployment of new Bot Management configuration files."
+          ]
+        },
+        {
+          "texto": "A known good feature file was manually inserted into the feature file distribution queue; after observing recovery with the old file, a correct Bot Management configuration file was deployed globally at 14:30, and a restart of the core proxy was forced.",
+          "trechos": [
+            "We solved the problem by stopping the generation and propagation of the bad feature file and manually inserting a known good file into the feature file distribution queue.",
+            "And then forcing a restart of our core proxy.",
+            "We observed successful recovery using the old version of the configuration file and then focused on accelerating the fix globally.",
+            "A correct Bot Management configuration file was deployed globally and most services started operating correctly.",
+            "Errors continued until the underlying issue was identified and resolved starting at 14:30.",
+            "| 14:30 | Main impact resolved."
+          ]
+        },
+        {
+          "texto": "Scaling control plane concurrency restored dashboard availability at approximately 15:30.",
+          "trechos": [
+            "Scaling control plane concurrency restored availability at approximately 15:30."
+          ]
+        },
+        {
+          "texto": "The team restarted remaining services that had entered a bad state, with 5xx error volume returning to normal at 17:06.",
+          "trechos": [
+            "The remaining long tail in the chart above is our team restarting remaining services that had entered a bad state, with 5xx error code volume returning to normal at 17:06."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "In progress (work has begun): hardening ingestion of Cloudflare-generated configuration files in the same way as for user-generated input.",
+          "trechos": [
+            "Now that our systems are back online and functioning normally, work has already begun on how we will harden them against failures like this in the future.",
+            "Hardening ingestion of Cloudflare-generated configuration files in the same way we would for user-generated input"
+          ]
+        },
+        {
+          "texto": "In progress (work has begun): enabling more global kill switches for features.",
+          "trechos": [
+            "Now that our systems are back online and functioning normally, work has already begun on how we will harden them against failures like this in the future.",
+            "Enabling more global kill switches for features"
+          ]
+        },
+        {
+          "texto": "In progress (work has begun): eliminating the ability for core dumps or other error reports to overwhelm system resources.",
+          "trechos": [
+            "Now that our systems are back online and functioning normally, work has already begun on how we will harden them against failures like this in the future.",
+            "Eliminating the ability for core dumps or other error reports to overwhelm system resources"
+          ]
+        },
+        {
+          "texto": "In progress (work has begun): reviewing failure modes for error conditions across all core proxy modules.",
+          "trechos": [
+            "Now that our systems are back online and functioning normally, work has already begun on how we will harden them against failures like this in the future.",
+            "Reviewing failure modes for error conditions across all core proxy modules"
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 338,
+      "trechos": [
+        "| 11:28 | Impact starts. | Deployment reaches customer environments, first errors observed on customer HTTP traffic. |",
+        "| 17:06 | All services resolved. Impact ends. | All downstream services restarted and all operations fully restored. |"
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Core traffic was largely flowing as normal by 14:30 ('Main impact resolved'); the duration uses 17:06, which the timeline labels 'Impact ends'. Mitigations such as traffic manipulation and account limiting were attempted on Workers KV during 11:32-13:05 and are not listed as steps. The FL proxy did not return errors but produced bot scores of zero. The opening says the network began experiencing significant failures at 11:20; the duration uses the timeline's 'Impact starts' mark (11:28), per the v2.14 rule.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

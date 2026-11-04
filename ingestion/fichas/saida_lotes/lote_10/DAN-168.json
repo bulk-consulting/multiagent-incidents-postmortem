@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-168",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On 13 October 2022 at 23:30 US/Pacific, an unexpected increase of incoming and logging traffic, combined with a bug in Google's internal streaming RPC library, triggered a deadlock that overloaded the BigQuery Storage Write API streaming frontend, causing elevated error rates in the US Multi-Region for 5 hours. Automated memory increases and added instances did not resolve it because existing instances stayed stuck; engineers restarted the stuck instances, mitigating the issue at 04:30.",
+    "data_incidente": "2022-10-13",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "BigQuery Storage Write API",
+      "BigQuery InsertAll API"
+    ],
+    "tecnologias": [
+      "BigQuery Storage Write API",
+      "internal streaming RPC library"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "The issue was brought to Google's attention through an internal alert on 13 October 2022 at 23:47 US/Pacific.",
+        "trechos": [
+          "The issue was brought to our attention through internal alert on 13 October 2022 23:47 US/Pacific, and Google engineers immediately started an investigation."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "On 13 October 2022 at 23:30 US/Pacific, there was an unexpected increase of incoming and logging traffic.",
+      "trechos": [
+        "On 13 October 2022 23:30 US/Pacific, there was an unexpected increase of incoming and logging traffic combined with a bug in Google’s internal streaming RPC library that triggered a deadlock and caused the Write API Streaming frontend to be overloaded."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A bug in Google's internal streaming RPC library, combined with the traffic increase, triggered a deadlock that overloaded the Write API streaming frontend; because of a bug in the Write API, the existing instances remained stuck.",
+        "trechos": [
+          "On 13 October 2022 23:30 US/Pacific, there was an unexpected increase of incoming and logging traffic combined with a bug in Google’s internal streaming RPC library that triggered a deadlock and caused the Write API Streaming frontend to be overloaded.",
+          "But because of the bug in the Write API, the existing instances remained stuck, and because of the effects of load balancing the elevated error rates continued to affect customers accessing the Write API."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Because of the effects of load balancing, elevated error rates continued to affect customers accessing the Write API even after automation increased memory and scaled up more instances.",
+        "trechos": [
+          "Google’s internal automation correctly kicked in and attempted to resolve the issue by increasing memory and scaling up more instances.",
+          "But because of the bug in the Write API, the existing instances remained stuck, and because of the effects of load balancing the elevated error rates continued to affect customers accessing the Write API."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Automated systems tried increasing memory on the stuck instances at 23:40 and engineers manually increased the maximum number of Write API instances from 200 to 1000; neither resolved the issue.",
+          "trechos": [
+            "Google’s automated systems automatically tried increasing memory on the stuck instances at 13 October 23:40 US/Pacific, and Google engineers manually increased the maximum number of Write API instances from 200 to 1000, however neither of them resolved the issue."
+          ]
+        },
+        {
+          "texto": "Between 02:30 and 02:50 US/Pacific on 14 October, engineers continued to add resources until it was discovered that the stuck instances needed to be restarted.",
+          "trechos": [
+            "Between 14 October 02:30 and 02:50 US/Pacific, Google engineers continued to add resources, until it was discovered that the stuck instances needed to be restarted."
+          ]
+        },
+        {
+          "texto": "Engineers restarted the stuck instances between 03:20 and 04:30 US/Pacific on 14 October; the issue was fully mitigated at 04:30.",
+          "trechos": [
+            "The fix was to restart the stuck instances which was completed by our engineers.",
+            "This action commenced between 14 October 03:20 US/Pacific and 04:30 US/Pacific.",
+            "The issue was fully mitigated on 14 October 2022 04:30 US/ Pacific."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: fixed the bug in Google's internal RPC library.",
+          "trechos": [
+            "Fix the bug in Google’s internal RPC library (COMPLETED)"
+          ]
+        },
+        {
+          "texto": "Already done: fixed the bug in the Write API which caused the cascading deadlock.",
+          "trechos": [
+            "Fix the bug in the Write API which caused the cascading deadlock (COMPLETED)"
+          ]
+        },
+        {
+          "texto": "In progress: deploying automation in the Write API back end to load balance automatically based on concurrent connections, with improved error handling to reduce unavailability errors.",
+          "trechos": [
+            "Deploying additional automation in the Write API back end to automatically load balance based on concurrent connections, at the same time providing improved error handling to reduce unavailability errors."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 300,
+      "trechos": [
+        "On 13 October 2022, BigQuery Storage WriteAPI observed elevated error rates in the US Multi-Region for a period of 5 hours."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "A status update says the issue was resolved for all affected users as of 2022-10-14 04:50 US/Pacific, while the incident report gives 04:30 as the end. The preliminary mini incident report attributed the issue to increased calls overloading frontend resources and a suboptimal distribution of load; the final report adds the RPC library and Write API bugs. InsertAll API customers may also have seen a slight increase in failures due to the subsequent increase in traffic.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.14" }
+}

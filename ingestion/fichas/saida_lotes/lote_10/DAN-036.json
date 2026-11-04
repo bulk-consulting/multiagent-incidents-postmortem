@@ -1,0 +1,124 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-036",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On 12 March 2019, a configuration change made to reduce metadata storage resource usage overloaded a key part of the system that looks up the location of blob data, and the increased load eventually led to a cascading failure. Google's internal blob storage service saw elevated error rates for 4 hours and 10 minutes, affecting Google Cloud Storage, App Engine, Stackdriver Monitoring, Gmail, Photos and Google Drive. SREs stopped the job making configuration changes and manually reduced traffic to the blob service so tasks could start up.",
+    "data_incidente": "2019-03-12",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Google Cloud Storage",
+      "Gmail",
+      "Photos",
+      "Google Drive",
+      "Stackdriver Monitoring",
+      "App Engine Blobstore API",
+      "App Engine deployments",
+      "App Engine static file serving"
+    ],
+    "tecnologias": [
+      "internal blob storage service",
+      "metadata storage system"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "SREs were alerted to the service disruption at 18:56 PDT.",
+        "trechos": [
+          "SREs were alerted to the service disruption at 18:56 PDT and immediately stopped the job that was making configuration changes."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "After SREs were alerted on 11 March to a significant increase in storage resources for metadata used by the internal blob service, on 12 March they made a configuration change to reduce resource usage; it had a side effect of overloading a key part of the system for looking up the location of blob data, and the increased load eventually led to a cascading failure.",
+        "trechos": [
+          "On Monday 11 March 2019, Google SREs were alerted to a significant increase in storage resources for metadata used by the internal blob service.",
+          "On Tuesday 12 March, to reduce resource usage, SREs made a configuration change which had a side effect of overloading a key part of the system for looking up the location of blob data.",
+          "The increased load eventually lead to a cascading failure."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A configuration change made by SREs to reduce resource usage, which overloaded a key part of the system for looking up the location of blob data; after the alert, SREs stopped the job that was making configuration changes. The exact setting is not named.",
+        "trechos": [
+          "On Tuesday 12 March, to reduce resource usage, SREs made a configuration change which had a side effect of overloading a key part of the system for looking up the location of blob data.",
+          "SREs were alerted to the service disruption at 18:56 PDT and immediately stopped the job that was making configuration changes."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "After being alerted at 18:56 PDT, SREs immediately stopped the job that was making configuration changes.",
+          "trechos": [
+            "SREs were alerted to the service disruption at 18:56 PDT and immediately stopped the job that was making configuration changes."
+          ]
+        },
+        {
+          "texto": "To recover from the cascading failure, SREs manually reduced traffic levels to the blob service so tasks could start up without crashing due to high load.",
+          "trechos": [
+            "In order to recover from the cascading failure, SREs manually reduced traffic levels to the blob service to allow tasks to start up without crashing due to high load."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: improve isolation between regions of the storage service so failures are less likely to have global impact.",
+          "trechos": [
+            "In order to prevent service disruptions of this type, we will be improving the isolation between regions of the storage service so that failures are less likely to have global impact."
+          ]
+        },
+        {
+          "texto": "Planned: improve the ability to provision resources more quickly to recover from a cascading failure triggered by high load.",
+          "trechos": [
+            "We will be improving our ability to more quickly provision resources in order to recover from a cascading failure triggered by high load."
+          ]
+        },
+        {
+          "texto": "Planned: software measures to prevent configuration changes that cause overloading of key parts of the system.",
+          "trechos": [
+            "We will make software measures to prevent any configuration changes that cause overloading of key parts of the system."
+          ]
+        },
+        {
+          "texto": "Planned: improve load shedding behavior of the metadata storage system so it degrades gracefully under overload.",
+          "trechos": [
+            "We will improve load shedding behavior of the metadata storage system so that it degrades gracefully under overload."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 250,
+      "trechos": [
+        "On Tuesday 12 March 2019, Google's internal blob storage service experienced a service disruption for a duration of 4 hours and 10 minutes."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The status updates say the Cloud Storage issue was resolved for all affected projects as of 2019-03-12 23:18 US/Pacific, later than the 22:50 end of the blob storage disruption given in the summary. A preliminary update stated the Cloud Storage error rate was below 6%; the final report gives an average of 4.8%. The report notes a separate incident report for non-GCP services. Each status update appears twice in the extracted table.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.14"
+  }
+}

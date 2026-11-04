@@ -1,0 +1,158 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-180",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "Honeycomb's ingest system went down repeatedly for over eight and a half hours, not all consecutive: Shepherd ingest hosts entered a persistent \"shark fin\" pattern, ran out of memory and restarted, with cascading Refinery crashes. The trigger remains unknown; the authors point to contention on a table-wide lock in Shepherd's in-memory schema cache as a possible explanation. Ingest improved once a fix to pre-fill the cache was applied, and Refinery was fixed by adding hosts.",
+    "data_incidente": "2022-09-08",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Honeycomb ingest (customer data ingestion)",
+      "Shepherd",
+      "Refinery (internal trace sampling)"
+    ],
+    "tecnologias": [
+      "Shepherd",
+      "Refinery",
+      "Kafka",
+      "in-memory schema cache",
+      "autoscaler"
+    ],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "On September 8th the team started running into a \"shark fin\" pattern that, based on prior experience, was expected to self-resolve within 15 minutes but persisted.",
+        "trechos": [
+          "On September 8th, we started running into something we called the “shark fin” pattern:",
+          "Prior experience had us expecting it to self-resolve within 15 minutes, but this time it was a persistent, metastable failure loop."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "incerta",
+      "descricao": {
+        "texto": "What triggered the incident is not known. The authors found that each Shepherd keeps an in-memory cache of dataset schemas and acquires a table-wide lock on every cache update, so backfilling a missing entry could cause unrelated requests to pile up; this could explain the shark fin pattern but not what triggered the bad state. They consider database contention, Shepherd-internal cache contention, or both at once possible, and the problem was fixed by pre-filling the cache.",
+        "trechos": [
+          "For performance reasons, each Shepherd maintains an in-memory cache of schemas.",
+          "Every time the cache was updated, a lock was acquired. *And the lock was table-wide*.",
+          "When a missing entry was backfilled, the cache could cause unrelated requests to pile up.",
+          "This could explain “shark fin” graphs, but not what would suddenly trigger this bad state.",
+          "We still don’t know what triggered all of this, we just know that it was fixed by the cache pre-fill.",
+          "Database contention would require fewer Shepherd hosts to properly lower contention at the database level (fewer instances trying to fill their cache at once).",
+          "Shepherd-internal contention would require more Shepherd hosts to properly lower contention at the cache table level (fewer workers trying to refresh the local cache).",
+          "There is also the possibility that *both* were happening at once, leaving us in a no-win situation where any action can make the problem worse."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The in-memory caching mechanism of Shepherd hosts was a known scaling limit of an ingestion path under continuously increasing stress, and the usual workarounds (scaling the database or Shepherds up vertically) were ineffective this time.",
+        "trechos": [
+          "Our ingestion path is a core part of the system where we know there is continuously increasing stress, and that we will soon re-architect to support growth.",
+          "One of these scaling limits is the in-memory caching mechanism used by Shepherd hosts, which stand at the edge of the system and accept customer data.",
+          "We noticed problems with it recently, and relied on two workarounds: scale the database up vertically so it can take more heat, or scale Shepherds up vertically so they use fewer hosts and the cost of filling the cache is minimized.",
+          "We encountered these issues again recently, and our usual fixes were ineffective."
+        ]
+      },
+      {
+        "texto": "Shepherd OOM crashes coincided with cascading Refinery crashes, and the team initially theorized that Refinery had caused Shepherd's failure; it later turned out that Shepherd going bad threw Refinery into a spiral, not the other way around.",
+        "trechos": [
+          "This was tied with cascading crashes in our Refinery cluster, which is in charge of sampling our internal Shepherd traces.",
+          "A new theory emerged: something in Refinery went bad, and Shepherd assumed Refinery would be up.",
+          "We now know that Shepherd going bad threw Refinery in a spiral, not the other way around."
+        ]
+      },
+      {
+        "texto": "Aggressive sampling applied to stabilize Refinery impacted the team's ability to observe the system, leaving most observability data in bad shape.",
+        "trechos": [
+          "This seemed to work, but sampling aggressively was impacting our ability to observe the system.",
+          "Ingestion volume was higher, connection pools were filling up, Shepherd and refinery hosts were crashing, our rate-limiting host died (unrelated; bad timing), Kafka showed hiccups, a disk was false-alarming, and most of our observability data was in bad shape due to emergency sampling."
+        ]
+      },
+      {
+        "texto": "Build pinning did not cover service definitions, so tweaks to Shepherds' charts rolled out despite pinned versions and the shark fin pattern resumed after the system had stabilized.",
+        "trechos": [
+          "Despite having pinned versions, a deployment went through and the shark fin pattern resumed.",
+          "While build artifacts get pinned through a manifest, service definitions are exempt from that mechanism.",
+          "Tweaks we made to Shepherds’ charts rolled out, and threw us back into the incident."
+        ]
+      },
+      {
+        "texto": "A forced scale-down of Shepherds was countered by the autoscaler, which added more Shepherds because crashlooping demands a lot of CPU.",
+        "trechos": [
+          "We then forced a scale-down of Shepherds to disrupt the pattern, but the autoscaler decided we had too few Shepherds—crashlooping demands a lot of CPU—and instead added more of them."
+        ]
+      },
+      {
+        "texto": "The shark fin pattern makes graphs look like they are returning to normal before the slowest requests' spans arrive, so effects of any action can only be confirmed after a delay.",
+        "trechos": [
+          "As you watch the graph, it may *look* like everything is returning to normal, but a few minutes later, the worst offenders’ spans finally make it in and the chart looks wonky again.",
+          "In this situation, you have to introduce a delay in all your observations before you can confirm any effect."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Engineers developed a fix to pre-fill the Shepherd cache before hosts accept traffic; once applied, after a couple of hours, it instantly improved ingest, connection pools, Shepherds and Kafka, leaving only Refinery broken.",
+          "trechos": [
+            "We tried to reduce contention on the cache hot path and also pre-fill the cache before Shepherd hosts accept traffic.",
+            "Once the fix for the cache pre-fill was applied—after a couple hours—it instantly improved the situation: ingest, connection pools, Shepherds, and Kafka were all better.",
+            "Only Refinery remained broken."
+          ]
+        },
+        {
+          "texto": "Builds were pinned to maintain ingest stability, and Refinery was fixed by adding more hosts to its pool to sustain the heavier load from Shepherd.",
+          "trechos": [
+            "We pinned builds to maintain ingest stability and fixed Refinery by adding more hosts to its pool to sustain the heavier load from Shepherd."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the authors are confident the cache pre-fill fix worked and is effective, and most of the other temporary fixes were reverted.",
+          "trechos": [
+            "We are confident the fix worked and is effective because it’s been through a lot, and we reverted most of the other temporary fixes."
+          ]
+        },
+        {
+          "texto": "Planned: re-architect the ingestion path to support growth, and look for longer-term fixes that circumvent the overall pattern.",
+          "trechos": [
+            "Our ingestion path is a core part of the system where we know there is continuously increasing stress, and that we will soon re-architect to support growth.",
+            "The data simply isn’t there, our runway has been extended, and we’re now looking for longer-term fixes that circumvent the overall pattern."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "What triggered the incident is still unknown; the authors accept they probably won't find out how it all came together because the data isn't there."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "duracao is null because the text gives only 'over eight hours and a half, not all consecutive'. Attempts that did not restore service (aggressive Refinery sampling, scaling Shepherds vertically, forced scale-down) are listed as context in fatores_contribuintes rather than as mitigation steps; reducing contention on the cache hot path was attempted but the text only confirms the pre-fill fix was applied. The system also stabilized once for unknown reasons before the chart tweaks threw it back into the incident. The text ends with an invitation to the company's Slack community.",
+  "extracao": {
+    "modelo": "claude-opus-5-5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}
