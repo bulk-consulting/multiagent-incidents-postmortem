@@ -18,11 +18,12 @@ Cada chunk guarda:
 - trechos: os trechos literais do documento que provam cada afirmação do chunk (evidência);
 - metadados do documento e da ficha, para filtros e para mostrar a fonte.
 
-A contagem de tokens é uma estimativa (palavras x 1,35) até o modelo de embedding ser escolhido;
-depois ela passa a usar o tokenizador do modelo (parâmetro `contar`).
+A contagem de tokens usa o tokenizador do multilingual-e5-base (o mesmo do bge-m3), com o prefixo
+"passage: "; o limite padrão de 450 deixa folga abaixo dos 512 tokens que o e5 lê. O Qwen3 tem
+outro tokenizador, mas lê até 32 mil tokens. --estimado volta à estimativa por palavras.
 
 Uso (a partir da raiz do repositório):
-    multiagent_env/bin/python -I ingestion/corpus/chunk_fichas.py [--limite 400]
+    multiagent_env/bin/python -I ingestion/corpus/chunk_fichas.py [--limite 450] [--estimado]
 
 Lê:    ingestion/corpus/corpus.jsonl, ingestion/fichas/saida/DAN-*.json
 Grava: ingestion/corpus/chunks_fichas.jsonl
@@ -82,6 +83,25 @@ def titulo_do_documento(doc: dict, ficha: dict) -> str:
     resumo = (ficha.get("incidente") or {}).get("resumo") or doc["catalog_id"]
     frase = re.split(r"(?<=[.;])\s", resumo, 1)[0]
     return frase if len(frase) <= 120 else frase[:117].rsplit(" ", 1)[0] + "..."
+
+
+MODELO_TOKENIZADOR = "intfloat/multilingual-e5-base"  # mesmo tokenizador (XLM-RoBERTa) do bge-m3
+
+
+def contador_real(modelo: str = MODELO_TOKENIZADOR):
+    """Conta tokens como o modelo conta, já com o prefixo "passage: " do e5."""
+    from transformers import AutoTokenizer
+    tok = AutoTokenizer.from_pretrained(modelo)
+    tok.model_max_length = 10**9  # só contamos; o aviso de "sequência longa" não se aplica
+
+    def contar(texto: str) -> int:
+        return len(tok("passage: " + texto)["input_ids"])
+    return contar
+
+
+def escolher_contador(argv: list[str]):
+    """--estimado usa a estimativa por palavras; o padrão é o tokenizador real."""
+    return (estimar_tokens, "estimativa") if "--estimado" in argv else (contador_real(), MODELO_TOKENIZADOR)
 
 
 def estimar_tokens(texto: str) -> int:
@@ -187,7 +207,7 @@ def montar_chunks(ficha: dict, doc: dict, limite: int, contar=estimar_tokens) ->
                 "partes": len(grupos),
                 "content": content,
                 "texto_embedding": cabeca + "\n" + normalizar_para_embedding(content),
-                "tokens_estimados": contar(cabeca + "\n" + content),
+                "tokens": contar(cabeca + "\n" + content),
                 "trechos": list(dict.fromkeys(trechos)),
                 "company": doc.get("company"),
                 "title": doc.get("title"),
@@ -204,7 +224,8 @@ def montar_chunks(ficha: dict, doc: dict, limite: int, contar=estimar_tokens) ->
 
 
 def main() -> None:
-    limite = 400
+    limite = 450
+    contar, metodo = escolher_contador(sys.argv)
     if "--limite" in sys.argv:
         limite = int(sys.argv[sys.argv.index("--limite") + 1])
     docs = [json.loads(l) for l in (PASTA / "corpus.jsonl").open(encoding="utf-8")]
@@ -213,22 +234,22 @@ def main() -> None:
         ficha = json.loads((FICHAS / f"{doc['catalog_id']}.json").read_text(encoding="utf-8"))
         if not ficha.get("incidente"):
             continue
-        todos += montar_chunks(ficha, doc, limite)
+        todos += montar_chunks(ficha, doc, limite, contar)
     with (PASTA / "chunks_fichas.jsonl").open("w", encoding="utf-8") as f:
         for c in todos:
             f.write(json.dumps(c, ensure_ascii=False) + "\n")
 
     por_assunto: dict[str, list[int]] = {}
     for c in todos:
-        por_assunto.setdefault(c["assunto"], []).append(c["tokens_estimados"])
-    print(f"{len(todos)} chunks de {len(docs)} documentos (limite {limite}) -> "
+        por_assunto.setdefault(c["assunto"], []).append(c["tokens"])
+    print(f"{len(todos)} chunks de {len(docs)} documentos (limite {limite} tokens, contagem: {metodo}) -> "
           f"{(PASTA / 'chunks_fichas.jsonl').relative_to(ROOT)}")
     for a, v in por_assunto.items():
         v = sorted(v)
         print(f"  {a:10} {len(v):4} chunks  mediana {v[len(v)//2]:4}  p90 {v[int(.9*len(v))]:4}  max {v[-1]:4}")
     divididos = sorted({c["chunk_id"].rsplit(":", 1)[0] for c in todos if c["partes"] > 1})
     print(f"  divididos ({len(divididos)}): {', '.join(divididos)}")
-    acima = [c["chunk_id"] for c in todos if c["tokens_estimados"] > limite]
+    acima = [c["chunk_id"] for c in todos if c["tokens"] > limite]
     print(f"  acima do limite depois da divisão: {len(acima)} {acima}")
 
 

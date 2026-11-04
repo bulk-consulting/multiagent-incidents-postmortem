@@ -13,10 +13,10 @@ Regras:
 
 Cada chunk guarda `content` (o texto do corpus, exato), `texto_embedding` (cabeçalho
 empresa — título — seção + content normalizado) e metadados do documento. Os tokens são contados
-sobre o texto_embedding, com estimativa (palavras x 1,35) até o modelo ser escolhido.
+sobre o texto_embedding com o tokenizador do multilingual-e5-base (ver chunk_fichas.py).
 
 Uso (a partir da raiz do repositório):
-    multiagent_env/bin/python -I ingestion/corpus/chunk_texto.py [--limite 400] [--minimo 100]
+    multiagent_env/bin/python -I ingestion/corpus/chunk_texto.py [--limite 450] [--minimo 100] [--estimado]
 
 Lê:    ingestion/corpus/corpus.jsonl, ingestion/fichas/saida/DAN-*.json (só para o título)
 Grava: ingestion/corpus/chunks_texto.jsonl
@@ -39,6 +39,7 @@ _spec.loader.exec_module(_cf)
 normalizar_para_embedding = _cf.normalizar_para_embedding
 titulo_do_documento = _cf.titulo_do_documento
 estimar_tokens = _cf.estimar_tokens
+escolher_contador = _cf.escolher_contador
 
 INTERTITULO = re.compile(r"^#{1,6}\s+(.+?)\s*#*\s*$")
 FRASE = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\"'(\[])")
@@ -60,15 +61,29 @@ def secoes(texto: str) -> list[tuple[str, list[str]]]:
     return [(t, ps) for t, ps in saida if ps or t]
 
 
+def cortar_por_palavras(texto: str, cabeca: str, limite: int, contar) -> list[str]:
+    """Corta em pedaços de palavras inteiras, cada um com o máximo que cabe no limite (busca binária)."""
+    palavras, pedacos, i = texto.split(), [], 0
+    while i < len(palavras):
+        lo, hi = 1, len(palavras) - i
+        while lo < hi:
+            meio = (lo + hi + 1) // 2
+            if contar(cabeca + "\n" + normalizar_para_embedding(" ".join(palavras[i:i + meio]))) <= limite:
+                lo = meio
+            else:
+                hi = meio - 1
+        pedacos.append(" ".join(palavras[i:i + lo]))
+        i += lo
+    return pedacos
+
+
 def partir_paragrafo(p: str, cabeca: str, limite: int, contar) -> list[str]:
     """Divide um parágrafo grande entre frases (ou linhas), com 1 frase de sobreposição."""
     unidades = [u for u in FRASE.split(p) if u.strip()]
     if len(unidades) <= 1:
         unidades = [u for u in p.split("\n") if u.strip()]
     if len(unidades) <= 1:  # sem frases nem linhas: corta por palavras
-        palavras = p.split()
-        passo = max(1, int(limite / 1.35) - 40)
-        return [" ".join(palavras[i:i + passo]) for i in range(0, len(palavras), passo)]
+        return cortar_por_palavras(p, cabeca, limite, contar)
     partes, atual = [], []
     for u in unidades:
         if atual and contar(cabeca + "\n" + normalizar_para_embedding(" ".join(atual + [u]))) > limite:
@@ -83,14 +98,7 @@ def partir_paragrafo(p: str, cabeca: str, limite: int, contar) -> list[str]:
         if contar(cabeca + "\n" + normalizar_para_embedding(parte)) <= limite:
             finais.append(parte)
             continue
-        palavras, atual = parte.split(), []
-        for w in palavras:
-            if atual and contar(cabeca + "\n" + " ".join(atual + [w])) > limite:
-                finais.append(" ".join(atual))
-                atual = []
-            atual.append(w)
-        if atual:
-            finais.append(" ".join(atual))
+        finais += cortar_por_palavras(parte, cabeca, limite, contar)
     return finais
 
 
@@ -159,7 +167,7 @@ def montar_chunks(doc: dict, ficha: dict, limite: int, minimo: int, contar=estim
             "secao": " / ".join(dict.fromkeys(x for x in titulos if x)) or None,
             "content": content,
             "texto_embedding": emb,
-            "tokens_estimados": contar(emb),
+            "tokens": contar(emb),
             "company": doc.get("company"),
             "title": doc.get("title"),
             "url": doc.get("url"),
@@ -172,7 +180,8 @@ def montar_chunks(doc: dict, ficha: dict, limite: int, minimo: int, contar=estim
 
 
 def main() -> None:
-    limite, minimo = 400, 100
+    limite, minimo = 450, 100
+    contar, metodo = escolher_contador(sys.argv)
     if "--limite" in sys.argv:
         limite = int(sys.argv[sys.argv.index("--limite") + 1])
     if "--minimo" in sys.argv:
@@ -181,16 +190,16 @@ def main() -> None:
     todos, por_doc = [], {}
     for doc in docs:
         ficha = json.loads((FICHAS / f"{doc['catalog_id']}.json").read_text(encoding="utf-8"))
-        cs = montar_chunks(doc, ficha, limite, minimo)
+        cs = montar_chunks(doc, ficha, limite, minimo, contar)
         por_doc[doc["catalog_id"]] = len(cs)
         todos += cs
     with (PASTA / "chunks_texto.jsonl").open("w", encoding="utf-8") as f:
         for c in todos:
             f.write(json.dumps(c, ensure_ascii=False) + "\n")
 
-    tam = sorted(c["tokens_estimados"] for c in todos)
+    tam = sorted(c["tokens"] for c in todos)
     n = sorted(por_doc.values())
-    print(f"{len(todos)} chunks de {len(docs)} documentos (limite {limite}, mínimo {minimo}) -> "
+    print(f"{len(todos)} chunks de {len(docs)} documentos (limite {limite}, mínimo {minimo}, contagem: {metodo}) -> "
           f"{(PASTA / 'chunks_texto.jsonl').relative_to(ROOT)}")
     print(f"  tokens: mediana {tam[len(tam)//2]}  p10 {tam[len(tam)//10]}  p90 {tam[int(.9*len(tam))]}  max {tam[-1]}")
     print(f"  abaixo do mínimo: {sum(t < minimo for t in tam)}  acima do limite: {sum(t > limite for t in tam)}")
