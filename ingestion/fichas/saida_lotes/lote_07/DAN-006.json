@@ -1,0 +1,103 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-006",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A configuration change on a backbone router in Atlanta contained an error that caused all traffic across Cloudflare's backbone to be sent to Atlanta, overwhelming the Atlanta router and causing backbone-connected network locations to fail; the outage lasted 27 minutes and traffic dropped by about 50%. Service was restored after the Atlanta router was disabled.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Internet properties",
+      "Cloudflare services",
+      "Cloudflare network locations connected to the backbone"
+    ],
+    "tecnologias": ["BGP", "iBGP", "prefix-list", "local-preference"],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "To remove some of Atlanta's backbone traffic, a one-line change was made on the Atlanta router that deactivated the prefix-list condition of the 6-SITE-LOCAL term instead of the term itself. Without the prefix-list condition, the router sent all its BGP routes to all other backbone routers with an increased local-preference of 200, and Atlanta started attracting traffic from across the backbone, which overwhelmed the Atlanta router and caused backbone-connected locations to fail.",
+        "trechos": [
+          "As there was backbone congestion in Atlanta, the team had decided to remove some of Atlanta’s backbone traffic. But instead of removing the Atlanta routes from the backbone, a one line change started leaking all BGP routes into the backbone.",
+          "[edit policy-options policy-statement 6-BBONE-OUT term 6-SITE-LOCAL from]",
+          "The correct change would have been to deactivate the term instead of the prefix-list.",
+          "By removing the prefix-list condition, the router was instructed to send all its BGP routes to all other backbone routers, with an increased local-preference of 200.",
+          "With the routes sent out, Atlanta started attracting traffic from across the backbone.",
+          "This quickly overwhelmed the Atlanta router and caused Cloudflare network locations connected to the backbone to fail."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "At the time, local routes that the edge routers received from compute nodes had a local-preference of 100, lower than the 200 set by the leaked routes; as the higher local-preference wins, traffic meant for local compute nodes went to Atlanta compute nodes instead.",
+        "trechos": [
+          "Unfortunately at the time, local routes that the edge routers received from our compute nodes had a local-preference of 100. As the higher local-preference wins, all of the traffic meant for local compute nodes went to Atlanta compute nodes instead."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "A one-line change on the Atlanta router (atl01) deactivated the prefix-list 6-SITE-LOCAL in term 6-SITE-LOCAL of policy-statement 6-BBONE-OUT.",
+        "trechos": [
+          "atl01# show | compare",
+          "[edit policy-options policy-statement 6-BBONE-OUT term 6-SITE-LOCAL from]",
+          "!       inactive: prefix-list 6-SITE-LOCAL { ... }",
+          "But instead of removing the Atlanta routes from the backbone, a one line change started leaking all BGP routes into the backbone."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Once the outage was understood, the Atlanta router was disabled and dropped from the backbone; traffic began flowing normally again at 21:39 UTC, and the timeline marks 21:39 to 21:47 as ATL dropped from the backbone, service restored.",
+          "trechos": [
+            "Once the outage was understood, the Atlanta router was disabled and traffic began flowing normally again at 21:39.",
+            "21:39 to 21:47: ATL dropped from the backbone, service restored",
+            "All timestamps are UTC."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the BGP local-preference for local server routes was changed after the incident, to prevent a single location from attracting other locations' traffic in a similar manner.",
+          "trechos": [
+            "Change the BGP local-preference for local server routes. This change will prevent a single location from attracting other locations’ traffic in a similar manner. This change has been deployed following the incident."
+          ]
+        },
+        {
+          "texto": "Planned: introduce a maximum-prefix limit on backbone BGP sessions, to be deployed on Monday, July 20; the authors say this would have shut down the backbone in Atlanta, and the network is built to function without a backbone.",
+          "trechos": [
+            "Introduce a maximum-prefix limit on our backbone BGP sessions - this would have shut down the backbone in Atlanta, but our network is built to function properly without a backbone. This change will be deployed on Monday, July 20."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 27,
+      "trechos": [
+        "Today a configuration error in our backbone network caused an outage for Internet properties and Cloudflare services that lasted 27 minutes."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives no full date for the incident (only \"Today\" and a planned deployment on \"Monday, July 20\" without a year), so data_incidente is null. After the outage, congestion at a core data center caused some logs to be dropped from 21:47 to 22:10 UTC while the edge continued operating; full recovery including logs and metrics was at 22:10. categoria_causa is configuration-error because the text presents the root cause as an erroneous policy change (\"a configuration error\"). The text states this was not caused by an attack or breach.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.13" }
+}

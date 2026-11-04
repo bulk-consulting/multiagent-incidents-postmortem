@@ -1,0 +1,226 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-107",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A latent memory leak in an operational data collection agent on EBS storage servers, set off when some servers kept trying to contact a replaced data collection server after a DNS update did not fully propagate, exhausted memory on many servers in one US-East Availability Zone, leaving EBS volumes degraded or stuck and affecting EC2, RDS, ELB and the APIs on October 22, 2012. Service recovered after the failover rate was reduced and the excess memory consumed by the agent was freed; nearly all volumes were restored by 4:15 PM PDT.",
+    "data_incidente": "2012-10-22",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Amazon Elastic Block Store (EBS)",
+      "Amazon Elastic Compute Cloud (EC2)",
+      "EC2 and EBS APIs",
+      "AWS Management Console",
+      "Amazon Relational Database Service (RDS)",
+      "Amazon Elastic Load Balancing (ELB)"
+    ],
+    "tecnologias": ["EBS storage servers", "data collection agent", "internal DNS", "API throttling", "RDS Multi-AZ", "Elastic IP addresses (EIPs)"],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "At 10:00 AM PDT, a small number of EBS volumes in one Availability Zone began seeing degraded performance, and some became stuck (unable to process further I/O requests); the text does not say how this was noticed.",
+        "trechos": [
+          "At 10:00AM PDT Monday, a small number of Amazon Elastic Block Store (EBS) volumes in one of our five Availability Zones in the US-East Region began seeing degraded performance, and in some cases, became “stuck” (i.e. unable to process further I/O requests)."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "After a failed data collection server was replaced, the DNS update for it did not propagate to all internal DNS servers, so a fraction of the storage servers kept trying to contact the failed data collection server; this inability to contact it triggered the latent memory leak.",
+      "trechos": [
+        "Last week, one of the data collection servers in the affected Availability Zone had a hardware failure and was replaced. As part of replacing that server, a DNS record was updated to remove the failed server and add the replacement server.",
+        "While not noticed at the time, the DNS update did not successfully propagate to all of the internal DNS servers, and as a result, a fraction of the storage servers did not get the updated server address and continued to attempt to contact the failed data collection server.",
+        "However, this inability to contact a data collection server triggered a latent memory leak bug in the reporting agent on the storage servers."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A latent bug in the operational data collection (reporting) agent on the EBS storage servers: rather than handling the failed connection gracefully, the agent kept trying to contact the collection server in a way that slowly consumed system memory, and by Monday morning it had consumed enough memory that the affected storage servers could not keep up with normal request handling.",
+        "trechos": [
+          "The root cause of the problem was a latent bug in an operational data collection agent that runs on the EBS storage servers.",
+          "Rather than gracefully deal with the failed connection, the reporting agent continued trying to contact the collection server in a way that slowly consumed system memory.",
+          "By Monday morning, the rate of memory loss became quite high and consumed enough memory on the affected storage servers that they were unable to keep up with normal request handling processes."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Monitoring of aggregate memory consumption on each EBS server failed to alarm on the memory leak, because EBS servers make very dynamic use of their available memory, which makes accurate memory alarms difficult.",
+        "trechos": [
+          "While we monitor aggregate memory consumption on each EBS Server, our monitoring failed to alarm on this memory leak. EBS Servers generally make very dynamic use of all of their available memory for managing customer data, making it difficult to set accurate alarms on memory usage and free memory."
+        ]
+      },
+      {
+        "texto": "The failed DNS propagation was not noticed, and because the data collection service is designed to tolerate missing data, it caused no immediate issues and set off no alarms.",
+        "trechos": [
+          "While not noticed at the time, the DNS update did not successfully propagate to all of the internal DNS servers",
+          "Because of the design of the data collection service (which is tolerant to missing data), this did not cause any immediate issues or set off any alarms."
+        ]
+      },
+      {
+        "texto": "Because many servers became memory-exhausted at the same time, the EBS failover from degraded servers could not find enough healthy servers and more volumes became stuck; the text says the EBS failover logic led to rapid deterioration early in the event.",
+        "trechos": [
+          "This caused the system to begin to failover from the degraded servers to healthy servers. However, because many of the servers became memory-exhausted at the same time, the system was unable to find enough healthy servers to failover to, and more volumes became stuck.",
+          "In addition, we are evaluating how to change the EBS failover logic that led to the rapid deterioration early in this event."
+        ]
+      },
+      {
+        "texto": "The large surge in failover and recovery activity made it difficult to identify the root cause.",
+        "trechos": [
+          "The large surge in failover and recovery activity in the cluster made it difficult for the team to identify the root cause of the event."
+        ]
+      },
+      {
+        "texto": "An aggressive API throttling policy applied from 12:06 PM to 2:33 PM PDT was too aggressive and throttled a higher percentage of calls for a subset of customers than the team realized, as only aggregate throttling rates were monitored; many customers could not use describe calls to manage their resources during recovery.",
+        "trechos": [
+          "Unfortunately, the throttling policy that was put in place was too aggressive.",
+          "At 12:06PM PDT, the team implemented this aggressive API throttling policy to help assure stability of the system during the recovery.",
+          "The team monitored the aggregate throttling rate as well as the overall activity (launches, volume creation, etc.) and did not at the time believe that customers were being substantially impacted.",
+          "We now understand that this throttling policy, for a subset of our customers, was throttling a higher percentage of API calls than we realized during the event.",
+          "The service APIs were still handling the vast majority of customer requests to launch and terminate instances and make other changes to their EC2 and EBS resources, but many customers experienced high levels of throttling on calls to describe their resources (e.g. DescribeInstances, DescribeImages, etc.).",
+          "This throttling policy was in effect until 2:33PM PDT, after which we reduced the level of throttling considerably."
+        ]
+      },
+      {
+        "texto": "Separate defects slowed recovery of dependent services: two RDS software bugs kept some Multi-AZ instances from failing over automatically, ELB recovery workflows consumed all Elastic IP addresses available to ELB, which stalled the recovery workflows, and a bug in ELB traffic shifting incorrectly mapped a small number of load balancers.",
+        "trechos": [
+          "However, a single digit percentage of Multi-AZ RDS instances in the affected Availability Zone did not failover automatically due to two different software bugs.",
+          "The increased demand for EIPs from the ELB recovery workflows (and the overall increase of customer activity during this period) caused ELB to consume all of the EIPs that were available to it. This stalled the recovery workflows and delayed recovery of the final affected load balancers.",
+          "Unfortunately, a bug in the traffic shifting functionality incorrectly mapped a small number of the affected load balancers and therefore didn’t shift traffic correctly."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A DNS record update to replace a failed data collection server with a replacement server, which did not propagate to all internal DNS servers; the exact record is not named.",
+        "trechos": [
+          "As part of replacing that server, a DNS record was updated to remove the failed server and add the replacement server.",
+          "While not noticed at the time, the DNS update did not successfully propagate to all of the internal DNS servers, and as a result, a fraction of the storage servers did not get the updated server address and continued to attempt to contact the failed data collection server."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 11:10 AM PDT the team made adjustments to reduce the failover rate, which removed load from the service; by 11:35 AM the system began automatically recovering many volumes, and by 1:40 PM about 60% of affected volumes had recovered.",
+          "trechos": [
+            "To remedy this, at 11:10AM PDT, the team made adjustments to reduce the failover rate. These adjustments removed load from the service, and by 11:35AM PDT, the system began automatically recovering many volumes. By 1:40PM PDT, about 60% of the affected volumes had recovered."
+          ]
+        },
+        {
+          "texto": "At 3:10 PM PDT, after identifying the underlying issue, the team began restoring the remaining volumes by freeing the excess memory consumed by the misbehaving collection agent; by 4:15 PM nearly all affected volumes were restored.",
+          "trechos": [
+            "At 3:10PM PDT, the team identified the underlying issue and was able to begin restoring performance for the remaining volumes by freeing the excess memory consumed by the misbehaving collection agent.",
+            "At this point, the system was able to recover most of the remaining stuck volumes; and by 4:15PM PDT, nearly all affected volumes were restored and performing normally."
+          ]
+        },
+        {
+          "texto": "After 2:33 PM PDT the level of API throttling was reduced considerably.",
+          "trechos": [
+            "This throttling policy was in effect until 2:33PM PDT, after which we reduced the level of throttling considerably."
+          ]
+        },
+        {
+          "texto": "RDS Multi-AZ instances that hit an uncommon stuck I/O condition required operator action and were fully restored by 11:30 AM PDT.",
+          "trechos": [
+            "These instances required operator action and were fully restored by 11:30 AM PDT."
+          ]
+        },
+        {
+          "texto": "The ELB traffic-shifting mapping issue was identified and corrected at 12:45 PM PDT; the team manually recovered the remaining impaired load balancers and remediated the EIP shortage at 9:50 PM PDT.",
+          "trechos": [
+            "These load balancers continued to send a portion of the customer requests to the affected Availability Zone until the issue was identified and corrected at 12:45PM PDT.",
+            "The team continued to manually recover the remaining impaired load balancers and was able to remediate the EIP shortage at 9:50PM PDT."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: deployed monitoring that will alarm on this specific memory leak in any production EBS server.",
+          "trechos": [
+            "We have deployed monitoring that will alarm if we see this specific memory leak again in any of our production EBS servers, and next week, we will begin deploying a fix for the memory leak issue."
+          ]
+        },
+        {
+          "texto": "Planned: begin deploying a fix for the memory leak the following week.",
+          "trechos": [
+            "We have deployed monitoring that will alarm if we see this specific memory leak again in any of our production EBS servers, and next week, we will begin deploying a fix for the memory leak issue."
+          ]
+        },
+        {
+          "texto": "In progress: modifying memory monitoring on EBS storage servers to monitor and alarm on each process's memory consumption, and planned deployment of resource limits to prevent low-priority processes from consuming excess resources.",
+          "trechos": [
+            "We are also modifying our system memory monitoring on the EBS storage servers to monitor and alarm on each process’s memory consumption, and we will be deploying resource limits to prevent low priority processes from consuming excess resources on these hosts."
+          ]
+        },
+        {
+          "texto": "In progress: updating the internal DNS configuration so DNS changes propagate reliably, and making monitoring and alarming surface failed changes more quickly.",
+          "trechos": [
+            "We are also updating our internal DNS configuration to further ensure that DNS changes are propagated reliably, and as importantly, make sure that our monitoring and alarming surface issues more quickly should these changes not succeed."
+          ]
+        },
+        {
+          "texto": "Under evaluation: changing the EBS failover logic to reduce the impact of similar correlated failure or degradation of EBS servers within an Availability Zone.",
+          "trechos": [
+            "In addition, we are evaluating how to change the EBS failover logic that led to the rapid deterioration early in this event. We believe we can make adjustments to reduce the impact of any similar correlated failure or degradation of EBS servers within an Availability Zone."
+          ]
+        },
+        {
+          "texto": "Already done: operational procedures were changed to not use the aggressive throttling policy in future events; in progress: adding per-customer throttling monitoring to the operational dashboard.",
+          "trechos": [
+            "We have changed our operational procedures to not use this more aggressive throttling policy during any future event.",
+            "We are also modifying our operational dashboard to add per-customer throttling monitoring (rather than just aggregate throttling rates) so that we have better visibility into the number of customers seeing heavy throttling."
+          ]
+        },
+        {
+          "texto": "In progress: rolling out a fix for the RDS failover bug with the stuck I/O condition, and completing and testing a fix that favors the standby immediately when its master is in an impaired Availability Zone, on track for full deployment by December.",
+          "trechos": [
+            "We have developed a fix for this bug and are in the process of rolling it out.",
+            "We have already been working on a fix for this issue which will allow the standby to be favored immediately when its master is in an impaired Availability Zone.",
+            "Due to the subtle nature of the issues involved, we are still in the process of completing this fix and carefully testing it, but are on track to deploy it fully by December."
+          ]
+        },
+        {
+          "texto": "Planned or in progress for ELB: ensure additional EIP capacity is always available to ELB, reduce the interdependency between ELB and EBS, and improve the recovery workflows.",
+          "trechos": [
+            "We will ensure that we have additional EIP capacity available to the ELB system at all times to allow full recovery of any Availability Zone issue.",
+            "We are already in the process of making a few changes to reduce the interdependency between ELB and EBS to avoid correlated failure in future events and allow ELB recovery even when there are EBS issues within an Availability Zone.",
+            "Finally, we are also in the process of a few additional improvements to our recovery workflows that will be released in the coming weeks that will further improve the recovery time of ELB load balancers during any similar event."
+          ]
+        },
+        {
+          "texto": "Already done: corrected the logic in the ELB traffic shifting functionality; planned: improve the sensitivity of traffic shifting and expose it directly to ELB customers.",
+          "trechos": [
+            "We have corrected the logic in the ELB traffic shifting functionality so this error will not occur in the future.",
+            "We are also working to improve the sensitivity of the traffic shifting procedure so that traffic is more quickly failed away from a degraded Availability Zone in the future.",
+            "Over time, we will also expose this traffic shifting functionality directly to ELB customers so that they have the ability to control the routing of their requests to the Availability Zones in which they run their applications."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 375,
+      "trechos": [
+        "At 10:00AM PDT Monday, a small number of Amazon Elastic Block Store (EBS) volumes in one of our five Availability Zones in the US-East Region began seeing degraded performance, and in some cases, became “stuck” (i.e. unable to process further I/O requests).",
+        "At this point, the system was able to recover most of the remaining stuck volumes; and by 4:15PM PDT, nearly all affected volumes were restored and performing normally."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "duracao is computed for the primary EBS impact (10:00 AM to 4:15 PM PDT, when nearly all volumes were restored). Dependent services recovered later: almost all Single-AZ RDS instances by 6:35 PM PDT and the last ELB load balancers after the EIP shortage was remediated at 9:50 PM PDT. AWS also announced service credits for affected customers.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.13" }
+}

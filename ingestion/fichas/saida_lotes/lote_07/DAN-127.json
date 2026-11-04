@@ -1,0 +1,146 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-127",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During a patch deployment on July 15, 2015, the EVE Online Tranquility (TQ) cluster repeatedly failed to start because nodes got stuck during the start-up sequence; after many experiments, the logging channel used by the sovereignty campaign system on TQ appeared to degrade node performance until nodes dropped out of the cluster, for reasons still under investigation. Players could not access the game for 699 minutes; service was restored with a hotfix that removed all logging from the campaign system.",
+    "data_incidente": "2015-07-15",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "EVE Online",
+      "Tranquility (TQ) cluster",
+      "CREST"
+    ],
+    "tecnologias": [
+      "TQ cluster",
+      "Polaris node",
+      "Python",
+      "Splunk",
+      "Perforce",
+      "logging channels"
+    ],
+    "categoria_causa": "other",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Server startup was first attempted at 11.42, and by 11.46 12 nodes were reporting that they were stuck, preventing a successful startup.",
+        "trechos": [
+          "Server startup was first attempted at 11.42, by 11.46 we had 12 (out of \\~250) nodes reporting that they were stuck, preventing a successful startup."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "incerta",
+      "descricao": {
+        "texto": "For an unknown reason, the logging channel used by the sovereignty campaign system on TQ appeared to degrade node performance to the point that some nodes dropped out of the cluster; loading campaigns at start-up produced this logging. In later tests, logging 500 lines per node on the campaign channel (but not on a generic channel) made several nodes time out and drop out of the cluster, while the same tests on test servers did not trigger it.",
+        "trechos": [
+          "We seemed to have found the culprit (even if we didn’t know exactly how/why!). For some reason, the logging channel used by the campaign system on TQ appeared to degrade node performance to the point that some of those nodes would actually drop out of the cluster.",
+          "Via the console we modified the campaign loading functions so that they performed the load-from-DB operations normally, but all their logging operations were disabled.",
+          "This command completed almost instantly, and the cluster remained perfectly healthy.",
+          "First we ran step 2a on all nodes in parallel. The command completed instantly, and we saw a spike of 125,000 lines (250\\*500) on the Splunk graph.",
+          "Next we ran step 2b in the same way.",
+          "Looking over the status of the cluster, those nodes were now showing as dead.",
+          "cause these nodes to time-out and drop out of the cluster.",
+          "(Prior to this, we had gone through the same steps on the Singularity and Duality test servers, and all tests had completed without triggering the error condition)."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The cluster does not advance to the next start-up stage until all nodes report that they have completed the current stage, so a minority of stuck nodes prevents the whole cluster from starting.",
+        "trechos": [
+          "The cluster will not advance to the following stage until all nodes have reported that they have completed the current stage's actions.",
+          "Server startup was first attempted at 11.42, by 11.46 we had 12 (out of \\~250) nodes reporting that they were stuck, preventing a successful startup."
+        ]
+      },
+      {
+        "texto": "The problem only occurred on TQ: starting up with around 300 campaigns failed on TQ but worked on all test servers, and with the code working on a test server, the investigation first focused on the environment rather than the code.",
+        "trechos": [
+          "Starting up around 300 campaigns in the DB failed on TQ, but worked OK on all test servers.",
+          "All our suspicions at this time were directly on the environment as being the cause, as the code was working on a test server and none of the data was giving off any red flags."
+        ]
+      },
+      {
+        "texto": "The deployment tool took a very long time to deploy the server package and errored out before the first startup attempt, and later Perforce sync hangs and unrelated data storage issues delayed the build system while hotfixes were being prepared.",
+        "trechos": [
+          "Our first snag was our deployment tool taking a very long time to deploy the server package, eventually erroring out and being rebooted shortly before 11.30.",
+          "At this point we were hit with some slight snags, with Perforce sync hangs causing delays in our build system, and some unrelated data storage issues"
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "As an experiment, following a plan presented at 15.29 to empty some of the new sovereignty records from the database (backing them up in temporary tables), the tables were emptied and the cluster started at 16.33; the data was then re-added in stages, indicating that the presence of campaigns was involved, since opening with a day's campaigns deleted was not an option.",
+          "trechos": [
+            "Our next idea came at 15.29, when EVE Dev presented a plan to empty some of the new sovereignty records from the database, backing them up in temporary tables, to see if that data was the cause of the issue.",
+            "The script ran, the tables were confirmed to be empty, and at 16.33 we anxiously watched the progression of the start-up sequence",
+            "Now we had to figure out why clearing out the reinforcement and vulnerability data allowed the server to start up cleanly.",
+            "By 17.10 we made the next change - the vulnerability window data only was re-added to the DB.",
+            "Opening in this state was not an option, considering we had just effectively deleted a day’s worth of sovereignty campaigns, so investigations continued.",
+            "We deployed the change, started up successfully, and had a vaguely smoking gun – the presence of campaigns themselves was somehow causing the issue.",
+            "The remaining campaign data was then re-added back to the database."
+          ]
+        },
+        {
+          "texto": "A code change removing the configurable alliance capital delay, made on the theory of a cross-node deadlock, did not help: at the 18.12 startup 51 nodes were stuck at -1.",
+          "trechos": [
+            "We submitted a code change that removed the configurable capital delay and should have eliminated the possibility of this causing a deadlock.",
+            "During the next startup at 18.12 we were met with 51 nodes at “-1” – back to the drawing board (after one quick reboot just in case)."
+          ]
+        },
+        {
+          "texto": "An experimental hotfix (Hotfix#2) that removed campaign loading at start-up let the cluster start at 19.15; loading the campaigns afterwards from a Python console made nodes die, while loading them with logging disabled completed instantly and the cluster stayed healthy.",
+          "trechos": [
+            "This experimental change (Hotfix#2) did indeed get us started up at 19.15",
+            "Once all nodes were up and we had verified that solar-systems had loaded ok, we opened up a python console on the server, allowing us to issue commands and observe the results in real time.",
+            "We then requested all nodes to load up the campaigns that they were responsible for. Immediately the cluster started to become slow and unresponsive. After a few minutes, we started to see several nodes die and drop out of the cluster.",
+            "Via the console we modified the campaign loading functions so that they performed the load-from-DB operations normally, but all their logging operations were disabled.",
+            "This command completed almost instantly, and the cluster remained perfectly healthy."
+          ]
+        },
+        {
+          "texto": "Hotfix #5, requested at 21.48, removed all logging within the campaign system; it was deployed at 22.07 and startup succeeded by 22.22. After VIP checks (one duplicate campaign was cleaned up), CREST was brought back at 22.38 and TQ was opened to all players at 22.41.",
+          "trechos": [
+            "Hotfix #5 was requested at 21.48, containing what we believed would mitigate the issue. All logging within the campaign system was entirely removed, but otherwise the code was mostly unchanged.",
+            "It was deployed to TQ at 22.07. We had a good startup by 22.22 and able to begin VIP checks to ensure that no sovereignty data had been damaged by our experiments.",
+            "One problem was found with a duplicate campaign, but that was easy enough to clean away. We brought CREST back online at 22.38 and lifted VIP to open TQ to all players at 22.41."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "ausentes",
+      "acoes": []
+    },
+    "duracao": {
+      "minutos": 699,
+      "trechos": [
+        "On July 15<sup>th</sup> we were inaccessible to players for 699 minutes, which is slightly longer than the downtimes that occurred on 2<sup>nd</sup> and 3<sup>rd</sup> of June 2013, immediately prior to the Odyssey deployment (which itself incidentally incurred a 342 minute downtime due to long running tiericide scripts)."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Why the logging behaviour happens only on TQ and only on specific log channels is still under investigation; other experiments suggested it is not simply a matter of the number of nodes."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The year comes from the text (\"July 15th 2015\"). categoria_causa is other because the text states no mechanism for why the campaign logging channel degrades nodes. The text does not say that the patch deployed that day set off the problem, so mudanca_causadora is nao_se_aplica. Other attempts during the downtime (restarts, a full redeployment, replacing the Polaris server, disabling an IBM USB Remote NDIS network interface, disabling CREST, renaming the server package) did not fix the startup. A follow-up VIP session on July 20 reproduced the problem with simple logging on the campaign channel.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

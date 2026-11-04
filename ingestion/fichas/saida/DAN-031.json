@@ -1,0 +1,145 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-031",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "After an unused IP block was removed from Google's network configuration, a bug in the network configuration management software removed all GCE IP blocks from the new configuration, and a second bug let it roll out despite a failed canary. Sites stopped announcing GCE IP blocks and GCE instances in all regions lost inbound internet connectivity for 18 minutes; Cloud VPN in asia-east1 was affected earlier. Engineers decided to revert the most recent network configuration changes, and the outage ended at 19:27 Pacific Time.",
+    "data_incidente": "2016-04-11",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Google Compute Engine",
+      "Cloud VPN",
+      "L3 network load balancers"
+    ],
+    "tecnologias": [
+      "BGP"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Internal monitoring picked up two anomalies as sites stopped announcing GCE IP blocks: the Cloud VPN in asia-east1 stopped functioning at 18:14, and user latency to GCE was anomalously rising; SREs started investigating when the first alerts were received.",
+        "trechos": [
+          "As more and more sites stopped announcing GCE IP blocks, our internal monitoring picked up two anomalies: first, the Cloud VPN in asia-east1 stopped functioning at 18:14 because it was announced from fewer sites than GCE overall, and second, user latency to GCE was anomalously rising as more and more users were sent to sites which were not close to them.",
+          "Google’s Site Reliability Engineers started investigating the problem when the first alerts were received, but were still trying to determine the root cause 53 minutes later when the last site announcing GCE IP blocks received the configuration at 19:07."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 14:50 Pacific Time on April 11th, engineers removed an unused GCE IP block from the network configuration and instructed the automated systems to propagate the new configuration; due to a timing quirk, the removal had reached one configuration file but not yet a second one, and the configuration management software detected an inconsistency.",
+      "trechos": [
+        "At 14:50 Pacific Time on April 11th, our engineers removed an unused GCE IP block from our network configuration, and instructed Google’s automated systems to propagate the new configuration across our network.",
+        "However, on this occasion our network configuration management software detected an inconsistency in the newly supplied configuration.",
+        "The inconsistency was triggered by a timing quirk in the IP block removal - the IP block had been removed from one configuration file, but this change had not yet propagated to a second configuration file also used in network configuration management."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The network configuration management software is designed to fail safe and revert to its current configuration when it finds an inconsistency, but a previously-unseen software bug made it remove all GCE IP blocks from the new configuration and begin pushing that incomplete configuration; sites that received it stopped announcing GCE IP blocks, and once none were left inbound internet traffic to GCE was lost.",
+        "trechos": [
+          "In attempting to resolve this inconsistency the network management software is designed to ‘fail safe’ and revert to its current configuration rather than proceeding with the new configuration.",
+          "However, in this instance a previously-unseen software bug was triggered, and instead of retaining the previous known good configuration, the management software instead removed all GCE IP blocks from the new configuration and began to push this new, incomplete configuration to the network.",
+          "As the rollout progressed, those sites which had been announcing GCE IP blocks ceased to do so when they received the new configuration.",
+          "With no sites left announcing GCE IP blocks, inbound traffic from the internet to GCE dropped quickly, reaching >95% loss by 19:09."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The canary step correctly identified the new configuration as unsafe, but a second software bug in the management software did not propagate the canary's conclusion back to the push process, so the push system treated the configuration as valid and began its progressive rollout.",
+        "trechos": [
+          "In this event, the canary step correctly identified that the new configuration was unsafe.",
+          "Crucially however, a second software bug in the management software did not propagate the canary step’s conclusion back to the push process, and thus the push system concluded that the new configuration was valid and began its progressive rollout."
+        ]
+      },
+      {
+        "texto": "The network's fault tolerance sent GCE traffic to the remaining sites still announcing the IP blocks, masking the partial failure; SREs who began investigating at the first alerts were still trying to determine the root cause 53 minutes later, when the last site received the configuration at 19:07. The authors note that the safeguard of a progressive rollout can be undone by a system designed to mask partial failures.",
+        "trechos": [
+          "The fault tolerance built into our network design worked correctly and sent GCE traffic to the the remaining sites which were still announcing GCE IP blocks.",
+          "There are a number of lessons to be learned from this event -- for example, that the safeguard of a progressive rollout can be undone by a system designed to mask partial failures -- which yield similarly-clear actions which we will take, such as monitoring directly for a decrease in capacity or redundancy even when the system is still functioning properly.",
+          "Google’s Site Reliability Engineers started investigating the problem when the first alerts were received, but were still trying to determine the root cause 53 minutes later when the last site announcing GCE IP blocks received the configuration at 19:07."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "Removal of an unused GCE IP block from the network configuration, propagated by the automated systems; the specific block is not named.",
+        "trechos": [
+          "At 14:50 Pacific Time on April 11th, our engineers removed an unused GCE IP block from our network configuration, and instructed Google’s automated systems to propagate the new configuration across our network."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "After dozens of alerts at 19:08, engineers decided to revert the most recent configuration changes made to the network, even before knowing for sure what the problem was; the text gives 18 minutes from detection to decision to revert to the end of the outage, which ended at 19:27.",
+          "trechos": [
+            "Internal monitors generated dozens of alerts in the seconds after the traffic loss became visible at 19:08, and the Google engineers who had been investigating a localized failure of the asia-east1 VPN now knew that they had a widespread and serious problem.",
+            "They did precisely what we train for, and decided to revert the most recent configuration changes made to the network even before knowing for sure what the problem was.",
+            "This was the correct action, and the time from detection to decision to revert to the end of the outage was thus just 18 minutes.",
+            "On Monday, 11 April, 2016, Google Compute Engine instances in all regions lost external connectivity for a total of 18 minutes, from 19:09 to 19:27 Pacific Time."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Monitoring targeted GCE network paths to detect if they change or cease to function (listed among the immediate steps being taken).",
+          "trechos": [
+            "Concretely, the immediate steps we are taking include: Monitoring targeted GCE network paths to detect if they change or cease to function; Comparing the IP block announcements before and after a network configuration change to ensure that they are identical in size and coverage; Semantic checks for network configurations to ensure they contain specific Cloud IP blocks."
+          ]
+        },
+        {
+          "texto": "Comparing the IP block announcements before and after a network configuration change to ensure they are identical in size and coverage (listed among the immediate steps being taken).",
+          "trechos": [
+            "Concretely, the immediate steps we are taking include: Monitoring targeted GCE network paths to detect if they change or cease to function; Comparing the IP block announcements before and after a network configuration change to ensure that they are identical in size and coverage; Semantic checks for network configurations to ensure they contain specific Cloud IP blocks."
+          ]
+        },
+        {
+          "texto": "Semantic checks for network configurations to ensure they contain specific Cloud IP blocks (listed among the immediate steps being taken).",
+          "trechos": [
+            "Concretely, the immediate steps we are taking include: Monitoring targeted GCE network paths to detect if they change or cease to function; Comparing the IP block announcements before and after a network configuration change to ensure that they are identical in size and coverage; Semantic checks for network configurations to ensure they contain specific Cloud IP blocks."
+          ]
+        },
+        {
+          "texto": "Planned: monitoring directly for a decrease in capacity or redundancy even when the system is still functioning properly.",
+          "trechos": [
+            "There are a number of lessons to be learned from this event -- for example, that the safeguard of a progressive rollout can be undone by a system designed to mask partial failures -- which yield similarly-clear actions which we will take, such as monitoring directly for a decrease in capacity or redundancy even when the system is still functioning properly."
+          ]
+        },
+        {
+          "texto": "Planned: 14 distinct engineering changes spanning prevention, detection and mitigation, as of the evening of 12 April, with more expected after review with other senior engineers.",
+          "trechos": [
+            "As of the time of this writing in the evening of 12 April, there are already 14 distinct engineering changes planned spanning prevention, detection and mitigation, and that number will increase as our engineering teams review the incident with other senior engineers across Google in the coming week."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 18,
+      "trechos": [
+        "On Monday, 11 April, 2016, Google Compute Engine instances in all regions lost external connectivity for a total of 18 minutes, from 19:09 to 19:27 Pacific Time."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The 18-minute duration is the all-region GCE external connectivity loss. Cloud VPN in asia-east1 lost traffic earlier: the final report says from 18:14, while the page header and a status update give 18:25, both ending at 19:27. The final report text appears twice in the extracted page. After the outage the team froze all configuration changes to the network.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.12"
+  }
+}

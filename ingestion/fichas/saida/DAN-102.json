@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-102",
+  "triagem": {
+    "catalogo": "sim", "autoria": "primaria", "tipo": "postmortem", "dominio": "software_servicos", "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A routine database migration triggered an unexpected interaction with the PGAudit extension, recently re-enabled after a Postgres 17 upgrade, which became unresponsive while holding critical database locks and caused intermittent slowness across the dashboard, mobile app, Slack app and API from 14:16 to 14:27 UTC. The stuck processes ignored timeout signals, so the database was restarted, causing a 2-minute outage, after which service was restored and PGAudit was removed.",
+    "data_incidente": "2025-04-09",
+    "status_relatorio": "final",
+    "servicos_afetados": ["dashboard", "mobile app", "Slack app", "API", "primary database"],
+    "tecnologias": ["Postgres 17", "PGAudit"],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Monitoring alerted the team to the issue of the PGAudit extension becoming unresponsive while holding critical database locks.",
+        "trechos": [
+          "Our monitoring quickly alerted us to the issue and we initially attempted to resolve it by killing the offending PGAudit processes, but they wouldn't respond to timeout signals, preventing the locks from being released.",
+          "On Wednesday afternoon at 14:16 UTC, a routine database migration (to create an empty table and add an index) triggered an unexpected interaction with PGAudit causing the extension to become unresponsive while holding critical database locks."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 14:16 UTC a routine database migration ran to create an empty table and add an index.",
+      "trechos": [
+        "On Wednesday afternoon at 14:16 UTC, a routine database migration (to create an empty table and add an index) triggered an unexpected interaction with PGAudit causing the extension to become unresponsive while holding critical database locks."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The PGAudit extension, temporarily disabled for the Postgres 17 upgrade and re-enabled in production after staging tests, had an unexpected interaction with the migration that made it unresponsive while holding critical database locks; the locked resources blocked other database operations.",
+        "trechos": [
+          "Last weekend, we upgraded our database to Postgres 17. As part of this upgrade, we temporarily disabled PGAudit — an extension that provides detailed logging of database activities and changes to database structures and user permissions beyond standard Postgres logging.",
+          "Once the upgrade was complete, and after successful testing in our staging environment, we then re-enabled the extension in production and confirmed everything was working as expected.",
+          "On Wednesday afternoon at 14:16 UTC, a routine database migration (to create an empty table and add an index) triggered an unexpected interaction with PGAudit causing the extension to become unresponsive while holding critical database locks.",
+          "This created a cascading effect where the locked resources blocked other database operations, ultimately causing intermittent slowness across our dashboard, mobile app, Slack app, and API."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The stuck PGAudit processes did not respond to timeout signals, so attempts to kill them failed and the locks were not released.",
+        "trechos": [
+          "Our monitoring quickly alerted us to the issue and we initially attempted to resolve it by killing the offending PGAudit processes, but they wouldn't respond to timeout signals, preventing the locks from being released.",
+          "When these timeouts continued climbing and further attempts to kill the PGAudit process also failed, we decided to restart the database."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A routine database migration to create an empty table and add an index; the table and index are not named.",
+        "trechos": [
+          "On Wednesday afternoon at 14:16 UTC, a routine database migration (to create an empty table and add an index) triggered an unexpected interaction with PGAudit causing the extension to become unresponsive while holding critical database locks."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Attempts to kill the offending PGAudit processes failed because they did not respond to timeout signals.",
+          "trechos": [
+            "Our monitoring quickly alerted us to the issue and we initially attempted to resolve it by killing the offending PGAudit processes, but they wouldn't respond to timeout signals, preventing the locks from being released.",
+            "When these timeouts continued climbing and further attempts to kill the PGAudit process also failed, we decided to restart the database."
+          ]
+        },
+        {
+          "texto": "The primary database was restarted to forcibly end the stuck process, making it unavailable for just under 2 minutes, between 14:25 and 14:27 UTC, after which service was restored.",
+          "trechos": [
+            "When these timeouts continued climbing and further attempts to kill the PGAudit process also failed, we decided to restart the database.",
+            "This would forcibly end the stuck process, but also result in hard downtime of the database for a short period.",
+            "This resulted in our primary database being unavailable for just under 2 minutes, between 14:25 UTC and 14:27 UTC.",
+            "After restoring service, we temporarily disabled and then completely removed the PGAudit extension, to eliminate any risk of accidental reactivation until we can guarantee its safety."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: after service was restored, the PGAudit extension was temporarily disabled and then completely removed, to eliminate any risk of accidental reactivation until its safety can be guaranteed.",
+          "trechos": [
+            "After restoring service, we temporarily disabled and then completely removed the PGAudit extension, to eliminate any risk of accidental reactivation until we can guarantee its safety."
+          ]
+        },
+        {
+          "texto": "Planned: continue investigating, hold an internal debrief, and enhance processes and monitoring to better detect, prevent and respond to similar situations.",
+          "trechos": [
+            "From here, we will continue to investigate the issue, conduct an internal debrief and also in parallel, work to enhance our processes and monitoring capabilities to better detect, prevent and respond to similar situations in the future."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 11,
+      "trechos": [
+        "On Wednesday, April 9, 2025, between 14:16 and 14:27 UTC, our systems experienced intermittent availability issues."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "The issue (the interaction between the migration and PGAudit) is still being investigated, and PGAudit's safety has not yet been guaranteed."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The 11-minute duration covers the intermittent availability issues (14:16-14:27 UTC); within it, the hard database outage lasted about 2 minutes (14:25-14:27 UTC). On-call alerts and escalations were not dropped during the outage. categoria_causa is software-bug because the failure was the extension hanging while holding locks, not a datastore limit, corruption or replication break.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.12" }
+}

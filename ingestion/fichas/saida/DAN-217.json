@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-217",
+  "triagem": {
+    "catalogo": "parcial",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On Tuesday, October 14th, during routine maintenance, an automation malfunction deployed corrupted code to Slack's web servers and job queue workers; it was fixed within 14 minutes, during which all users were locked out and 13% of users were disconnected. Their simultaneous reconnections demanded more database capacity than was readily available, causing cascading connection failures; most users reconnected within 30 minutes, but 5% stayed disconnected for up to 2 hours while their database cluster was recovered.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Slack"
+    ],
+    "tecnologias": [
+      "web servers",
+      "job queue workers",
+      "database cluster"
+    ],
+    "categoria_causa": "other",
+    "deteccao": {
+      "forma": "equipe_interna",
+      "descricao": {
+        "texto": "The corrupted code deployed during the routine maintenance was noticed immediately internally.",
+        "trechos": [
+          "We undertook some routine maintenance, during which, as a result of an automation malfunction, corrupted code was deployed to our web servers and “job queue workers” (machines which process asynchronous tasks, such as link unfurling).",
+          "This was noticed immediately internally, and fixed within 14 minutes."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "vaga",
+      "descricao": {
+        "texto": "During routine maintenance on Tuesday, an automation malfunction caused corrupted code to be deployed to the web servers and job queue workers; 13% of users were disconnected during the 14-minute window before it was fixed.",
+        "trechos": [
+          "We undertook some routine maintenance, during which, as a result of an automation malfunction, corrupted code was deployed to our web servers and “job queue workers” (machines which process asynchronous tasks, such as link unfurling).",
+          "This was noticed immediately internally, and fixed within 14 minutes. However, 13% of Slack’s users were disconnected from Slack during this window."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The disconnected users all attempted to reconnect simultaneously, and the massive number of simultaneous reconnections demanded more database capacity than was readily available, causing cascading connection failures; 5% of users remained disconnected for up to 2 hours while their database cluster was recovered.",
+        "trechos": [
+          "Those users all immediately attempted reconnecting simultaneously.",
+          "The massive number of simultaneous reconnections demanded more database capacity than we had readily available, which caused cascading connection failures.",
+          "Most users were able to reconnect within 30 minutes, but 5% of users remained disconnected for up to 2 hours while we recovered their database cluster."
+        ]
+      },
+      {
+        "texto": "On Monday, part of the hosting provider's internal network became unavailable, mostly affecting search clusters and leaving a large backlog of message and file data to re-feed into the search index; the authors call it unrelated but an exacerbating factor, because the work queues had a steady stream of events to process.",
+        "trechos": [
+          "A portion of the internal network of our hosting provider suddenly became unavailable. Most of the affected machines were in our search clusters.",
+          "This caused a large backlog of message and file data which needed to be re-fed into our search index (about 10 hours worth of data for 2% of teams).",
+          "This event was unrelated to the following day’s problems (and was almost completely unnoticed by users) but was an exacerbating factor in what followed because our work queues had a steady stream of events to process."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A code deployment to the web servers and job queue workers during routine maintenance, in which corrupted code was deployed; the code is not identified.",
+        "trechos": [
+          "We undertook some routine maintenance, during which, as a result of an automation malfunction, corrupted code was deployed to our web servers and “job queue workers” (machines which process asynchronous tasks, such as link unfurling)."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "The corrupted code deployment was fixed within 14 minutes.",
+          "trechos": [
+            "This was noticed immediately internally, and fixed within 14 minutes."
+          ]
+        },
+        {
+          "texto": "The affected database cluster was recovered; 5% of users remained disconnected for up to 2 hours during that recovery.",
+          "trechos": [
+            "Most users were able to reconnect within 30 minutes, but 5% of users remained disconnected for up to 2 hours while we recovered their database cluster."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "In progress: additional database capacity is being added to cover this kind of situation, with provisioning anticipated to complete in the next two days.",
+          "trechos": [
+            "We immediately began to add additional database capacity to cover this kind of situation. We anticipate completing this provisioning in the next two days."
+          ]
+        },
+        {
+          "texto": "Already done: optimizations and other changes to the methods by which clients reconnect, which the authors expect should help reduce the total capacity needed to recover from massive disconnection-reconnection processes.",
+          "trechos": [
+            "We also immediately made optimizations and other changes to methods by which people reconnect which should help reduce the total capacity needed to recover from massive disconnection-reconnection processes."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "observacoes": "The post covers incidents on three days; this record extracts only Tuesday's (the catalog incident). Wednesday's separate incident (a build bug in the real-time message servers after disabling SSLv3 for POODLE, made worse by a client cache-clearing change from late Tuesday) is not included. data_incidente is null because the text gives 'Tuesday (October 14th)' without a year. duracao is null: the text gives a 14-minute full lockout followed by poor or no availability for 13% of users 'for periods of up to two hours', with no single impact end. The disconnected share is given both as 13% (summary) and 5% remaining up to 2 hours (timeline). categoria_causa is other because 'an automation malfunction' states no mechanism.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.12"
+  },
+  "motivo_confianca_baixa": "triagem.tipo: postmortem vs relatorio_periodico. The post is an account written after the incidents by the affected company (what happened, why, what will change), which satisfies postmortem, but it covers several incidents of one week (Monday, Tuesday and Wednesday), which satisfies relatorio_periodico ('report covering several incidents of a period'); postmortem's clause about a post 'entirely about one incident' does not apply either way."
+}

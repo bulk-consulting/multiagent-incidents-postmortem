@@ -33,6 +33,8 @@ Observações:
 - a conferência no GPT é por **amostra**: as fichas `baixa` + 3 `alta` sorteadas (`montar_revisao.py NN --amostra`);
 - se a amostra passar de 1,5 ERRADO procedente por ficha, volta a conferir tudo no lote seguinte.
 
+Resultado da amostra por lote (ERRADOS procedentes / fichas da amostra): lote 06 = 6/6 (1,0) → segue por amostra; gerou a v2.13. Lote 07 = 5/5 (1,0), 4 dos 5 por detalhe sem trecho → segue por amostra, sem mudança de prompt.
+
 **Fichas vazias:** documentos que saem `nao_verificavel` (só menus ou rodapé) não precisam de conferência; entram na lista de reextração.
 
 **Mudança de prompt no meio:** se um lote levar a uma nova versão do prompt, os lotes seguintes usam a nova; as fichas já aceitas não são refeitas (o `versao_prompt` registra com qual foram geradas). Antes de seguir, rodar o lote 00 de novo se a mudança for grande.

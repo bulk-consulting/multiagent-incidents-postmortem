@@ -1,0 +1,164 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-139",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On June 12, 2025, an outage at a third-party cloud provider backing part of the central storage infrastructure used by Cloudflare's Workers KV caused cold reads and writes to KV to fail; because many Cloudflare products depend on Workers KV, services including Access, Gateway, WARP, Images, Stream, Workers AI, Turnstile and parts of the Dashboard were impacted globally for 2 hours and 28 minutes. Teams shed load and activated kill switches, and services recovered as the storage infrastructure and third-party service recovered.",
+    "data_incidente": "2025-06-12",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Workers KV",
+      "Access",
+      "Gateway",
+      "WARP",
+      "Cloudflare Dashboard",
+      "Challenges and Turnstile",
+      "Browser Isolation",
+      "Images",
+      "Stream",
+      "Realtime",
+      "Workers AI",
+      "Pages & Workers Assets",
+      "AutoRAG",
+      "Durable Objects",
+      "D1",
+      "Queues & Event Notifications",
+      "AI Gateway",
+      "CDN",
+      "Workers / Workers for Platforms",
+      "Workers Builds",
+      "Browser Rendering",
+      "Zaraz"
+    ],
+    "tecnologias": ["Workers KV", "Durable Objects", "D1", "SQLite", "Cloudflare R2", "SCIM", "DNS over HTTPS (DoH)", "TURN"],
+    "categoria_causa": "cascading-failure",
+    "deteccao": {
+      "forma": "equipe_interna",
+      "descricao": {
+        "texto": "At 17:52 UTC the Cloudflare WARP team began to see registrations of new devices fail and declared an incident; at 18:05 the Access team received an alert for a rapid increase in error rates.",
+        "trechos": [
+          "2025-06-12 17:52 | INCIDENT START Cloudflare WARP team begins to see registrations of new devices fail and begin to investigate these failures and declares an incident.",
+          "2025-06-12 18:05 | Cloudflare Access team received an alert due to a rapid increase in error rates."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "A third-party cloud provider that backs part of Workers KV's storage infrastructure experienced an outage; Cloudflare calls this vendor failure the proximate cause (or trigger).",
+      "trechos": [
+        "Part of this infrastructure is backed by a third-party cloud provider, which experienced an outage today and directly impacted availability of our KV service.",
+        "while the proximate cause (or trigger) for this outage was a third-party vendor failure, we are ultimately responsible for our chosen dependencies and how we choose to architect around them."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Although Workers KV is designed as a 'coreless' service, it relies on a central data store as its source of truth, part of which is backed by a third-party cloud provider; while KV was being transitioned to more resilient infrastructure there was a gap in coverage, and the failure of that store caused a complete outage for cold reads and writes to KV namespaces used across Cloudflare.",
+        "trechos": [
+          "Workers KV is built as what we call a “coreless” service which means there should be no single point of failure as the service runs independently in each of our locations worldwide. However, Workers KV today relies on a central data store to provide a source of truth for data. A failure of that store caused a complete outage for cold reads and writes to the KV namespaces used by services across Cloudflare.",
+          "Part of this infrastructure is backed by a third-party cloud provider, which experienced an outage today and directly impacted availability of our KV service.",
+          "Workers KV is in the process of being transitioned to significantly more resilient infrastructure for its central store: regrettably, we had a gap in coverage which was exposed during this incident."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Many internal and external Cloudflare services are built on Workers KV, and the cascading impact of its failure exacerbated the issue and significantly broadened the blast radius.",
+        "trechos": [
+          "Many of our internal and external services rely heavily on Workers KV, which under normal circumstances helps us deliver the most robust services possible, instead of service teams attempting to build their own storage services. In this case, the cascading impact from the failure from Workers KV exacerbated the issue and significantly broadened the blast radius."
+        ]
+      },
+      {
+        "texto": "As storage recovered, the influx of services repopulating caches produced a non-negligible error rate and infrastructure rate limits.",
+        "trechos": [
+          "2025-06-12 20:23 | Services begin to recover as storage infrastructure begins to recover. We continue to see a non-negligible error rate and infrastructure rate limits due to the influx of services repopulating caches."
+        ]
+      },
+      {
+        "texto": "Registration requests from Zero Trust clients increased substantially, adding load in several Cloudflare locations; automated traffic management rerouted CDN traffic, but a portion of traffic was not rerouted as expected.",
+        "trechos": [
+          "In particular, registration requests from Zero Trust clients increased substantially as a result of the outage.The increase in requests imposed additional load in several Cloudflare locations, triggering response from automated traffic management.",
+          "There was a portion of traffic that was not rerouted as expected and is under investigation."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Kill switches were activated to disable the Challenge platform's calls to its dependencies so that eyeballs were not blocked; while active, Turnstile's siteverify API could redeem valid tokens multiple times.",
+          "trechos": [
+            "We have kill switches in place to disable these calls in case of incidents and outages such as this. We activated these kill switches as a mitigation so that eyeballs are not blocked from proceeding.",
+            "Notably, while these kill switches were active, Turnstile’s siteverify API (the API that validates issued tokens) could redeem valid tokens multiple times"
+          ]
+        },
+        {
+          "texto": "At 19:09 UTC Zero Trust Gateway began working to remove dependencies on Workers KV by gracefully degrading rules that referenced identity or device posture state.",
+          "trechos": [
+            "2025-06-12 19:09 | Zero Trust Gateway began working to remove dependencies on Workers KV by gracefully degrading rules that referenced Identity or Device Posture state."
+          ]
+        },
+        {
+          "texto": "At 19:32 UTC Access and Device Posture force-dropped identity and device posture requests to shed load on Workers KV until the third-party service came back; at 20:25 they restored calling Workers KV as the third-party service was restored.",
+          "trechos": [
+            "2025-06-12 19:32 | Access and Device Posture force drop identity and device posture requests to shed load on Workers KV until third-party service comes back online.",
+            "2025-06-12 20:25 | Access and Device Posture restore calling Workers KV as third-party service is restored."
+          ]
+        },
+        {
+          "texto": "Services began to recover at 20:23 UTC as the storage infrastructure recovered, and Service Level Objectives returned to pre-incident levels at 20:28 UTC.",
+          "trechos": [
+            "2025-06-12 20:23 | Services begin to recover as storage infrastructure begins to recover.",
+            "2025-06-12 20:28 | IMPACT END",
+            "Service Level Objectives return to pre-incident level."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "In progress: improving redundancy within Workers KV's storage infrastructure to remove the dependency on any single provider; during the incident, work began to cut over and backfill critical KV namespaces to Cloudflare's own infrastructure in case the incident continued.",
+          "trechos": [
+            "(Actively in-flight): Bringing forward our work to improve the redundancy within Workers KV’s storage infrastructure, removing the dependency on any single provider. During the incident window we began work to cut over and backfill critical KV namespaces to our own infrastructure, in the event the incident continued."
+          ]
+        },
+        {
+          "texto": "In progress: short-term blast radius remediations so each impacted product becomes resilient to loss of service from any single point of failure, including third-party dependencies.",
+          "trechos": [
+            "(Actively in-flight): Short-term blast radius remediations for individual products that were impacted by this incident so that each product becomes resilient to any loss of service caused by any single point of failure, including third party dependencies."
+          ]
+        },
+        {
+          "texto": "In progress: tooling to progressively re-enable namespaces during storage infrastructure incidents, so key dependencies such as Access and WARP can come up without risking a denial-of-service against Cloudflare's own infrastructure as caches are repopulated.",
+          "trechos": [
+            "(Actively in-flight): Implementing tooling that allows us to progressively re-enable namespaces during storage infrastructure incidents. This will allow us to ensure that key dependencies, including Access and WARP, are able to come up without risking a denial-of-service against our own infrastructure as caches are repopulated."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 148,
+      "trechos": [
+        "This outage lasted 2 hours and 28 minutes, and globally impacted all Cloudflare customers using the affected services."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Why a portion of CDN traffic was not rerouted as expected is under investigation."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "categoria_causa is cascading-failure because the root cause is Workers KV's dependency on a central store whose failure propagated to the many products built on KV; the storage failure itself is the trigger (a third-party outage whose cause the text does not give). During the incident, teams also explored and worked toward deploying Workers KV against an alternative backing datastore, but the text does not say this was completed before recovery. Workers KV had removed a storage provider while re-architecting its backend (including migrating to Cloudflare R2); the text says there was a gap in coverage but does not say this removal set off the outage. The text states this was not an attack and no data was lost.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.13" }
+}

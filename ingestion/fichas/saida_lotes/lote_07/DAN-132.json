@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-132",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "seguranca",
+    "seguranca": "ataque",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "CircleCI's database provider, MongoHQ, was compromised, and CircleCI's database was accessed by one of the IPs responsible for the intrusion, potentially exposing customers' SSH keys and API tokens; CircleCI says it has no evidence they were exploited. As a precaution CircleCI shut down its website and builds, worked with GitHub, Heroku and Amazon to revoke tokens and keys, and deleted its caches and cycled its own keys; the text does not say when service resumed.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": ["CircleCI website", "CircleCI builds"],
+    "tecnologias": ["MongoHQ", "GitHub OAuth tokens", "SSH deploy keys", "SSH user keys", "Heroku API tokens", "AWS IAM keys", "GitHub hooks"],
+    "categoria_causa": "other",
+    "deteccao": {
+      "forma": "terceiros",
+      "descricao": {
+        "texto": "CircleCI received a notification from its database provider, MongoHQ, that it had been compromised (announced October 29 at 2:07pm), and at 5:03pm learned from MongoHQ that its database had been accessed by one of the IPs responsible for the intrusion.",
+        "trechos": [
+          "On October 29th, we received a notification email from our database provider telling us that they had been compromised.",
+          "On Tuesday, October 29th, at 2:07pm, MongoHQ announced they had been compromised.",
+          "At 5:03pm, we learned from MongoHQ that our database was accessed by one of the IPs responsible for the intrusion."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "vaga",
+      "descricao": {
+        "texto": "CircleCI's database provider, MongoHQ, was compromised, and CircleCI's database was accessed by one of the IPs responsible for the intrusion late at night UTC on October 27; the text does not say how the provider was compromised.",
+        "trechos": [
+          "On October 29th, we received a notification email from our database provider telling us that they had been compromised.",
+          "At 5:03pm, we learned from MongoHQ that our database was accessed by one of the IPs responsible for the intrusion. The access occurred late at night UTC on October 27th, two days previously."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "MongoHQ's initial announcement told CircleCI there was no evidence its database had been accessed, because CircleCI had not been alerted to it; the access, which had occurred two days earlier, was confirmed about three hours later.",
+        "trechos": [
+          "On Tuesday, October 29th, at 2:07pm, MongoHQ announced they had been compromised.",
+          "In the announcement, we were told that there was no evidence that our DB was accessed by an unauthorized user, as we had not been alerted to it.",
+          "At 5:03pm, we learned from MongoHQ that our database was accessed by one of the IPs responsible for the intrusion. The access occurred late at night UTC on October 27th, two days previously."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 7:13pm CircleCI shut down its website and redirected it to its status page, stopped all running builds, and disabled all scheduled builds and GitHub hooks; these actions were completed by 7:30pm.",
+          "trechos": [
+            "At 7:13pm, we began moving forward with our plan. We shut down the CircleCI website and redirected it to our status page, normally located at https://circleci.statuspage.io/. We then stopped all the builds running at that time and disabled all scheduled builds and GitHub hooks.",
+            "At 7:30pm we had completed these actions and posted an update to our status page."
+          ]
+        },
+        {
+          "texto": "At 7:20pm CircleCI asked GitHub security to revoke the relevant OAuth tokens and SSH keys; GitHub revoked all CircleCI OAuth tokens by 9:35pm, all known SSH deploy keys by 11:28pm and all remaining SSH user keys by 11:43pm.",
+          "trechos": [
+            "At 7:20pm we contacted GitHub security to request that the relevant OAuth tokens and SSH keys be revoked.",
+            "By 9:35pm GitHub had revoked all CircleCI OAuth tokens. We continued to work with GitHub, providing lists of affected customers and SSH keys. By 11:28pm all known SSH deploy keys were revoked, and all remaining SSH user keys were revoked by 11:43pm."
+          ]
+        },
+        {
+          "texto": "At 9:05pm CircleCI sent Heroku a list of potentially affected Heroku API tokens, which Heroku had revoked by 9:32pm; a list of known SSH keys sent to Heroku at 11:26pm was later confirmed revoked.",
+          "trechos": [
+            "At 9:05pm we sent Heroku a list of all potentially affected Heroku API tokens. By 9:32pm, Heroku had revoked all their tokens.",
+            "At 11:26pm we sent Heroku a list of all known SSH keys. We learned at 1:25pm today that those keys have all been revoked."
+          ]
+        },
+        {
+          "texto": "At 9:37pm CircleCI sent Amazon a list of potentially affected IAM keys and requested that Amazon initiate its process to revoke them; the text does not confirm the revocation.",
+          "trechos": [
+            "At 9:37pm we contacted Amazon with a list of potentially affected IAM keys and requested that they initiate their process to revoke them."
+          ]
+        },
+        {
+          "texto": "By 11:44pm CircleCI had deleted all its caches and cycled all its keys.",
+          "trechos": [
+            "At 11:44pm we completed the process of deleting all our caches and cycling all our keys."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Recommendation to CircleCI users: secure systems accessible by SSH keys uploaded to CircleCI, by API tokens stored in CircleCI environment variables, and by API tokens or SSH keys stored in GitHub repositories accessible from the CircleCI account.",
+          "trechos": [
+            "systems accessible by SSH keys uploaded to CircleCI",
+            "systems accessible using API tokens stored in CircleCI env vars",
+            "systems accessible using an API token or SSH key stored in a GitHub repo accessible from your CircleCI account."
+          ]
+        },
+        {
+          "texto": "Recommendation to CircleCI users: validate that applications and code are unaltered, checking that all git sha1s are as expected and validating Heroku environment variables and database credentials.",
+          "trechos": [
+            "In addition, you should validate that your applications and code are unaltered:",
+            "your git repos may have been written to – you should check that all sha1s are as expected",
+            "you should validate your Heroku account’s environment variables and database credentials"
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives dates (October 27-29) but no year, so data_incidente is null. On October 28 at 3:46pm Pacific CircleCI noticed an IAM key had been deleted and began cycling keys as a precaution; the text does not link this to the intrusion. The only prevention offered is recommendations to users; CircleCI says it will describe 'the actions we will be taking as a result' later but lists none. CircleCI also sent notifications with instructions to users who may have stored SSH keys, and provided GitHub and Heroku with IP addresses of its servers and of the malicious servers.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.13" }
+}

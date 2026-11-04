@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-116",
+  "triagem": {
+    "catalogo": "sim", "autoria": "primaria", "tipo": "postmortem", "dominio": "software_servicos", "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A data update from AppNexus's internal database, a delete on a rarely-changed in-memory object, exposed an old double-free bug in the impression bus (impbus), crashing all approximately 900 impbus systems worldwide and halting ad serving, later partially degraded, for about two and a half hours. Service was restored in AMS1 with a new data snapshot, then a fixed impbus was deployed to all data centers as a rolling deploy after a global deploy failed.",
+    "data_incidente": "2013-09-17",
+    "status_relatorio": "final",
+    "servicos_afetados": ["AppNexus ad serving", "impression bus (impbus)"],
+    "tecnologias": ["impbus", "Validation Engines", "time based memory reclamation"],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "At 17:54 UTC a data update from the internal database, which had passed production validation tests, was distributed to the approximately 900 impbus systems; the update was a delete on a rarely-changed in-memory object.",
+      "trechos": [
+        "At 17:54 UTC (1:54 PM America/New\\_York), a data update from our internal database caused a crash in the server clusters that we refer to as the “impression bus” (or “impbus”).",
+        "This data update had passed our production validation tests and was being distributed to the approximately 900 impbus systems that we have deployed worldwide.",
+        "For this case, the data update that caused the problem was a delete on a rarely-changed in-memory object."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "An old bug in the impbus, essentially a double free: with time based memory reclamation, a deleted object is unlinked and its memory is scheduled for deletion at a later safe time, but the code deleted the object twice, and when the deferred deletion executed it crashed the server; all impbus systems worldwide crashed at nearly the same time.",
+        "trechos": [
+          "The root cause was an old bug in the impbus, its effect (i.e. crashing) triggered by the change in data from the internal database.",
+          "The problem is essentially a double free.",
+          "In order to help keep latency as low as possible in our systems, we use what we call “time based memory reclamation” in parts of the system to avoid other more expensive memory management schemes (locking, reference counting, etc).",
+          "The result of the processing of the update is to unlink the deleted object from other objects, and schedule the object’s memory for deletion at what is expected to be a safe time in the future.",
+          "There was a bug in the code that deleted the object twice, and when it finally executed, it caused the crash.",
+          "As a result, all impbus systems worldwide crashed, at nearly exactly the same time."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The Validation Engines did not catch the problem because the crash happened only after time passed following the delta, and data changes became eligible for distribution as soon as the Validation Engine processed them, without waiting; the update was deemed good because the scheduled delete had not yet happened.",
+        "trechos": [
+          "The reason the Validation Engines did not catch the problem is because the failure relied on time having to pass between when the delta was applied and when the effect of the delta caused the server to crash.",
+          "As of yesterday, we had things configured so that once a candidate data change is processed by the Validation Engine, it is eligible for distribution without waiting for any time to pass.",
+          "So in the Validation Engine, the data update was processed which resulted in scheduling the memory delete for later, and because that operation was successful (as the delete did not actually happen yet), the change was deemed good and distributed to all the impbus servers."
+        ]
+      },
+      {
+        "texto": "The data in question very rarely changes and test coverage for that portion of the data model was incomplete; the bug had been present since April 4th.",
+        "trechos": [
+          "The data in question is something that very rarely changes, and our test coverage for this data was incomplete.",
+          "This bug has been present in our systems since April 4th, but because the portion of the data model that triggered it is almost never changed (until yesterday, had not since April 4th…), we do not have adequate test coverage for this portion of the data model."
+        ]
+      },
+      {
+        "texto": "The deployment system had not been scaled in proportion to the production server population, so the first simultaneous deployment to all 6 data centers failed at 19:11 UTC and had to be turned into a rolling deploy, adding delay to the restart.",
+        "trechos": [
+          "At 19:11 UTC (3:11PM America/New\\_York), we discovered that Mr. Murphy is alive and well. We have never had to do a simultaneous deployment to all 6 data centers.",
+          "While we originally constructed our deployment system to handle large scale deployments, our business has been growing steadily and we did not scale the deployment system in proportion to how we scaled the production server population.",
+          "Thus, when we did the global deploy, it failed. The teams dealt with this, turning it into a rolling deploy, which further added delay to the restart process."
+        ]
+      },
+      {
+        "texto": "Restoring the other 5 data centers with the snapshot approach required generating new snapshots in each, and generating a snapshot usually takes on the order of 45 minutes.",
+        "trechos": [
+          "Generating a snapshot usually takes a significant amount of time (on the order of 45 minutes) but in the case of AMS1 we benefited from the fact that the automatic process that periodically generates new snapshots was just completing at the time of failure.",
+          "The engineers continued their work to bring the other 5 data centers online which required generating new snapshots in each of the other data centers."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A data update from the internal database distributed to the impbus systems: a delete on a rarely-changed in-memory object; the object is not named.",
+        "trechos": [
+          "At 17:54 UTC (1:54 PM America/New\\_York), a data update from our internal database caused a crash in the server clusters that we refer to as the “impression bus” (or “impbus”).",
+          "For this case, the data update that caused the problem was a delete on a rarely-changed in-memory object."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "By 18:30 UTC, capacity in the Amsterdam data center (AMS1) was restored to serve 50% of its regular volume of direct transactions, using a new snapshot of data from the internal database that was tested and shown not to trigger the bug; a snapshot was ready because the periodic snapshot process was just completing.",
+          "trechos": [
+            "By 18:30 UTC (2:30PM America/New\\_York), one engineering team restored enough capacity in our Amsterdam data center (AMS1) to service 50% of Amsterdam’s regular volume of direct transactions.",
+            "Our engineers restored service in AMS1 using a new snapshot of data from the internal database. This snapshot was tested and shown to not trigger the bug.",
+            "Generating a snapshot usually takes a significant amount of time (on the order of 45 minutes) but in the case of AMS1 we benefited from the fact that the automatic process that periodically generates new snapshots was just completing at the time of failure."
+          ]
+        },
+        {
+          "texto": "By 18:47 UTC a fix for the impbus bug was created and tested, and the decision was made to deploy the updated impbus to all data centers worldwide.",
+          "trechos": [
+            "By 18:47 UTC (2:47PM America/New\\_York), the second team had identified the root cause of the crash in the impbus and created and tested a fix.",
+            "Once the testing of the new impbus was complete, we made the decision to deploy the updated impbus to all data centers worldwide."
+          ]
+        },
+        {
+          "texto": "The global deployment failed at 19:11 UTC and was turned into a rolling deploy; by 20:00 UTC the deployment was complete and 100% of direct traffic worldwide was handled, with all remaining supply traffic added over the next hour or so.",
+          "trechos": [
+            "At 19:11 UTC (3:11PM America/New\\_York), we discovered that Mr. Murphy is alive and well. We have never had to do a simultaneous deployment to all 6 data centers.",
+            "Thus, when we did the global deploy, it failed. The teams dealt with this, turning it into a rolling deploy, which further added delay to the restart process.",
+            "By 20:00 UTC (4:00PM America/New\\_York), we had completed the deployment and were handling 100% of direct traffic worldwide, and over the next hour or so added all remaining supply traffic."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: change the validation systems so data changes pass only after the deferred deletion time window passes.",
+          "trechos": [
+            "we will be changing our current validation systems to allow changes to pass only after the deferred deletion time window passes."
+          ]
+        },
+        {
+          "texto": "Planned: add a second tier of validation systems that processes data changes in the presence of production request traffic; only changes passing both tiers will reach the rest of production.",
+          "trechos": [
+            "we will be adding a second tier of validation systems that processes the data changes in the presence of production request traffic to ensure that we test the data changes under the same conditions as regular production systems.",
+            "Only after data changes pass through both of these validation tiers will those changes be given to the rest of the production systems."
+          ]
+        },
+        {
+          "texto": "Planned: review the software testing process to cover corner cases like this one, adding more and different kinds of tests for the under-tested portion of the data model.",
+          "trechos": [
+            "In the area of testing, we are reviewing our software testing process to ensure that corner cases like the one that triggered yesterday’s outage are fully covered.",
+            "This will be remedied with more tests as well as different kinds of tests."
+          ]
+        },
+        {
+          "texto": "In progress: re-engineer recovery processes so that after a failure caused by a data or configuration change there is a clear and predictable path back to a known good state; the work is described as well underway, with testing hoped to begin later that week.",
+          "trechos": [
+            "Specifically, we going to re-engineer our recovery processes so that in the event of a failure of any size due to a data or configuration change, we have a clear and predictable path to return to a “known good” state to limit service disruption.",
+            "This work is well underway and we hope to begin testing it later this week."
+          ]
+        },
+        {
+          "texto": "Planned: enhance and test the deployment systems so they have the capacity for a global deployment when needed.",
+          "trechos": [
+            "Further, we are going to enhance and test our deployment systems to be sure that in the event a global deployment is needed, we have the needed capacity to perform such an operation."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 150,
+      "trechos": [
+        "On September 17, 2013 starting at 17:54 UTC (1:54 PM America/New\\_York) the AppNexus platform experienced a technical failure that initially fully halted ad serving and later partially degraded ad serving with the entire incident lasting approximately two and a half hours."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text does not say how the crash was first noticed; within three minutes two engineering teams were assembled. The 150-minute duration is the stated approximate length of the entire incident.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.12" }
+}

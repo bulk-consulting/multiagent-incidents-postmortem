@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-208",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During a maintenance to upgrade the orchestration software of Platform.sh's EU region, the gateways were restarted before the orchestration software had fully started, emptying their in-memory list of applications, and websites went down for 4 hours. The orchestration software could not start because the Kazoo library dropped ZooKeeper connections when its internal pipe buffer filled, and then because a ZooKeeper node exceeded the max node size. Service returned after deploying a Kazoo fix and increasing ZooKeeper's max buffer size.",
+    "data_incidente": "2016-08-18",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "websites in the EU region",
+      "git servers",
+      "UI"
+    ],
+    "tecnologias": [
+      "ZooKeeper",
+      "Kazoo",
+      "strace",
+      "pipe(2)",
+      "gateways",
+      "orchestration software"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "From 19:30 UTC the websites were down, although the environments holding the applications were still working fine.",
+        "trechos": [
+          "19:30 UTC: the sites went down.",
+          "From then on, the websites were down, although the environments holding\n\nthe applications were still working fine."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 19:30 UTC, during the maintenance, the gateways were restarted to upgrade them without waiting for the orchestration software to be fully started; the restart emptied the gateways' memory, which held the list of applications.",
+      "trechos": [
+        "At 19:30 UTC, we restarted the gateways to upgrade them as well, not realizing that the orchestration software had not fully started.",
+        "This means that we emptied the gateways’ memory (since we restarted them), and the gateways couldn’t fetch the list of applications, since the orchestration software wasn’t available.",
+        "1\\. We restarted the gateways without waiting for the orchestration software to be fully started."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The orchestration software was not available to give the gateways the list of applications because it could not fully start: at startup it creates an ephemeral &owner node below every node it owns among about 1 million ZooKeeper nodes, and a bug in the Kazoo library dropped the ZooKeeper connection when too many queries were sent at once, since writes to its internal pipe failed with EPIPE once the 64k pipe buffer was full.",
+        "trechos": [
+          "This means that we emptied the gateways’ memory (since we restarted them), and the gateways couldn’t fetch the list of applications, since the orchestration software wasn’t available.",
+          "In the EU region, we currently have \\~1 million nodes living in ZooKeeper. The orchestration software, as part of its startup, creates an ephemeral node below every node it’s supposed to own called \\`&owner\\`, which is its way to acquire a global lock across servers.",
+          "The Kazoo library had a bug that made it drop the connection when too many queries were sent at the same time.",
+          "The problem that we had was when the pipe buffer became full (64k). When this became the case, the os.write call was failing with an EPIPE, closing the connection to ZooKeeper."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "After the Kazoo fix, connection drops became consistent because one ZooKeeper node was over ZooKeeper's max node size; node sizes were not monitored.",
+        "trechos": [
+          "After we deployed this fix to our production servers, at 23:15 UTC, the random connection drops were gone. Now, we got *consistent* connection drops.",
+          "This time, quickly looking at ZooKeeper logs, we found that one node was over the max node size of ZooKeeper.",
+          "The third issue was a monitoring problem. The nodes sizes weren’t monitored, and this is now fixed."
+        ]
+      },
+      {
+        "texto": "The authors describe restarting the gateways without waiting for the orchestration software to be fully started as an automation problem; automated checks for this were implemented afterwards.",
+        "trechos": [
+          "1\\. We restarted the gateways without waiting for the orchestration software to be fully started.",
+          "Solving the first issue is an automation problem. We have now implemented automated checks when upgrading the orchestration software to make sure it is fully started before we do anything else."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A scheduled maintenance to upgrade the orchestration software (and the gateways) of the EU region; no version is named.",
+        "trechos": [
+          "The maintenance window was only there to upgrade the orchestration software.",
+          "At 19:30 UTC, we restarted the gateways to upgrade them as well, not realizing that the orchestration software had not fully started."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "A semaphore lock was added to the Kazoo client so it writes at most 1000 items to the pipe buffer before waiting for a free slot; after this fix was deployed to production at 23:15 UTC the random connection drops were gone, but consistent drops appeared.",
+          "trechos": [
+            "To solve this issue, we added a semaphore lock in the client. Now, the client can write up to 1000 items to the pipe buffer before which it will wait until a slot becomes free to add another one.",
+            "After we deployed this fix to our production servers, at 23:15 UTC, the random connection drops were gone. Now, we got *consistent* connection drops."
+          ]
+        },
+        {
+          "texto": "After finding in the ZooKeeper logs that one node was over the max node size, ZooKeeper's max buffer size was increased and ZooKeeper restarted, and everything came back at 23:30 UTC.",
+          "trechos": [
+            "This time, quickly looking at ZooKeeper logs, we found that one node was over the max node size of ZooKeeper. We increased ZooKeeper max buffer size, restarted, and everything came back, at 23:30 UTC."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: automated checks were implemented when upgrading the orchestration software, to make sure it is fully started before anything else is done.",
+          "trechos": [
+            "We have now implemented automated checks when upgrading the orchestration software to make sure it is fully started before we do anything else."
+          ]
+        },
+        {
+          "texto": "Already done: ZooKeeper node sizes are now monitored, and an alert is sent whenever a node reaches 90% of ZooKeeper's max buffer size.",
+          "trechos": [
+            "The nodes sizes weren’t monitored, and this is now fixed. Whenever a node size goes up to 90% of ZooKeeper’s max buffer size, an alert is sent to us, and we can decide on what to do."
+          ]
+        },
+        {
+          "texto": "Planned: send a pull request for the Kazoo bug upstream, and check whether the semaphore count can be raised to 64k or the platform's pipe size.",
+          "trechos": [
+            "We’re going to send a pull request upstream for this bug to not occur to anyone else.",
+            "We’re looking if we can increase the semaphore count to 64k without issue, or at least the current platform’s pipe size."
+          ]
+        },
+        {
+          "texto": "In progress: removing the dependency that requires git servers and the UI to go down during an orchestration software upgrade.",
+          "trechos": [
+            "Currently, an upgrade of the orchestration software requires a downtime of the git servers and the UI. (We’re working on removing this dependency.)"
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 240,
+      "trechos": [
+        "At Platform.sh, we had a downtime of 4 hours on our EU region in August, 18th, 2016."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "categoria_causa is human-error under the operator-actions rule (the gateway restart is the trigger and the condition that made it harmful is the root cause), although that condition is a Kazoo library bug. Written by a Platform.sh employee in a personal capacity, with the employer's permission. The git servers and UI were down from 19:00 UTC as planned for the maintenance; the websites were down from 19:30 to 23:30 UTC. Many sentences in the extracted text are broken across lines, so trechos join those line breaks with single spaces. The authors also note they had added compression to ZooKeeper nodes a few weeks before the incident. The Kazoo bug had not appeared before because there were fewer ZooKeeper objects.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.12"
+  }
+}

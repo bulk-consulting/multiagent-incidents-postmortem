@@ -1,0 +1,147 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-193",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A major AWS us-east-1 outage degraded EC2, Lambda, DynamoDB and Route 53's control plane, leaving LaunchDarkly's US web application and API unable to autoscale, delaying flag delivery and causing event data loss. After the web app recovered, an internal change to reduce load reverted flag delivery to a legacy routing path with cold caches; SDK retries overwhelmed the streaming service and its load balancer, EC2 provisioning issues prevented scale-out, and US streaming stayed down until 12:05 AM on October 21. The text does not describe the steps that restored streaming.",
+    "data_incidente": "2025-10-20",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "feature flag management",
+      "feature flag delivery",
+      "guarded releases",
+      "observability",
+      "experimentation",
+      "analytics",
+      "web application",
+      "API",
+      "client-side streaming SDKs",
+      "server-side streaming SDKs",
+      "event ingestion"
+    ],
+    "tecnologias": [
+      "AWS us-east-1",
+      "EC2",
+      "Lambda",
+      "DynamoDB",
+      "Route 53",
+      "load balancer",
+      "Flag Delivery Network",
+      "SDKs",
+      "Relay Proxy"
+    ],
+    "categoria_causa": "cascading-failure",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A major AWS us-east-1 outage left EC2, Lambda, DynamoDB and Route 53's control plane degraded or unavailable; LaunchDarkly depends on these services, and its US web application and API could not autoscale out in response to increasing traffic, degrading until unavailable.",
+        "trechos": [
+          "The incident began as a result of a major AWS us-east-1 outage and was compounded by internal cascading failures that extended LaunchDarkly’s recovery period.",
+          "Between 11:50 PM and 11:40 AM the next day, AWS services such as EC2, Lambda, DynamoDB, and Route 53’s control plane were degraded or unavailable.",
+          "LaunchDarkly depends on these services, and many of our own capabilities were affected:",
+          "The LaunchDarkly web application and API in our US commercial environment became increasingly unstable, unable to autoscale out in response to increasing traffic, leading to gradual degradation and non-availability."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "At 11:48 AM, while systems were being stabilized, an internal change intended to reduce load on the web application reverted the flag delivery network to a legacy routing path with cold caches, which caused excessive retries from SDKs.",
+        "trechos": [
+          "At 11:48 AM, while we were stabilizing our systems, an internal change intended to reduce load on our web application triggered an unexpected failure in our flag delivery network, which distributes flag updates to SDKs.",
+          "Specifically, we reverted to a legacy routing path with cold caches. This caused excessive retries from SDKs."
+        ]
+      },
+      {
+        "texto": "The retry traffic overwhelmed the streaming service and its load balancer, which became unresponsive; server-side SDK connection errors reached about 99% globally.",
+        "trechos": [
+          "The resulting traffic overwhelmed the streaming service and its load balancer, which then became unresponsive.",
+          "Specifically, server-side SDKs across all regions experienced connection errors, reaching \\~99% globally."
+        ]
+      },
+      {
+        "texto": "The infrastructure could not scale out because of ongoing EC2 provisioning issues, which led to an extended outage.",
+        "trechos": [
+          "Our infrastructure couldn’t scale out due to ongoing EC2 provisioning issues and it led to an extended outage."
+        ]
+      },
+      {
+        "texto": "The new fault-tolerant delivery architecture had initially kept server-side streaming stable before it was turned off.",
+        "trechos": [
+          "Finally, we’re accelerating our ongoing migration to a new fault-tolerant delivery architecture, which initially kept server-side streaming stable before we turned it off."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "ausente",
+      "passos": []
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the Flag Delivery Network was decoupled from the feature management application so that disabling update notifications will not impact SDK connections.",
+          "trechos": [
+            "We have decoupled our Flag Delivery Network from the feature management application so that disabling update notifications will not impact SDK connections."
+          ]
+        },
+        {
+          "texto": "Already done: load balancers for the flag delivery network were scaled out in all regions.",
+          "trechos": [
+            "We’ve also scaled out load balancers in all regions for our flag delivery network to help ensure additional capacity."
+          ]
+        },
+        {
+          "texto": "In progress: accelerating the migration to a new fault-tolerant delivery architecture.",
+          "trechos": [
+            "Finally, we’re accelerating our ongoing migration to a new fault-tolerant delivery architecture, which initially kept server-side streaming stable before we turned it off."
+          ]
+        },
+        {
+          "texto": "Planned: in upcoming releases, the SDKs and the Relay Proxy will support automatic failover from streaming to polling mode when streaming becomes unavailable.",
+          "trechos": [
+            "In upcoming releases, LaunchDarkly SDKs and the Relay Proxy will support automatic failover from streaming to polling mode if streaming becomes unavailable."
+          ]
+        },
+        {
+          "texto": "In progress: relocating all disaster recovery orchestration systems out of us-east-1, investigating multi-region improvements for critical services and vendor services, and improving quarterly DR testing with more gameday realism.",
+          "trechos": [
+            "We are relocating all disaster recovery orchestration systems out of us-east-1.",
+            "We are investigating multi-region improvements across our most critical services as well as vendor services.",
+            "We are improving our quarterly DR testing to incorporate more gameday realism."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 1455,
+      "trechos": [
+        "The **first phase** (between October 19, 11:50 PM and October 20, 11:40 AM) began late on October 19, when AWS us-east-1 experienced a major outage.",
+        "By 12:05 AM on October 21, all streaming services had fully recovered, and by 2:45 AM, we resolved the public incident on our status page."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The incident had two phases: the AWS outage (October 19, 11:50 PM to October 20, 11:40 AM PT) and a second phase set off by an internal change (October 20, 11:40 AM to October 21, 12:05 AM PT); the authors say the AWS outage caused the initial failure and their own system design and recovery actions extended the impact. The duration covers both phases; the public incident was resolved on the status page at 2:45 AM. EU streaming recovered quickly and APAC by mid-afternoon. The data date follows the text's 'On October 20, 2025', though the AWS outage began late on October 19. The text also plans to share customer workarounds earlier during incidents. mudanca_causadora is nao_se_aplica because the incident was set off by the AWS outage; the internal change that set off the second phase (reverting flag delivery to a legacy routing path) is recorded in fatores_contribuintes.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.12"
+  }
+}

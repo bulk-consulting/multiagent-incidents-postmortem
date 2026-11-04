@@ -1,0 +1,135 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-051",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "An incorrect change to the iptables firewall configuration on Stack Exchange's HAProxy load balancers blocked the SYN/ACK response traffic from the IIS web servers, causing an outage of all Stack Exchange sites (Q&A sites and Careers) for approximately 6 minutes. The change was reverted in Git and applied by Puppet to both load balancers, which resolved the outage.",
+    "data_incidente": "2014-08-25",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Stack Exchange sites",
+      "Q&A sites",
+      "Careers"
+    ],
+    "tecnologias": [
+      "iptables",
+      "HAProxy",
+      "Puppet",
+      "Git",
+      "IIS",
+      "TeamCity",
+      "ASA firewalls"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 19:27, one minute after the outage began, the on-call pager rang and staff noticed the problem; the outage came to the team's attention immediately.",
+        "trechos": [
+          "2014-08-25 19:26 Puppet runs on primary load balancer (pushed bad change / outage BEGINS)",
+          "2014-08-25 19:27 On-call pager rings and staff notice problem",
+          "As soon as the active load balancer in our New York data center applied the change (about 25 minutes after the change was pushed) the outage began, and came to our attention immediately."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "While making a change to let web servers reach internal API endpoints directly instead of through the ASA firewalls, an incorrect change was made to the iptables configuration on the HAProxy load balancers; it blocked the SYN/ACK response packets, so HAProxy could not complete connections to the IIS web servers. The outage began when the active load balancer in New York applied the change on its Puppet run.",
+        "trechos": [
+          "The cause was an incorrect change to network firewall configuration - specifically, iptables running on our HAProxy load balancers.",
+          "While attempting to make a change enabling streamlined access for our web servers to internal API endpoints (connecting directly instead of traversing our ASA firewalls), a misleading comment in the iptables configuration led us to make a harmful change.",
+          "The change had the effect of preventing the HAProxy systems from being able to complete a connection to our IIS web servers - the response traffic for those connections (the SYN/ACK packet) was suddenly being blocked.",
+          "After the change was pushed to Git, the load balancers applied the change on their next Puppet run.",
+          "As soon as the active load balancer in our New York data center applied the change (about 25 minutes after the change was pushed) the outage began, and came to our attention immediately."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "A misleading comment in the iptables configuration led to the harmful change.",
+        "trechos": [
+          "While attempting to make a change enabling streamlined access for our web servers to internal API endpoints (connecting directly instead of traversing our ASA firewalls), a misleading comment in the iptables configuration led us to make a harmful change."
+        ]
+      },
+      {
+        "texto": "The mechanism for managing the iptables rules (a static file managed by Puppet placed at /etc/sysconfig/iptables) is described as not as clear and understandable as it could be.",
+        "trechos": [
+          "Our current mechanism for managing these iptables rules is not as clear and understandable as it could be.",
+          "we are planning to convert these configs (currently a static file managed by Puppet getting placed at /etc/sysconfig/iptables) to the module"
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "A change to the iptables configuration of the HAProxy load balancers, managed by Puppet and pushed to Git as commit da2d38d6a1 at 19:01.",
+        "trechos": [
+          "The cause was an incorrect change to network firewall configuration - specifically, iptables running on our HAProxy load balancers.",
+          "The iptables configuration is managed by Puppet and stored in Git.",
+          "2014-08-25 19:01 Change pushed to Git (da2d38d6a1)"
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "Within 2 minutes of the start of the outage, the change was reverted and pushed to Git (b55e654d9f at 19:27); TeamCity pushed it to the Puppet masters and Puppet applied it first on the inactive load balancer (19:30) and then on the active one (19:32), which resolved the outage.",
+          "trechos": [
+            "Within 2 minutes of the start of the outage, the change had been reverted and pushed to Git.",
+            "2014-08-25 19:27 Revert pushed to Git (b55e654d9f)",
+            "The process of TeamCity pushing the change to the Puppet masters takes about 30 seconds, then Puppet was run to apply the change, first on the inactive load balancer, then on the active one. Once this change was applied by Puppet, the outage was resolved.",
+            "2014-08-25 19:30 Puppet updates secondary load balancer (pushed revert)",
+            "2014-08-25 19:32 Puppet updates primary load balancer (outage RESOLVED)"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the misleading comments were cleaned up.",
+          "trechos": [
+            "We’ve already taken corrective action to prevent this kind of outage in the future (cleaning up the misleading comments!), and we have more planned;"
+          ]
+        },
+        {
+          "texto": "Planned: a mechanism to access the sites through the secondary/inactive load balancers, so that changes can be applied there first.",
+          "trechos": [
+            "We need a mechanism to access our sites on the secondary/inactive load balancers, so that we can apply these changes there first."
+          ]
+        },
+        {
+          "texto": "Planned: convert the iptables configs (a static file managed by Puppet at /etc/sysconfig/iptables) to the Puppet Labs firewall module and do a full audit of the rules for readability and cleanup.",
+          "trechos": [
+            "We’ve been using the Puppet Labs firewall module for new applications which need to interact with iptables; we are planning to convert these configs (currently a static file managed by Puppet getting placed at /etc/sysconfig/iptables) to the module and doing a full audit for readability/cleanup of the rules while we’re at it, hopefully ending up with something much simpler to understand and modify."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 6,
+      "trechos": [
+        "On August 25, 2014 there was an outage of all Stack Exchange sites (Q&A sites as well as Careers) from 7:26 pm to 7:32 pm UTC (approximately 6 minutes)."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "mitigacao is generica because the only step is reverting the change (a rollback), even though the component and commit are named. The misleading comment is kept as a contributing factor rather than a separate root cause because the text presents the incorrect change itself as the cause.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

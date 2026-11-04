@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-087",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During the leap second at midnight UTC on January 1, 2017, Cloudflare's RRDNS software recorded negative resolver response times, which later caused its weighted resolver selection to panic, so some DNS resolutions for customers using CNAME records failed (at peak about 0.2% of DNS queries). A fix that prevents negative values from being recorded was deployed, starting with the most affected data centers, and impact ended at 06:45 UTC.",
+    "data_incidente": "2017-01-01",
+    "status_relatorio": "final",
+    "servicos_afetados": ["Cloudflare DNS (CNAME lookups)", "Cloudflare managed web properties", "HTTP requests to Cloudflare"],
+    "tecnologias": ["RRDNS", "Go", "time.Now()", "rand.Int63n()", "DNS", "CNAME"],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": null
+    },
+    "gatilho": {
+      "texto": "The leap second at midnight UTC on New Year's Day, during which time went back.",
+      "trechos": [
+        "At midnight UTC on New Year’s Day, deep inside Cloudflare’s custom RRDNS software, a number went negative when it should always have been, at worst, zero.",
+        "Some of these resolutions ended up recording in a data structure a negative value during the leap second.",
+        "The negative number got there through a combination of the leap second and smoothing.",
+        "If, right when a resolution is happening, time goes back a second the perceived resolution time will be *negative*."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "RRDNS code that measures upstream resolver performance for CNAME lookups assumed that the difference between two times from Go's time.Now() would be at worst zero, but time.Now() does not guarantee monotonicity. The measured rtt could become negative, the smoothed value eventually became negative, and the weighted selection code fed it to rand.Int63n(), which panics when its argument is negative.",
+        "trechos": [
+          "The root cause of the bug that affected our DNS service was the belief that *time cannot go backwards*. In our case, some code assumed that the *difference* between two times would always be, at worst, zero.",
+          "RRDNS is written in Go and uses Go’s time.Now() function to get the time. Unfortunately, this function does not guarantee monotonicity.",
+          "In the code above `rtt` could be negative if time.Now() was earlier than `start` (which was set by a call to `time.Now()` earlier).",
+          "So, the single measurement wouldn’t cause RRDNS to think the resolver was working in negative time, but after a few measurements the smoothed value would eventually become negative.",
+          "The code takes the upstream time values and feeds them to Go’s rand.Int63n() function. `rand.Int63n` promptly panics if its argument is negative. That's where the RRDNS panics were coming from."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The internal resolvers are tuned to answer in a few milliseconds, so a one-second backward step during a resolution makes the perceived resolution time negative.",
+        "trechos": [
+          "Unfortunately, we’ve tuned our resolvers to be very fast which means that it’s normal for them to answer in a few milliseconds. If, right when a resolution is happening, time goes back a second the perceived resolution time will be *negative*."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "A patch let RRDNS forget current upstream performance and normalize again if time skipped backwards, preventing negative values from being recorded in server selection; it was deployed to one canary node at 00:55 UTC and a canary data center at 01:03 UTC.",
+          "trechos": [
+            "In this patch we allowed RRDNS to forget about current upstream performance, and let it normalize again if time skipped backwards.",
+            "The fix we applied prevents the recording of negative values in server selection.",
+            "2017-01-01 00:55 UTC Mitigation deployed to one canary node and confirmed",
+            "2017-01-01 01:03 UTC Mitigation deployed to canary data center and confirmed"
+          ]
+        },
+        {
+          "texto": "The fix was deployed first to the locations with the most errors (most impacted data center at 01:23 UTC), then to all data centers; the most affected machines were patched within 90 minutes, the fix was rolled out worldwide by 06:45 UTC, and impact ended at 06:45 UTC.",
+          "trechos": [
+            "We deployed the fix prioritizing those locations with the most errors first.",
+            "2017-01-01 01:23 UTC Fix deployed in most impacted data center",
+            "The most affected machines were patched in 90 minutes and the fix was rolled out worldwide by 0645 UTC.",
+            "2017-01-01 06:45 UTC Impact ends"
+          ]
+        },
+        {
+          "texto": "All RRDNS servers were restarted.",
+          "trechos": [
+            "Restarting all the RRDNS servers then fixed any recurrence of the problem."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "In progress: inspecting all code to ensure there are no other leap-second-sensitive uses of time intervals.",
+          "trechos": [
+            "We are sorry that our customers were affected by this bug and are inspecting all our code to ensure that there are no other leap second sensitive uses of time intervals."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 405,
+      "trechos": [
+        "2017-01-01 00:00 UTC Impact starts",
+        "2017-01-01 06:45 UTC Impact ends"
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "duracao is computed from the timeline (impact from 00:00 to 06:45 UTC). The text also states a general precaution: when using a non-monotonic clock source, always check whether the difference between two timestamps is negative. The panic was caught using Go's recover feature.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.13" }
+}

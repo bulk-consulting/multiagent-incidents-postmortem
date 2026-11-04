@@ -1,0 +1,232 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-075",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A latent race condition in DynamoDB's automated DNS management left the regional endpoint dynamodb.us-east-1.amazonaws.com with an empty DNS record, causing DynamoDB API errors in us-east-1 and later impact to EC2 launches, Network Load Balancer, Lambda and other services between 11:48 PM PDT on October 19 and 2:20 PM PDT on October 20, 2025. DNS was restored by 2:25 AM after manual operator intervention; EC2 recovered after throttling and selective DWFM host restarts, and NLB after automatic health check failovers were disabled.",
+    "data_incidente": "2025-10-19",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Amazon DynamoDB",
+      "Amazon EC2",
+      "Network Load Balancer (NLB)",
+      "AWS Lambda",
+      "Amazon ECS",
+      "Amazon EKS",
+      "AWS Fargate",
+      "Amazon Connect",
+      "AWS Security Token Service (STS)",
+      "AWS Management Console sign-in",
+      "IAM Identity Center",
+      "Amazon Redshift",
+      "AWS Support Center",
+      "Managed Workflows for Apache Airflow",
+      "Outposts"
+    ],
+    "tecnologias": [
+      "DNS",
+      "Amazon Route53",
+      "DNS Planner",
+      "DNS Enactor",
+      "DynamoDB global tables",
+      "DropletWorkflow Manager (DWFM)",
+      "Network Manager",
+      "NLB health check subsystem",
+      "SQS",
+      "Kinesis",
+      "IAM"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "At 11:48 PM PDT, all systems connecting to DynamoDB in us-east-1 through the public endpoint began experiencing DNS failures and failed to connect; the text does not say how this was first noticed.",
+        "trechos": [
+          "When this issue occurred at 11:48 PM PDT, all systems needing to connect to the DynamoDB service in the N. Virginia (us-east-1) Region via the public endpoint immediately began experiencing DNS failures and failed to connect to DynamoDB."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "Right before the event, one DNS Enactor experienced unusually high delays retrying its update on several DNS endpoints while the DNS Planner kept producing newer plans and another DNS Enactor applied one of the newer plans and then invoked the plan clean-up process; the text says the timing of these events triggered the latent race condition.",
+      "trechos": [
+        "Right before this event started, one DNS Enactor experienced unusually high delays needing to retry its update on several of the DNS endpoints.",
+        "First, the DNS Planner continued to run and produced many newer generations of plans. Second, one of the other DNS Enactors then began applying one of the newer plans and rapidly progressed through all of the endpoints. The timing of these events triggered the latent race condition.",
+        "When the second Enactor (applying the newest plan) completed its endpoint updates, it then invoked the plan clean-up process, which identifies plans that are significantly older than the one it just applied and deletes them."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A latent race condition in the DynamoDB DNS management system: the DNS Enactor checks only once, before starting, that its plan is newer than the previously applied plan. Because that check was stale after the delays, the delayed Enactor applied its much older plan to the regional endpoint, overwriting the newer plan, and the other Enactor's clean-up process then deleted that older plan, immediately removing all IP addresses for the regional endpoint dynamodb.us-east-1.amazonaws.com and leaving an empty DNS record that the automation failed to repair.",
+        "trechos": [
+          "The root cause of this issue was a latent race condition in the DynamoDB DNS management system that resulted in an incorrect empty DNS record for the service’s regional endpoint (**dynamodb.us-east-1.amazonaws.com**) that the automation failed to repair.",
+          "Before it begins to apply a new plan, the DNS Enactor makes a one-time check that its plan is newer than the previously applied plan.",
+          "At the same time that this clean-up process was invoked, the first Enactor (which had been unusually delayed) applied its much older plan to the regional DDB endpoint, overwriting the newer plan.",
+          "The check that was made at the start of the plan application process, which ensures that the plan is newer than the previously applied plan, was stale by this time due to the unusually high delays in Enactor processing.",
+          "The second Enactor’s clean-up process then deleted this older plan because it was many generations older than the plan it had just applied. As this plan was deleted, all IP addresses for the regional endpoint were immediately removed."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Because the active plan was deleted, the system was left in an inconsistent state that prevented subsequent plan updates from being applied by any DNS Enactor, and manual operator intervention was required to correct it.",
+        "trechos": [
+          "Additionally, because the active plan was deleted, the system was left in an inconsistent state that prevented subsequent plan updates from being applied by any DNS Enactors. This situation ultimately required manual operator intervention to correct."
+        ]
+      },
+      {
+        "texto": "EC2's DropletWorkflow Manager (DWFM) state checks depend on DynamoDB, so droplet leases timed out during the DynamoDB outage; after DynamoDB recovered, the large number of droplets meant new leases could not be established before they timed out, DWFM entered congestive collapse, and there was no established operational recovery procedure for this situation.",
+        "trechos": [
+          "Starting at 11:48 PM PDT on October 19, these DWFM state checks began to fail as the process depends on DynamoDB and was unable to complete.",
+          "Between 11:48 PM on October 19 and 2:24 AM on October 20, leases between DWFM and droplets within the EC2 fleet slowly started to time out.",
+          "DWFM began the process of reestablishing leases with droplets across the EC2 fleet; however, due to the large number of droplets, efforts to establish new droplet leases took long enough that the work could not be completed before they timed out.",
+          "At this point, DWFM had entered a state of congestive collapse and was unable to make forward progress in recovering droplet leases. Since this situation had no established operational recovery procedure, engineers took care in attempting to resolve the issue with DWFM without causing further issues."
+        ]
+      },
+      {
+        "texto": "Network propagation events delayed by the DWFM issue created a significant backlog for Network Manager, which from 6:21 AM had increased propagation latencies, so newly launched EC2 instances lacked network connectivity.",
+        "trechos": [
+          "Since these network propagation events had been delayed by the issue with DWFM, a significant backlog of network state propagations needed to be processed by Network Manager within the N. Virginia (us-east-1) Region.",
+          "As a result, at 6:21 AM, Network Manager started to experience increased latencies in network propagation times as it worked to process the backlog of network state changes.",
+          "While new EC2 instances could be launched successfully, they would not have the necessary network connectivity due to the delays in network state propagation."
+        ]
+      },
+      {
+        "texto": "The NLB health checking subsystem brought new EC2 instances into service before their network state had propagated, so health checks alternated between failing and healthy, removing nodes and targets from DNS; the alternating results degraded the health check subsystem and triggered automatic AZ DNS failover, taking capacity out of service for multi-AZ load balancers.",
+        "trechos": [
+          "This was caused by the health checking subsystem bringing new EC2 instances into service while the network state for those instances had not yet fully propagated.",
+          "This resulted in health checks alternating between failing and healthy. This caused NLB nodes and backend targets to be removed from DNS, only to be returned to service when the next health check succeeded.",
+          "The alternating health check results increased the load on the health check subsystem, causing it to degrade, resulting in delays in health checks and triggering automatic AZ DNS failover to occur. For multi-AZ load balancers, this resulted in capacity being taken out of service."
+        ]
+      },
+      {
+        "texto": "For Lambda, an internal subsystem responsible for polling SQS queues failed and did not recover automatically, and from 7:04 AM NLB health check failures triggered instance terminations that left a subset of Lambda internal systems under-scaled while EC2 launches were still impaired.",
+        "trechos": [
+          "By 2:24 AM, service operations recovered except for SQS queue processing, which remained impacted because an internal subsystem responsible for polling SQS queues failed and did not recover automatically.",
+          "Starting at 7:04 AM, NLB health check failures triggered instance terminations leaving a subset of Lambda internal systems under-scaled."
+        ]
+      },
+      {
+        "texto": "A Redshift defect that used an IAM API in us-east-1 to resolve user groups caused Redshift customers in all AWS Regions to be unable to use IAM user credentials for queries during IAM's impairment, and Redshift host-replacement workflows were blocked while EC2 launches were impaired, leaving some clusters unavailable.",
+        "trechos": [
+          "In addition to cluster availability impairment, between October 19 at 11:47 PM and October 20 at 1:20 AM, Amazon Redshift customers in all AWS Regions were unable to use IAM user credentials for executing queries due to a Redshift defect that used an IAM API in the N. Virginia (us-east-1) Region to resolve user groups.",
+          "With EC2 launches impaired, these workflows were blocked, putting clusters in a “modifying” state that prevented query processing and making the cluster unavailable for workloads."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "By 1:15 AM, temporary mitigations enabled some internal services to connect to DynamoDB and repaired key internal tooling. The inconsistent DNS state required manual operator intervention to correct.",
+          "trechos": [
+            "By 1:15 AM, the temporary mitigations that were applied enabled some internal services to connect to DynamoDB and repaired key internal tooling that unblocked further recovery.",
+            "This situation ultimately required manual operator intervention to correct."
+          ]
+        },
+        {
+          "texto": "By 2:25 AM all DNS information was restored; customers could resolve the DynamoDB endpoint as cached DNS records expired between 2:25 AM and 2:40 AM, and global tables replicas were caught up by 2:32 AM.",
+          "trechos": [
+            "By 2:25 AM, all DNS information was restored, and all global tables replicas were fully caught up by 2:32 AM. Customers were able to resolve the DynamoDB endpoint and establish successful connections as cached DNS records expired between 2:25 AM and 2:40 AM."
+          ]
+        },
+        {
+          "texto": "After multiple mitigation attempts, at 4:14 AM engineers throttled incoming work and began selective restarts of DWFM hosts, which cleared the DWFM queues and allowed droplet leases to be established; by 5:28 AM DWFM had leases with all droplets in us-east-1.",
+          "trechos": [
+            "After attempting multiple mitigation steps, at 4:14 AM engineers throttled incoming work and began selective restarts of DWFM hosts to recover from this situation.",
+            "Restarting the DWFM hosts cleared out the DWFM queues, reduced processing times, and allowed droplet leases to be established.",
+            "By 5:28 AM, DWFM had established leases with all droplets within the N. Virginia (us-east-1) Region and new launches were once again starting to succeed"
+          ]
+        },
+        {
+          "texto": "Engineers worked to reduce the load on Network Manager and took action to accelerate recovery; by 10:36 AM network configuration propagation times had returned to normal.",
+          "trechos": [
+            "Engineers worked to reduce the load on Network Manager to address network configuration propagation times and took action to accelerate recovery.",
+            "By 10:36 AM, network configuration propagation times had returned to normal levels, and new EC2 instance launches were once again operating normally."
+          ]
+        },
+        {
+          "texto": "At 9:36 AM engineers disabled automatic health check failovers for NLB, allowing all available healthy NLB nodes and backend targets back into service, which resolved the increased connection errors.",
+          "trechos": [
+            "At 9:36 AM, engineers disabled automatic health check failovers for NLB, allowing all available healthy NLB nodes and backend targets to be brought back into service. This resolved the increased connection errors to affected load balancers."
+          ]
+        },
+        {
+          "texto": "For Lambda, the SQS polling subsystem was restored at 4:40 AM, and Lambda Event Source Mappings and asynchronous invocations were throttled to prioritize synchronous invocations while EC2 launches were impaired.",
+          "trechos": [
+            "We restored this subsystem at 4:40 AM and processed all message backlogs by 6:00 AM.",
+            "With EC2 launches still impaired, we throttled Lambda Event Source Mappings and asynchronous invocations to prioritize latency-sensitive synchronous invocations."
+          ]
+        },
+        {
+          "texto": "From 11:23 AM engineers began relaxing the EC2 request throttles; at 1:50 PM all EC2 APIs and new instance launches were operating normally.",
+          "trechos": [
+            "As API calls and new EC2 instance launch requests stabilized, at 11:23 AM PDT our engineers began relaxing request throttles as they worked towards full recovery. At 1:50 PM, all EC2 APIs and new EC2 instance launches were operating normally."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the DynamoDB DNS Planner and DNS Enactor automation were disabled worldwide.",
+          "trechos": [
+            "We have already disabled the DynamoDB DNS Planner and the DNS Enactor automation worldwide."
+          ]
+        },
+        {
+          "texto": "Planned: before re-enabling that automation, fix the race condition scenario and add protections to prevent the application of incorrect DNS plans.",
+          "trechos": [
+            "In advance of re-enabling this automation, we will fix the race condition scenario and add additional protections to prevent the application of incorrect DNS plans."
+          ]
+        },
+        {
+          "texto": "Planned: add a velocity control mechanism to NLB to limit the capacity a single NLB can remove when health check failures cause AZ failover.",
+          "trechos": [
+            "For NLB, we are adding a velocity control mechanism to limit the capacity a single NLB can remove when health check failures cause AZ failover."
+          ]
+        },
+        {
+          "texto": "Planned: build an additional EC2 test suite, augmenting existing scale testing, that exercises the DWFM recovery workflow to identify future regressions.",
+          "trechos": [
+            "For EC2, we are building an additional test suite to augment our existing scale testing, which will exercise the DWFM recovery workflow to identify any future regressions."
+          ]
+        },
+        {
+          "texto": "Planned: improve the throttling mechanism in EC2 data propagation systems to rate limit incoming work based on the size of the waiting queue.",
+          "trechos": [
+            "We will improve the throttling mechanism in our EC2 data propagation systems to rate limit incoming work based on the size of the waiting queue to protect the service during periods of high load."
+          ]
+        },
+        {
+          "texto": "Already done: for the AWS Support Center, additional actions to prevent recurrence were taken at 2:58 AM; the text does not say what they were.",
+          "trechos": [
+            "The issue was mitigated at 2:40 AM, and we took additional actions to prevent recurrence at 2:58 AM."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 872,
+      "trechos": [
+        "While the event started at 11:48 PM PDT on October 19 and ended at 2:20 PM PDT on October 20, there were three distinct periods of impact to customer applications."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "duracao is computed from the stated event start (11:48 PM PDT, October 19) and end (2:20 PM PDT, October 20). Some Redshift clusters impaired by replacement workflows were only restored by 4:05 AM PDT on October 21, and Amazon Connect dashboard and Data Lake data were to be backfilled by October 28. Automatic DNS health check failover for NLB was re-enabled at 2:09 PM after EC2 recovered. The text also says AWS will look for additional ways to avoid impact and reduce time to recovery.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-03", "versao_prompt": "v2.13" }
+}

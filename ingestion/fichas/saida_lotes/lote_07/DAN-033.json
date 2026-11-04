@@ -1,0 +1,135 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-033",
+  "triagem": {
+    "catalogo": "parcial",
+    "autoria": "primaria",
+    "tipo": "outro",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "A faulty load balancing configuration change to a core infrastructure component caused traffic problems in the quota service that Chrome Sync servers depend on; sync servers then told clients to throttle all data types, and Chrome clients crashed on throttled data types they did not recognize, while other Google services may have been affected. The text does not say how the quota service was restored; a server-side fix and a client-side code fix were made.",
+    "data_incidente": "2012-12-10",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Chrome",
+      "Chrome Sync",
+      "quota service",
+      "Gmail"
+    ],
+    "tecnologias": [
+      "Chrome Sync Server",
+      "quota service",
+      "load balancing",
+      "protobuf",
+      "EnumSet",
+      "bitset"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The issue was opened reporting that Gmail was down and that Chrome was crashing in the sync thread.",
+        "trechos": [
+          "Gmail is down; everyone's Chrome is now crashing in the sync thread."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The quota service that Chrome Sync Server relies on to enforce quotas on per-datatype sync traffic experienced traffic problems due to a faulty load balancing configuration change to a core piece of infrastructure that many Google services depend on; the backend service became overwhelmed.",
+        "trechos": [
+          "Chrome Sync Server relies on a backend infrastructure component to enforce quotas on per-datatype sync traffic.",
+          "That quota service experienced traffic problems today due to a faulty load balancing configuration change.",
+          "That change was to a core piece of infrastructure that many services at Google depend on.",
+          "It's due to a backend service that sync servers depend on becoming overwhelmed, and sync servers responding to that by telling all clients to throttle all data types (including data types that the client may not understand yet)."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Because of the quota service failure, Chrome Sync Servers reacted too conservatively by telling clients to throttle all data types, without accounting for the fact that not all client versions support all data types.",
+        "trechos": [
+          "Because of the quota service failure, Chrome Sync Servers reacted too conservatively by telling clients to throttle \"all\" data types, without accounting for the fact that not all client versions support all data types."
+        ]
+      },
+      {
+        "texto": "The Chrome client had faulty logic for handling throttled data types it did not recognize: an unknown protobuf field number was converted to UNSPECIFIED (0), and passing UNSPECIFIED to the EnumSet produced a negative offset into a bitset, resulting in an out_of_range error and a crash.",
+        "trechos": [
+          "The crash is due to faulty logic responsible for handling \"throttled\" data types on the client when the data types are unrecognized.",
+          "calls GetModelTypeFromSpecificsFieldNumber, which tries to convert a protobuf field number to an enum value.",
+          "If the field number is unknown, it returns UNSPECIFIED == 0.",
+          "So if UNSPECIFIED is passed to the set, it calculates a negative offset and tries to store that in a bitset, resulting in the out\\_of\\_range error."
+        ]
+      },
+      {
+        "texto": "The client code path had NOTREACHED(), so there was no unit test coverage for it.",
+        "trechos": [
+          "1) That code path has NOTREACHED(), so we don't have unit test coverage for this."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A faulty load balancing configuration change to a core piece of infrastructure, affecting the quota service; the exact setting is not named.",
+        "trechos": [
+          "That quota service experienced traffic problems today due to a faulty load balancing configuration change.",
+          "That change was to a core piece of infrastructure that many services at Google depend on."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "ausente",
+      "passos": []
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: a server-side fix was made after the server-side problem was narrowed down; the text does not say what it changed.",
+          "trechos": [
+            "We've narrowed down the server-side problem.",
+            "Given that we fixed this server-side, do we need to merge this onto M23, too?"
+          ]
+        },
+        {
+          "texto": "Already done: revision r172232 changed GetModelTypeFromSpecificsFieldNumber() to not NOTREACHED() on an unknown field number, with callers comparing the return value to UNSPECIFIED and handling that case; it was merged to branch 1312 (r172389), and the release blocker was removed as a possible fix was merged in M24.",
+          "trechos": [
+            "r172232 \\| akalin@chromium.org \\| 2012-12-11T02:05:07.754724Z",
+            "Change GetModelTypeFromSpecificsFieldNumber() to not NOTREACHED() on an unknown field number.",
+            "Instead, have callers compare the return value to UNSPECIFIED and handle that case.",
+            "r172389 \\| akalin@chromium.org \\| 2012-12-11T20:20:02.994460Z",
+            "M http://src.chromium.org/viewvc/chrome/branches/1312/src/sync/internal_api/public/base/model_type.h?r1=172389&r2=172388&pathrev=172389",
+            "Merge 172232 > [Sync] Handle invalid specifics field numbers gracefully",
+            "Removing release blocker as we have a possible fix merged in M24."
+          ]
+        },
+        {
+          "texto": "Already done: revision r172816 changed NOTREACHED() to DLOG(WARNING), since the server sending unknown or invalid field numbers is a valid event, and added tests for the code that uses GetModelTypeFromSpecificsFieldNumber().",
+          "trechos": [
+            "r172816 \\| akalin@chromium.org \\| 2012-12-13T04:28:33.853046Z",
+            "Change NOTREACHED() to DLOG(WARNING), since the server sending down unknown/invalid field numbers is a valid event.",
+            "Add tests for the code that uses GetModelTypeFromSpecificsFieldNumber()."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "triagem.catalogo: sim vs parcial. The document is a Chromium issue about the Chrome client crash, which the text presents as a consequence of the catalog incident (the quota service failure after a load balancing configuration change). 'sim' requires the document to be 'mainly about the incident described in the catalog', and 'parcial' covers 'the incident appears but is a small part of a text about something else'; the Chrome crash is both a separate client bug (the issue's subject) and part of the catalog incident's impact, so the definitions do not decide.",
+  "observacoes": "The date comes from the comment dates (Dec 10, 2012) next to the comment saying the quota service 'experienced traffic problems today'. Gmail appears only in the first report ('Gmail is down'); the text later says the bug 'really has nothing to do with GMail specifically' and that other services 'may have been affected'. The crash stopped during the incident without the text saying what changed ('something decided to change the set of throttled datatypes'). A comment says the crash signature had been present for at least a few days before the outage. This is an issue thread, so the comments are the document content, not reader comments.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.13"
+  }
+}

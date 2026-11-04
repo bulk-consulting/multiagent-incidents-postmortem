@@ -1,0 +1,180 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-142",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "On July 19, 2024 CrowdStrike deployed a Rapid Response Content update (Channel File 291) to Windows sensors; a Content Validator bug let a Template Instance with problematic content pass, and the sensor, expecting 20 input fields but receiving 21, performed an out-of-bounds memory read that crashed Windows (BSOD). The content was reverted at 05:27 UTC, 78 minutes after release; affected hosts were restored over the following days through manual and later automated remediation, with about 99% of Windows sensors online by July 29.",
+    "data_incidente": "2024-07-19",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Windows hosts running the CrowdStrike Falcon sensor version 7.11 and above"
+    ],
+    "tecnologias": [
+      "CrowdStrike Falcon sensor",
+      "Rapid Response Content",
+      "Channel File 291",
+      "Content Validator",
+      "Content Interpreter",
+      "Content Configuration System",
+      "IPC Template Type",
+      "Named Pipes",
+      "Windows",
+      "BitLocker"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Symptoms were Windows hosts experiencing a bugcheck / blue screen error related to the Falcon Sensor; the text does not say how the problem was first noticed.",
+        "trechos": [
+          "Symptoms include hosts experiencing a bugcheck\\blue screen error related to the Falcon Sensor."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "On July 19, 2024 at 04:09 UTC, as part of regular operations, a content configuration update for the Windows sensor was released, deploying two additional IPC Template Instances via Channel File 291.",
+      "trechos": [
+        "On Friday, July 19, 2024 at 04:09 UTC, as part of regular operations, CrowdStrike released a content configuration update for the Windows sensor to gather telemetry on possible novel threat techniques.",
+        "On July 19, 2024, two additional IPC Template Instances were deployed.",
+        "When received by the sensor and loaded into the Content Interpreter, problematic content in Channel File 291 resulted in an out-of-bounds memory read triggering an exception."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The sensor expected 20 input fields while the update provided 21; when the Content Interpreter loaded the problematic content in Channel File 291, the mismatch caused an out-of-bounds memory read that raised an exception the interpreter could not gracefully handle, crashing the Windows operating system (BSOD).",
+        "trechos": [
+          "The sensor expected 20 input fields, while the update provided 21 input fields. In this instance, the mismatch resulted in an out-of-bounds memory read, causing a system crash.",
+          "When received by the sensor and loaded into the Content Interpreter, problematic content in Channel File 291 resulted in an out-of-bounds memory read triggering an exception.",
+          "This unexpected exception could not be gracefully handled, resulting in a Windows operating system crash (BSOD)."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Due to a bug (a logic error) in the Content Validator, which checks content before it is published, one of the two Template Instances passed validation despite containing problematic content data.",
+        "trechos": [
+          "Due to a bug in the Content Validator, one of the two Template Instances passed validation despite containing problematic content data.",
+          "A logic error in our Content Validator (software that performs control checks on content before deployment) has also been fixed, and we are implementing additional enhancements that are explained in the RCA by August 19, 2024."
+        ]
+      },
+      {
+        "texto": "The instances were deployed into production based on the March 05, 2024 testing of the Template Type, trust in the checks performed in the Content Validator, and previous successful IPC Template Instance deployments.",
+        "trechos": [
+          "Based on the testing performed before the initial deployment of the Template Type (on March 05, 2024), trust in the checks performed in the Content Validator, and previous successful IPC Template Instance deployments, these instances were deployed into production."
+        ]
+      },
+      {
+        "texto": "For hosts that kept crashing and could not stay online to receive the reverted channel file, the text gives remediation steps (reboots, manual recovery), and BitLocker-encrypted hosts may require a recovery key; the text says each customer environment's complexity can significantly impact remediation timelines.",
+        "trechos": [
+          "If hosts are still crashing and unable to stay online to receive the Channel File update, the remediation steps below can be used.",
+          "Note: Bitlocker-encrypted hosts may require a recovery key.",
+          "Each customer environment is unique, with varying degrees of complexity and architectural constraints that can significantly impact remediation timelines."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "A Rapid Response Content update in Channel File 291 (an IPC Template Instance) that provided 21 input fields where the sensor expected 20.",
+        "trechos": [
+          "On July 19, 2024, a Rapid Response Content update was delivered to certain Windows hosts, evolving the new capability first released in February 2024. The sensor expected 20 input fields, while the update provided 21 input fields.",
+          "When received by the sensor and loaded into the Content Interpreter, problematic content in Channel File 291 resulted in an out-of-bounds memory read triggering an exception."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The defect in the content update was reverted on July 19, 2024 at 05:27 UTC, 78 minutes after release; systems coming online after that time were not impacted.",
+          "trechos": [
+            "The defect in the content update was reverted on Friday, July 19, 2024 at 05:27 UTC. Systems coming online after this time, or that did not connect during the window, were not impacted.",
+            "Channel File 291 was identified and fixed 78 minutes after it was released, at 1:27 a.m. EDT on July 19."
+          ]
+        },
+        {
+          "texto": "CrowdStrike worked with customers and partners to bring systems back online, initially through manual remediation, and introduced automated techniques to accelerate remediation on July 22, 2024; guidance included rebooting hosts to download the reverted channel file, bootable recovery images, and, for cloud virtual servers, deleting the files matching C-00000291*.sys from a detached disk volume or rolling back to a snapshot before 04:09 UTC.",
+          "trechos": [
+            "CrowdStrike began working with customers and partners to bring systems online as quickly as possible, initially through manual remediation.",
+            "On July 22, 2024, CrowdStrike introduced automated techniques to accelerate remediation.",
+            "Reboot the host to give it an opportunity to download the reverted channel file.",
+            "Option 1 – Build automated recovery ISOs with drivers",
+            "Detach the operating system disk volume from the impacted virtual server",
+            "Locate the files matching “C-00000291\\*.sys”, and delete them",
+            "Roll back to a snapshot before 2024-07-19 0409 UTC"
+          ]
+        },
+        {
+          "texto": "On July 23, 2024 the impacted version of the channel file was added to Falcon's known-bad list in the CrowdStrike Cloud for US-1, US-2 and EU, which for impacted systems with strong network connectivity could result in automatic recovery from a boot loop.",
+          "trechos": [
+            "Out of an abundance of caution, and to prevent Windows systems from further disruption, the impacted version of the channel file was added to Falcon’s known-bad list in the CrowdStrike Cloud.",
+            "For impacted systems with strong network connectivity, this action could also result in the automatic recovery of systems in a boot loop.",
+            "This was configured in US-1, US-2, and EU on July 23, 2024 UTC."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: Content Configuration System test procedures were updated, including upgraded tests for Template Type development and automated tests for all existing Template Types.",
+          "trechos": [
+            "**Update Content Configuration System test procedures.** This work has been completed. This includes upgraded tests for Template Type development, with automated tests for all existing Template Types."
+          ]
+        },
+        {
+          "texto": "Already done: additional deployment layers and acceptance checks for the Content Configuration System, with an updated deployment ring process so Template Instances pass successive deployment rings before production rollout.",
+          "trechos": [
+            "**Add additional deployment layers and acceptance checks for the Content Configuration System.** This work has been completed with an updated deployment ring process, ensuring Template Instances pass successive deployment rings before rollout into production."
+          ]
+        },
+        {
+          "texto": "Already done: validation for the number of input fields was implemented to prevent the creation of problematic Channel 291 files, and the logic error in the Content Validator was fixed; additional Content Validator checks are planned for production by August 19, 2024.",
+          "trechos": [
+            "**Prevent the creation of problematic Channel 291 files**. Validation for the number of input fields has been implemented to prevent this issue from happening.",
+            "A logic error in our Content Validator (software that performs control checks on content before deployment) has also been fixed, and we are implementing additional enhancements that are explained in the RCA by August 19, 2024.",
+            "**Implement additional checks in the Content Validator.** Additional checks are planned for release into production by August 19, 2024."
+          ]
+        },
+        {
+          "texto": "Partly done: bounds checking in the Content Interpreter for Rapid Response Content in Channel File 291 was added on July 25, 2024, with general availability expected August 9, 2024, and is being backported to all Windows sensor versions 7.11 and above through a sensor hotfix.",
+          "trechos": [
+            "**Enhance bounds checking in the Content Interpreter for Rapid Response Content in Channel File 291.** Bounds checking was added on July 25, 2024, with general availability expected August 9, 2024. These fixes are being backported to all Windows sensor versions 7.11 and above through a sensor software hotfix release."
+          ]
+        },
+        {
+          "texto": "Already done: new capabilities deployed to the cloud let customers control how Rapid Response Content is deployed, with more functionality planned.",
+          "trechos": [
+            "**Provide customers additional control over the deployment of Rapid Response Content updates.** New capabilities have been implemented and deployed to our cloud that allow customers to control how Rapid Response Content is deployed, with additional functionality planned for the future."
+          ]
+        },
+        {
+          "texto": "In progress: engaging two independent third-party software security vendors to review the Falcon sensor code and the end-to-end quality control and release processes; the text says this work has begun and will be ongoing.",
+          "trechos": [
+            "**Engage two independent third-party software security vendors to conduct further review of the Falcon sensor code and end-to-end quality control and release processes**. This work has begun and will be ongoing as part of our focus on security and resilience by design."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "duracao is null: the 78 minutes (04:09-05:27 UTC) is the window during which the problematic content was distributed, not the impact; affected hosts were restored over days with no single stated end (about 99% of Windows sensors online by July 29, 2024, against a typical ~1% week-over-week variance). The page combines the final RCA executive summary with the earlier preliminary Post Incident Review and dated updates. The preliminary review also lists planned measures (staggered canary deployment, improved monitoring during rollout, release notes for content updates) that the final summary partly reports as done. The text states the bug is not exploitable and that this was not a cyberattack.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.12"
+  }
+}

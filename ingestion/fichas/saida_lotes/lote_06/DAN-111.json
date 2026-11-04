@@ -1,0 +1,187 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-111",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "In US-EAST-1, an automated capacity-scaling activity triggered unexpected behavior from many internal-network clients, which a latent issue kept from backing off; the connection surge and retries congested the devices linking the internal and main AWS networks, impairing control-plane APIs, monitoring, console logins and dependent services. Operators moved internal DNS traffic, identified top traffic sources to isolate, disabled heavy services and added capacity; network devices recovered by 2:22 PM PST, some services later.",
+    "data_incidente": "2021-12-07",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "EC2 APIs",
+      "Amazon RDS",
+      "EMR",
+      "Workspaces",
+      "Elastic Load Balancers APIs",
+      "Route 53 APIs",
+      "AWS Console",
+      "Amazon Secure Token Service (STS)",
+      "Redshift",
+      "CloudWatch",
+      "VPC Endpoints for Amazon S3 and DynamoDB",
+      "API Gateway",
+      "EventBridge",
+      "Fargate",
+      "ECS",
+      "EKS",
+      "Amazon Connect",
+      "Service Health Dashboard",
+      "Support Contact Center"
+    ],
+    "tecnologias": [
+      "internal DNS",
+      "network address translation",
+      "EC2 control plane",
+      "OpenID Connect (OIDC)"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "With real-time monitoring data unavailable because of the congestion, operators relied on logs and initially identified elevated internal DNS errors.",
+        "trechos": [
+          "This congestion immediately impacted the availability of real-time monitoring data for our internal operations teams, which impaired their ability to find the source of congestion and resolve it.",
+          "Operators instead relied on logs to understand what was happening and initially identified elevated internal DNS errors."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 7:30 AM PST, an automated activity to scale capacity of one of the AWS services hosted in the main AWS network triggered an unexpected behavior from a large number of clients inside the internal network.",
+      "trechos": [
+        "At 7:30 AM PST, an automated activity to scale capacity of one of the AWS services hosted in the main AWS network triggered an unexpected behavior from a large number of clients inside the internal network."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A latent issue in a long-standing code path prevented the networking clients from adequately backing off; the resulting large surge of connection activity overwhelmed the networking devices between the internal network and the main AWS network, delaying communication between the networks.",
+        "trechos": [
+          "Our networking clients have well tested request back-off behaviors that are designed to allow our systems to recover from these sorts of congestion events, but, a latent issue prevented these clients from adequately backing off during this event.",
+          "This code path has been in production for many years but the automated scaling activity triggered a previously unobserved behavior.",
+          "This resulted in a large surge of connection activity that overwhelmed the networking devices between the internal network and the main AWS network, resulting in delays for communication between these networks."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The delays increased latency and errors for services communicating between the networks, which produced even more connection attempts and retries, leading to persistent congestion on the devices connecting the two networks.",
+        "trechos": [
+          "These delays increased latency and errors for services communicating between these networks, resulting in even more connection attempts and retries.",
+          "This led to persistent congestion and performance issues on the devices connecting the two networks."
+        ]
+      },
+      {
+        "texto": "The congestion made real-time monitoring data unavailable to the internal operations teams, impairing their ability to find the source of congestion; monitoring data remained invisible after the DNS fix, so remediation continued with reduced visibility.",
+        "trechos": [
+          "This congestion immediately impacted the availability of real-time monitoring data for our internal operations teams, which impaired their ability to find the source of congestion and resolve it.",
+          "At 9:28 AM PST, the team completed this work and DNS resolution errors fully recovered.",
+          "Importantly, monitoring data was still not visible to our operations team so they had to continue resolving the issue with reduced system visibility."
+        ]
+      },
+      {
+        "texto": "The internal deployment systems run in the internal network and were impacted, which further slowed remediation.",
+        "trechos": [
+          "Second, our internal deployment systems, which run in our internal network, were impacted, which further slowed our remediation efforts."
+        ]
+      },
+      {
+        "texto": "Because many services on the main AWS network and customer applications were still operating normally, changes were made deliberately to avoid impacting functioning workloads, which the text lists as a reason remediation progressed slowly.",
+        "trechos": [
+          "This progressed slowly for several reasons.",
+          "Finally, because many AWS services on the main AWS network and AWS customer applications were still operating normally, we wanted to be extremely deliberate while making changes to avoid impacting functioning workloads."
+        ]
+      },
+      {
+        "texto": "Many API Gateway servers got into a state where they needed replacement, which normally happens through an automated recycling process that was not possible until the EC2 APIs began recovering; errors remained elevated while the process worked through the backlog.",
+        "trechos": [
+          "As a result of these errors, many API Gateway servers eventually got into a state where they needed to be replaced in order to serve requests successfully.",
+          "This normally happens through an automated recycling process, but this was not possible until the EC2 APIs began recovering.",
+          "While API Gateways began seeing recovery at 1:35 PM PST, errors and latencies remained elevated as API Gateway capacity was recycled by the automated process working through the backlog of affected servers."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Internal DNS traffic, which was believed to be contributing to the congestion, was moved away from the congested network paths; the work was completed at 9:28 AM PST, DNS resolution errors fully recovered and load on the networking devices was reduced, but congestion was not eliminated.",
+          "trechos": [
+            "Because internal DNS is foundational for all services and this traffic was believed to be contributing to the congestion, the teams focused on moving the internal DNS traffic away from the congested network paths.",
+            "At 9:28 AM PST, the team completed this work and DNS resolution errors fully recovered.",
+            "This change improved the availability of several impacted services by reducing load on the impacted networking devices, but did not fully resolve the AWS service impact or eliminate the congestion."
+          ]
+        },
+        {
+          "texto": "Operators applied remediation actions to reduce congestion on the internal network, including identifying the top sources of traffic to isolate to dedicated network devices, disabling some heavy network traffic services, and bringing additional networking capacity online; congestion significantly improved by 1:34 PM PST and all network devices fully recovered by 2:22 PM PST.",
+          "trechos": [
+            "Operators continued working on a set of remediation actions to reduce congestion on the internal network including identifying the top sources of traffic to isolate to dedicated network devices, disabling some heavy network traffic services, and bringing additional networking capacity online.",
+            "As the operations teams continued applying the remediation actions described above, congestion significantly improved by 1:34 PM PST, and all network devices fully recovered by 2:22 PM PST."
+          ]
+        },
+        {
+          "texto": "To reduce load on the affected network devices, event delivery for EventBridge was disabled at 12:35 PM and re-enabled at 2:35 PM PST.",
+          "trechos": [
+            "However, during mitigation efforts to reduce the load on the affected network devices, operators disabled event delivery for EventBridge at 12:35 PM.",
+            "Event delivery was re-enabled at 2:35 PM PST, however the service experienced elevated event delivery latency until 6:40 PM PST as it processed the backlog of events."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the scaling activities that triggered the event were disabled and will not be resumed until all remediations are deployed.",
+          "trechos": [
+            "We immediately disabled the scaling activities that triggered this event and will not resume them until we have deployed all remediations."
+          ]
+        },
+        {
+          "texto": "Planned: a fix for the latent issue that prevented the networking clients from backing off is being developed, with deployment expected over the next two weeks.",
+          "trechos": [
+            "Our networking clients have well tested request back-off behaviors that are designed to allow our systems to recover from these sorts of congestion events, but, a latent issue prevented these clients from adequately backing off during this event.",
+            "We are developing a fix for this issue and expect to deploy this change over the next two weeks."
+          ]
+        },
+        {
+          "texto": "Already done: additional network configuration was deployed that protects potentially impacted networking devices even in a similar congestion event.",
+          "trechos": [
+            "We have also deployed additional network configuration that protects potentially impacted networking devices even in the face of a similar congestion event."
+          ]
+        },
+        {
+          "texto": "In progress: the API Gateway team is working on mitigations so API Gateway servers remain healthy when the internal network is unavailable, and on improvements to the recycling process to speed recovery.",
+          "trechos": [
+            "The API Gateway team is working on a set of mitigations to ensure that API Gateway servers remain healthy even when the internal network is unavailable and making improvements to the recycling process to speed recovery efforts in the event of a similar issue in the future."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 412,
+      "trechos": [
+        "At 7:30 AM PST, an automated activity to scale capacity of one of the AWS services hosted in the main AWS network triggered an unexpected behavior from a large number of clients inside the internal network.",
+        "As the operations teams continued applying the remediation actions described above, congestion significantly improved by 1:34 PM PST, and all network devices fully recovered by 2:22 PM PST."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "duracao: 412 minutes (7:30 AM to 2:22 PM PST, when all network devices fully recovered) vs a longer value up to the last service recovery (EventBridge latency until 6:40 PM PST, STS at 4:28 PM, API Gateway largely at 4:37 PM). The definition 'from the start of the impact to recovery' is satisfied by both the recovery of the network devices and the recovery of the last dependent service, and the text states no single impact duration.",
+  "observacoes": "categoria_causa is software-bug rather than capacity-load because the text attributes the failure to a latent client back-off issue; mudanca_causadora is nao_se_aplica because the trigger was an automated scaling activity, not a persistent change. Service recovery times varied: EC2 instance launches 2:40 PM, Route 53 APIs 2:30 PM, STS 4:28 PM, API Gateway largely 4:37 PM, Amazon Connect 4:41 PM, Fargate errors returning to normal from 5:00 PM, EventBridge latency until 6:40 PM PST. The text also plans a new Service Health Dashboard and a multi-region support system architecture for communication. The extracted text ends with a repeated fragment of the article.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.12"
+  }
+}

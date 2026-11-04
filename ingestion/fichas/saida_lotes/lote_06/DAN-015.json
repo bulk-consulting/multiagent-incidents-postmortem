@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-015",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During a credential rotation, new storage credentials for the R2 Gateway Worker were deployed to the default-environment Worker instead of the production Worker; when the old credentials were removed, the production gateway could not authenticate with the storage backend. R2 and dependent Cloudflare services had an elevated rate of errors for 1 hour and 7 minutes. Service was restored by deploying the credentials to the correct production Worker.",
+    "data_incidente": "2025-03-21",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "R2",
+      "Billing",
+      "Cache Reserve",
+      "Email Security",
+      "Images",
+      "Key Transparency Auditor",
+      "Log Delivery",
+      "Stream",
+      "Vectorize"
+    ],
+    "tecnologias": [
+      "R2 Gateway Worker",
+      "Cloudflare Workers",
+      "Workers environments",
+      "Wrangler"
+    ],
+    "categoria_causa": "credential-auth",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 21:45 UTC R2 global availability alerts fired (indicating 2% of error budget burn rate), after availability metrics had begun to show degradation at 21:38 UTC.",
+        "trechos": [
+          "R2 global availability alerts are triggered (indicating 2% of error budget burn rate).",
+          "| Mar 21, 2025 - 21:45 UTC |",
+          "– IMPACT BEGINS – R2 availability metrics begin to show signs of service degradation.",
+          "| Mar 21, 2025 - 21:38 UTC |"
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 20:37 UTC the old credentials were removed from the storage infrastructure to complete the credential rotation process; this removal caused authentication errors.",
+      "trechos": [
+        "| Mar 21, 2025 - 20:37 UTC | Old credentials were removed from our storage infrastructure to complete the credential rotation process. |",
+        "The action we took on step 4 above to remove the old credentials from our storage infrastructure caused authentication errors, as the R2 Gateway production Worker still had the old credentials."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The new credentials had been deployed to the R2 Gateway Worker of the default environment instead of the production Worker, because the --env parameter was omitted from both the wrangler secret put and wrangler deploy commands, which default to the default environment without it. The production Worker still had the old credentials, so after their deletion it could not authenticate with the storage backend.",
+        "trechos": [
+          "Set updated production secret (wrangler secret put) and executed wrangler deploy command to deploy R2 Gateway service with updated credentials.",
+          "Note: We later discovered the --env parameter was inadvertently omitted for both Wrangler commands.",
+          "This resulted in credentials being deployed to the Worker assigned to the default environment instead of the Worker assigned to the production environment.",
+          "Critically, both `wrangler secret put` and `wrangler deploy` commands default to the default environment if the --env command line parameter is not included.",
+          "The action we took on step 4 above to remove the old credentials from our storage infrastructure caused authentication errors, as the R2 Gateway production Worker still had the old credentials.",
+          "This ultimately resulted in R2’s Gateway service not being able to authenticate with our storage backend."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The decline in availability metrics was gradual and not immediately obvious because of a delay in propagating the credential deletion to the storage infrastructure, which delayed initial discovery of the problem.",
+        "trechos": [
+          "The decline in R2 availability metrics was gradual and not immediately obvious because there was a delay in the propagation of the previous credential deletion to storage infrastructure.",
+          "This accounted for a delay in our initial discovery of the problem."
+        ]
+      },
+      {
+        "texto": "There was no proper visibility into which credentials the Gateway Worker was using to authenticate with the storage infrastructure, which the authors say made the incident last longer; the change over was validated through availability metrics rather than by checking which token was in use.",
+        "trechos": [
+          "This incident happened because of human error and lasted longer than it should have because we didn’t have proper visibility into which credentials were being used by the Gateway Worker to authenticate with our storage infrastructure.",
+          "Instead of relying on availability metrics after updating the old set of credentials, we should have explicitly validated which token was being used by the R2 Gateway service to authenticate with R2's storage infrastructure."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "The rotated storage credentials (secret and credential ID) were set with wrangler secret put and wrangler deploy without --env production, so they went to the default-environment R2 Gateway Worker instead of the production one.",
+        "trechos": [
+          "In this case, due to human error, we inadvertently omitted the --env parameter and deployed the new storage credentials to the wrong Worker (`default` environment instead of `production`).",
+          "To correctly deploy storage credentials to the production R2 Gateway Worker, we need to specify `--env production`.",
+          "Set updated production secret (wrangler secret put) and executed wrangler deploy command to deploy R2 Gateway service with updated credentials."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 22:30 UTC a new set of credentials was deployed to the R2 Gateway Worker to validate the credentials, but the environment parameter was still omitted, so it went to the wrong non-production Worker.",
+          "trechos": [
+            "| Mar 21, 2025 - 22:30 UTC | R2 engineering team deployed a new set of credentials (ID and key pair) to R2 Gateway service Worker.",
+            "Environment parameter was still omitted in the deploy and secret put commands, so this deployment was still to the wrong non-production Worker.",
+            "This was to validate whether there was an issue with the credentials we had pushed to gateway service."
+          ]
+        },
+        {
+          "texto": "At 22:45 UTC the credentials were deployed to the correct production R2 Gateway Worker and R2 availability recovered.",
+          "trechos": [
+            "| Mar 21, 2025 - 22:45 UTC | – IMPACT ENDS – Deployed credentials to correct production Worker. R2 availability recovered. |"
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: added logging tags that include the suffix of the credential ID the R2 Gateway Worker uses to authenticate with the storage infrastructure.",
+          "trechos": [
+            "We have taken immediate steps to prevent this failure (and others like it) from happening again:",
+            "Added logging tags that include the suffix of the credential ID the R2 Gateway Worker uses to authenticate with our storage infrastructure."
+          ]
+        },
+        {
+          "texto": "Already done: internal processes now require explicit confirmation that the suffix of the new token ID matches storage infrastructure logs before deleting the previous token.",
+          "trechos": [
+            "Related to the above step, our internal processes now require explicit confirmation that the suffix of the new token ID matches logs from our storage infrastructure before deleting the previous token."
+          ]
+        },
+        {
+          "texto": "Already done: key rotation is required to go through the hotfix release tooling, which explicitly enforces the environment configuration, instead of manual wrangler command entry.",
+          "trechos": [
+            "We have taken immediate steps to prevent this failure (and others like it) from happening again:",
+            "Require that key rotation takes place through our hotfix release tooling instead of relying on manual wrangler command entry which introduces human error.",
+            "Our hotfix release deploy tooling explicitly enforces the environment configuration and contains other safety checks."
+          ]
+        },
+        {
+          "texto": "Already done: the relevant SOPs were updated to explicitly require at least two humans to validate the changes during the process.",
+          "trechos": [
+            "While it’s been an implicit standard that this process involves at least two humans to validate the changes ahead as we progress, we’ve updated our relevant SOPs (standard operating procedures) to include this explicitly."
+          ]
+        },
+        {
+          "texto": "In progress: extend the closed loop health check system to test new keys, automate reporting of their status through the alerting platform, and ensure global propagation before releasing the gateway Worker.",
+          "trechos": [
+            "**In Progress**: Extend our existing closed loop health check system that monitors our endpoints to test new keys, automate reporting of their status through our alerting platform, and ensure global propagation prior to releasing the gateway Worker."
+          ]
+        },
+        {
+          "texto": "In progress: update the observability platform to include views of upstream success rates that bypass caching.",
+          "trechos": [
+            "**In Progress**: To expedite triage on any future issues with our distributed storage endpoints, we are updating our observability platform to include views of upstream success rates that bypass caching to give clearer indication of issues serving requests for any reason."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 67,
+      "trechos": [
+        "Multiple Cloudflare services, including <u>R2 object storage</u>, experienced an elevated rate of errors for 1 hour and 7 minutes on March 21, 2025 (starting at 21:38 UTC and ending 22:45 UTC)."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "categoria_causa is credential-auth, following the definition's example of a credential rotation not applied to one service's configuration; the text itself says the incident 'happened because of human error' (the --env parameter was omitted). Impact began at 21:38 UTC, about an hour after the old credentials were removed at 20:37 UTC, which the text attributes to a delay in propagating the deletion. Before the fix, a new set of credentials was created at 22:15 UTC to force re-propagation, with no improvement.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-03",
+    "versao_prompt": "v2.12"
+  }
+}
