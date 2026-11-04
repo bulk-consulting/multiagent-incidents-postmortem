@@ -1,0 +1,24 @@
+# PostgreSQL + pgvector para a busca da E2 (solução do André).
+# Subir:   docker compose --env-file .env up -d      (a partir de ingestion/banco/)
+# Parar:   docker compose down          (os dados ficam no volume e2_pgdata)
+services:
+  pgvector:
+    image: pgvector/pgvector:0.8.0-pg17
+    container_name: e2-pgvector-andre
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT}:5432"   # só acessível da própria máquina
+    volumes:
+      - e2_pgdata:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro   # roda na 1ª subida
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+volumes:
+  e2_pgdata:
