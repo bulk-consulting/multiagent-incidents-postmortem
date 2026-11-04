@@ -1,0 +1,103 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-042",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A production deploy of Heroku's Git server, which required a new configuration variable for a new authentication method, reached a batch of instances that had not received the variable, so they made unauthenticated calls to a private API and returned HTTP 401 responses to git push users. The configuration variables were transmitted to the instances and the impacted processes were killed and restarted with the updated configuration, which resolved the problem.",
+    "data_incidente": "2020-09-03",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Heroku Git server (git push heroku main)"
+    ],
+    "tecnologias": [
+      "Git",
+      "Go",
+      "HTTP",
+      "SSH"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "An alert went off a few minutes after the deploy to a batch of instances; the graph shows a spike of HTTP 401 responses.",
+        "trechos": [
+          "So I went to lunch, but came back a few minutes later as an alert had gone off.",
+          "The spike you can see on this graph is HTTP 401 responses."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "The production deploy of the new code went to a batch of instances after the new configuration variable had been set in production but not transmitted to the instances.",
+      "trechos": [
+        "I started my production deployment. Since I had set the configuration variable earlier, I went straight to deploying the new code.",
+        "If you read carefully the previous section, you may have noticed that I set the new configuration variable in production, but didn’t apply it to the instances.",
+        "So my code change went to a batch of instances."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Deploys that need a new configuration variable require separate manual steps (set the variable, run a command to transmit it to every instance, then deploy), and the system allowed the deployment to proceed without the variables being transmitted; the deployed instances lacked the new variable and made unauthenticated calls to a private API, which returned 401 responses that were sent back publicly.",
+        "trechos": [
+          "This deploy was unusual because it required setting a new configuration variable, which includes the following manual actions:",
+          "Set the new config variable with the framework handling our instances",
+          "Run a command to have the new config variable transmitted to every instance",
+          "Trigger the deploy so the config variables starts being used",
+          "The problem isn’t that I forgot to run one command. It’s that the system has allowed me to go forward with the deployment when it could have helped me avoid the issue.",
+          "So my deploy to a batch of servers didn’t have the new configuration variable, meaning we were making unauthenticated calls to a private API, which gave us 401 responses.",
+          "Hence the 401s being sent back publicly."
+        ]
+      }
+    },
+    "fatores_contribuintes": [],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A code change to the Git server that switched from calling one internal API endpoint to another and included a new authentication method between components, requiring a new configuration variable.",
+        "trechos": [
+          "On September 3, I had to deploy a change to switch from calling one internal API endpoint to another. It included a new authentication method between components.",
+          "This deploy was unusual because it required setting a new configuration variable, which includes the following manual actions:"
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Ran the script to transmit the configuration variables to the instances and killed the impacted processes, which restarted using the updated configuration variables; the problem was resolved.",
+          "trechos": [
+            "Once I realized that, I ran the script to transmit the configuration variables to the instances, killed the impacted processes, which restarted using the updated configuration variables, and the problem was resolved."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: merge the two steps of updating configuration variables and deploying code into a single step, so there is no additional step to remember.",
+          "trechos": [
+            "In this specific case, we are going to merge the two steps of updating configuration variables and deploying code into a single step.",
+            "That way there isn’t an additional step to remember to run from time to time."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The year of the incident (September 3) is taken from the post's publication date (October 1, 2020) in the extracted text. The incident is numbered #2105. Only one batch of instances received the deploy before the problem was noticed. The text also mentions, as an alternative not chosen, a confirmation warning when deploying code while configuration variables are not synchronized.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
+  }
+}

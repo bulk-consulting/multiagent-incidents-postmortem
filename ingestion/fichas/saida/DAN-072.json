@@ -1,0 +1,225 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-072",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "infra_fisica_datacenter",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A simultaneous failure of multiple redundant cooling systems, combined with extraordinarily high outside temperatures, left one data center hosting zone europe-west2-a unable to keep a safe temperature; it was powered down, causing instance terminations and errors or unavailability across many Google Cloud services in europe-west2, worsened by an internal traffic routing change that avoided all three zones. After the cooling system was repaired, services were restored by 04:28 US/Pacific on 20 July, with residual effects fully mitigated by 21:20.",
+    "data_incidente": "2022-07-19",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Google Compute Engine",
+      "Persistent Disk",
+      "Google Cloud Storage",
+      "Google BigQuery",
+      "API Gateway",
+      "Cloud Bigtable",
+      "Cloud Composer",
+      "Cloud Data Fusion",
+      "Cloud Datastore",
+      "Cloud Dataproc",
+      "Cloud Firestore",
+      "Cloud Secret Manager",
+      "Cloud SQL",
+      "Dataflow",
+      "Datastream",
+      "Google App Engine",
+      "Cloud Functions",
+      "Cloud Run",
+      "Google Cloud Tasks",
+      "Google Cloud Scheduler",
+      "Cloud Filestore",
+      "Google Kubernetes Engine",
+      "Looker",
+      "Managed Service for Microsoft Active Directory",
+      "Memorystore for Memcached",
+      "Memorystore for Redis",
+      "Vertex AI online prediction",
+      "Virtual Private Cloud (VPC)"
+    ],
+    "tecnologias": [
+      "cooling systems",
+      "chiller units",
+      "colossus clusters",
+      "Preemptible VMs",
+      "Regional Persistent Disk",
+      "zonal failover automation"
+    ],
+    "categoria_causa": "hardware-power",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Engineers were alerted at 06:33 US/Pacific on 19 July 2022 to an issue affecting two cooling systems in one of the data centers hosting europe-west2-a; the preliminary report says a rise in temperature was noted by automated monitoring systems.",
+        "trechos": [
+          "Google engineers were alerted to an issue affecting two cooling systems in one of the data centers that hosts europe-west2-a on Tuesday, 19 July 2022 at 06:33 US/Pacific and began an investigation.",
+          "Google engineers were engaged at 06:40 PDT after a rise in temperature was noted by automated monitoring systems, and took a number of steps to reduce thermal load in the datacenter before ultimately turning down services and powering off servers in the affected zone at 09:04 PDT due to temperature excursions."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "One of the data centers hosting zone europe-west2-a could not maintain a safe operating temperature due to a simultaneous failure of multiple, redundant cooling systems combined with extraordinarily high outside temperatures (the preliminary report names two separate chiller unit failures). That part of the zone was powered down to prevent a longer outage or damage to machines, causing a partial failure of capacity in the zone, instance terminations, service degradation and networking issues.",
+        "trechos": [
+          "One of the data centers that hosts zone europe-west2-a could not maintain a safe operating temperature due to a simultaneous failure of multiple, redundant cooling systems combined with the extraordinarily high outside temperatures.",
+          "We powered down this part of the zone to prevent an even longer outage or damage to machines.",
+          "This caused a partial failure of capacity in that zone, leading to instance terminations, service degradation, and networking issues for a subset of customers.",
+          "Preliminary root cause has been identified as two separate chiller unit failures, coupled with high ambient weather conditions, at one of the buildings that hosts the europe-west2-a zone."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "At the start of the incident, traffic routing for internal services was inadvertently modified to avoid all three zones in europe-west2 instead of only europe-west2-a (corrected at 12:35 US/Pacific); because of it, regional storage services such as GCS and BigQuery could not access any replica of some storage objects until the routing was corrected.",
+        "trechos": [
+          "At the start of the incident, we inadvertently modified traffic routing for internal services to avoid all three zones in the europe-west2 region, rather than just the impacted europe-west2-a zone. We corrected this on 19 July 2022 at 12:35 US/Pacific.",
+          "Due to the regional traffic routing change, they were unable to access any replica for a number of storage objects.",
+          "This prevented customers from reading these objects until the traffic routing was corrected, at which point access was immediately restored."
+        ]
+      },
+      {
+        "texto": "A legacy GCS placement algorithm isolated to the europe-west2 region allowed three colossus clusters in the region to be impacted by an issue in a single data center; in a small number of cases regional data was replicated only in two offline clusters.",
+        "trechos": [
+          "There was a legacy placement algorithm isolated to just the europe-west2 region allowing for three colossus clusters in the region to be impacted by the same underlying issue relating to a single data center.",
+          "In a small number of cases GCS had replicated regional data residing in two offline clusters, and subsequently some customers were unable to access and read some of their existing regional scoped data when the regional clusters were taken offline."
+        ]
+      },
+      {
+        "texto": "A small number of services experienced problems in zonal failover automation; for example, 31% of Cloud SQL regional (HA) instances with primaries in europe-west2-a could not fail over to another zone and had extended downtime.",
+        "trechos": [
+          "A small number of services experienced problems in zonal failover automation.",
+          "Additionally, 31% of regional (HA) instances whose primaries were located in europe-west2-a experienced extended downtime because they were unable to successfully fail over to another zone."
+        ]
+      },
+      {
+        "texto": "About 8% of Regional Persistent Disk volumes in europe-west2 could not correctly detect the fault in europe-west2-a until the Persistent Disk team forced them into unreplicated mode, around 11:50 US/Pacific.",
+        "trechos": [
+          "Most of the Regional Persistent Disk volumes successfully detected the fault in zone europe-west2-a and switched to unreplicated mode, but about 8% of Regional Persistent Disk volumes in the europe-west2 region were unable to correctly detect the fault until the Persistent Disk team forced them into unreplicated mode, which completed around 11:50 US/Pacific."
+        ]
+      },
+      {
+        "texto": "Some mitigation efforts had side effects: about 17% of Regional Persistent Disk customers had control plane operation errors from 07:18 to 13:40, and 38% of customers could not create new Persistent Disk volumes in europe-west2-a from 11:16 on 19 July to 02:56 on 20 July.",
+        "trechos": [
+          "About 17% of Regional Persistent Disk customers in the europe-west2 region experienced errors performing control plane operations, including creating, deleting, attaching, detaching, and snapshotting Regional Persistent Disk volumes from 19 July 2022 07:18 US/Pacific to 13:40 US/Pacific as an unintended side effect of mitigation efforts.",
+          "As a result of mitigation efforts, 38% of customers were unable to create new Persistent Disk volumes in zone europe-west2-a from Tuesday, 19 July 2022 11:16 US/Pacific to 20 July 2022 02:56 US/Pacific."
+        ]
+      },
+      {
+        "texto": "After restoration, a small number of VMs (approximately 0.6% of the europe-west2-a zone) had conflicts in control plane state that required a manual reconciliation process, prolonging recovery of a long tail of instances.",
+        "trechos": [
+          "A small number of VMs (approximately 0.6% of the europe-west2-a zone) encountered conflicts in our control plane state, requiring a manual reconciliation process.",
+          "After the initial restoration of service to the zone, a small number of Google Compute Engine instances required additional work by our engineers to restore them to normal operations."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 08:06 US/Pacific, as temperatures rose, Compute Engine terminated 42% of the Preemptible VMs across europe-west2 to reduce thermal load in europe-west2-a and ensure space for zonal failover in europe-west2-b and europe-west2-c.",
+          "trechos": [
+            "Google Compute Engine: As data center temperatures started to increase, on Tuesday, 19 July 2022 at 08:06 US/Pacific Compute Engine terminated 42% of the Preemptible VMs (PVMs) across the europe-west2 region to reduce thermal load in zone europe-west2-a and ensure space for zonal failover activities in zones europe-west2-b and europe-west2-c."
+          ]
+        },
+        {
+          "texto": "At 10:05 US/Pacific engineers powered down the data center hosting a portion of europe-west2-a while the cooling system was repaired; Compute Engine terminated all VMs in that data center (approximately 35% of the zone's VMs) at 10:07.",
+          "trechos": [
+            "Google engineers powered down the data center that hosted a portion of the impacted zone europe-west2-a on Tuesday, 19 July 2022 at 10:05 US/Pacific while the cooling system was repaired.",
+            "When we proceeded to power down the impacted data center to mitigate the cooling overload on Tuesday, 19 July 2022 at 10:07 US/Pacific, Compute Engine terminated all VMs in the impacted data center, representing approximately 35% of the VMs in the europe-west2-a zone."
+          ]
+        },
+        {
+          "texto": "The Persistent Disk team forced affected Regional Persistent Disk volumes into unreplicated mode, completed around 11:50 US/Pacific.",
+          "trechos": [
+            "Most of the Regional Persistent Disk volumes successfully detected the fault in zone europe-west2-a and switched to unreplicated mode, but about 8% of Regional Persistent Disk volumes in the europe-west2 region were unable to correctly detect the fault until the Persistent Disk team forced them into unreplicated mode, which completed around 11:50 US/Pacific."
+          ]
+        },
+        {
+          "texto": "The internal traffic routing that avoided all three europe-west2 zones was corrected at 12:35 US/Pacific, and access to the affected storage objects was immediately restored.",
+          "trechos": [
+            "At the start of the incident, we inadvertently modified traffic routing for internal services to avoid all three zones in the europe-west2 region, rather than just the impacted europe-west2-a zone. We corrected this on 19 July 2022 at 12:35 US/Pacific.",
+            "This prevented customers from reading these objects until the traffic routing was corrected, at which point access was immediately restored."
+          ]
+        },
+        {
+          "texto": "The cooling system was repaired at 14:13 US/Pacific and service restoration began; for Compute Engine the startup of the underlying services was carefully sequenced and the majority of VMs came back online starting at 20:18. Cloud services were restored by 04:28 US/Pacific on 20 July 2022.",
+          "trechos": [
+            "Google engineers began service restoration once the cooling system was repaired on Tuesday, 19 July 2022 at 14:13 US/Pacific. Cloud services were restored to operation by Wednesday, 20 July 2022 at 04:28 US/Pacific.",
+            "To ensure a safe restoration, the team carefully sequenced the startup of the services powering Compute Engine.",
+            "This process completed and the majority of VMs came back online starting at 20:18 US/Pacific."
+          ]
+        },
+        {
+          "texto": "Engineers performed additional work, including a manual reconciliation of control plane state, to restore a long tail of Compute Engine instances; the residual effects were fully mitigated by 21:20 US/Pacific on 20 July 2022.",
+          "trechos": [
+            "After the initial restoration of service to the zone, a small number of Google Compute Engine instances required additional work by our engineers to restore them to normal operations.",
+            "A small number of VMs (approximately 0.6% of the europe-west2-a zone) encountered conflicts in our control plane state, requiring a manual reconciliation process.",
+            "This was fully mitigated on Wednesday, 20 July 2022 at 21:20 US/Pacific and the incident was closed with all services restored."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: repair and carefully re-test the zonal failover automation to ensure stronger resilience in failover protocols during large-scale events.",
+          "trechos": [
+            "We will repair and carefully re-test our failover automation to ensure stronger resilience in our failover protocols during large scale events such as this one."
+          ]
+        },
+        {
+          "texto": "Planned: investigate and develop more advanced methods to progressively decrease the thermal load within a single data center space, reducing the probability that a full shutdown is required.",
+          "trechos": [
+            "We will investigate and develop more advanced methods to progressively decrease the thermal load within a single data center space, reducing the probability that a full shutdown is required."
+          ]
+        },
+        {
+          "texto": "In progress: examining procedures, tooling and automated recovery systems for gaps, to substantially improve recovery times.",
+          "trechos": [
+            "We are examining our procedures, tooling, and automated recovery systems for gaps to substantially improve our recovery times in the future."
+          ]
+        },
+        {
+          "texto": "In progress: a detailed analysis of the cooling system failure that triggered the incident.",
+          "trechos": [
+            "Google engineers are actively conducting a detailed analysis of the cooling system failure that triggered this incident."
+          ]
+        },
+        {
+          "texto": "Planned: an audit of cooling system equipment and standards across the data centers that house Google Cloud globally.",
+          "trechos": [
+            "Google engineers will be conducting an audit of cooling system equipment and standards across the data centers that house Google Cloud globally."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 1103,
+      "trechos": [
+        "The duration of impact on Cloud services spans the window from 10:05 US/Pacific on Tuesday, 19 July 2022 (when a portion of europe-west2-a was powered down), to 04:28 US/Pacific on Wednesday, 20 July 2022, when Cloud services were restored; a total of 18 hours, 23 minutes."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Google engineers are conducting a detailed analysis of the cooling system failure that triggered the incident (with its suppliers, according to the preliminary report)."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The full incident report gives several durations: cooling system failure impact 4 hours 8 minutes (10:05 to 14:13); impact on Cloud services 18 hours 23 minutes (10:05 on 19 July to 04:28 on 20 July, used here); long tail 35 hours 15 minutes (10:05 on 19 July to 21:20 on 20 July). The status page header and the preliminary Mini-IR give the incident as 06:33 on 19 July to 21:20 on 20 July (1 day, 14 hours, 47 minutes), and several services report impact starting before 10:05 (e.g. GCS 07:18, BigQuery 04:40). The Mini-IR gives other times: cooling impairment from 04:30 to 15:28 PDT and servers powered off at 09:04 PDT. The GCE section reports long-tail reconciliation completed on 21 July at 02:32, after the stated 21:20 full mitigation. The 44 status updates mainly repeat per-product impact and mitigation times.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
+  }
+}

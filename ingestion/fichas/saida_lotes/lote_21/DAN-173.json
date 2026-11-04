@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-173",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "After an aborted stack image upgrade, Heroku redeployed the original Cedar-14 stack image; a latent bug in recently upgraded container tools ignored the older checksum files, so the tools truncated and overwrote the image while it was mounted read-only in running dynos. The corrupted filesystems caused higher than normal rates of segmentation faults and other crashes for about five hours, until all affected dynos were migrated to fresh hosts.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Heroku dynos on the Cedar-14 stack image"
+    ],
+    "tecnologias": [
+      "Linux containers",
+      "Cedar-14 stack image",
+      "Ubuntu",
+      "Linux kernel filesystem cache",
+      "container tools",
+      "checksum files"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "Some applications on the Cedar-14 stack experienced higher than normal rates of segmentation faults and other hard crashes; both monitoring systems and the internal userbase alerted the team quickly, but neither gave much insight into the root cause.",
+        "trechos": [
+          "Recently we had an incident during which some applications running on the Cedar-14 stack image experienced higher than normal rates of segmentation faults and other “hard” crashes for about five hours.",
+          "While both our monitoring systems and our internal userbase alerted us to the problem quickly, neither was able to offer much insight into the root cause."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "Several days after the container tools upgrade, a stack image upgrade had to be aborted, and the standard abort procedure redeployed the original version of the stack image to keep all container hosts on the same version.",
+      "trechos": [
+        "Several days after the container tools upgrade, one of our engineers attempted to roll out an upgrade to the stack image.",
+        "Issues during this upgrade meant that we had to abort the upgrade, and our standard procedure to ensure that all container hosts are running the same version when we abort an upgrade involves redeploying the original version of the container."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The new version of the container tools did not consider checksum files produced by previous versions, so the safety check meant to skip downloading an image already present failed; the tools truncated and overwrote the disk image file while it was still mounted as the / filesystem in running dynos. Reads from the truncated image returned no data while reads through the filesystem cache returned old data, so newly loaded programs were corrupted and crashed, often with a segmentation fault.",
+        "trechos": [
+          "We also introduced a latent bug: the new version of our container tools didn't consider the checksum files produced by previous versions.",
+          "We write the newly-downloaded image directly to the data directory our runtime tools use to find images to mount, so that we have safety checks in the deployment process, based on checksum files, to automatically and safely skip the download if the image is already present on the host.",
+          "Critically, the stack image is mounted read-only, so that we can safely reuse it for every dyno running on the same stack on the same host.",
+          "During redeployment, the safety check preventing our tools from overwriting existing images failed, and our container tools truncated and overwrote the disk image file while it was still mounted in running dynos as the / filesystem.",
+          "During the incident, the most relevant consequence for Heroku apps involved the filesystem cache: by truncating the disk image, we’d accidentally ensured that reads from the image would return no data, while reads through the filesystem cache would return the data from the previously-present filesystem image.",
+          "The resulting corrupted programs crashed, often with a segmentation fault, the first time they executed an instruction that attempted to read any of the missing data, or the first time they executed an instruction that had, itself, been damaged."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Application crashes are part of the normal state of the platform, and an increase in crashes does not correlate with any specific cause, so the alerts gave little insight into the root cause.",
+        "trechos": [
+          "While both our monitoring systems and our internal userbase alerted us to the problem quickly, neither was able to offer much insight into the root cause.",
+          "Application crashes are part of the normal state of our platform, and while an increase in crashes is a warning sign we take seriously, it doesn’t correlate with any specific causes."
+        ]
+      },
+      {
+        "texto": "Diagnosis was hampered by the belief that the stack image deployment process was designed not to modify existing filesystem images, and by not fully understanding the effects of overwriting a mounted image.",
+        "trechos": [
+          "We were also hampered by our belief that our deployment process for stack image upgrades was designed not to modify existing filesystem images.",
+          "While we had taken into account that overwriting a mounted image would cause problems, none of us fully understood what those problems would be."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "Near the start of December, the container tools were upgraded, changing the digest algorithms and filenames used by the image download safety checks.",
+        "trechos": [
+          "Near the start of December, we upgraded our container tools. This included changing the digest algorithms and filenames used by these safety checks."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "All affected dynos were migrated to fresh hosts with non-corrupted filesystems and coherent filesystem caches; this took the majority of the five hours during which the incident was open.",
+          "trechos": [
+            "Once we identified the problem, we migrated all affected dynos to fresh hosts, with non-corrupted filesystems and with coherent filesystem caches.",
+            "This work took the majority of the five hours during which the incident was open."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: filesystem images are now marked read-only on the host filesystem once installed; this was re-tested under the conditions of the original incident.",
+          "trechos": [
+            "In response to this incident, we now mark filesystem images as read-only on the host filesystem once they’re installed.",
+            "We’ve re-tested this, under the conditions that lead to the original incident, and we’re confident that this will prevent this and any overwriting-related problems in the future."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 300,
+      "trechos": [
+        "Recently we had an incident during which some applications running on the Cedar-14 stack image experienced higher than normal rates of segmentation faults and other “hard” crashes for about five hours."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The text dates the container tools upgrade to near the start of December and the failed stack upgrade several days later, but gives no year, so data_incidente is null. The text includes a reproduction recipe for the overwriting effect on a virtual machine.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
+  }
+}

@@ -1,0 +1,175 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-044",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": [
+      "rodape_marketing"
+    ]
+  },
+  "incidente": {
+    "resumo": "A configuration change from an Azure Storage performance update, pushed to most regions in a short period instead of incremental batches, exposed a bug that put the Blob Front-Ends into an infinite loop so they could not take traffic, making Azure Storage and dependent services intermittently unavailable. The change was reverted, but the front ends needed a restart to fully undo it; once mitigation steps were deployed, most customers saw availability improve at 11:45 UTC.",
+    "data_incidente": "2014-11-19",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Azure Storage",
+      "Virtual Machines",
+      "SQL Geo-Restore",
+      "SQL Import/export",
+      "Websites",
+      "Azure Search",
+      "Azure Cache",
+      "Management Portal",
+      "Service Bus",
+      "Event Hubs",
+      "Visual Studio",
+      "Machine Learning",
+      "HDInsights",
+      "Automation",
+      "Virtual Network",
+      "Stream Analytics",
+      "Active Directory",
+      "StorSimple",
+      "Azure Backup Services",
+      "Service Health Dashboard"
+    ],
+    "tecnologias": [
+      "Azure Storage Blob Front-Ends",
+      "Azure Table Front-Ends",
+      "RDP",
+      "SSH"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "During the rollout an issue was discovered in which storage blob front ends went into an infinite loop; the text does not say how it was detected.",
+        "trechos": [
+          "During the rollout we discovered an issue that resulted in storage blob front ends going into an infinite loop, which had gone undetected during flighting."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "A configuration change to the Azure Storage Front End component, introduced as part of an update to improve performance and reduce the CPU footprint of the Table Front-Ends, was pushed to the entire production service.",
+      "trechos": [
+        "The configuration change had been introduced as part of an Azure Storage update to improve performance as well as reducing the CPU footprint for the Azure Table Front-Ends.",
+        "As part of a plan to improve performance of the Azure Storage Service, the decision was made to push the configuration change to the entire production service.",
+        "This interruption was due to a bug that got triggered when a configuration change in the Azure Storage Front End component was made, resulting in the inability of the Blob Front-Ends to take traffic."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A bug in the Blob Front-Ends, exposed by the configuration change, made them go into an infinite loop so they could not take traffic; services built on top of Azure Storage then experienced issues.",
+        "trechos": [
+          "The configuration change for the Blob Front-Ends exposed a bug in the Blob Front-Ends, which had been previously performing as expected for the Table Front-Ends.",
+          "This bug resulted in the Blob Front-Ends to go into an infinite loop not allowing it to take traffic.",
+          "The net result was an inability for the front ends to take on further traffic, which in turn caused other services built on top to experience issues."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The issue was widespread because, due to an operational error, the update was made across most regions in a short period instead of following the standard protocol of applying production changes in incremental batches.",
+        "trechos": [
+          "Unfortunately the issue was wide spread, since the update was made across most regions in a short period of time due to operational error, instead of following the standard protocol of applying production changes in incremental batches."
+        ]
+      },
+      {
+        "texto": "The update had been flighted for several weeks only on Azure Tables / Table Front-Ends, where it performed as expected; the Blob Front-End infinite loop went undetected during flighting.",
+        "trechos": [
+          "Prior to applying the performance update, it had been tested over several weeks in a subset of our customer-facing storage service for Azure Tables.",
+          "During the rollout we discovered an issue that resulted in storage blob front ends going into an infinite loop, which had gone undetected during flighting."
+        ]
+      },
+      {
+        "texto": "After the configuration change was reverted, the Blob Front-Ends in the infinite loop could not refresh the configuration without a restart, which made recovery take longer.",
+        "trechos": [
+          "However, the Blob Front-Ends had entered into an infinite loop triggered by the update, and couldn’t refresh the configuration without a restart.",
+          "This caused the recovery to take longer."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A configuration change in the Azure Storage Front End component, part of an Azure Storage update to improve performance and reduce the CPU footprint of the Table Front-Ends.",
+        "trechos": [
+          "This interruption was due to a bug that got triggered when a configuration change in the Azure Storage Front End component was made, resulting in the inability of the Blob Front-Ends to take traffic.",
+          "The configuration change had been introduced as part of an Azure Storage update to improve performance as well as reducing the CPU footprint for the Azure Table Front-Ends."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "The configuration change was reverted promptly once the issue was detected.",
+          "trechos": [
+            "Once the issue was detected, the configuration change was reverted promptly."
+          ]
+        },
+        {
+          "texto": "A restart of the storage front ends was required to fully undo the update; the team investigated and validated mitigation steps, and once they were deployed most customers saw availability improve across regions at 11:45 UTC on 19 November 2014.",
+          "trechos": [
+            "Once we detected this issue, the change was rolled back promptly, but a restart of the storage front ends was required in order to fully undo the update.",
+            "The Azure team investigated the mitigation steps and validated them.",
+            "Once the mitigation steps were deployed, most of customers started seeing the availability improvement across regions at 11/19/2014 11:45:00 AM UTC."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "In progress: ensure that the deployment tools enforce that the standard protocol of applying production changes in incremental batches is always followed.",
+          "trechos": [
+            "We are taking steps to improve the Microsoft Azure Platform and our processes to ensure such incidents do not occur in the future, and in this case it includes (but is not limited to): Ensure that the deployment tools enforce the standard protocol of applying production changes in incremental batches is always followed."
+          ]
+        },
+        {
+          "texto": "In progress: improve the recovery methods to minimize the time to recovery.",
+          "trechos": [
+            "We are taking steps to improve the Microsoft Azure Platform and our processes to ensure such incidents do not occur in the future",
+            "Improve the recovery methods to minimize the time to recovery."
+          ]
+        },
+        {
+          "texto": "In progress: fix the infinite loop bug in the CPU reduction improvement for the Blob Front-Ends before it is rolled out into production.",
+          "trechos": [
+            "We are taking steps to improve the Microsoft Azure Platform and our processes to ensure such incidents do not occur in the future",
+            "Fix the infinite loop bug in the CPU reduction improvement from the Blob Front-Ends before it is rolled out into production."
+          ]
+        },
+        {
+          "texto": "In progress: improve the Service Health Dashboard infrastructure and protocols.",
+          "trechos": [
+            "We are taking steps to improve the Microsoft Azure Platform and our processes to ensure such incidents do not occur in the future",
+            "Improve Service Health Dashboard Infrastructure and protocols."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 654,
+      "trechos": [
+        "Incident Start Date and Time 11/19/2014 00:51:00 AM (UTC) Date and Time Service was Restored 11/19/2014 11:45:00 AM (UTC)"
+      ]
+    },
+    "perguntas_em_aberto": [
+      "The authors say they will continue to investigate what led to this event."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "A subset of customers continued to experience intermittent issues after 11:45 UTC on 19 November (including IaaS VM users unable to connect via RDP and SSH); the 22 November update says the incident had then been resolved. An Azure infrastructure issue kept the Service Health Dashboard from showing timely updates for approximately the first three hours, and support tools depending on it were impacted. The 19 November post promised a later RCA.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
+  }
+}

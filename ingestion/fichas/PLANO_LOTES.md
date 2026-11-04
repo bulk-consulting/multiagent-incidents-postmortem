@@ -47,6 +47,7 @@ Lote 17 = 7/10 (0,7), primeiro lote reextraído (v2.19), conferido inteiro → o
 Lote 18 = 5/6 (0,8): 4 dos 5 na DAN-097, por datas sem trecho e ações em andamento marcadas como planejadas → segue por amostra; gerou a v2.20 ("paged/alerted" é alerta_automatico, contestado no 17 e no 18).
 Lote 19 = 5/5 (1,0), amostra com a DAN-209 virada de baixa para alta (a virada se manteve) → segue por amostra; gerou a v2.21 (ação em andamento é "In progress:", erro repetido nas DAN-097 e 160). A DAN-156 foi reextraída lendo windows-1252, porque a página declara ISO-8859-1.
 Lote 20 = 6/5 (1,2), nenhuma baixa; amostra com 3 sorteadas, a DAN-034 virada (a virada se manteve) e a DAN-145 (duração) → segue por amostra, sem mudança de prompt.
+Lote 21 = 5/4 (1,25), nenhuma baixa; amostra com 3 sorteadas e a DAN-072 (o documento mais longo) → reextração concluída. Detecção misturada com resposta apareceu 3 vezes (DAN-160, 145 e 078); o item 7 do autorrevisao.md já cobre isso.
 
 **Fichas vazias:** documentos que saem `nao_verificavel` (só menus ou rodapé) não precisam de conferência; entram na lista de reextração.
 
@@ -109,3 +110,5 @@ Ao todo, 49 documentos têm texto novo em `extraidos/`. As fichas antigas `nao_v
 `montar_prompts.py`, `validar_fichas.py` e `montar_revisao.py` usam o texto de `ingestion/reextracao/extraidos/` quando o documento está lá.
 
 **Lotes 17 a 21:** os 49 documentos foram sorteados com a semente 42 e acrescentados ao `lotes.csv` com o motivo `reextracao (<grupo>)`. Usam o prompt v2.19, que traz a nota de formato para status page. O lote 17 é conferido inteiro, porque o formato é novo; do 18 em diante a conferência volta a ser por amostra. No lote 21, a DAN-072 tem 17,5 mil palavras e a sessão vai precisar ler esse arquivo em partes.
+
+**Fechamento da reextração (lote 21):** `saida/` tem 213 fichas validadas: as 169 do plano original e mais 44 dos lotes 17 a 21. Os outros 5 documentos reextraídos (DAN-034, 156, 209, 210 e 216) substituíram as fichas `nao_verificavel` antigas. Ficam 184 `alta` e 29 `baixa`; na triagem, 200 `sim`, 11 `parcial`, 1 `nao` (DAN-202) e 1 `nao_verificavel` (DAN-150), e os dois últimos estão marcados como `inutilizavel` na `lista.csv`. Nos lotes reextraídos, os ERRADOS procedentes por ficha ficaram entre 0,7 e 1,25.

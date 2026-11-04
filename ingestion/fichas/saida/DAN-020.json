@@ -1,0 +1,203 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-020",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Datadog's internal service discovery and dynamic configuration system failed after a DNS request flood from a large intake cluster, whose configuration had been changed a month earlier to depend on a local DNS resolver that does not cache NXDOMAIN answers; most services in the US region were degraded or intermittently available. The service discovery team worked to stabilize the cluster by cutting it off from its clients and controlling re-admission while other teams temporarily removed their dependency on it; the web tier returned to normal once service discovery was stabilized.",
+    "data_incidente": "2020-09-24",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Datadog US region",
+      "Web tier and API endpoints",
+      "Logs",
+      "Network performance monitoring",
+      "Alerts",
+      "Infrastructure monitoring",
+      "APM"
+    ],
+    "tecnologias": [
+      "DNS",
+      "local DNS resolver"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The intake cluster started to show intermittent failures, and teams triggered an internal incident a few minutes later; the text does not say how the failures were noticed.",
+        "trechos": [
+          "A few minutes after the intake cluster started to show intermittent failures and roughly 20 minutes before we publicly declared an incident, teams triggered an internal one."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "A routine operation recycled (scaled down and back up) a small latency-measuring cluster that the large intake cluster depends on; its nodes were unreachable long enough for the intake cluster to issue a large volume of DNS requests to the service discovery system.",
+      "trechos": [
+        "We traced the origin of the failure to a routine operation by an authorized engineer early that day, on a small-sized cluster, that is itself a dependency of a much larger data intake cluster.",
+        "When the smaller, latency-measuring cluster was recycled (scaled down and back up again), its nodes were unreachable for enough time for the larger cluster to issue a large volume of DNS requests back to the service discovery system."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A faulty configuration change applied in late August made the intake cluster depend on the local DNS resolver (a caching proxy to the service discovery system) instead of a local file for DNS resolution. The resolver does not cache NXDOMAIN answers, so a missing entry for the latency-measuring cluster made the client keep asking at a rapid clip; the DNS request volume was multiplied by 10 in 10 seconds, and the service discovery cluster lost its quorum and failed to reliably register and deregister services and to quickly answer DNS requests.",
+        "trechos": [
+          "Late August, as part of a migration of that large intake cluster, we applied a set of changes to its configuration, including a faulty one: instead of using a local file for DNS resolution (slow to update reliably but very resilient to failure), the intake cluster started to depend on the local DNS resolver, which itself is a caching proxy to the service discovery system.",
+          "However, there was one crucial exception which we never see during normal operations: NXDOMAIN answers are not cached by the resolver to quickly propagate service deregistration throughout the infrastructure.",
+          "In other words, a missing entry for the latency-measuring cluster in the service discovery cluster causes the requesting client to keep asking at a rapid clip where to find that service, even if it does not actually need that to ingest data successfully.",
+          "The volume of DNS requests was multiplied by 10 in 10 short seconds, as shown below:",
+          "This sudden onslaught caused the service discovery cluster to lose its quorum and fail to reliably register and deregister services, and fail to quickly answer DNS requests coming from other parts of our infrastructure."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "After local DNS caches expired on all nodes, a thundering herd on the service discovery cluster amplified the issue until its breaking point; most services could then neither reliably find their dependencies nor load their runtime configuration at startup.",
+        "trechos": [
+          "After local DNS caches expired on all nodes, we faced a “thundering herd” on the service discovery cluster, amplifying the issue until its breaking point.",
+          "The net result was that most of our services could neither reliably find their dependencies nor load their runtime configuration at startup time, thus causing repeated errors until:"
+        ]
+      },
+      {
+        "texto": "Service discovery and dynamic configuration are a core system that the vast majority of software components rely on, so its failure had global effects, made recovery difficult and extended the incident.",
+        "trechos": [
+          "The incident was caused by the failure of an internal service discovery and dynamic configuration system that the vast majority of Datadog software components rely on.",
+          "Because service discovery is a core system throughout our entire infrastructure, its failure unfortunately had global effects, made our recovery efforts difficult, and extended the duration of the incident."
+        ]
+      },
+      {
+        "texto": "The faulty change produced no visible difference in intake service level indicators, and its impact was missed during the change review.",
+        "trechos": [
+          "The local DNS resolver did answer more queries but it did not change any intake service level indicator that otherwise would have had us trigger an immediate investigation.",
+          "With this change in place and its impact missed during the change review, the conditions were set for an unforeseen failure starting with a routine operation a month later."
+        ]
+      },
+      {
+        "texto": "With service discovery and dynamic configuration down, many mitigation tools became unavailable: configuration could no longer be quickly altered, and load could not be shed to another part of the infrastructure.",
+        "trechos": [
+          "With service discovery and dynamic configuration down, a lot of the tools we have to mitigate failures became unavailable.",
+          "We could no longer quickly alter the configuration, nor shed load to another part of the infrastructure."
+        ]
+      },
+      {
+        "texto": "Adding capacity to the service discovery cluster was ineffective because the consensus-based cluster requires a quorum and each node was already too loaded to admit extra nodes and spread the load.",
+        "trechos": [
+          "Adding more capacity to the service discovery cluster proved ineffective, as distributed consensus-based systems require a quorum of nodes to agree on the state of the world.",
+          "In this case each node of the service discovery cluster was already too loaded to properly admit extra ones and spread the load."
+        ]
+      },
+      {
+        "texto": "Removing the dependency on service discovery and dynamic configuration was an iterative process with no ready-made break-the-glass automation.",
+        "trechos": [
+          "This turned out to be an iterative process for which we did not have ready-made, break-the-glass automation."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "especifica",
+      "descricao": {
+        "texto": "In late August, as part of a migration of the intake cluster, a configuration change switched its DNS resolution from a local file to the local DNS resolver, a caching proxy to the service discovery system.",
+        "trechos": [
+          "Late August, as part of a migration of that large intake cluster, we applied a set of changes to its configuration, including a faulty one: instead of using a local file for DNS resolution (slow to update reliably but very resilient to failure), the intake cluster started to depend on the local DNS resolver, which itself is a caching proxy to the service discovery system."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The service discovery team worked to stabilize the service discovery cluster by cutting it off from all its clients and controlling re-admission; the web tier returned to normal once service discovery was stabilized.",
+          "trechos": [
+            "While the service discovery team was working to stabilize the cluster by cutting it off from all its clients and controlling re-admission, all other teams temporarily eliminated the dependency on service discovery and dynamic configuration.",
+            "But with the majority of the downstream requests failing it did not materially improve until service discovery was stabilized.",
+            "At that point it went back to normal as quickly as it degraded, as shown in the slopes of the graphs above, suddenly going from 60-80% error rate down to almost 0."
+          ]
+        },
+        {
+          "texto": "All other teams temporarily eliminated their services' dependency on service discovery and dynamic configuration, in an iterative process; backend services were restored before the web tier.",
+          "trechos": [
+            "While the service discovery team was working to stabilize the cluster by cutting it off from all its clients and controlling re-admission, all other teams temporarily eliminated the dependency on service discovery and dynamic configuration.",
+            "This turned out to be an iterative process for which we did not have ready-made, break-the-glass automation.",
+            "Other backend services were restored before that point because they are by design isolated from the web tier."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: split service discovery and dynamic configuration into separate services.",
+          "trechos": [
+            "We have split service discovery and dynamic configuration into separate services."
+          ]
+        },
+        {
+          "texto": "In progress: building additional layers of cache so that DNS queries for service discovery are resilient to a prolonged loss of the core service discovery system.",
+          "trechos": [
+            "We are building additional layers of cache to make DNS queries for the purpose of service",
+            "discovery resilient to a prolonged loss of the core service discovery system."
+          ]
+        },
+        {
+          "texto": "In progress: hardening all components to be resilient to a prolonged loss of service discovery and dynamic configuration, so that services processing incoming data or answering interactive queries fail \"closed\" and keep working without degradation.",
+          "trechos": [
+            "We are hardening all components to make them resilient to a prolonged loss of service",
+            "When they are unavailable, services that process incoming data or answer interactive queries should fail “closed” and continue to work without degradation."
+          ]
+        },
+        {
+          "texto": "Planned: regularly test the types of failures experienced in this incident.",
+          "trechos": [
+            "We will regularly test the types of failures we experienced."
+          ]
+        },
+        {
+          "texto": "Planned: support service registration and deregistration with a system that is not a single point of failure.",
+          "trechos": [
+            "The need to register and deregister services won’t go away but we must support it with a system that is not a single point of failure (be it distributed or not)."
+          ]
+        },
+        {
+          "texto": "Planned: reduce the web tier's hard dependencies to the absolute minimum, with regular tests that pages still load if soft dependencies fail downstream.",
+          "trechos": [
+            "This means reducing the number of hard dependencies to the absolute minimum with regular tests to make sure pages still load if soft dependencies fail downstream."
+          ]
+        },
+        {
+          "texto": "Planned: a dedicated incident-response role with clear processes to disseminate updates about high-visibility incidents, and clearer communication of impact as an incident develops.",
+          "trechos": [
+            "It starts with having a dedicated role with clear processes to disseminate updates about high visibility incidents throughout.",
+            "It also includes having clearer communication on the impact of an incident as it develops."
+          ]
+        },
+        {
+          "texto": "Planned: provide customers with options for contingency in case a region becomes unavailable.",
+          "trechos": [
+            "We are committed to providing options for our customers to choose for contingency."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 613,
+      "trechos": [
+        "Between September 24, 2020, 14:27 UTC and September 25 00:40 UTC, the US region of Datadog (reachable via https://app.datadoghq.com) experienced a degradation of service that affected:"
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "Duration computed from the stated degradation window (14:27 UTC Sept 24 to 00:40 UTC Sept 25). The text also lists per-service full recovery times: web tier and API 20:18 UTC, Logs 20:22 UTC, Network performance monitoring 21:40 UTC, Alerts 01:00 UTC, Infrastructure monitoring 01:25 UTC, APM 03:00 UTC. The text states incoming data was still ingested and processed during the incident, and that the incident was not security related.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
+  }
+}

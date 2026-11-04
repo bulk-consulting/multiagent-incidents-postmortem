@@ -1,0 +1,220 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-078",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A 43-second network partition during optical equipment maintenance led Orchestrator to fail MySQL primaries over to the US West Coast; the East Coast held writes not replicated to the West, so primaries could not safely fail back, and GitHub showed out-of-date and inconsistent data and paused webhooks and Pages builds for 24 hours and 11 minutes. Service was restored by restoring clusters from backups, re-establishing primaries in the US East Coast, adding read replicas so replication could catch up, failing over to the original topology and processing the queued backlog.",
+    "data_incidente": "2018-10-21",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "GitHub.com",
+      "Webhooks",
+      "GitHub Pages"
+    ],
+    "tecnologias": [
+      "MySQL",
+      "Orchestrator",
+      "Raft",
+      "100G optical equipment",
+      "MySQL binary logs"
+    ],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 22:54 UTC internal monitoring systems began generating alerts indicating numerous faults.",
+        "trechos": [
+          "## 2018 October 21 22:54 UTC",
+          "Our internal monitoring systems began generating alerts indicating that our systems were experiencing numerous faults."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "At 22:52 UTC on October 21, routine maintenance to replace failing 100G optical equipment caused a loss of connectivity between the US East Coast network hub and the primary US East Coast data center, restored after 43 seconds.",
+      "trechos": [
+        "At 22:52 UTC on October 21, routine maintenance work to replace failing 100G optical equipment resulted in the loss of connectivity between our US East Coast network hub and our primary US East Coast data center.",
+        "Connectivity between these locations was restored in 43 seconds, but this brief outage triggered a chain of events that led to 24 hours and 11 minutes of service degradation."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Orchestrator's configuration allowed database primaries to be promoted across regional boundaries, a topology the application tier could not support. During the partition, Orchestrator nodes in the US West Coast data center and US East Coast public cloud formed a quorum and failed clusters over to the West Coast; the East Coast databases held a brief period of writes not replicated to the West, so with unique writes on both sides the primaries could not be failed back safely.",
+        "trechos": [
+          "Adjust the configuration of Orchestrator to prevent the promotion of database primaries across regional boundaries. Orchestrator’s actions behaved as configured, despite our application tier being unable to support this topology change.",
+          "The US West Coast data center and US East Coast public cloud Orchestrator nodes were able to establish a quorum and start failing over clusters to direct writes to the US West Coast data center.",
+          "The database servers in the US East Coast data center contained a brief period of writes that had not been replicated to the US West Coast facility.",
+          "Because the database clusters in both data centers now contained writes that were not present in the other data center, we were unable to fail the primary back over to the US East Coast data center safely."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Applications in the East Coast that write to a West Coast MySQL cluster cannot cope with the cross-country round-trip latency; the sudden cross-country latency was a major contributing factor.",
+        "trechos": [
+          "However, applications running in the East Coast that depend on writing information to a West Coast MySQL cluster are currently unable to cope with the additional latency introduced by a cross-country round trip for the majority of their database calls.",
+          "Leader-election within a region is generally safe, but the sudden introduction of cross-country latency was a major contributing factor during this incident."
+        ]
+      },
+      {
+        "texto": "When connectivity returned, the application tier immediately directed writes to the new West Coast primaries; by the time database engineers investigated, the West Coast clusters had ingested nearly 40 minutes of writes, making it challenging to reconfigure East Coast primaries.",
+        "trechos": [
+          "When connectivity was restored, our application tier immediately began directing write traffic to the new primaries in the West Coast site.",
+          "This effort was challenging because by this point the West Coast database cluster had ingested writes from our application tier for nearly 40 minutes."
+        ]
+      },
+      {
+        "texto": "MySQL backups are stored remotely in a public cloud blob storage service; restoring multiple terabytes took hours (transfer, decompress, checksum, prepare and load), and a full cluster rebuild from backup had never been needed before.",
+        "trechos": [
+          "While MySQL data backups occur every four hours and are retained for many years, the backups are stored remotely in a public cloud blob storage service.",
+          "The time required to restore multiple terabytes of backup data caused the process to take hours.",
+          "The process to decompress, checksum, prepare, and load large backup files onto newly provisioned MySQL servers took the majority of time.",
+          "This procedure is tested daily at minimum, so the recovery time frame was well understood, however until this incident we have never needed to fully rebuild an entire cluster from backup and had instead been able to rely on other strategies such as delayed replicas."
+        ]
+      },
+      {
+        "texto": "Replication catch-up followed a power decay function rather than a linear trajectory, and increased write load as users began their workday in Europe and the US made recovery take longer than estimated.",
+        "trechos": [
+          "In reality, the time required for replication to catch up had adhered to a power decay function instead of a linear trajectory.",
+          "Due to increased write load on our database clusters as users woke up and began their workday in Europe and the US, the recovery process took longer than originally estimated."
+        ]
+      },
+      {
+        "texto": "Dozens of read replicas were multiple hours behind the primary, and with read load spread across a large replica pool, requests often hit a delayed replica and users saw inconsistent data.",
+        "trechos": [
+          "While this improved performance substantially, there were still dozens of database read replicas that were multiple hours delayed behind the primary.",
+          "We spread the read load across a large pool of read replicas and each request to our services had a good chance of hitting a read replica that was multiple hours delayed."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 23:19 UTC, webhook delivery and GitHub Pages builds were paused, partially degrading site usability instead of jeopardizing data already received; the text says jobs writing metadata such as pushes needed to be stopped.",
+          "trechos": [
+            "## 2018 October 21 23:19 UTC",
+            "We made an explicit choice to partially degrade site usability by pausing webhook delivery and GitHub Pages builds instead of jeopardizing data we had already received from users.",
+            "It was clear through querying the state of the database clusters that we needed to stop running jobs that write metadata about things like pushes."
+          ]
+        },
+        {
+          "texto": "A backup restoration process for all affected MySQL clusters was initiated by 00:41 UTC on October 22; by 06:51 UTC several clusters had been restored in the US East Coast data center and begun replicating new data from the West Coast, and teams had identified ways to restore directly from the West Coast.",
+          "trechos": [
+            "## 2018 October 22 00:41 UTC",
+            "A backup process for all affected MySQL clusters had been initiated by this time and engineers were monitoring progress.",
+            "## 2018 October 22 06:51 UTC",
+            "Several clusters had completed restoration from backups in our US East Coast data center and begun replicating new data from the West Coast.",
+            "Our teams had identified ways to restore directly from the West Coast to overcome throughput restrictions caused by downloading from off-site storage and were increasingly confident that restoration was imminent, and the time left to establishing a healthy replication topology was dependent on how long it would take replication to catch up."
+          ]
+        },
+        {
+          "texto": "At 11:12 UTC all database primaries were established in the US East Coast again, making the site far more responsive.",
+          "trechos": [
+            "## 2018 October 22 11:12 UTC",
+            "All database primaries established in US East Coast again. This resulted in the site becoming far more responsive as writes were now directed to a database server that was co-located in the same physical data center as our application tier."
+          ]
+        },
+        {
+          "texto": "Additional MySQL read replicas provisioned in the US East Coast public cloud spread read request volume across more servers, which reduced utilization and allowed replication to catch up.",
+          "trechos": [
+            "We’d begun provisioning additional MySQL read replicas in the US East Coast public cloud earlier in the incident.",
+            "Once these became available it became easier to spread read request volume across more servers. Reducing the utilization in aggregate across the read replicas allowed replication to catch up."
+          ]
+        },
+        {
+          "texto": "At 16:24 UTC, once replicas were in sync, a failover to the original topology was conducted.",
+          "trechos": [
+            "## 2018 October 22 16:24 UTC",
+            "Once the replicas were in sync, we conducted a failover to the original topology, addressing the immediate latency/availability concerns."
+          ]
+        },
+        {
+          "texto": "Processing of the queued backlog (over five million hook events and 80 thousand Pages builds) was re-enabled; when webhook payloads were found dropped by an internal TTL, processing was paused and a change pushed to temporarily increase the TTL. By 23:03 UTC all pending webhooks and Pages builds had been processed and the status was set to green.",
+          "trechos": [
+            "There were over five million hook events and 80 thousand Pages builds queued.",
+            "As we re-enabled processing of this data, we processed ~200,000 webhook payloads that had outlived an internal TTL and were dropped.",
+            "Upon discovering this, we paused that processing and pushed a change to increase that TTL for the time being.",
+            "## 2018 October 22 23:03 UTC",
+            "All pending webhooks and Pages builds had been processed and the integrity and proper operation of all systems had been confirmed. The site status was updated to green."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Planned: adjust the configuration of Orchestrator to prevent the promotion of database primaries across regional boundaries.",
+          "trechos": [
+            "There are a number of technical initiatives that have been identified during this analysis.",
+            "Adjust the configuration of Orchestrator to prevent the promotion of database primaries across regional boundaries."
+          ]
+        },
+        {
+          "texto": "In progress: accelerated migration to a new status reporting mechanism that will display the status of each platform component.",
+          "trechos": [
+            "We have accelerated our migration to a new status reporting mechanism that will provide a richer forum for us to talk about active incidents in crisper and clearer language.",
+            "We recognize that this doesn’t give you an accurate picture of what is working and what is not, and in the future will be displaying the different components of the platform so you know the status of each service."
+          ]
+        },
+        {
+          "texto": "In progress: a company-wide initiative, started weeks before the incident, to serve GitHub traffic from multiple data centers in an active/active/active design with N+1 redundancy at the facility level, to tolerate the full failure of a single data center without user impact.",
+          "trechos": [
+            "In the weeks prior to this incident, we had started a company-wide engineering initiative to support serving GitHub traffic from multiple data centers in an active/active/active design.",
+            "This project has the goal of supporting N+1 redundancy at the facility level. The goal of that work is to tolerate the full failure of a single data center failure without user impact."
+          ]
+        },
+        {
+          "texto": "Planned: take a more proactive stance in testing assumptions.",
+          "trechos": [
+            "We will take a more proactive stance in testing our assumptions."
+          ]
+        },
+        {
+          "texto": "Planned: a systemic practice of validating failure scenarios, with investment in fault injection and chaos engineering tooling.",
+          "trechos": [
+            "To bolster those efforts, we will also begin a systemic practice of validating failure scenarios before they have a chance to affect you.",
+            "This work will involve future investment in fault injection and chaos engineering tooling at GitHub."
+          ]
+        },
+        {
+          "texto": "Planned: ensure updates can be published when GitHub Pages builds are paused, and provide more accurate time-to-repair estimates.",
+          "trechos": [
+            "We use GitHub Pages internally and all builds had been paused several hours earlier, so publishing this took additional effort.",
+            "We intended to send this communication out much sooner and will be ensuring we can publish updates in the future under these constraints.",
+            "In our desire to communicate meaningful information to you during the incident, we made several public estimates on time to repair based on the rate of processing of the backlog of data.",
+            "We are sorry for the confusion this caused and will strive to provide more accurate information in the future."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 1451,
+      "trechos": [
+        "Last week, GitHub experienced an incident that resulted in degraded service for 24 hours and 11 minutes."
+      ]
+    },
+    "perguntas_em_aberto": [
+      "Manual reconciliation of a few seconds of database writes is still in progress: the captured MySQL binary logs are being analyzed to determine which writes can be automatically reconciled and which will require outreach to users."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The authors state no user data was lost. The text describes the cross-region failover as emergent behavior, as an internal network partition of this magnitude had not been seen before. One of the busiest clusters had 954 unreplicated writes in the affected window.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
+  }
+}

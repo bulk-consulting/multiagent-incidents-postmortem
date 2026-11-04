@@ -1,0 +1,132 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-194",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A gradual increase in connections overloaded Mailgun's MongoDB secondary servers in one production region, causing errors in click/open tracking; while rolling back recent MongoDB configuration changes, a change was inadvertently introduced that moved API and SMTP reads to the primary, which then could not keep up, so API, SMTP and the website saw elevated errors. Servers were resized, connection limits were deployed and reads were set again to prefer secondaries, and services resumed normal operation at 20:35 UTC.",
+    "data_incidente": "2017-01-12",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "Click / open tracking services",
+      "API",
+      "SMTP",
+      "Website / Control Panel"
+    ],
+    "tecnologias": [
+      "MongoDB"
+    ],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 14:09 UTC on January 12th engineers began responding to alerts for the click/open tracking services and the primary MongoDB clusters in one production region.",
+        "trechos": [
+          "On January 12th at 14:09 UTC, our engineers began responding to alerts for our click / open tracking services and primary MongoDB clusters located in one of our production regions."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A gradual increase in connections to the MongoDB secondary servers, which serve most read operations, put them under heavy load so they failed to serve requests in a timely manner, which also caused elevated errors in the tracking services. Post-incident log review did not reveal what caused the connection count to rise.",
+        "trechos": [
+          "Within ten minutes, the engineering team had determined that our MongoDB secondary servers, which are used for most read operations, were under heavy load and failing to serve requests in a timely manner.",
+          "This issue was also responsible for the elevated errors with our tracking services.",
+          "While reviewing our metrics, we observed a gradual increase in connections to these servers that we determined to be the cause of the performance degradation.",
+          "Our logs indicated a broad degradation of the cluster performance and did not reveal any clear set of queries that caused the cluster’s performance to begin degrading or the connection count to rise."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "While rolling back the previous day's MongoDB configuration changes, a human error inadvertently introduced a new change that moved the API and SMTP services from the secondaries to the primary; the primary could not keep up with the request volume and became unstable, and API, SMTP and the website saw elevated error rates from 15:55 UTC.",
+        "trechos": [
+          "Due to human error, we both reversed these changes and inadvertently introduced a new change that caused our API and SMTP services to move from using the secondaries to the primary.",
+          "As a result, our MongoDB primary server was unable to keep up with the request volume and started experiencing stability issues.",
+          "This caused our API, SMTP, and website to begin experiencing an elevated error rate beginning at 15:55 UTC."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "Beginning at 15:15 UTC, several MongoDB configuration changes made the previous day, which closely coincided with the increase in connections, were rolled back through new pull requests; the rollback also inadvertently moved API and SMTP to the primary.",
+          "trechos": [
+            "This increase in connections closely coincided with several MongoDB configuration changes that were made in the environment during the previous day.",
+            "The engineering team chose to rollback these changes beginning at 15:15 UTC by preparing and deploying several new pull requests.",
+            "Due to human error, we both reversed these changes and inadvertently introduced a new change that caused our API and SMTP services to move from using the secondaries to the primary."
+          ]
+        },
+        {
+          "texto": "Between 16:00 and 19:00 UTC, the MongoDB servers were resized to handle more connections and server-level connection limits were deployed, allowing about 75% of typical API request throughput in the region.",
+          "trechos": [
+            "Between 16:00 and 19:00 UTC, the engineering team continued troubleshooting and made several additional changes, including resizing our MongoDB servers to improve our ability to handle the larger number of connections and deployed connection limits at the server level to try to help stabilize the servers while searching for a root cause.",
+            "These changes allowed us to serve approximately 75% of our typical request throughput for our API in this region while we continued to investigate the underlying issue."
+          ]
+        },
+        {
+          "texto": "From 20:28 UTC, limits on the number of connections services could establish to the primary MongoDB server were deployed, together with re-deploying the configuration to prefer secondary servers for reads; this stabilized MongoDB and services resumed normal operations at 20:35 UTC.",
+          "trechos": [
+            "After review of our MongoDB configurations, we deployed limits on the number of connections our services could establish to our primary MongoDB server.",
+            "We prepared these changes and began deployment at 20:28 UTC along with re-deploying our configuration changes to prefer secondary servers for reads.",
+            "These configuration changes stabilized our MongoDB server and resulted in our services in this region resuming normal operations at 20:35 UTC."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: tracking infrastructure, previously in a single region, now operates across two independent regions, as part of previously planned upgrades.",
+          "trechos": [
+            "Deployment of Redundant Tracking Infrastructure (Complete) - Our tracking services have previously operated out of a single region.",
+            "As part of previously planned infrastructure upgrades, our tracking infrastructure now operates across two independent regions."
+          ]
+        },
+        {
+          "texto": "Already done: limits on the number of connections each service can open to the database were rolled out across all services.",
+          "trechos": [
+            "Connection Limits (Complete) – During this incident and after the incident had concluded, we rolled out changes across all of our services that limited the number of connections that could be opened to limit the damage a single service could cause to other services that rely on this database."
+          ]
+        },
+        {
+          "texto": "Already done: a permanent increase in the size of the primary Mongo cluster, also rolled out to other data centers.",
+          "trechos": [
+            "Increased Size of Primary Mongo Cluster (Complete) – We made a permanent increase in the size of our primary Mongo cluster and rolled this change out to our other data centers."
+          ]
+        },
+        {
+          "texto": "Planned: improvements to the tracking services so that click redirection still operates properly when downstream services fail.",
+          "trechos": [
+            "Improved Failure Handling for Tracking Services (Planned) – We will be deploying improvements to our tracking services that will allow click redirection to still operate properly in the event of the failure of downstream services."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": [
+      "Post-incident review of the MongoDB logs did not reveal what caused the cluster's performance to degrade or the connection count to rise."
+    ]
+  },
+  "confianca": "alta",
+  "observacoes": "The text gives no marked impact start: engineers began responding to alerts at 14:09 UTC, and API/SMTP/website errors began at 15:55 UTC; services resumed normal operations at 20:35 UTC. The status page 'Investigating' update was posted Jan 12, 2017 08:11 PST and 'Resolved' at 15:10 PST. The increase in connections closely coincided with MongoDB configuration changes made the previous day, but the text does not state that they caused it. The authors believe the connection limits will prevent a similar issue.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
+  }
+}

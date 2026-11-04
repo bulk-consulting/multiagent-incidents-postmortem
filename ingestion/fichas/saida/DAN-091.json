@@ -1,0 +1,175 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-091",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "atualizacoes_status",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "At CircleCI's busiest time, load on the primary database turned into queued operations that prevented builds from being dequeued, so Linux builds did not run from late Wednesday into Thursday. Rolling back recent changes had no isolated effect and a primary failover gave only temporary headroom; builds were cancelled and slowly let through, blocked builds were pushed into the runnable state in batches with newly built tools, extra capacity was added and the build-scheduler throttling code was fixed, and the last leftover builds ran at 14:20 UTC Thursday.",
+    "data_incidente": "2015-10-14",
+    "status_relatorio": "misto",
+    "servicos_afetados": [
+      "CircleCI Linux builds",
+      "CircleCI site"
+    ],
+    "tecnologias": [
+      "primary database",
+      "build scheduler",
+      "build queue"
+    ],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "equipe_interna",
+      "descricao": {
+        "texto": "At 20:17 UTC on Wednesday the operations team identified that the standard tools for managing increasing demand were not having the expected impact: capacity was available but not being used to run builds, and the build queue was rising.",
+        "trechos": [
+          "WEDNESDAY 20:17 UTC: Our operations team identified that our standard tools for managing increasing demand were not having the expected impact.",
+          "Capacity was available in the system but not being used to run builds, resulting in a rising queue of builds."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Overall system load, at the platform's busiest time (early afternoon PDT on Wednesdays), backed up queued operations on the database to the point that builds could not be dequeued; the authors say the queue model, known to need rebuilding, still strained this database and they got caught behind on capacity again.",
+        "trechos": [
+          "It became clear that overall system load was preventing dequeueing of builds and the incident was identified on our status page.",
+          "There was no direct correlation with anything that had just pushed, but early afternoon PDT on Wednesdays is our busiest time, so we looked back further for anything that might have changed recently and not mattered until such a busy time.",
+          "Getting back to the architecture, we've known for a while that our queue model needs to be rebuilt and we've been laying the foundation to get there with the items outlined above, but we got caught behind on capacity again in this situation.",
+          "We're pushing ahead as quickly as we can to get that piece pulled out and take the final bit of strain off this database.",
+          "Once our DB had enough queued DB operations that it wasn't showing signs of catching up, we failed over to a different primary to kill off those operations and assess the load based on the new conditions."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "By the time suspicious recent changes were rolled back, queued database operations were backed up enough that the effect of the changes could not be isolated.",
+        "trechos": [
+          "Unfortunately, by that time the queued DB operations were backed up enough that the impact of the changes could not be isolated and we were left with rolling back anything suspicious to try to get things under control."
+        ]
+      },
+      {
+        "texto": "No tools were on hand to reduce load on the system; they were built on the fly, which led to lost time and manually edited builds with inconsistent state.",
+        "trechos": [
+          "In this incident, we had the experience to start reducing load on the system right away to pull it back from the catastrophic failure mode, but we didn't have any tools on hand with which to do it.",
+          "So we were building them on the fly and that led to a combination of lost time and manually edited builds with inconsistent state."
+        ]
+      },
+      {
+        "texto": "Builds were blocked from moving into the runnable state, and relying on the normal code to promote builds from one queue to the next flooded the queue.",
+        "trechos": [
+          "THURSDAY 08:00 UTC: It turned out that between some work we had done to get builds out of the way and some sustained load, we had builds that were being blocked from moving into the runnable state and now that had to be resolved.",
+          "Relying on our normal code to manage promotion from one queue to the next led to flooding the queue, so we needed to find a way to batch that task."
+        ]
+      },
+      {
+        "texto": "Throttles in the build scheduling code, built to back off during failure, were triggering on standard conditions and backed off when more throughput was needed.",
+        "trechos": [
+          "Then we learned that the throttles we had built into our build scheduling code to back off during failure were actually triggering as a result of some standard conditions, causing them to back off when we wanted them to be working double time."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "A couple of recent changes that required additional work were rolled back, followed by anything suspicious; the effect could not be isolated.",
+          "trechos": [
+            "We identified a couple of changes that required additional work but had performed well in evaluation and rolled them back.",
+            "Unfortunately, by that time the queued DB operations were backed up enough that the impact of the changes could not be isolated and we were left with rolling back anything suspicious to try to get things under control."
+          ]
+        },
+        {
+          "texto": "At 00:11 UTC Thursday, the database was failed over to a different primary to kill off the queued operations; this created some headroom, but queued operations returned relatively quickly at a lower level.",
+          "trechos": [
+            "THURSDAY 00:11 UTC: Once our DB had enough queued DB operations that it wasn't showing signs of catching up, we failed over to a different primary to kill off those operations and assess the load based on the new conditions.",
+            "Initially this created a bit of headroom for operations, but queued operations returned relatively quickly, albeit at a lower level."
+          ]
+        },
+        {
+          "texto": "Some processes were halted and all builds were cancelled while recovery was monitored; new builds were held, and from 04:09 UTC builds were very slowly let through to clear the queue.",
+          "trechos": [
+            "Halting some processes to get load under control before starting back up.",
+            "We’ve canceled all builds and aren’t currently running any. We are monitoring recovery before starting to push new builds.",
+            "We’re digging back through logs to continue to try to isolate the source of the load and are continuing to hold new builds.",
+            "We’re cautiously optimistic and we’re very slowly starting to let builds through to work on clearing the queue and monitoring closely.",
+            "Posted Oct 15, 2015 - 04:09 UTC"
+          ]
+        },
+        {
+          "texto": "From 08:00 UTC, builds blocked from the runnable state were first forced through manually, then pushed through in batches with quickly built tools.",
+          "trechos": [
+            "THURSDAY 08:00 UTC: It turned out that between some work we had done to get builds out of the way and some sustained load, we had builds that were being blocked from moving into the runnable state and now that had to be resolved.",
+            "We started just manually forcing builds through into the runnable state, then quickly built some tools to automate pushing the existing builds through in batches."
+          ]
+        },
+        {
+          "texto": "From 09:00 UTC, the team worked to bring up excess capacity to handle the backlog; new metrics were added to debug the scheduler throttles and the throttling code was updated, after which more builds could be moved into the runnable state.",
+          "trechos": [
+            "THURSDAY 09:00 UTC: We worked to bring up excess capacity to handle the backlog and push builds in as fast as we could.",
+            "First, we had to add new metrics to debug the problem. Then we had to update the throttling code to improve the behavior. At that point we could get back to moving more builds into the runnable state."
+          ]
+        },
+        {
+          "texto": "At 14:20 UTC Thursday the last leftover builds were run, and builds manually removed from the runnable state that were causing issues with new builds were cleared.",
+          "trechos": [
+            "THURSDAY 14:20 UTC: The last of the leftover builds were run and we were down to processing new inbound traffic.",
+            "We also finished clearing all the builds that we had manually removed from runnable state during the outage but were causing issues with new builds coming through."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done (after a similar outage in July, before this incident): moved to a work distribution model with a central scheduler and dispatcher pushing builds across the fleet, which reduced database load significantly.",
+          "trechos": [
+            "Since that outage we've moved to a completely different work distribution model that uses a central scheduler and dispatcher to push builds across the fleet.",
+            "This has reduced the load on the DB significantly."
+          ]
+        },
+        {
+          "texto": "Already done (before this incident): moved over 50 percent of the data in the primary database onto a new, separate DB cluster with an on-the-fly migration, and pulled smaller parts of the database into their own tuned deployments.",
+          "trechos": [
+            "We've also moved over 50 percent of the data that was in our primary database onto its own deployment.",
+            "So we built out a new DB cluster and did an on-the-fly migration of that dataset.",
+            "Finally, we took some smaller parts of the DB with different behaviors and pulled them out separately."
+          ]
+        },
+        {
+          "texto": "Planned: invest in tools that allow similar situations to be brought under control much faster.",
+          "trechos": [
+            "In the immediate term, we'll be investing in tools that will allow us to get similar situations under control much faster so they don't spiral into hours without builds."
+          ]
+        },
+        {
+          "texto": "In progress: rebuilding the queue model and pulling it out to take the remaining strain off the database.",
+          "trechos": [
+            "Getting back to the architecture, we've known for a while that our queue model needs to be rebuilt and we've been laying the foundation to get there with the items outlined above, but we got caught behind on capacity again in this situation.",
+            "We're pushing ahead as quickly as we can to get that piece pulled out and take the final bit of strain off this database."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The year and dates come from the status update timestamps (first update Oct 14, 2015 21:02 UTC). The text gives no marked impact start or end: the operations team identified the problem at 20:17 UTC Wednesday; at 07:00 UTC Thursday all runnable builds were running but blocked builds remained; the last leftover builds ran at 14:20 UTC; the 'Resolved' update was posted Oct 15 15:50 UTC. The authors note a similar database-load incident in July. Recent changes were rolled back, but the text says there was no direct correlation with recent pushes and the effect could not be isolated, so no change is identified as the cause. Status updates were not posted for three hours during the night.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.21"
+  }
+}
