@@ -8,6 +8,9 @@ Lê:
     ingestion/corpus/embeddings/<modelo>/         vetores (.npy) e ids na mesma ordem
     ingestion/banco/.env                          conexão
 
+documents.title recebe o título limpo (sem o nome do site; nas páginas de título genérico, o 1º
+intertítulo útil ou o início do resumo da ficha); documents.page_title guarda o título da página.
+
 Substitui tudo do dataset numa transação só (apaga e insere de novo): rodar duas vezes dá o
 mesmo resultado, e se algo falhar nada muda no banco. Antes de gravar, confere se cada vetor
 corresponde ao seu chunk (mesma ordem de ids) e se a dimensão é a da coluna.
@@ -23,6 +26,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import importlib.util
+
 import numpy as np
 import psycopg
 from dotenv import load_dotenv
@@ -33,6 +38,11 @@ PASTA = Path(__file__).resolve().parent
 CORPUS = ROOT / "ingestion" / "corpus"
 FICHAS = ROOT / "ingestion" / "fichas" / "saida"
 DATASET = "danluu"
+
+_spec = importlib.util.spec_from_file_location("chunk_fichas", CORPUS / "chunk_fichas.py")
+_cf = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_cf)
+titulo_do_documento = _cf.titulo_do_documento  # o mesmo título limpo dos cabeçalhos dos chunks
 DIMENSAO = 1024
 
 
@@ -56,8 +66,8 @@ def main() -> None:
         ficha = json.loads((FICHAS / f"{d['catalog_id']}.json").read_text(encoding="utf-8"))
         tri, inc = ficha["triagem"], ficha.get("incidente") or {}
         linhas_docs.append((
-            f"{DATASET}:{d['catalog_id']}", DATASET, d["catalog_id"], d.get("company"), d.get("title"),
-            d.get("page_title"), d.get("url"), d.get("incident_date"), d.get("text_source"), d.get("catalogo"),
+            f"{DATASET}:{d['catalog_id']}", DATASET, d["catalog_id"], d.get("company"),
+            titulo_do_documento(d, ficha), d.get("page_title") or d.get("title"), d.get("url"), d.get("incident_date"), d.get("text_source"), d.get("catalogo"),
             d.get("problemas_texto") or [], inc.get("categoria_causa"), tri.get("dominio"), tri.get("tipo"),
             tri.get("seguranca"), ficha.get("confianca"), json.dumps(ficha, ensure_ascii=False), d["text"]))
 
