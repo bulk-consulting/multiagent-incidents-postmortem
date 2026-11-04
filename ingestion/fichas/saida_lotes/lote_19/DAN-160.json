@@ -1,0 +1,143 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-160",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "seguranca",
+    "seguranca": "ataque",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "An evolving DDoS attack left GitHub largely unreachable for roughly 2 hours: thousands of IPs sent several thousand HTTP requests per second for a crafted URL whose redirect to HTTPS consumed load balancer and application capacity, followed by a vector aimed at SSL processing capacity. Service was restored by deploying a change to block the malicious request and by tuning countermeasures on the DDoS mitigation platform; the site was fully operational by 23:34 UTC.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "github.com"
+    ],
+    "tecnologias": [
+      "load balancers",
+      "HTTP",
+      "HTTPS",
+      "SSL",
+      "DDoS mitigation platform",
+      "Hubot"
+    ],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Reports of connectivity problems to github.com (the text does not say where they came from) and an apparent backlog of connections at the load balancing tier.",
+        "trechos": [
+          "At 21:25 UTC we began investigating reports of connectivity problems to github.com.",
+          "As we began investigating we noticed an apparent backlog of connections at our load balancing tier."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "A DDoS attack sent several thousand HTTP requests per second from thousands of IP addresses for a crafted URL to the non-SSL HTTP port; the requests were redirected to HTTPS, which consumed capacity in the load balancers and the application tier.",
+        "trechos": [
+          "After some investigation, we discovered that we were seeing several thousand HTTP requests per second distributed across thousands of IP addresses for a crafted URL.",
+          "These requests were being sent to the non-SSL HTTP port and were then being redirected to HTTPS, which was consuming capacity in our load balancers and in our application tier."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Attack confirmation relied on bandwidth throughput; this attack generated significantly more packets per second but not significantly more bandwidth, and the monitoring needed to detect it quickly was not in place.",
+        "trechos": [
+          "The vast majority of attacks that we’ve seen in the last several months have been volumetric in terms of bandwidth, and we’d grown accustomed to using throughput as a way of confirming that we were under attack.",
+          "This attack did not generate significantly more bandwidth but it did generate significantly more packets per second.",
+          "It didn’t look like what we had grown to expect an attack to look like and we did not have the monitoring we needed to detect it as quickly as we would have liked."
+        ]
+      },
+      {
+        "texto": "There was no pre-configured way to block the requests; mitigation for this kind of attack existed in the load balancing tier and the DDoS mitigation platform but was not configured in advance, and configuring, testing and tuning the countermeasures lengthened the downtime.",
+        "trechos": [
+          "Unfortunately, we did not have a pre-configured way to block these requests and it took us a while to deploy a change to block them.",
+          "We had the ability to mitigate attacks of this nature in our load balancing tier and in our DDoS mitigation platform, but they were not configured in advance.",
+          "It took us valuable minutes to configure, test, and tune these countermeasures which resulted in a longer than necessary downtime."
+        ]
+      },
+      {
+        "texto": "The attack used an additional vector to exhaust SSL processing capacity on the load balancers; the countermeasures for it required significant tuning to reduce false positives that impacted legitimate customers, resulting in approximately 25 more minutes of downtime between 23:05 and 23:30 UTC.",
+        "trechos": [
+          "Despite the fact that things appeared to be stabilizing, we were still seeing a very high number of SSL connections on our load balancers.",
+          "After some further investigation, we determined that this was an additional vector that the attack was using in an effort to exhaust our SSL processing capacity.",
+          "We were able to respond quickly using our mitigation platform, but the countermeasures required significant tuning to reduce false positives which impacted legitimate customers. This resulted in approximately 25 more minutes of downtime between 23:05-23:30 UTC."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "A change was deployed to block the malicious request; by 22:35 UTC it was blocked and the site appeared to be operating normally.",
+          "trechos": [
+            "Unfortunately, we did not have a pre-configured way to block these requests and it took us a while to deploy a change to block them.",
+            "By 22:35 UTC we had blocked the malicious request and the site appeared to be operating normally."
+          ]
+        },
+        {
+          "texto": "Countermeasures against the SSL exhaustion vector were applied on the DDoS mitigation platform and tuned to reduce false positives; by 23:34 UTC the site was fully operational.",
+          "trechos": [
+            "We were able to respond quickly using our mitigation platform, but the countermeasures required significant tuning to reduce false positives which impacted legitimate customers.",
+            "By 23:34 UTC, the site was fully operational."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: monitoring was adjusted to better detect and alert on traffic pattern changes indicative of an attack, and automation can now automatically enable mitigation for the specific traffic pattern seen during this attack.",
+          "trechos": [
+            "We have already made adjustments to our monitoring to better detect and alert us of traffic pattern changes that are indicative of an attack. In addition, our robots are now able to automatically enable mitigation for the specific traffic pattern that we saw during the attack."
+          ]
+        },
+        {
+          "texto": "Already done: Hubot was given new templates for operating the mitigation platform against attacks like this one.",
+          "trechos": [
+            "We’ve leveled him up with some new templates for attacks like this one so that he can help us recover faster in the future.",
+            "Hubot is able to route our traffic through our mitigation partner and to apply templates to operate our mitigation platform for known attack types."
+          ]
+        },
+        {
+          "texto": "In progress: investigating ways to simulate attacks in a controlled way to test countermeasures regularly.",
+          "trechos": [
+            "We are investigating ways that we can simulate attacks in a controlled way so that we can test our countermeasures on a regular basis to build additional confidence in both our mitigation tools and to improve our response time in bringing them to bear."
+          ]
+        },
+        {
+          "texto": "In progress: talking to third-party security consultants to review DDoS detection and mitigation capability.",
+          "trechos": [
+            "We are talking to some 3rd party security consultants to review our DDoS detection and mitigation capability."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 120,
+      "trechos": [
+        "On Tuesday, March 11th, GitHub was largely unreachable for roughly 2 hours as the result of an evolving distributed denial of service (DDoS) attack."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The stated duration ('roughly 2 hours') is used; the timeline runs from investigating reports at 21:25 UTC to the site being fully operational at 23:34 UTC. No year is given in the extracted text. The attack continued after mitigation without further customer impact.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.20"
+  }
+}

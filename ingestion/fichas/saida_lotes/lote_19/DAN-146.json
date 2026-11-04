@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-146",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During a scheduled OS upgrade, a subtle bug in the upgrade script caused a small number of active database machines to be reinstalled; some master-replica pairs were impacted and the Dropbox site went down. Service was restored from backups: most functionality returned in about three hours, and core service fully returned by 4:40 PM PT on Sunday, slowed by the size of some databases.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Dropbox",
+      "photo album sharing",
+      "camera uploads",
+      "API features"
+    ],
+    "tecnologias": [
+      "MySQL",
+      "OS upgrade script",
+      "binary logs"
+    ],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "The service went down during scheduled maintenance on Friday evening; the text does not say how this was noticed.",
+        "trechos": [
+          "On Friday evening our service went down during scheduled maintenance."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "On Friday at 5:30 PM PT, a planned maintenance ran to upgrade the OS on some machines.",
+      "trechos": [
+        "On Friday at 5:30 PM PT, we had a planned maintenance scheduled to upgrade the OS on some of our machines."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The upgrade script is meant to check that there is no active data on a machine before installing the new OS, but a subtle bug in the script caused it to reinstall a small number of active machines; some master-replica database pairs were impacted, which resulted in the site going down.",
+        "trechos": [
+          "During this process, the upgrade script checks to make sure there is no active data on the machine before installing the new OS.",
+          "A subtle bug in the script caused the command to reinstall a small number of active machines. Unfortunately, some master-replica pairs were impacted which resulted in the site going down."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The large size of some databases slowed recovery from backups, and the standard tool used to recover MySQL data from backups is slow with large data sets.",
+        "trechos": [
+          "We were able to restore most functionality within 3 hours, but the large size of some of our databases slowed recovery, and it took until 4:40 PM PT today for core service to fully return.",
+          "The standard tool used to recover MySQL data from backups is slow when dealing with large data sets."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A planned OS upgrade on some machines.",
+        "trechos": [
+          "On Friday at 5:30 PM PT, we had a planned maintenance scheduled to upgrade the OS on some of our machines."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "Service was recovered from backups; most functionality was restored within 3 hours.",
+          "trechos": [
+            "To restore service as fast as possible, we performed the recovery from our backups.",
+            "We were able to restore most functionality within 3 hours, but the large size of some of our databases slowed recovery, and it took until 4:40 PM PT today for core service to fully return."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: added a layer of checks that require machines to locally verify their state before executing incoming commands, so machines that self-identify as running critical processes refuse potentially destructive operations.",
+          "trechos": [
+            "We’ve since added an additional layer of checks that require machines to locally verify their state before executing incoming commands. This enables machines that self-identify as running critical processes to refuse potentially destructive operations."
+          ]
+        },
+        {
+          "texto": "Already done: developed a tool that parallelizes the replay of binary logs for faster recovery from large MySQL backups; the authors plan to open source it.",
+          "trechos": [
+            "To speed up our recovery, we developed a tool that parallelizes the replay of binary logs. This enables much faster recovery from large MySQL backups. We plan to open source this tool so others can benefit from what we’ve learned."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 180,
+      "trechos": [
+        "The service was back up and running about three hours later, with core service fully restored by 4:40 PM PT on Sunday."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The service was back up about three hours after going down on Friday evening; core service was fully restored by 4:40 PM PT on Sunday, which is not counted in duracao. No calendar date or year appears in the extracted text. The text does not say whether the binary-log replay tool was used during this recovery.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.20"
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-096",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Over several days, peak-hour load and resource contention on GitHub's shared mysql1 database cluster caused four incidents with failing database connections (in the first, the database proxy reached its maximum number of connections) and write operations unavailable across many services. The text reports recovering by failing over to a healthy replica on March 16 and March 23; an index was implemented to fix the main performance problem and webhook traffic was throttled to reduce load.",
+    "data_incidente": null,
+    "status_relatorio": "preliminar",
+    "servicos_afetados": [
+      "git operations",
+      "webhooks",
+      "pull requests",
+      "API requests",
+      "issues",
+      "GitHub Packages",
+      "GitHub Codespaces",
+      "GitHub Actions",
+      "GitHub Pages"
+    ],
+    "tecnologias": [
+      "MySQL",
+      "mysql1",
+      "database proxy"
+    ],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "GitHub saw an increased load during peak hours on the mysql1 database, with the database proxying technology reaching its maximum number of connections; the text does not say how this was noticed.",
+        "trechos": [
+          "At this time, GitHub saw an increased load during peak hours on our mysql1 database, causing our database proxying technology to reach its maximum number of connections."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The underlying theme of the incidents was resource contention in the mysql1 cluster during periods of peak load: increased peak-hour load made the database proxying technology reach its maximum number of connections.",
+        "trechos": [
+          "The underlying theme of our issues over the past few weeks has been due to resource contention in our mysql1 cluster, which impacted the performance of a large number of our services and features during periods of peak load.",
+          "At this time, GitHub saw an increased load during peak hours on our mysql1 database, causing our database proxying technology to reach its maximum number of connections."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The mysql1 database is shared by multiple services and receives heavy read/write traffic.",
+        "trechos": [
+          "This particular database is shared by multiple services and receives heavy read/write traffic."
+        ]
+      },
+      {
+        "texto": "The first incident appeared to be related to peak load combined with poor query performance for specific sets of circumstances.",
+        "trechos": [
+          "The incident appeared to be related to peak load combined with poor query performance for specific sets of circumstances."
+        ]
+      },
+      {
+        "texto": "On March 17, the query performance issues had not been pinpointed before the peak; a proactive failover caused a new load pattern that introduced connectivity issues on the new primary.",
+        "trechos": [
+          "We were not able to pinpoint and address the query performance issues before this peak, and we decided to proactively failover before the issue escalated.",
+          "Unfortunately, this caused a new load pattern that introduced connectivity issues on the new failed-over primary, and applications were once again unable to connect to mysql1 while we worked to reset these connections."
+        ]
+      },
+      {
+        "texto": "On March 22, memory profiling was enabled on the database proxy to examine performance during peak load; at the same time, client connections to mysql1 started to fail (the text does not state a causal link).",
+        "trechos": [
+          "In this third incident, we enabled memory profiling on our database proxy in order to look more closely at the performance characteristics during peak load.",
+          "At the same time, client connections to mysql1 started to fail, and we needed to again perform a primary failover in order to recover."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "March 16: recovered by failing over the mysql1 primary to a healthy replica.",
+          "trechos": [
+            "We were able to recover by failing over to a healthy replica and started investigations into traffic patterns at peak load related to query performance during these times."
+          ]
+        },
+        {
+          "texto": "March 23: performed a primary failover to recover and throttled webhook traffic to reduce load.",
+          "trechos": [
+            "We again saw a recurrence of load characteristics that caused client connections to fail and again performed a primary failover in order to recover.",
+            "In order to reduce load, we throttled webhook traffic and will continue to use that as a mitigation to prevent future recurrence during peak load times as we continue to investigate further mitigations."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: after the load pattern was identified during the March 17 incident, an index was implemented to fix the main performance problem.",
+          "trechos": [
+            "We were able to identify the load pattern during this incident and subsequently implemented an index to fix the main performance problem."
+          ]
+        },
+        {
+          "texto": "Webhook traffic throttling will continue to be used during peak load times to prevent recurrence.",
+          "trechos": [
+            "In order to reduce load, we throttled webhook traffic and will continue to use that as a mitigation to prevent future recurrence during peak load times as we continue to investigate further mitigations."
+          ]
+        },
+        {
+          "texto": "Started: an audit of load patterns for the mysql1 database during peak hours and a series of performance fixes based on these audits.",
+          "trechos": [
+            "In order to prevent these types of incidents from occurring in the future, we have started an audit of load patterns for this particular database during peak hours and a series of performance fixes based on these audits."
+          ]
+        },
+        {
+          "texto": "Moving traffic to other databases to reduce load and speed up failover time.",
+          "trechos": [
+            "As part of this, we are moving traffic to other databases in order to reduce load and speed up failover time, as well as reviewing our change management procedures, particularly as it relates to monitoring and changes during high load in production."
+          ]
+        },
+        {
+          "texto": "Reviewing change management procedures, particularly regarding monitoring and changes during high load in production.",
+          "trechos": [
+            "As part of this, we are moving traffic to other databases in order to reduce load and speed up failover time, as well as reviewing our change management procedures, particularly as it relates to monitoring and changes during high load in production."
+          ]
+        },
+        {
+          "texto": "Scaling up infrastructure, including sharding databases and scaling hardware.",
+          "trechos": [
+            "As the platform continues to grow, we have been working to scale up our infrastructure including sharding our databases and scaling hardware."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "baixa",
+  "motivo_confianca_baixa": "tipo: postmortem vs relatorio_periodico. The text is an account written by the affected company after the incidents (what happened, why, what will change), which fits 'postmortem', but it also covers four separate incidents over a period of weeks, which fits 'report covering several incidents of a period'; neither definition excludes the other here.",
+  "observacoes": "The four incidents have separate stated durations: March 16 14:09 UTC (5 hours 36 minutes), March 17 13:46 UTC (2 hours 28 minutes), March 22 15:53 UTC (2 hours 53 minutes), March 23 14:49 UTC (2 hours 51 minutes); no single impact duration applies, so duracao is null. No year is given in the extracted text. status_relatorio is preliminar because the text says it shares 'what we know now' and that more will come in the next Availability Report. For March 22 the text only says a primary failover was 'needed' to recover, so it is not listed as a mitigation step. The text names a 'database proxy' without naming the product. For March 17 the text says only that the team 'worked to reset these connections' and that an index was 'subsequently' implemented, so no restoration step is listed for that day and the index is listed under prevencao.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.20"
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-200",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "fora_de_ti",
+    "seguranca": "nao",
+    "problemas_texto": ["rodape_marketing"]
+  },
+  "incidente": {
+    "resumo": "The Mars Pathfinder spacecraft computer reset on Mars when the high-priority bc_dist task missed its deadline, a case of priority inversion: it was blocked on a vxWorks select() mutex semaphore, created without priority inheritance, held by the low-priority ASI/MET task while medium-priority tasks ran. After reproducing it in the lab, the team modified the vxWorks global variable to enable priority inheritance for these semaphores and patched the onboard software, which corrected the problem.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": ["Mars Pathfinder spacecraft"],
+    "tecnologias": ["vxWorks", "VME bus", "1553 bus", "select()", "pipe()", "semMCreate", "selectLib()", "IPC", "RS6000"],
+    "categoria_causa": "configuration-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "The spacecraft itself identified the failure as the bc_dist task not completing its execution before the bc_sched task started, and reacted by resetting the computer.",
+        "trechos": [
+          "The failure was identified by the spacecraft as a failure of the bc_dist task to complete its execution before the bc_sched task started. The reaction to this by the spacecraft was to reset the computer."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "Priority inversion: the higher-priority bc_dist task was blocked by the much lower-priority ASI/MET task, which held the mutual exclusion semaphore used within the vxWorks select() mechanism and had been preempted by medium-priority tasks; when bc_sched woke and found bc_dist had not completed its cycle (a hard deadline), it declared the error that initiated the reset. The semaphore was created without the priority inheritance option.",
+        "trechos": [
+          "The failure turned out to be a case of priority inversion (how we discovered this and how we fixed it are covered later). The higher priority bc_dist task was blocked by the much lower priority ASI/MET task that was holding a shared resource.",
+          "The resource that caused this problem was a mutual exclusion semaphore used within the select() mechanism to control access to the list of file descriptors that the select() mechanism was to wait on.",
+          "At that point, the bc_sched task determined that the bc_dist task had not completed its cycle (a hard deadline in the system) and declared the error that initiated the reset.",
+          "The ASI/MET task had acquired this resource and then been preempted by several of the medium priority tasks.",
+          "Once we understood the problem the fix appeared obvious : change the creation flags for the semaphore so as to enable priority inheritance.",
+          "But there was no conscious decision to not have the priority inheritance option enabled."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "The problem only manifested when ASI/MET data was being collected and intermediate tasks were heavily loaded; pre-launch testing was limited to 'best case' high data rates and science activities, and surface data rates and science activity higher than anticipated aggravated the problem.",
+        "trechos": [
+          "The problem would only manifest itself when ASI/MET data was being collected and intermediate tasks were heavily loaded. Our before launch testing was limited to the \"best case\" high data rates and science activities.",
+          "The fact that data rates from the surface were higher than anticipated and the amount of science activities proportionally greater served to aggravate the problem."
+        ]
+      },
+      {
+        "texto": "The problem was seen before landing but could not be repeated, and it was considered lower priority than the entry and landing software, relying on the system's reset and recovery safeguards.",
+        "trechos": [
+          "We did see the problem before landing but could not get it to repeat when we tried to track it down.",
+          "Yes, we were concentrating heavily on the entry and landing software. Yes, we considered this problem lower priority.",
+          "These safeguards allowed us to designate problems of this nature as lower priority."
+        ]
+      },
+      {
+        "texto": "The ASI/MET task was the exception that received real-time data through the IPC mechanism based on vxWorks pipe() and select(), rather than the shared memory used by most tasks; the authors state the cause of the reset was in the use and configuration of this IPC mechanism.",
+        "trechos": [
+          "The exception to this is the ASI/MET task which is delivered its information via an interprocess communication mechanism (IPC). The IPC mechanism uses the vxWorks pipe() facility.",
+          "The cause of the reset on Mars was in the use and configuration of the IPC mechanism."
+        ]
+      },
+      {
+        "texto": "The global configuration variable for the semaphore options used by the select service is not documented, and the select semaphore code is common to all device creations, so the option could not easily be changed only for the bc_dist to ASI/MET pipe.",
+        "trechos": [
+          "The Wind River folks, for many of their services, supply global configuration variables for parameters such as the \"options\" parameter for the semMCreate used by the select service (although this is not documented and those who do not have vxWorks source code or have not studied the source code might be unaware of this feature).",
+          "There was no easy way in our initialization logic to only modify the semaphore associated with the pipe used for bc_dist task to ASI/MET task communications."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "The vxWorks global variable for the select semaphores was modified to include the priority inheritance option, which corrected the problem; the change was analyzed and tested extensively before the spacecraft software was changed.",
+          "trechos": [
+            "We did end up modifying the global variable to include the priority inheritance option. This corrected the problem.",
+            "We concluded, both by analysis and test, that there was no adverse behavior. We tested the system extensively before we changed the software on the spacecraft."
+          ]
+        },
+        {
+          "texto": "The onboard software was patched by sending the differences to the spacecraft, where custom software with validation modified the onboard copy.",
+          "trechos": [
+            "It involves sending the differences between what you have onboard and what you want (and have on Earth) to the spacecraft. Custom software on the spacecraft (with a whole bunch of validation) modifies the onboard copy."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "Recommendation to teams flying commercial off-the-shelf software: make sure you know how it works.",
+          "trechos": [
+            "A good lesson when you fly COTS stuff - make sure you know how it works."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The message was sent on Monday, December 15, 1997, but the text does not date the resets themselves. Each reset terminated the current ground-commanded activities, and the remaining activities for that day were not accomplished until the next day; no bounded outage duration is given. The problem was reproduced in the lab in less than 18 hours using a built-in trace/log facility. The only prevention offered is a lesson for others. Wind River concluded the performance impact of priority inheritance would be minimal. The document ends with related-links navigation.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.20" }
+}

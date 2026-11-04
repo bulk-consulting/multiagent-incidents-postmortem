@@ -297,7 +297,11 @@ def manifesto() -> dict[str, dict]:
 def reextrair(cid: str, baixado: dict | None = None) -> dict:
     if baixado:
         # bytes: o BeautifulSoup respeita o charset declarado (páginas antigas em latin-1)
-        sopa = BeautifulSoup((BAIXADOS / cid / "pagina.html").read_bytes(), "html.parser")
+        bruto = (BAIXADOS / cid / "pagina.html").read_bytes()
+        sopa = BeautifulSoup(bruto, "html.parser")
+        # páginas antigas declaram ISO-8859-1 mas usam windows-1252 (aspas e apóstrofos 0x91-0x97)
+        if (sopa.original_encoding or "").lower() in ("iso-8859-1", "latin-1", "latin1"):
+            sopa = BeautifulSoup(bruto, "html.parser", from_encoding="cp1252")
     else:
         html = (DANLUU / "raw" / f"{cid}.html").read_text(encoding="utf-8", errors="replace")
         sopa = BeautifulSoup(html, "html.parser")

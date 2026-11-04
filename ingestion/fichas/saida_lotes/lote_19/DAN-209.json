@@ -1,0 +1,128 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-209",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "During a migration of Zookeeper, the autoscaler that had been manually shut off was turned back on by the package management system, read partially migrated Zookeeper data and terminated many application and caching servers in 16 seconds, taking Reddit down for about 1.5 hours and leaving it degraded for another 1.5 hours. The site was put in down mode while servers were restored; performance was degraded until latency returned to normal at 18:19 PDT.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Reddit",
+      "Reddit API"
+    ],
+    "tecnologias": [
+      "Zookeeper",
+      "autoscaler",
+      "package management system",
+      "Amazon cloud",
+      "caching servers",
+      "databases"
+    ],
+    "categoria_causa": "other",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "At 15:24 PDT the team noticed servers being shut down; the text does not say whether an alert fired.",
+        "trechos": [
+          "At 15:24PDT, we noticed servers being shut down, and at 15:47PDT, we set the site to “down mode” while we restored the servers."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "The autoscaler, manually shut off during the Zookeeper migration, unexpectedly turned back on at 15:23 PDT because the package management system noticed the manual change and reverted it.",
+      "trechos": [
+        "Since autoscaler reads from Zookeeper, we shut it off manually during the migration so it wouldn’t get confused about which servers should be available.",
+        "It unexpectedly turned back on at 15:23PDT because our package management system noticed a manual change and reverted it."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The autoscaler read the partially migrated Zookeeper data and terminated many application servers, which serve the website and API, and caching servers, in 16 seconds.",
+        "trechos": [
+          "Autoscaler read the partially migrated Zookeeper data and terminated many of our application servers, which serve our website and API, and our caching servers, in 16 seconds."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "After all servers were restored, the new caches were still empty, which increased load on the databases and led to degraded performance.",
+        "trechos": [
+          "However, at that point our new caches were still empty, leading to increased load on our databases, which in turn led to degraded performance."
+        ]
+      },
+      {
+        "texto": "The package management system was not disabled during the migration, so it reverted the manual shutoff of the autoscaler.",
+        "trechos": [
+          "Properly disable package management systems during migrations so they don’t affect systems unexpectedly.",
+          "It unexpectedly turned back on at 15:23PDT because our package management system noticed a manual change and reverted it."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "An in-progress migration of Zookeeper to new infrastructure inside the Amazon cloud; the authors state the downtime was due to an error during this migration.",
+        "trechos": [
+          "Part of our infrastructure upgrades included migrating Zookeeper to a new, more modern, infrastructure inside the Amazon cloud.",
+          "The downtime was due to an error during a migration of a critical backend system."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "At 15:47 PDT the site was set to 'down mode' while the terminated servers were restored; all servers were restored by 16:42 PDT.",
+          "trechos": [
+            "At 15:24PDT, we noticed servers being shut down, and at 15:47PDT, we set the site to “down mode” while we restored the servers. By 16:42PDT, all servers were restored."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Make the autoscaler less aggressive by limiting how many servers can be shut down at once.",
+          "trechos": [
+            "Make our autoscaler less aggressive by putting limits to how many servers can be shut down at once."
+          ]
+        },
+        {
+          "texto": "Have two engineers pair during risky parts of migrations.",
+          "trechos": [
+            "Improve our migration process by having two engineers pair during risky parts of migrations."
+          ]
+        },
+        {
+          "texto": "Properly disable package management systems during migrations so they do not affect systems unexpectedly.",
+          "trechos": [
+            "Properly disable package management systems during migrations so they don’t affect systems unexpectedly."
+          ]
+        }
+      ]
+    },
+    "duracao": {
+      "minutos": 90,
+      "trechos": [
+        "On Thursday, August 11, Reddit was down and unreachable across all platforms for about 1.5 hours, and slow to respond for an additional 1.5 hours."
+      ]
+    },
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The stated downtime of about 1.5 hours is used; the Impact section gives down from 15:24 PDT to 16:52 PDT and degraded from 16:52 PDT to 18:19 PDT, when latency returned to normal. No year is given in the extracted text. The authors say the migration is now complete and they do not expect this exact combination of failures again. categoria_causa is other: the stated root cause (the autoscaler acting on partially migrated Zookeeper data) names no wrong configuration value, datastore failure or capacity limit.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.20"
+  }
+}

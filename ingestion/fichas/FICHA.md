@@ -1,6 +1,6 @@
 # Ficha de post-mortem — formulário
 
-**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.20
+**Versão:** 1.0 (rascunho) · **Schema:** [`ficha.schema.json`](ficha.schema.json) · **Prompt:** [`prompt_extracao.md`](prompt_extracao.md) v2.21
 
 Cada documento do danluu vira uma ficha `DAN-xxx.json`. A ficha **não substitui** o texto original: o RAG continua indexando e citando o original. A ficha organiza o que o texto diz, para triagem, metadados e chunking.
 
@@ -135,6 +135,7 @@ Regra do IPA mantida: **classificar pela origem, não pelo efeito**. A categoria
 - **v2.18** (revisão das fichas antigas, quando o GPT e eu escolhemos recuperações parciais diferentes para a mesma ficha): a volta parcial só encerra o impacto se o texto disser que o serviço afetado voltou para a maioria; volta de subsistema, de outra região ou "a pior parte durou X" não contam; várias voltas desse tipo ou nenhuma → `null`, sem baixar a confiança. DAN-062, 106 e 111 passaram de `baixa` para `alta` com duração `null`.
 - **v2.19** (reextração de 49 documentos): nota de formato antes do bloco INPUT. `## ` marca intertítulos, e as atualizações de status page vêm da mais nova para a mais antiga, então o incidente começa na última. Não muda regra nem ficha aceita. O lote 00 não precisa rodar de novo, porque os documentos do gabarito ficam com o texto original.
 - **v2.20** (lotes 17-18, quando o GPT contestou duas vezes o precedente que a conferência já usava): "engineers were paged" ou "were alerted", sem pessoa que deu o aviso, é `alerta_automatico`. Não muda ficha aceita.
+- **v2.21** (lotes 18-19, DAN-097 e 160): ação de prevenção que o texto descreve em andamento é "In progress:", e "Planned:" fica para "we will" e "we plan". Saiu o "we are looking into" dos exemplos de planejado da regra 4, que contradizia isso. Não muda ficha aceita.
 
 ## Validação
 

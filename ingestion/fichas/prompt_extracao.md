@@ -1,5 +1,5 @@
 <!--
-Prompt de extração da ficha (peça 2). Versão: v2.20.
+Prompt de extração da ficha (peça 2). Versão: v2.21.
 v1 guardada em prompt_extracao_v1.md. Mudanças da v2 (revisão do piloto, ver FICHA.md):
 regra 2 (trechos sustentam todo detalhe do texto), regras 3 e 4 novas (causalidade e plano x feito),
 gatilho x causa raiz, categoria pela causa raiz, detecção, resumo com desfecho, mitigação com a correção concreta.
@@ -32,6 +32,7 @@ v2.17 (amostra do lote 15, 10 ERRADOS em 6 fichas): mudança que só impediu a r
 v2.18 (revisão das fichas antigas): volta parcial só conta se o texto diz que o serviço afetado voltou para a maioria; várias ou nenhuma → null sem baixar a confiança.
 v2.19 (reextração): nota de formato do texto — "## " marca intertítulos; atualizações de status page vêm da mais nova para a mais antiga.
 v2.20 (lotes 17-18): "engineers were paged/alerted", sem pessoa que deu o aviso, é alerta_automatico.
+v2.21 (lotes 18-19): ação de prevenção em andamento ("we are working to") é "In progress:", não "Planned:".
 Escrito em inglês de propósito (ver FICHA.md, seção "Idioma").
 A parte entre ===== INPUT ===== é preenchida para cada documento.
 -->
@@ -50,7 +51,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
    - **The `trechos` of a claim must support every detail of its `texto` on their own**: names, dates, times, numbers, who did or recommended something, and results. A reader must not need any other part of the document to check the claim. If a detail is not in the `trechos`, add the passage that states it or remove the detail.
    - If a `trecho` refers back with "this", "these metrics", "it", "the change", "at this point", "something", "that fix", add the passage that says what it refers to. A number or a name in the `texto` (a TTL value, a version, who recommended something) must appear in a `trecho` of that same claim.
 3. **No causal links the text does not state.** Do not connect two facts with "so", "which caused", "until", "because" unless the document states that link. "At the same time" or "we then noticed" is not "because". "X happened, and eventually they identified Y" is not "Y caused X": write it in the text's order. If the document only suggests a link, keep its wording ("the authors consider it likely that…").
-4. **Done is not planned.** Keep apart what was done from what was planned or proposed ("this process would involve", "we will", "we are looking into", "we figured it was worth trying"). A planned step is described as planned, never as done. The other way round too: an action already done that appears among future actions is marked "Already done:". If the passage you found only proposes a step, add the passage that confirms it was carried out ("shortly after making those changes…", "the downgrade was successful"). **Tried is not achieved either**: "focused on recovering", "worked to", "tried to", "devised a fix", "scheduled", "asked the data center team to reboot", "called X to" describe effort, intent or a request; write them that way. **A purpose is not a result**: "tested X to determine that it has no effect", "to ensure", "to check" state what the test was for, not what it found. **In timelines, "at 19:15 the decision was made to scale" is a decision**: write "decided at 19:15", and state that it was done only if another passage says so; write them that way, never as a result ("recovered", "fixed", "deployed").
+4. **Done is not planned.** Keep apart what was done from what was planned or proposed ("this process would involve", "we will", "we figured it was worth trying"). A planned step is described as planned, never as done. The other way round too: an action already done that appears among future actions is marked "Already done:". If the passage you found only proposes a step, add the passage that confirms it was carried out ("shortly after making those changes…", "the downgrade was successful"). **Tried is not achieved either**: "focused on recovering", "worked to", "tried to", "devised a fix", "scheduled", "asked the data center team to reboot", "called X to" describe effort, intent or a request; write them that way. **A purpose is not a result**: "tested X to determine that it has no effect", "to ensure", "to check" state what the test was for, not what it found. **In timelines, "at 19:15 the decision was made to scale" is a decision**: write "decided at 19:15", and state that it was done only if another passage says so; write them that way, never as a result ("recovered", "fixed", "deployed").
 5. **Keep the certainty of the source.** If the text says "we believe", "likely", "appears", "we suspect", "still investigating", your `texto` must keep that uncertainty. Never turn a hypothesis into a fact.
 6. **Neutral and blameless.** Describe systems and conditions, not people. No judgment words (careless, negligent, terrible, etc.). Do not name individuals.
 7. **When in doubt, choose the weaker option** (e.g. `incerta` over `concreta`, `generica` over `especifica`). If, after applying every rule below, two values still fit a field, choose the weaker one and set `confianca` to `baixa` (see `confianca`).
@@ -160,7 +161,7 @@ You are extracting a structured record ("ficha") from one public incident post-m
 - `generica`: every step is only a generic action ("we rolled back", "we restarted", "we applied a fix"), even if the component is named.
 - `ausente`: the text does not say how service came back → `passos` = `[]`.
 
-**`prevencao`** — what the document says will be done, or has already been done, to avoid recurrence.
+**`prevencao`** — what the document says will be done, or has already been done, to avoid recurrence. Start each action with its state: "Already done:" (done), "In progress:" (the text describes it as under way: "we are working to", "we are addressing", "we are talking to", "we are looking into"), or "Planned:" ("we will", "we plan to", proposed).
 - `especificas`: at least one action names the mechanism and where it applies, so someone could check it was done ("feature flags, disabled by default, for all changes to critical binaries", "hourly LVM snapshots of the production databases", "Prometheus monitoring for backups").
 - `genericas`: every action names only an area or intention ("additional guardrails in our change management process", "more sensible concurrency limits", "improve our processes").
 - `ausentes`: no prevention mentioned → `acoes` = `[]`.
@@ -215,7 +216,7 @@ Return **only** one JSON object, no comments, no Markdown fences, matching this 
   "confianca": "alta" | "baixa",
   "motivo_confianca_baixa": "..."   (only when confianca is "baixa"),
   "observacoes": "..."              (optional),
-  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.20" }
+  "extracao": { "modelo": "<model name>", "data": "<YYYY-MM-DD>", "versao_prompt": "v2.21" }
 }
 
 ## Document format

@@ -1,0 +1,128 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-156",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "Foursquare's check-in MongoDB data on one shard grew beyond the RAM of its host, so queries had to hit disk, became very slow and caused a backlog that brought the site down over two days. Adding a third shard did not help because of data fragmentation; service was restored after compacting shard0 offline with repairDatabase(), which took about 4 hours.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": ["Foursquare", "Foursquare check-ins"],
+    "tecnologias": ["MongoDB", "EC2", "EBS", "repairDatabase()"],
+    "categoria_causa": "capacity-load",
+    "deteccao": {
+      "forma": "nao_informada",
+      "descricao": {
+        "texto": "Certain queries started to become very slow, causing a backlog that brought the site down; the text does not say how this was noticed.",
+        "trechos": [
+          "Thus, certain queries started to become very slow, and this caused a backlog that brought the site down."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "On Monday morning the data on one shard (shard0) grew to about 67GB, surpassing the 66GB of RAM on its host; reads and writes then had to go to disk, certain queries became very slow, and the resulting backlog brought the site down.",
+        "trechos": [
+          "On Monday morning, the data on one shard (we’ll call it shard0) finally grew to about 67GB, surpassing the 66GB of RAM on the hosting machine.",
+          "Whenever data size grows beyond physical RAM, it becomes necessary to read and write to disk, which is orders of magnitude slower than reading and writing RAM. Thus, certain queries started to become very slow, and this caused a backlog that brought the site down."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Check-ins did not grow evenly across the 200 chunks split by user id, so one shard grew to 66GB while the other grew only to 50GB.",
+        "trechos": [
+          "The data had been split into 200 evenly distributed chunks based on user id.",
+          "Unfortunately, these check-ins did not grow evenly across chunks.",
+          "That’s what occurred in this case, resulting in one shard growing to 66GB and the other only to 50GB."
+        ]
+      },
+      {
+        "texto": "Data fragmentation on shard0: check-in documents are about 300 bytes, so moving 5% of the data to a new shard made 4KB pages sparser instead of freeing them, and the data files still needed the same amount of RAM.",
+        "trechos": [
+          "When this failed to correct itself, we ultimately discovered that the problem was due to data fragmentation on shard0.",
+          "In essence, although we had moved 5% of the data from shard0 to the new third shard, the data files, in their fragmented state, still needed the same amount of RAM.",
+          "This can be explained by the fact that Foursquare check-in documents are small (around 300 bytes each), so many of them can fit on a 4KB page. Removing 5% of these just made each page a little more sparse, rather than removing pages altogether.[2]"
+        ]
+      },
+      {
+        "texto": "There were no notifications warning in advance that more capacity was needed; the authors state that an alert 12 hours earlier would have allowed adding a shard, migrating data and compacting the slaves.",
+        "trechos": [
+          "For example, if we had notifications in place to alert us 12 hours earlier that we needed more capacity, we could have added a third shard, migrated data, and then compacted the slaves."
+        ]
+      },
+      {
+        "texto": "The offline compaction took about 4 hours, partly due to the data size and partly because of the slowness of EBS volumes at the time.",
+        "trechos": [
+          "This process took about 4 hours (partly due to the data size, and partly because of the slowness of EBS volumes at the time)."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "A third shard was brought up and chunks were migrated to it; queries were distributed to all three shards, but shard0 continued to hit disk heavily, which led to discovering the fragmentation problem.",
+          "trechos": [
+            "We first attempted to fix the problem by adding a third shard. We brought the third shard up and started migrating chunks. Queries were now being distributed to all three shards, but shard0 continued to hit disk very heavily.",
+            "When this failed to correct itself, we ultimately discovered that the problem was due to data fragmentation on shard0."
+          ]
+        },
+        {
+          "texto": "During the second day's outage, with 5% of the data already moved off shard0, an offline compaction of the database was run using MongoDB's repairDatabase(); after about 4 hours the RAM requirements for shard0 had been reduced by 5%, allowing the system to be brought back online.",
+          "trechos": [
+            "By the time the second day's outage occurred, we had already move 5% of the data off of shard0, so we decided to start an offline process to compact the database using MongoDB’s repairDatabase() feature.",
+            "This process took about 4 hours (partly due to the data size, and partly because of the slowness of EBS volumes at the time). At the end of the 4 hours, the RAM requirements for shard0 had in fact been reduced by 5%, allowing us to bring the system back online."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: more shards were set up, so check-in data is evenly distributed with extra capacity; repairDatabase() was run on the slaves and the slaves were promoted to masters, reducing the RAM needed on each shard to about 20GB.",
+          "trechos": [
+            "Since repairing shard0 and adding a third shard, we’ve set up even more shards, and now the check-in data is evenly distributed and there is a good deal of extra capacity.",
+            "We ran a repairDatabase() on the slaves, and promoted the slaves to masters, further reducing the RAM needed on each shard to about 20GB."
+          ]
+        },
+        {
+          "texto": "Planned (10gen): make MongoDB's splitting balancing look for data-size imbalance between shards so it can act on it.",
+          "trechos": [
+            "This is something we are going to be addressing in MongoDB. We'll be making splitting balancing look for this imbalance so it can act upon it."
+          ]
+        },
+        {
+          "texto": "In progress (10gen): online incremental compaction of both data files and indexes.",
+          "trechos": [
+            "[2] The 10gen team is working on doing online incremental compaction of both data files and indexes."
+          ]
+        },
+        {
+          "texto": "Recommendation to MongoDB users: add capacity before reaching maximum, since adding shards on a live system can be done with no downtime if caught in advance, but is difficult without downtime once at max capacity with small objects.",
+          "trechos": [
+            "The main thing to remember here is that once you’re at max capacity, it’s difficult to add more capacity without some downtime when objects are small. However, if caught in advance, adding more shards on a live system can be done with no downtime."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The account was written by 10gen, the MongoDB vendor, on the mongodb-user mailing list with Foursquare's permission; 10gen and Foursquare engineers worked together on the recovery, so it is treated as primary. The outage spanned two days, but the text gives no total duration or start and end times, and no calendar date. Two months earlier the single instance had been migrated to a two-shard cluster; the text does not say this change set off the problem.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.20" }
+}

@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-165",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "A bug introduced in a refactoring of the Code Jam automated email system made a cron job resend a registration notification every minute, so a large number of 2013 registrants received it more than 20 times. The repetition stopped when, after being alerted by a contestant, the team manually stopped the system.",
+    "data_incidente": null,
+    "status_relatorio": "final",
+    "servicos_afetados": ["Code Jam automated email system"],
+    "tecnologias": ["App Engine datastore", "App Engine mail api", "MailCheckWorker", "cron job"],
+    "categoria_causa": "software-bug",
+    "deteccao": {
+      "forma": "usuarios_clientes",
+      "descricao": {
+        "texto": "The repeated sending was reported by a contestant, after which the system was manually stopped.",
+        "trechos": [
+          "That process repeated several dozen times before we were alerted by a contestant, and manually stopped the system."
+        ]
+      }
+    },
+    "gatilho": null,
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "The MailCheckWorker cron job looks for notifications with status 'Waiting' and starts sending them, but only marks a notification 'Sent' once all emails have been sent, without marking it 'Sending' when it starts; so a minute after sending started, the job started sending the same notification to everyone again, and this repeated several dozen times.",
+        "trechos": [
+          "We have a cron job called the MailCheckWorker that looks for \"Waiting\" notifications and starts sending them. Once all emails have been sent, the notification is marked \"Sent\".",
+          "The MailCheckWorker should start sending the notifications and mark them as \"Sending\". So a minute after we started sending the email to everyone for the first time, the MailCheckWorker started sending it to everyone for the second time.",
+          "That process repeated several dozen times before we were alerted by a contestant, and manually stopped the system."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "Smaller-scale tests of the mail system all finished within a minute, so the MailCheckWorker saw a 'Sent' notification and did not start it again, and the bug did not show in testing.",
+        "trechos": [
+          "We had run smaller-scale tests of the mail system, but they all finished within a minute; so the MailCheckWorker just saw a \"Sent\" notification and didn't start it again."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "generica",
+      "descricao": {
+        "texto": "A bug was introduced in a refactoring of the Code Jam mail system.",
+        "trechos": [
+          "I'm writing this to apologize: we didn't intend to send anyone more than one email, but a bug crept in to a refactoring of our mail system and ruined those plans."
+        ]
+      }
+    },
+    "mitigacao": {
+      "nivel": "generica",
+      "passos": [
+        {
+          "texto": "The mail system was manually stopped after a contestant alerted the team.",
+          "trechos": [
+            "That process repeated several dozen times before we were alerted by a contestant, and manually stopped the system."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "genericas",
+      "acoes": [
+        {
+          "texto": "The Code Jam team states it will work hard to make sure this does not happen again.",
+          "trechos": [
+            "On behalf of the Code Jam team and Google, I'm sorry; we'll work hard to make sure this doesn't happen again."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "The email was titled 'Registration Now Open for Google Code Jam 2014!', but the text gives no date for the incident itself ('A few hours ago'), so data_incidente is null. The text says the MailCheckWorker 'should' mark notifications as 'Sending' but does not say this fix was made.",
+  "extracao": { "modelo": "Claude Opus 5.5 (Claude Code)", "data": "2026-11-04", "versao_prompt": "v2.20" }
+}

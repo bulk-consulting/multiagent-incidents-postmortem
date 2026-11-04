@@ -1,0 +1,161 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "DAN-234",
+  "triagem": {
+    "catalogo": "sim",
+    "autoria": "primaria",
+    "tipo": "postmortem",
+    "dominio": "software_servicos",
+    "seguranca": "nao",
+    "problemas_texto": []
+  },
+  "incidente": {
+    "resumo": "On July 18, 2013, a network connectivity loss made all of Twilio's billing Redis slaves request full synchronization at once, overloading the master; a restart then made it read an incorrect configuration file, drop all balance data and boot read-only, so auto-recharge repeatedly charged credit cards of 1.4% of customers without updating balances. The billing system was taken offline, balances were restored from a separate double-bookkeeping datastore, and billing was progressively re-enabled the next day.",
+    "data_incidente": "2013-07-18",
+    "status_relatorio": "final",
+    "servicos_afetados": [
+      "Twilio billing system",
+      "auto-recharge",
+      "account balances",
+      "Twilio usage reports"
+    ],
+    "tecnologias": [
+      "Redis",
+      "AOF",
+      "relational datastore"
+    ],
+    "categoria_causa": "human-error",
+    "deteccao": {
+      "forma": "alerta_automatico",
+      "descricao": {
+        "texto": "At 2:42 AM PDT the monitoring system alerted the on-call engineering team of a failure in the Redis cluster; at 3:28 AM PDT billing system monitoring reported anomalous activity.",
+        "trechos": [
+          "At 2:42 AM PDT, our monitoring system alerted our on-call engineering team of a failure in the Redis cluster.",
+          "At 3:28 AM PDT, the billing system monitoring reported the anomalous activity."
+        ]
+      }
+    },
+    "gatilho": {
+      "texto": "Observing extreme load on the host, the redis process on redis-master was misdiagnosed as requiring a restart, and on-call engineers restarted redis-master at 2:42 AM PDT to address the high load.",
+      "trechos": [
+        "Observing extreme load on the host, the redis process on redis-master was misdiagnosed as requiring a restart to recover.",
+        "2:42 AM PDT / 9:42 UTC: Our on-call engineers restarted the redis-master to address the high load."
+      ]
+    },
+    "causa_raiz": {
+      "status": "concreta",
+      "descricao": {
+        "texto": "On restart, redis-master read an incorrect configuration file, which made Redis attempt to recover from a non-existent AOF file instead of the binary snapshot, dropping all balance data, and made redis-master boot as a slave of itself in read-only mode, preventing the billing system from updating account balances.",
+        "trechos": [
+          "This caused redis-master to read an incorrect configuration file, which in turn caused Redis to attempt to recover from a non-existent AOF file, instead of the binary snapshot. As a result of that failed recovery, redis-master dropped all balance data.",
+          "In addition to forcing recovery from a non-existent AOF, an incorrect configuration also caused redis-master to boot as a slave of itself, putting it in read-only mode and preventing the billing system from updating account balances."
+        ]
+      }
+    },
+    "fatores_contribuintes": [
+      {
+        "texto": "At 1:35 AM PDT a loss of network connectivity made all billing redis-slaves disconnect and simultaneously request full synchronization with the master, causing extreme load, performance degradation and timeouts; by 2:39 AM PDT services relying on redis-master began to fail.",
+        "trechos": [
+          "At 1:35 AM PDT on July 18, a loss of network connectivity caused all billing redis-slaves to simultaneously disconnect from the master. This caused all redis-slaves to reconnect and request full synchronization with the master at the same time.",
+          "Receiving full sync requests from each redis-slave caused the master to suffer extreme load, resulting in performance degradation of the master and timeouts from redis-slaves to redis-master.",
+          "By 2:39 AM PDT the host’s load became so extreme, services relying on redis-master began to fail."
+        ]
+      },
+      {
+        "texto": "The auto-recharge system failed dangerously: with balances at zero and read-only, billable usage triggered recharges on customers' credit cards, which were charged without the balances being updated, so cards were charged repeatedly; only accounts with auto-recharge enabled were affected.",
+        "trechos": [
+          "With all account balances at zero and read-only, Twilio usage that resulted in a billing transaction (e.g. 1 cent for a SMS message or a phone call) triggered the billing system to attempt a recharge using the credit card associated with the customer’s account. This only affected accounts with auto-recharge enabled.",
+          "Consequently, the billing system charged customer credit cards to increase account balances without being able to update the balances themselves.",
+          "The simultaneous loss of in-flight balance data and the ability to update balances also exposed a critical flaw in our auto-recharge system. It failed dangerously, exposing customer accounts to incorrect charges and suspensions."
+        ]
+      }
+    ],
+    "mudanca_causadora": {
+      "nivel": "nao_se_aplica",
+      "descricao": null
+    },
+    "mitigacao": {
+      "nivel": "especifica",
+      "passos": [
+        {
+          "texto": "At 4:10 AM PDT the billing system was taken offline to prevent further credit card charges.",
+          "trechos": [
+            "At 4:10 AM PDT, on-call engineers responding to the incident shut down the billing system to prevent further charges."
+          ]
+        },
+        {
+          "texto": "At 6:24 AM PDT service was restored to all suspended accounts.",
+          "trechos": [
+            "6:24 AM PDT / 13:24 UTC: Service restored to all suspended accounts."
+          ]
+        },
+        {
+          "texto": "Account balances lost in the failed redis-master recovery were restored from the independent double-bookkeeping record in a separate relational datastore, and the billing system was turned on at 11:58 AM PDT.",
+          "trechos": [
+            "The billing system maintains independent double-bookkeeping for all balance data in a separate relational datastore. Following the shutdown of the billing system, this independent record was used to restore the account balances lost in the failed recovery of the redis-master.",
+            "Once these balances were properly restored, the billing system was turned on at 11:58 AM PDT."
+          ]
+        },
+        {
+          "texto": "After the recurrence at 12:36 PM PDT, the billing system was taken offline again and suspended accounts were immediately reactivated.",
+          "trechos": [
+            "12:36 PM PDT / 19:36 UTC: Monitoring detected a recurrence of the original billing anomalies, affecting another 0.3% of all Twilio customers. The billing system was taken offline again. Suspended accounts were immediately reactivated."
+          ]
+        },
+        {
+          "texto": "The original redis cluster was replaced while resolving the incident.",
+          "trechos": [
+            "In the process of resolving the incident, we replaced the original redis cluster that triggered the incident."
+          ]
+        },
+        {
+          "texto": "On July 19 the billing system was activated progressively for groups of customer accounts from 7:10 PM PDT, for all customers at 8:14 PM PDT, and the all-clear was given at 9:15 PM PDT.",
+          "trechos": [
+            "July 19, 2013",
+            "7:10 PM PDT / July 20 02:30 UTC: The billing system was activated progressively for groups of customer accounts.",
+            "8:14 PM PDT / July 20 03:14 UTC: The billing system was activated for all customers.",
+            "9:15 PM PDT / July 20 04:15 UTC: We gave the all-clear message, and all systems were restored."
+          ]
+        }
+      ]
+    },
+    "prevencao": {
+      "nivel": "especificas",
+      "acoes": [
+        {
+          "texto": "Already done: the incorrect configuration for redis-master was identified and corrected.",
+          "trechos": [
+            "The incorrect configuration for redis-master was identified and corrected."
+          ]
+        },
+        {
+          "texto": "Already done: Redis restarts on redis-master are disabled, and future redis-master recoveries will be done by pivoting a slave.",
+          "trechos": [
+            "As a further preventative measure, Redis restarts on redis-master are disabled and future redis-master recoveries will be accomplished by pivoting a slave."
+          ]
+        },
+        {
+          "texto": "In progress: fail-safes in the auto-recharge path so that if billing balances do not exist or cannot be written, the system will not suspend accounts or charge credit cards.",
+          "trechos": [
+            "We are now introducing robust fail-safes, so that if billing balances don’t exist or cannot be written, the system will not suspend accounts or charge credit cards."
+          ]
+        },
+        {
+          "texto": "Planned: update the billing system to validate against the double-bookkeeping databases in real time.",
+          "trechos": [
+            "Finally, we will be updating the billing system to validate against our double-bookkeeping databases in real-time."
+          ]
+        }
+      ]
+    },
+    "duracao": null,
+    "perguntas_em_aberto": []
+  },
+  "confianca": "alta",
+  "observacoes": "categoria_causa is human-error following the operator-action rule: the misdiagnosed restart is the gatilho and the incorrect configuration file is the causa_raiz. duracao is null because the end time is ambiguous: the timeline gives the all-clear at 9:15 PM PDT on July 19, while the Root Cause section says full restoration was reached 'at 9:15 AM PDT' the following day; candidate start times are 1:35 AM PDT (network loss), 2:39 AM PDT (services failing) and 3:28 AM PDT (billing anomaly detected). The summary says 1.4% of customers were affected; the timeline gives 1.1% and then another 0.3%. Refunds for erroneous charges were processed from 2:57 PM PDT on July 18 to 3:00 PM PDT on July 19, and impacted accounts received a 10% credit. The text says the incorrect configuration file existed but not when it was introduced. After billing was turned back on at 11:58 AM PDT, monitoring detected a recurrence of the anomalies at 12:36 PM PDT affecting another 0.3% of customers.",
+  "extracao": {
+    "modelo": "Claude Opus 5.5 (Claude Code)",
+    "data": "2026-11-04",
+    "versao_prompt": "v2.20"
+  }
+}
