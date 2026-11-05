@@ -1,0 +1,34 @@
+{
+  "catalog_id": "DAN-045",
+  "category": "Config Errors",
+  "company": "NPM",
+  "completeness": {
+    "impact": false,
+    "mitigation_recovery": false,
+    "prevention": false,
+    "root_cause": true,
+    "summary_context": false,
+    "symptoms": true,
+    "timeline": false
+  },
+  "content_hash": "d2221566b0f5b4e7fc10946cb1c3b4b12cdd00904b59d42deb55f538403260f9",
+  "content_type": "text/html",
+  "domain": "blog.npmjs.org",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "The npm blog has been discontinued.\n\nUpdates from the npm team are now published on the GitHub Blog and the GitHub Changelog.\n\n# 2014-01-28 Outage Postmortem\n\nWhile making a change to simplify the Varnish VCL config on Fastly, we added a bug that caused *all* requests to go to Manta, including those that should have gone to CouchDB.\n\nSince Manta doesn’t know how to handle requests like `/pkgname`, these all returned `403 Forbidden` responses.\n\nBecause Fastly is configured to not cache error codes, this proliferation of 403 responses led to a thundering herd which took a bit of time to get under control.\n\nWith the help of the Fastly support team, we have identified the root cause and it is now well understood.  The issue is that we were setting the `req.backend` in a `vcl_fetch` function, and then calling `restart` to re-parse the rules.  However, calling `restart` will reset the `req.backend` to the first backed in the list, which in this case happened to be Manta, rather than the load balanced CouchDB servers.\n\nFuture changes to our Fastly VCL config will take this into account, and always explicitly set the `req.backend` in the `vcl_recv` function, even after a `restart`.\n\nAlso, we are setting up a separate Varnish instance to stage changes like this, so that we can avoid being surprised by errors in our VCL configuration.",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:08:34.739684+00:00",
+  "final_url": "https://blog.npmjs.org/post/74949623024/2014-01-28-outage-postmortem.html",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-045.html",
+  "redirect_history": [],
+  "redirects": [],
+  "review_reason": [
+    "insufficient_postmortem_signals"
+  ],
+  "source_url": "https://blog.npmjs.org/post/74949623024/2014-01-28-outage-postmortem.html",
+  "status": "needs_review",
+  "title": "npm Blog Archive: 2014-01-28 Outage Postmortem",
+  "word_count": 226
+}

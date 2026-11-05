@@ -1,0 +1,889 @@
+ <!doctype html> <html id="html" lang="en"> <head> <meta charset="utf-8" /><script type="text/html" id="sf-tracking-consent-manager">
+	<div id="tracking-consent-dialog" style="display:none" />
+</script><script type="text/javascript" src="/WebResource.axd?d=DzHrpQl5URXarFHAtrmzFrYqRjD6gS4IuhzLeEyFON2caI2mkrIZ-cWZUhWtScTfFLwZXc15Hs5RXRN022ycP7VUuE8swl0YnCh5c2Ro-2N3MJzE0bDpP_DRygOemSWDX0sMq3Nk5OiQERq0n5_pLuhCzUYlqVxt4TQl_wf8C1E2ICF_Ny0cNvldm9qZdjk40&amp;t=639226417880000000">
+
+</script> <meta http-equiv="X-UA-Compatible" content="IE=edge" /> <meta name="viewport" content="width=device-width, initial-scale=1"> <link rel="shortcut icon" href="/favicon.ico" /> <meta property="og:locale" content="en_US" /> <title>
+	Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef
+</title> <link href="https://d2i1toup5z0rfd.cloudfront.net/cache/c1d24e5ea4c174950a8cf3d22c9546c9bc520db1/css/nav-footer.min.css" rel="stylesheet" type="text/css"> <style type="text/css" media="all">.ai-summary:before{content:"";position:absolute;inset:0;border-radius:18.583px;z-index:0;background:conic-gradient(from 180deg at 50% 50%,#90ef8e .5deg,#5777ea 101deg,#dcecff 143deg,#00d5c7 182deg,#00d364 230deg,#8174f2 291deg);mix-blend-mode:multiply;filter:blur(11.6px);opacity:.3}.ai-summary>div{position:relative;z-index:1}.ai-summary .ListAdapt li{line-height:1.45}.-accent-purple6{--accent-color:#8174f2 !important}.Btn--copy:hover{background:#eef5ff}</style><style type="text/css" media="all">.blog-banner .Btn--round3{background-color:#fff!important;border-color:#054bff!important}.-lines-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.avatar-wrapper{aspect-ratio:1}#ProgressBar-container{position:fixed;top:50px;left:0;width:100%;height:5px;z-index:1000}@media(min-width:960px){#ProgressBar-container{top:60px}}#ProgressBar{height:100%;width:0;background-color:#4b4bf7;border-top-right-radius:10px;border-bottom-right-radius:10px;transition:width .1s ease-out}#toc-list a{display:block;margin-bottom:10px;font-size:15px}#toc-list a:hover,#toc-list a.is-active{text-decoration:underline}@media(max-width:960px){#js-toc.is-collapsed{display:none}}.Tag-Simple{display:inline-block;font-size:12px;line-height:1.35;background-color:#eef5ff;border:1px solid rgba(87,119,234,.2);border-radius:50px;padding:9px 10px 7px}.Tag-Simple:hover{background:#dcecff!important;border-color:rgba(87,119,234,.4)!important;color:#0037cb!important}.-bg-blue21 .Tag-Simple{background:none;border-color:#90b6ff}.-bg-blue21 .Tag-Simple:hover{background:inherit !important;border-color:#eef5ff!important;color:#eef5ff!important}.share a:hover{color:#054bff}.blog-container pre{white-space:pre-wrap;white-space:-moz-pre-wrap;white-space:-pre-wrap;white-space:-o-pre-wrap;word-wrap:break-word;line-height:normal;font-size:15px;background:#f3f5f6 !important;padding:20px}.blog-container code{white-space:pre-wrap;white-space:-moz-pre-wrap;white-space:-pre-wrap;white-space:-o-pre-wrap;word-wrap:break-word;line-height:normal;font-size:15px;background:#f3f5f6 !important;padding:2px 5px;position:relative;top:-2px;display:inline-block !important}.blog-container code .prettyprinted{display:block !important}.blog-container ul ::marker{color:#bcbcbc}.blog-container .alignleft,.blog-container .alignright{margin:0 20px 20px 0;max-width:30%;width:100%;float:left}.blog-container h2{float:none;clear:both}.blog-container table{border-bottom:1px solid #ebebeb;margin:60px 0}.blog-container table td{vertical-align:top}.blog-container table td img{max-width:40%}.blog-container blockquote,.blog-container blockquote p{position:relative;z-index:2}.blog-container blockquote{margin-top:40px;margin-bottom:40px}.blog-container blockquote:before{height:1.5em;left:-2em;top:.5em;width:1.5em;color:#ffa300;position:absolute;-webkit-mask-image:url(https://d2i1toup5z0rfd.cloudfront.net/iconset/quote.svg);mask-image:url(https://d2i1toup5z0rfd.cloudfront.net/iconset/quote.svg);background:currentColor;content:"";display:inline-block;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-size:contain;mask-size:contain;z-index:2}.blog-container blockquote p:last-child:after{height:1.5em;width:1.5em;color:#ffa300;-webkit-mask-image:url(https://d2i1toup5z0rfd.cloudfront.net/iconset/quote.svg);mask-image:url(https://d2i1toup5z0rfd.cloudfront.net/iconset/quote.svg);background:currentColor;content:"";display:inline-block;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-size:contain;mask-size:contain;-webkit-transform:rotate(180deg);transform:rotate(180deg);margin:0 0 0 10px}blockquote.has-code{margin:40px 0 !important}blockquote.has-code:before{display:none}blockquote.has-code code{width:100% !important;display:block !important;padding:20px !important}</style><meta property="og:title" content="Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef" /><meta property="og:type" content="article" /><meta property="og:url" content="https://www.chef.io/blog/supermarket-intermittent-unresponsiveness-postmortem" /><meta property="og:site_name" content="Chef Blogs" /><link href="https://progress.telerik-web-assets.com/css/style.min.css" media="all" rel="stylesheet" type="text/css" /><link rel="canonical" href="https://www.chef.io/blog/supermarket-intermittent-unresponsiveness-postmortem" /><meta name="twitter:title" content="Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef" /><meta name="twitter:url" content="https://www.chef.io/blog/supermarket-intermittent-unresponsiveness-postmortem" /><meta property="og:image" content="https://www.chef.io/images/cheflibraries/logos/chef_progress_primary_logo.png" /><meta name="twitter:image" content="https://www.chef.io/images/cheflibraries/logos/chef_progress_primary_logo.png" /><meta property="fb:app_id" /><meta name="twitter:site" content="@chef" /><meta name="twitter:creator" content="@chef" /><meta name="twitter:card" content="summary_large_image" /><meta property="og:description" content="&lt;p>Approximately two hours after Supermarket became the official community site it started to experience increased latency and intermittent unresponsiveness." /><meta name="twitter:description" content="&lt;p>Approximately two hours after Supermarket became the official community site it started to experience increased latency and intermittent unresponsiveness." /><meta property="article:published_time" content="2014-07-10T18:09:23+00:00" /><meta property="article:modified_time" content="2023-03-06T11:45:40+00:00" /><meta property="article:publisher" content="https://www.facebook.com/getchefdotcom" /><script type="application/json" id="sf-insight-metadata">
+	{"contentMetadata":"{\"Id\":\"b8bcf264-7024-4c39-a666-5b031f00f565\",\"ContentType\":\"BlogPost\",\"SfClrType\":\"Telerik.Sitefinity.Blogs.Model.BlogPost\",\"Title\":\"Supermarket Intermittent Unresponsiveness Postmortem\",\"CanonicalTitle\":\"Supermarket Intermittent Unresponsiveness Postmortem\",\"CanonicalUrl\":\"https://www.chef.io/blog/supermarket-intermittent-unresponsiveness-postmortem\",\"DefaultLanguage\":\"en\",\"CreatedOn\":\"2023-03-06T11:45:40.863Z\",\"ModifiedOn\":\"2023-03-06T11:45:40.863Z\",\"SiteId\":\"4e802ee8-4136-4a06-9fea-937635e4717b\",\"SiteName\":\"Chef\",\"ModuleName\":\"Blogs\",\"ContentPath\":{\"Id\":\"6a1d11b8-634d-41c4-9ae5-078c48f408db\",\"Title\":\"General\",\"Type\":\"Blog\"},\"Hierarchies\":[{\"Id\":\"fa581fdb-13c7-45fc-8704-4760a786167b\",\"Title\":\"community\",\"Parent\":{\"Id\":\"e5cd6d69-1543-427b-ad62-688a99f5e7d4\",\"Title\":\"Categories\"}},{\"Id\":\"9bd4182a-2463-4868-9198-b71d10a9bdbc\",\"Title\":\"cookbooks\",\"Parent\":{\"Id\":\"e5cd6d69-1543-427b-ad62-688a99f5e7d4\",\"Title\":\"Categories\"}}],\"SFDataProviderName\":\"chefblogs\",\"PageId\":\"83196fd1-cf61-4270-9003-0859708dc740\",\"PageTitle\":\"Details\",\"PageCanonicalTitle\":\"Details\",\"PageCanonicalUrl\":\"https://www.chef.io/blog/details\"}","videosMetadata":"[]"}
+</script><script type="application/json" id="sf-insight-settings">
+	{"apiServerUrl":"https://api.insight.sitefinity.com","apiKey":"67cbe6c3-d62b-526d-3c7b-d736a0cd7904","applicationName":"Website","trackingCookieDomain":".chef.io","keepDecTrackingCookieOnTrackingConsentRejection":false,"slidingExpirationForTrackingCookie":false,"maxAgeForTrackingCookieInDays":365,"trackYouTubeVideos":true,"crossDomainTrackingEntries":["progress.com","community.progress.com","sso.kemp.ax","kemptechnologies.com","freeloadbalancer.com","www.whatsupgold.com","www.flowmon.com","www.chef.io","community.chef.io","www.sharefile.com"],"strategy":"Persist|True","docsHrefTestExpressions":[".*\\/docs\\/.+\\.{1}.+((\\?|\\\u0026)sfvrsn=.+){1}$",".+((\\?|\\\u0026)sf_dm_key=.+){1}$"],"sessionLengthInMinutes":30,"trackVimeoVideos":true,"useSecureCookies":true}
+</script><script type="text/javascript" src="/WebResource.axd?d=HtQyXelCu6mzSPcVcvK_BhlPLTDMuvhwyVIsZYSzKh9A_TKoc_ByxHb8c14vwAnBeA3ctohF6r8rKfkJZXEKbdFtWkvsH3a8fOuUKyKGfDp9F7j-4b34JuU3FUlo0cMKD7V6J6WHotQiz1Kgf6Kf5A1gPBtzOBHDBqAWX3IpZIo42gJC8WIL3-rkvfc--xLqIU-_llYtQ_z8SjnwKGw8fGxdM4dTzAm8U7e5GN_HLoI1&amp;t=639226418100000000">
+
+</script><script src="https://cdn.insight.sitefinity.com/sdk/sitefinity-insight-client.min.3.1.44.js" crossorigin="" async="async">
+
+</script><meta name="description" content="&lt;p>Approximately two hours after Supermarket became the official community site it started to experience increased latency and intermittent unresponsiveness." /></head> <body id="chef"> <script type="text/plain" class="optanon-category-2" src="//script.crazyegg.com/pages/scripts/0087/4351.js"></script> <style>
+	.anti-flicker-hide {
+		opacity: 0 !important;
+	}
+</style> <script src="/abtesting/active-ab-tests.js">
+</script> <script>
+	
+
+window.ABTestingAntiflicker = window.ABTestingAntiflicker ?? {};
+window.ABTestingAntiflicker.wildcardMatchUrl = function(pattern, url) {
+  try {
+    const urlObject = new URL(url);
+
+	const parts = pattern.split('?', 2);
+	const pathPatternPart = parts[0] || '';
+	const queryPatternPart = parts[1] || '';
+
+    const escapeForRegularExpression = (text) => {
+      return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*');
+    };
+
+	// Build the path regular expression from the wildcard pattern
+    const pathRegularExpressionPattern =
+      '^' + escapeForRegularExpression(pathPatternPart) + '$';
+
+    const pathRegularExpression = new RegExp(pathRegularExpressionPattern, 'i');
+
+    // Compare URL path (with and without trailing slash)
+    const urlWithoutQuery =
+      urlObject.origin + urlObject.pathname;
+
+    const urlWithoutTrailingSlash = urlWithoutQuery.replace(/\/+$/, '');
+
+    const basePathMatches =
+      pathRegularExpression.test(urlWithoutQuery) ||
+      pathRegularExpression.test(urlWithoutTrailingSlash);
+
+    if (!basePathMatches) {
+      return false;
+    }
+
+    if (queryPatternPart.trim().length === 0) {
+      return true;
+    }
+
+    // Validate query conditions from the pattern
+    const queryStringParameters = new URLSearchParams(urlObject.search);
+    const patternPairs = queryPatternPart.split('&').filter((s) => s.length > 0);
+
+    for (const pairString of patternPairs) {
+      const keyValueParts = pairString.split('=', 2);
+      const key = keyValueParts[0];
+      const valuePatternRaw = keyValueParts.length > 1 ? keyValueParts[1] : null;
+
+      if (!key || !queryStringParameters.has(key)) {
+        return false;
+      }
+
+      // Only presence required if no value specified
+      if (valuePatternRaw === null) {
+        continue;
+      }
+
+      const valueRegularExpressionPattern =
+        '^' + escapeForRegularExpression(valuePatternRaw) + '$';
+
+      const valueRegularExpression = new RegExp(valueRegularExpressionPattern, 'i');
+      const actualValue = queryStringParameters.get(key) ?? '';
+
+      if (!valueRegularExpression.test(actualValue)) {
+        return false;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+}
+
+let shouldRunScript = false;
+if (window.ABTestingAntiflicker?.wildcardMatchUrl && window.ABTestingAntiflicker?.activeABTestUrls?.length > 0) {
+	for (var urlPattern of window.ABTestingAntiflicker.activeABTestUrls) {
+		if (window.ABTestingAntiflicker.wildcardMatchUrl(urlPattern, window.location.href)) {
+			shouldRunScript = true;
+			break;
+		}
+	}
+}
+
+if (shouldRunScript) {
+	let className = "anti-flicker-hide";
+	document.body.classList.add(className);
+
+	// Display the page after a certain Timeout
+	setTimeout(() => {
+		document.body.classList.remove(className);
+	}, 3000);
+
+	// Display the page after CrazyEgg A/B testing evaluation has finished and the action is not redirect
+	window.CE_READY = window.CE_READY || [];
+	window.CE_READY.push(function () {
+		if (CE2?.ABTest?.emitter?.on) {
+			CE2.ABTest.emitter.on("variant", (args) => {
+				var isRedirectABTest = false;
+				var testId = args?.test?.id;
+				var variantId = args?.variant?.id;
+				var redirectUrl = window.CE2.flows?.[testId]?.variants?.[variantId]?.redirectUrl;
+				if (redirectUrl && redirectUrl !== window.location.href) {
+					isRedirectABTest = true;
+				}
+
+				if (!isRedirectABTest) {
+					setTimeout(() => {
+						document.body.classList.remove(className);
+
+						// Add a class to body to signify that an AB test has been executed
+						// This is to be used for automated testing of the functionality
+						document.body.classList.add('ab-test-executed');
+					}, 200);
+				}
+			});
+		}
+		else {
+			// A/B test API has changed. Display the page after shorter timeout
+			setTimeout(() => {
+				document.body.classList.remove(className);
+			}, 500);
+		}
+	});
+
+	// Display the page if the user hasn't accepted Performance cookies
+	(function () {
+		var script = document.createElement('script');
+		script.type = 'text/plain';
+		script.className = 'optanon-category-1';
+		script.text = `
+			if (!window.OptanonGroups.PerformanceCookies || !window.isOptanonGroupActive || !window.isOptanonGroupActive(window.OptanonGroups.PerformanceCookies, true)) {
+				document.body.classList.remove("anti-flicker-hide");
+			}
+		`;
+
+		var body = document.body;
+		body.insertBefore(script, body.firstChild);
+	})();
+}
+
+</script> 
+
+
+<nav class="Nav">
+  <div class="Nav-Container container">
+    <input type="checkbox" class="Nav-Toggle" id="mobile-nav" />
+    <div class="Nav-Logo"><a href="#Content_TDA3D64C3003_Col00"
+        class="Skip-Link js-noanchor Btn Btn--ghost -tint-white -mt0"
+        onclick="javascript: () => document.querySelector(`${this.getAttribute('href')} > :first-child`).focus()">
+        skip navigation      </a>
+      <a href="/">
+        <img height="41"
+          width="195"
+          src="https://d1l5pp53ux74mz.cloudfront.net/images/cheflibraries/logos/progress-chef-primary-logo-svg.svg?sfvrsn=5865c2aa_3"
+          alt="Chef Progress Primary Logo" />
+      </a>
+    </div>
+    <label type="checkbox" class="Nav-ToggleLabel" for="mobile-nav">
+      <svg id="menu" class="Nav-ToggleLabel" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" width="22" height="16" role="img" aria-label="Menu icon" preserveAspectRatio="xMidYMid meet"><line x1="10" y1="40" x2="90" y2="40"></line><line x1="10" y1="40" x2="90" y2="40"></line><line x1="10" y1="40" x2="90" y2="40"></line></svg>
+    </label>
+    <div class="Nav-Content">
+      <div class="Nav-Main"> 
+        <ul class="List0">
+          <li class="-has-dropdown js-tglslf-is-open">
+            <button type="button" aria-label="Open Products Dropdown">Product</button>
+            <div class="Nav-Dropdown Nav-Dropdown--full">
+              <div class="container">
+<div class="row row--separated -l-mb1">
+  <div class="col -fourth -l-mb1 -br -mr3 -pr -pr1 -s-full">
+    <div>
+      <h5 class="-mb2">Chef 360 Platform</h5>
+      <p class="-fs14">Unify infrastructure, compliance, orchestration and more on one single platform.</p>
+      <a href="/products/chef-360-saas" class="-i-next -i-arrow -fs17 -c-link">Explore the Platform</a>
+    </div>
+  </div>
+  <div class="col -two-thirds -mb0">
+    <div class="row -l-mb0">
+      <div class="col -half -s-full">
+        <div>
+          <h6 class="-mb2 -co-black">Capabilities</h6>
+          <ul class="List0 -mb2">
+            <li><a href="/products/chef-infrastructure-management">Infrastructure Management</a></li>
+            <li><a href="/products/chef-compliance">Compliance Management</a></li>
+            <li><a href="/products/job-orchestration">Job Orchestration</a></li>
+            <li><a href="/products/node-management">Node Management</a></li>
+            <li><a href="/products/chef-app-delivery">Application Delivery</a></li>
+            <li><a href="/products/chef-cloud-security">Cloud Security</a></li>
+            <li><a href="/products/chef-opsmith" class="">AIOps <div class="-bg-yellow -c-black -lh70 -i-ai -vat PRGS-new" style="padding-top: 3px; padding-bottom: 2px; margin-top:2px;">New</div></a></li>
+          
+          </ul>
+        </div>
+      </div>
+      <div class="col -half -l-mb1 -s-full">
+        <div>
+          <h6 class="-mb2 -co-black">Solutions</h6>
+          <ul class="List0">
+            <li><a href="/solutions/patch-management">Patch Management</a></li>
+            <li><a href="/solutions/zero-trust-security">Zero Trust Security</a></li>
+            <li><a href="/solutions/cloud-native">Cloud-Native App Delivery</a></li>
+            <li><a href="/products/chef-saas">SaaS Deployment of Chef Products</a></li>
+            <li><a href="/solutions/agentless-automation">Agentless Automation</a></li>
+            <li><a href="/products/chef-edge-management">Edge Management</a></li>
+          </ul>
+          <a href="/solutions" class="-i-next -i-arrow -fw5 -c-link">All Solutions</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+              </div>
+            </div>
+          </li>
+          <li class="-has-dropdown js-tglslf-is-open">
+            <button type="button" aria-label="Open Resources Dropdown">Resources</button>
+            <div class="Nav-Dropdown Nav-Dropdown--3col">
+              <div class="container">
+                <div class="row">
+                  <div class="col -half -l-mb0">
+                    <ul class="List0">
+                      <li><a href="/downloads">Downloads</a></li>
+                      <li><a href="https://docs.chef.io" target="_blank">Documentation</a></li>
+                      <li><a href="/training/tutorials" target="_blank">Online Courses</a></li>
+                      <li><a href="/customer-validation-program">Customer Validation Program</a></li>
+                      <li><a href="https://www.progress.com/trust-center/chef" target="_blank" rel="noopener">Trust Center</a></li>
+
+                    </ul>
+                  </div>
+                  <div class="col -half -l-mb0">
+                    <ul class="List0">
+                      <li><a href="/blog">Blog</a></li>
+                      <li><a href="/webinars">Webinars</a></li>
+                      <li><a href="/papers">Papers</a></li>
+                      <li><a href="/customers">Customer Success</a></li>
+                      <li><a href="/resources">Resource Library</a></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li class="-has-dropdown js-tglslf-is-open">
+            <button type="button" aria-label="Open Partners Dropdown">Support</button>
+            <div class="Nav-Dropdown">
+              <div class="container -xl-pl2 -xl-pr2 -l-pl0">
+                    <ul class="List0">
+                      <li><a href="/training">Training</a></li>
+                      <li><a href="/support">Support</a></li>
+                      <li><a href="/professional-services">Professional Services</a></li>
+                      <li><a href="https://community.chef.io" target="_blank">Developer Community</a></li>
+                    </ul>
+              </div>
+            </div>
+          </li>
+          <li class="-has-dropdown js-tglslf-is-open">
+            <button type="button" aria-label="Open Partners Dropdown">Partners</button>
+            <div class="Nav-Dropdown">
+              <div class="container -xl-pl2 -xl-pr2 -l-pl0">
+                    <ul class="List0">
+                      <li><a href="https://www.progress.com/partners/partner-locator?Products=Chef" target="_blank">Find a Partner</a></li>
+                      <li><a href="https://www.progress.com/partners/why-partner" target="_blank">Become a Partner</a></li>
+                      <li><a href="https://partnerlink.progress.com/s/" target="_blank">Partner Login</a></li>
+                      <li><a href="https://www.progress.com/partners/deal-registration" target="_blank">Deal Registration</a></li>
+                    </ul>
+              </div>
+            </div>
+          </li>
+          <li><a href="/how-to-buy">Pricing</a></li>
+          <li class="-has-dropdown -icon -l-p1">
+            <button type="button" id="js-search-trigger" aria-label="Open Search Dropdown">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 12 12" aria-labelledby="chef-submit-search">
+                <title id="chef-submit-search">Submit Search</title>
+                <path d="M8.09109 7.91051C7.4238 8.61947 6.53019 9.07357 5.56415 9.1946C4.5981 9.31563 3.62009 9.09602 2.79853 8.5736C1.97696 8.05117 1.36328 7.25862 1.06316 6.33243C0.763034 5.40625 0.795256 4.4044 1.15427 3.49941C1.51329 2.59443 2.17664 1.84295 3.03007 1.37439C3.8835 0.905835 4.87361 0.749527 5.82988 0.932386C6.78615 1.11524 7.64874 1.62582 8.26909 2.3762C8.88944 3.12657 9.22872 4.06977 9.22852 5.04337C9.22951 6.10928 8.82253 7.13516 8.09109 7.91051ZM8.09109 7.91051L11.3259 11.1428" style="fill: none" fill="none" stroke="currentColor" stroke-width="1.3px"></path>
+              </svg>
+            </button>
+            <div class="Nav-Dropdown Nav-Dropdown--full Search-Dropdown">
+              <div class="container">
+                <div class="-df -fd-row -pr" style="gap: 5px; flex-wrap: nowrap;">
+                  <rag-filter-dropdown
+                    id="js-search-filter"
+                    button-size="s"
+                    panel-size="l"
+                    select-all-label="All Progress Products"
+                    preselected="Chef"
+                    filter-preset="chef"
+                  ></rag-filter-dropdown>
+                  <rag-search-box
+                    search-url="/rag-search"
+                    placeholder="Ask anything"
+                    button-text="Search"
+                    filter-ref="js-search-filter"
+                    size="s"
+                    class="-full"
+                  ></rag-search-box>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li class="-has-dropdown -icon js-tglslf-is-open">
+            <button type="button" id="js-user-trigger" aria-label="Open User Dropdown" class="-l-pl0">
+              <svg width="15" height="15" viewBox="0 0 12 14" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="chef-login-icon">
+                <title id="chef-login-icon">Login</title>
+                <path d="M0.857422 12.7151V11.4244C0.859235 10.2883 1.31134 9.19928 2.11468 8.39594C2.91801 7.59261 4.00705 7.1405 5.14314 7.13869H6.78878C7.92508 7.13982 9.01376 7.59246 9.81724 8.39594C10.6207 9.19942 11.0734 10.2881 11.0745 11.4244V12.7151H0.857422ZM3.17606 4.35465C3.17555 3.80296 3.33863 3.26335 3.64481 2.80442C3.951 2.3455 4.38577 1.98788 4.89537 1.77652C5.40497 1.56516 5.96642 1.50998 6.50753 1.61748C7.04865 1.72499 7.54544 1.99077 7.93555 2.38087C8.32565 2.77098 8.59144 3.26777 8.69894 3.80889C8.80644 4.35 8.75126 4.91145 8.5399 5.42105C8.32854 5.93065 7.97092 6.36543 7.512 6.67161C7.05307 6.9778 6.51346 7.14087 5.96177 7.14036C5.22303 7.14013 4.51372 6.84577 3.99135 6.3234C3.46898 5.80102 3.17629 5.09339 3.17606 4.35465Z" style="fill: none;" fill="none" stroke="currentColor" stroke-width="1.3px"></path>
+              </svg>
+              <span class="-dn -l-dib -l-ml1">User</span>
+            </button>
+            <div class="Nav-Dropdown">
+              <div class="container">
+                <h6>My Account</h6>
+                <ul class="List0">
+                  <li><a href="https://community.progress.com/s/downloads-chef" target="_blank" rel="noopener">My Downloads</a></li>
+                  <li><a href="https://community.progress.com/s/products/chef" target="_blank" rel="noopener">SupportLink</a></li>
+                </ul>
+              </div>
+            </div>
+          </li>
+          <li>
+            <a href="/contact-us" class="Btn Btn--ghost -mb0 -ml2 -l-mb2 -xl-ml0 -xl-pl1 -xl-pr1" aria-label="Contact Us">Contact Us</a> 
+            <a href="/trial" class="Btn -mb0 -ml2 -xl-ml1 -l-ml0 -l-mb1 -xl-pl1 -xl-pr1" aria-label="Request a Trial">Request a Trial</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<style>
+  .Nav .Nav-Main > ul > li:has(#js-search-filter[open]) > .Search-Dropdown {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .Nav-Main .Search-Dropdown rag-filter-dropdown,
+  .Nav-Main .Search-Dropdown rag-search-box {
+    pointer-events: none;
+  }
+  .Nav .Nav-Main > ul > li:has(#js-search-filter[open]) > .Search-Dropdown rag-filter-dropdown, 
+  .Nav .Nav-Main > ul > li:has(#js-search-filter[open]) > .Search-Dropdown rag-search-box,
+  .Nav-Main .-has-dropdown:hover .Search-Dropdown rag-filter-dropdown,
+  .Nav-Main .-has-dropdown:hover .Search-Dropdown rag-search-box {
+    pointer-events: all;
+  }
+</style>
+
+<script>
+  const filter = document.querySelector('#js-search-filter');
+  const searchItem = filter?.closest('.Nav-Main > ul > li');
+  const panel = filter?.shadowRoot?.querySelector('[part="panel"]');
+
+  if (filter && searchItem && panel) {
+    let closeTimer;
+
+    const cancelClose = () => clearTimeout(closeTimer);
+    const scheduleClose = () => {
+      cancelClose();
+      closeTimer = setTimeout(() => {
+        if (
+          !searchItem.matches(':hover') &&
+          !searchItem.matches(':focus-within') &&
+          !panel.matches(':hover')
+        ) {
+          filter.open = false;
+        }
+      }, 150);
+    };
+
+    searchItem.addEventListener('pointerleave', scheduleClose);
+    searchItem.addEventListener('pointerenter', cancelClose);
+    panel.addEventListener('pointerleave', scheduleClose);
+    panel.addEventListener('pointerenter', cancelClose);
+    searchItem.addEventListener('focusout', scheduleClose);
+
+    document.querySelector('.Nav #mobile-nav')?.addEventListener('change', (event) => {
+      if (!event.currentTarget.checked) filter.open = false;
+    });
+  }
+</script><main id="Content_TDA3D64C3003_Col00" class="sf_colsIn Main Page-Content" data-sf-element="Row" data-placeholder-label="Main - Place page content here.">
+
+
+
+
+
+
+
+
+<div id="ProgressBar-container"><div style="width:0%;" id="ProgressBar"></div></div>
+
+
+
+
+
+<div class="blog-container"  >
+    <section class="Section -bg-blue21 -pt6">
+        <div class="Section-bg Section-bg--n -z0">
+            <img src="/images/cheflibraries/backgrounds/hex-no-stars-no-orange.svg">
+        </div>
+        <div class="container">
+            <div class="row -mb5">
+                <div class="col-24">
+                    <a href="/blog" class="-i-arrow-left" referrerpolicy="no-referrer-when-downgrade">All Blogs</a>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-15 -m-full -m-mb3">
+
+
+                    <h1 class="-c-white -mb4">Supermarket Intermittent Unresponsiveness Postmortem</h1>
+                </div>
+                <div class="col-9 -m-full">
+                        <div class="Embed Embed--21by9 -mb4">
+                            <div class="Section-bg Section-bg--center"> <img data-sf-ec-immutable="" src="https://www.chef.io/images/cheflibraries/blogs/puzzle_blog.png?sfvrsn=ed4039cb_0" title="puzzle_blog" alt="puzzle_blog" /> </div>
+                        </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="Section Section--patch Bubble Bubble--down Bubble--left -br50 -pt2 -pb2 is-active -tint-lightblue5 -accent-lightblue5">
+        <div class="container">
+            <div class="row">
+                <div class="col-16 -vam -l-full -l-mb2">
+                        <span class="-m-db"><span>by </span>
+
+                                <a href="/blog/author/cwebber" rel="author" title="Christopher Webber" itemprop="url"><span itemprop="name" class="-c-link">Christopher Webber</span></a>                        </span>
+                    <span class="-c-grey7 -op-4 -pl1 -pr1 -m-dn">|</span><time class="article-time published -m-db" datetime='2014-07-10T18:09:23.0000000Z' itemprop="datePublished">Posted on July 10, 2014</time>
+                    <span class="-c-grey7 -op-4 -pl1 -pr1 -m-dn">|</span><span class="-m-db">3 min read</span>
+                </div>
+                <div class="col -vam -l-full -tar -l-tal share">
+                    <a href="#" aria-label="Share in Facebook" class="-c-black -h-c-link -fs32 -ml1 -i-facebook -l-ml0 -l-mr1" data-prgs-plugin="sharer"
+                        data-sharer-media="facebook" data-sharer-text="Supermarket Intermittent Unresponsiveness Postmortem" data-sharer-url="https://www.chef.io/blog/details/supermarket-intermittent-unresponsiveness-postmortem"> </a>
+                    <a href="#" aria-label="Share in X" class="-c-black -h-c-link -fs32 -ml1 -i-twitter -l-ml0 -l-mr1" data-prgs-plugin="sharer"
+                        data-sharer-media="twitter" data-sharer-text="Supermarket Intermittent Unresponsiveness Postmortem" data-sharer-url="https://www.chef.io/blog/details/supermarket-intermittent-unresponsiveness-postmortem"> </a>
+                    <a href="#" aria-label="Share in LinkedIn" class="-c-black -h-c-link -fs32 -ml1 -i-linkedin -l-ml0 -l-mr1" data-prgs-plugin="sharer"
+                        data-sharer-media="linkedin" data-sharer-text="Supermarket Intermittent Unresponsiveness Postmortem" data-sharer-url="https://www.chef.io/blog/details/supermarket-intermittent-unresponsiveness-postmortem"> </a>
+                    <a href="#" aria-label="Share in Reddit" class="-c-black -h-c-link -fs32 -ml1 -i-reddit -l-ml0 -l-mr1" data-prgs-plugin="sharer"
+                        data-sharer-media="reddit" data-sharer-text="Supermarket Intermittent Unresponsiveness Postmortem" data-sharer-url="https://www.chef.io/blog/details/supermarket-intermittent-unresponsiveness-postmortem"> </a>
+                </div>
+            </div>
+    </section>
+    <section class="Section -pb7">
+        <div class="container">
+            <div class="row">
+                <div class="col-18 -xl-three-fourths -l-full -l-ord-2">
+                    <!--div class="ai-summary -pr -mb4">
+                        <div class="-br5 -oh -mb4 -p2 -tint-white" style="border: 1px solid rgba(87, 119, 234, .4);">
+                            <div class="-df -jc-between js-toggle-summary" role="button" tabindex="0" aria-expanded="false">
+                                <div>
+                                    <span class="-i-ai -mr1 -fs40 -accent-purple6 -vam -lh100"></span>
+                                    <p class="h5 -fs20 -lh100 -vam">AI-Generated Summary</p>
+                                </div>
+                                <a href="javascript:void(0);" class="-i-arrow-d -fs40 -lh100 -c-link -h-c-link" aria-label="Toggle AI summary" role="button"></a>
+                            </div>
+                            <div class="js-ai-summary" aria-hidden="true">
+                                <ul class="ListAdapt -vs2 -ml5 -mt2 -accent-green1 js-ai-summary-to-copy">
+                                    <li>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi nisl diam, elementum nec venenatis vitae, tempor sed orci. Mauris vel aliquet lacus. Morbi rutrum massa nisi, non imperdiet risus consectetur non. Nulla feugiat sagittis ligula sed placerat. Proin interdum tortor eu enim gravida, id rutrum massa ultricies. Nulla feugiat sagittis ligula sed placerat. Proin interdum tortor eu enim gravida, id rutrum massa ultricies. Nulla maximus leo sed lectus finibus, et ornare lorem venenatis. In faucibus nisi ultrices est cursus, non facilisis nibh semper.</li>
+                                    <li>Integer lobortis non purus ac pharetra. Integer vel nunc vel urna tempus bibendum. Mauris ut nisi vulputate, auctor leo at, venenatis magna. Nam tristique est id venenatis dignissim. Donec scelerisque et erat at sodales. Nullam leo lorem, gravida non rhoncus at, fringilla at ex. Sed ultrices massa a consectetur iaculis. Praesent ultricies convallis lectus at tempor.</li>
+                                    <li>Vestibulum eu porta eros, quis condimentum arcu. Phasellus in justo tincidunt, dignissim augue a, tristique nibh. Maecenas rhoncus nibh felis, vitae facilisis erat tristique consequat. Curabitur non est non ligula commodo lacinia.</li>
+                                </ul>
+                                <a href="javascript:void(0);" class="-b1 -br5 -p1 -ml8 -lh -dib js-copy-ai-summary Btn--copy" role="button">
+                                    <svg class="-mr0h -vam" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path
+                                            d="M4 12H2V2H9L8 1H2C1.44687 1 1 1.44687 1 2V12C1 12.5531 1.44687 13 2 13H4V12ZM15 6L12 3H6C5.44688 3 5 3.44688 5 4V14C5 14.5531 5.44688 15 6 15H14C14.5531 15 15 14.5531 15 14V6ZM14 14H6V4H11V7H14V14Z"
+                                            fill="#225EFF" />
+                                    </svg>
+                                    Copy</a>
+                            </div>
+                        </div>
+                    </div-->
+                    <div class="blog-content -mb7" ><p>Approximately two hours after Supermarket became the official community site it started to experience increased latency and intermittent unresponsiveness. This made downloading cookbooks problematic and effected various sites including supermarket.getchef.com, community.opscode.com, cookbooks.opscode.com, and api.berkshelf.com. We are sorry for the problems this caused. </p>
+<p>In this post, I will explain what happened and what we are doing to make sure this doesn’t happen in the future.</p>
+
+<p>This unresponsiveness caused a number of issues including:</p>
+<ul>
+<li>Berkshelf v3.x was unable to connect to api.berkshelf.com to get a list of cookbooks and versions needed for depsolving</li>
+<li>An inability to browse cookbooks</li>
+<li>Uploading and downloading of cookbooks either broken or extremely latent</li>
+<li>The Supermarket API was inaccessible</li>
+</ul>
+<h2>Background</h2>
+<p>At Chef, we perform a postmortem for any significant production environment outage or incident that results in an engineer being paged. We have a postmortem writeup, with the timeline, root cause, and corrective actions published in a private repository. Then, we schedule an internal postmortem meeting, where the incident leader for the problem discusses with others who were involved what happened, why, and how to prevent the same thing from happening. This is a learning experience for everyone, and these meetings are conducted in a blameless manner. We also often make a public blog post when the outage had external customer impact.</p>
+<p>The writeup and meeting are normally done internally. However, Supermarket is the community site, it serves the community. The application repository and supporting cookbook are open source, and issues that affect “supermarket.getchef.com” may affect anyone who also runs the application on their internal infrastructure. So for this incident, we conducted the postmortem meeting in the open so the community has a chance to participate as equally as anyone else at Chef.</p>
+<ul>
+<li><a href="https://gist.github.com/cwebberOps/402f60e32a80fab3e6de" target="_blank">Postmortem write-up</a> – Contents from our internal repository where we store postmortem write-ups.</li>
+<li><a href="https://www.youtube.com/watch?v=tOEkYRbP4ms" target="_blank">Postmortem meeting</a> – Video of the postmortem meeting.</li>
+</ul>
+<h2>Contributing Factors</h2>
+<p>The supermarket application runs in an AWS account. At launch, it was hosted on three m3.medium instances, with an RDS database, ElasticCache Redis cache, with an Elastic Load Balancer (ELB) in front of the instances. Supermarket is a Rails app run under the unicorn http server, which listens on a unix domain socket on each of the instances. Nginx is used as a local reverse proxy for each of the application servers. </p>
+<p>We determined a number of contributing factors that led to this outage.</p>
+<h3>Load Planning</h3>
+<p>We realized at the time of soft launch that we couldn’t cut-over to the new site without supporting the /universe endpoint. As such we held off on cutting over to get that implemented but still wanted to launch as soon as possible and skipped over the load planning step in our haste.</p>
+<h3>Health Check Timeouts</h3>
+<p>The health check timeouts were set too low to be effective. We ended up in a state where nodes were being taken out of the pool causing a domino effect. As one node would be pulled out, the other nodes would see a significant increase in traffic, causing them to time out and fall out of the pool.</p>
+<h3>App Servers Undersized</h3>
+<p>The application servers were woefully undersized for the traffic we needed to be able to handle. The single CPU core of an m3.medium was just not enough CPU to keep up with demand.</p>
+<h2>Stabilization Steps</h2>
+<p>We added new instances and changed the instance type we were using in production. We now have five m3.xlarge instances serving traffic.</p>
+<h2>Corrective Actions</h2>
+<ol>
+<li>Change the behavior of the <a href="https://github.com/berkshelf/berkshelf-api" target="_blank">Berkshelf API Servers</a>, to use the new <code>/universe</code> endpoint. (Berkshelf Core Team)</li>
+<li>Adjust the number of unicorn workers on each node as necessary. (Joshua Timberman)</li>
+<li>Improve performance with the way downloads are handled. This will include ensure that the metrics collection is non-blocking. (Christopher Webber and Full Stack)</li>
+<li>Get updates from <a href="http://status.getchef.com" target="_blank">http://status.getchef.com</a> into #chef on irc.freenode.net. (Christopher Webber)</li>
+<li>Add additional alerting around nodes falling out of the ELB. (Chef Operations)</li>
+</ol>
+<h2>Conclusion</h2>
+<p>We are sorry about the issues with Supermarket, especially so soon after launch. We know that the community depends on these services to be reliable and will work hard to prevent these issues in the future.</p>
+<p>Thank you!</p></div>
+                    <div class="js-sticky-stopper"></div>
+
+                    <div class="Section blog-banner -mb6 -pt5 -pb5 -br10 -oh -bg-blue7">
+                        <div class="Section-bg">
+                            <img class="-m-dn" src="/images/cheflibraries/backgrounds/blog-details-banner-bg.svg"title="banner background" alt="banner background">
+                        </div>
+                        <div class="container">
+                            <div class="row">
+                                <div class="col-12 -df -m-mb4">
+                                    <div class="-mb2">
+                                        <h5 class="-c-white -mb1">Ready to Get Started?</h5>
+                                        <p class="-c-white">Fexible deployment options to suit your enterprise needs—SaaS for a fully managed cloud experience, and Self-Managed for on-premises control.</p>
+                                    </div>
+                                    <a class="Btn Btn--round3 -c-link -i-mark-arrow -mta -m-mb2"
+                                            href="/trial">request a trial</a></p>
+                                </div>
+                                <div class="col-12 -df">
+                                    <div class="-mb2">
+                                        <h5 class="-c-white -mb1">Consult a Progress Expert</h5>
+                                        <p class="-c-white">Request a consultation with a Progress Professional Services expert.</p>
+                                    </div>
+                                    <a class="Btn Btn--round3 -c-link -i-mark-arrow -mta"
+                                            href="/contact-us">learn more</a></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                        <div class="row -mb4">
+                                <div class="col-5 -l-third -s-half -s-mb3 -ha">
+                                    <div class="avatar-wrapper">
+                                        <img src="/images/cheflibraries/blogs/author-thumb.png" alt="" class="-cover -circle">
+                                    </div>
+                                </div>
+                            <div class="col-19">
+                                <h4 class="-fs26 -mb1 -fw5"><a href='/blog/author/cwebber' rel="author" title='Christopher Webber' itemprop="url">Christopher Webber</a></h4>
+                        
+                                     <span class="-ml1 -mr1">|</span>
+                        
+                                                                    <div class="-fs16"></div>
+                                <a href='/blog/author/cwebber' rel="author" title='Christopher Webber' itemprop="url" class="Btn Btn--round3 -i-mark-arrow -mt3">More from the author</a>
+                            </div>
+                        </div>
+                </div>
+
+                <div class="col-6 -xl-one-fourth -l-full -l-mb3 -l-ord-1">
+                    <a href="/blog" class="-i-arrow-left -mb3 -dib -fw5" referrerpolicy="no-referrer-when-downgrade">All Blogs</a>
+                    <div class="article-sidebar -b1 -bc-blue5 -br5 -oh">
+                      <h3 class="-fs14 -fw5 -c-black -op-8 -p2 -bg-blue6 -ttu -mb0 -pr js-toggle-toc">Table of Contents<span class="-dn -i-arrow-d -l-dib -mr2 -pa -r0"></span></h3>
+                        <div id="js-toc" class="-p2">
+                        </div>
+                        <div class="banner -pl2 -pt3 -pr2 -pb3 -bg-blue6">
+                            <div class="-mb1" style="width:34px;height:34px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" aria-label="" viewBox="0 0 34 34">
+                                    <path d="M17.1318 -0.0252686C17.1597 -0.0257837 17.188 -0.028196 17.2158 -0.0281982C17.32 -0.0281871 17.4241 -0.0226011 17.5283 -0.0155029C21.8847 0.14805 26.0229 1.96558 29.0928 5.07922C32.2188 8.24993 33.9847 12.5092 34.0264 16.9542C34.0265 16.9695 34.0283 16.9848 34.0283 17.0001C34.0283 17.0108 34.0274 17.0216 34.0273 17.0323C34.0277 17.0977 34.0288 17.1633 34.0283 17.2286L34.0225 17.6749C33.7925 26.8521 26.4838 33.7914 17.4609 34.0206C17.4596 34.0207 17.4583 34.0215 17.457 34.0216C17.4447 34.0219 17.4323 34.0223 17.4199 34.0226C17.3519 34.0256 17.2839 34.0284 17.2158 34.0284C17.1922 34.0284 17.1681 34.0259 17.1445 34.0255C17.0965 34.0259 17.0481 34.0284 17 34.0284C7.76648 34.0283 0.210382 27.0079 -0.0234375 17.6749L-0.0292969 17.2286C-0.0297629 17.158 -0.027748 17.0872 -0.0273438 17.0167C-0.027364 17.0112 -0.0283201 17.0056 -0.0283203 17.0001C-0.0283201 16.9904 -0.0274072 16.9806 -0.0273438 16.9708C0.0100817 12.52 1.77659 8.25384 4.90625 5.07922C8.09818 1.84174 12.4459 0.00440328 16.9922 -0.0281982H17.0068C17.0484 -0.0279013 17.0903 -0.0258672 17.1318 -0.0252686ZM23.3066 26.7003C21.357 27.2697 19.2291 27.6075 17 27.6075C14.9828 27.6075 13.0475 27.3335 11.2529 26.8595C11.4316 27.1836 11.6158 27.4967 11.8066 27.796C12.6813 29.1677 13.6571 30.2461 14.6191 30.9708C15.5598 31.6794 16.4285 32.0072 17.1484 32.0265C17.2195 32.0258 17.2905 32.0251 17.3613 32.0236C18.067 31.9832 18.9124 31.6532 19.8262 30.9689C20.7951 30.2432 21.7793 29.165 22.6621 27.7931C22.8855 27.4459 23.0999 27.0806 23.3066 26.7003ZM2.89062 22.4376C4.41723 26.5617 7.72377 29.7385 11.8945 31.1798C11.2659 30.505 10.6674 29.7305 10.1201 28.8722C9.56067 27.9948 9.04887 27.0225 8.60059 25.9747C7.32799 25.4602 6.15778 24.8505 5.12012 24.174C4.29448 23.6357 3.54659 23.0503 2.89062 22.4376ZM31.1064 22.4386C30.4508 23.0505 29.7046 23.6362 28.8799 24.174C28.0036 24.7452 27.0322 25.268 25.9854 25.7277C25.5077 26.8716 24.953 27.9283 24.3438 28.8751C23.8611 29.6251 23.3396 30.3112 22.7939 30.923C26.6382 29.3818 29.6647 26.3323 31.1064 22.4386ZM17 8.37317C14.5274 8.37319 12.1944 8.8293 10.1338 9.56555C9.29944 11.7603 8.77541 14.2964 8.77539 17.0001C8.77542 19.6963 9.2966 22.2256 10.127 24.4161C12.1892 25.1516 14.5245 25.6075 17 25.6075C19.7032 25.6075 22.2397 25.0653 24.4355 24.2072C25.2295 22.065 25.7256 19.6105 25.7256 17.0001C25.7256 14.3822 25.2267 11.9209 24.4287 9.77454C22.2344 8.91539 19.7002 8.37319 17 8.37317ZM7.66992 10.6407C7.1572 10.9092 6.67031 11.193 6.21387 11.4913C4.84165 12.3883 3.76131 13.3866 3.03418 14.3673C2.30011 15.3574 1.97171 16.265 1.97168 17.0001C1.97172 17.735 2.30043 18.641 3.03418 19.629C3.76107 20.6078 4.84078 21.6036 6.21289 22.4982C6.66832 22.7951 7.15452 23.0767 7.66602 23.3439C7.105 21.3838 6.77542 19.2425 6.77539 17.0001C6.77541 14.7519 7.10617 12.6049 7.66992 10.6407ZM26.9062 10.9552C27.4221 12.8332 27.7256 14.8709 27.7256 17.0001C27.7256 19.1236 27.4234 21.1556 26.9102 23.0294C27.213 22.857 27.5071 22.6814 27.7881 22.4982C29.16 21.6037 30.239 20.6076 30.9658 19.629C31.6882 18.6563 32.0173 17.763 32.0273 17.0343C32.0272 17.006 32.0267 16.9777 32.0264 16.9493C32.0116 16.2234 31.6831 15.3347 30.9658 14.3673C30.2387 13.3866 29.1592 12.3882 27.7871 11.4913C27.5049 11.3069 27.2104 11.1288 26.9062 10.9552ZM11.5176 13.9689C11.9085 13.9689 12.2544 14.037 12.5547 14.173C12.855 14.309 13.0876 14.4987 13.252 14.7423C13.4163 14.986 13.498 15.2637 13.498 15.5753C13.498 15.9039 13.4131 16.187 13.2432 16.4249C13.0788 16.6629 12.8494 16.8337 12.5547 16.9357C12.9004 17.0263 13.1843 17.2076 13.4053 17.4796C13.6261 17.7459 13.7363 18.0689 13.7363 18.4484C13.7363 18.8167 13.6399 19.1373 13.4473 19.4093C13.2546 19.6755 12.9883 19.8769 12.6484 20.0128C12.3142 20.1488 11.9316 20.2159 11.501 20.2159C10.8947 20.2159 10.3026 20.0943 9.72461 19.8507V18.754C10.0021 18.8956 10.2823 19.0036 10.5654 19.0773C10.8543 19.1509 11.1437 19.1876 11.4326 19.1876C11.767 19.1876 12.0362 19.1111 12.2402 18.9581C12.4499 18.8052 12.5547 18.5986 12.5547 18.338C12.5547 18.0717 12.453 17.8643 12.249 17.7169C12.0507 17.5697 11.7813 17.4962 11.4414 17.4962H10.8633V16.5021H11.3818C11.6821 16.5021 11.9116 16.4339 12.0703 16.298C12.2346 16.162 12.3173 15.9806 12.3174 15.754C12.3174 15.5218 12.2293 15.3373 12.0537 15.2013C11.878 15.0653 11.6538 14.9972 11.3818 14.9972C10.9002 14.9972 10.3793 15.1481 9.81836 15.4484V14.3683C10.0959 14.238 10.3822 14.1384 10.6768 14.0704C10.9711 14.0025 11.2515 13.9689 11.5176 13.9689ZM16.332 16.1876C16.4396 16.1537 16.5499 16.1369 16.6631 16.1368C17.0314 16.1368 17.375 16.2217 17.6924 16.3917C18.0151 16.5617 18.2733 16.802 18.4658 17.1134C18.6585 17.4251 18.7549 17.7771 18.7549 18.1681C18.7548 18.5702 18.6552 18.9269 18.457 19.2384C18.2645 19.5499 18.0011 19.7911 17.667 19.9611C17.3327 20.131 16.9669 20.2159 16.5703 20.2159C16.151 20.2159 15.7685 20.131 15.4229 19.9611C15.083 19.7855 14.8135 19.5337 14.6152 19.2052C14.417 18.8766 14.3175 18.4855 14.3174 18.0323C14.3174 17.562 14.5133 16.9951 14.9043 16.3322L16.2559 14.0704H17.6074L16.332 16.1876ZM21.7285 13.9689C22.5332 13.9689 23.1399 14.255 23.5479 14.8273C23.9558 15.3939 24.1601 16.1505 24.1602 17.0968C24.1602 18.0374 23.9558 18.794 23.5479 19.3663C23.1399 19.933 22.5332 20.2159 21.7285 20.2159C20.924 20.2159 20.3181 19.9298 19.9102 19.3575C19.5078 18.7852 19.3066 18.0318 19.3066 17.0968C19.3067 16.1505 19.5078 15.3939 19.9102 14.8273C20.3181 14.2552 20.9241 13.9689 21.7285 13.9689ZM16.5449 17.1222C16.3411 17.1222 16.1564 17.1674 15.9922 17.2579C15.8279 17.3429 15.6969 17.4655 15.6006 17.6241C15.5045 17.7826 15.4561 17.9666 15.4561 18.1759C15.4561 18.3798 15.5044 18.5644 15.6006 18.7286C15.6969 18.8873 15.8279 19.0098 15.9922 19.0948C16.1564 19.1797 16.3379 19.2218 16.5361 19.2218C16.74 19.2218 16.9215 19.1798 17.0801 19.0948C17.2444 19.0098 17.3744 18.8873 17.4707 18.7286C17.567 18.5643 17.6152 18.3799 17.6152 18.1759C17.6152 17.9665 17.5669 17.7827 17.4707 17.6241C17.3744 17.4655 17.2444 17.3429 17.0801 17.2579C16.9216 17.1674 16.743 17.1223 16.5449 17.1222ZM21.7285 14.9972C21.315 14.9973 21.0067 15.1764 20.8027 15.5333C20.6045 15.8846 20.5049 16.4056 20.5049 17.0968C20.5049 17.7825 20.6044 18.3043 20.8027 18.6613C21.0067 19.0122 21.3152 19.1875 21.7285 19.1876C22.1421 19.1876 22.4513 19.0124 22.6553 18.6613C22.8593 18.3043 22.9609 17.7825 22.9609 17.0968C22.9609 16.4057 22.8591 15.8846 22.6553 15.5333C22.4513 15.1763 22.1422 14.9972 21.7285 14.9972ZM11.7803 2.9425C9.74842 3.70752 7.88465 4.90775 6.33105 6.48352C4.93814 7.8964 3.85003 9.55378 3.10938 11.3536C3.711 10.8136 4.3849 10.2975 5.11914 9.8175C6.15915 9.13772 7.33234 8.52478 8.6084 8.00793C9.05486 6.9671 9.56389 6.00142 10.1201 5.12903C10.6345 4.32224 11.1932 3.58847 11.7803 2.9425ZM22.9258 3.22961C23.4228 3.80266 23.9006 4.4365 24.3438 5.12512C24.9501 6.0674 25.5024 7.11837 25.9785 8.25598C27.0284 8.71783 28.0024 9.24334 28.8809 9.8175C29.615 10.2974 30.2881 10.8137 30.8896 11.3536C30.1492 9.55379 29.0618 7.89633 27.6689 6.48352C26.2972 5.09216 24.6835 3.99434 22.9258 3.22961ZM17.1299 1.97375C16.4135 1.99823 15.5519 2.32768 14.6191 3.0304C13.6571 3.75522 12.6813 4.83241 11.8066 6.20422C11.6197 6.49738 11.4389 6.80329 11.2637 7.12024C13.0551 6.64655 14.9868 6.37319 17 6.37317C19.225 6.37319 21.3493 6.71027 23.2959 7.27942C23.0927 6.90673 22.8814 6.54891 22.6621 6.20813C21.7793 4.83631 20.795 3.75706 19.8262 3.03137C18.9335 2.36288 18.1058 2.03209 17.4102 1.97961C17.3169 1.97638 17.2234 1.97527 17.1299 1.97375Z"/>
+                                </svg>
+                            </div>
+                            <h4 class="-fs20 -fw6">Experience the Power of Chef 360, Your Way!</h4>
+                            <a href="/trial" class="Btn Btn--round2 -i-mark-arrow -wa -i-mark-arrow">Request a trial</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+</div>
+
+<style>
+    .js-ai-summary {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        margin-bottom: 0;
+        transform: translateY(-12px) scale(0.985);
+        filter: blur(4px);
+        pointer-events: none;
+        transition: max-height 0.65s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), filter 0.35s ease, margin-bottom 0.45s ease;
+    }
+
+    .js-ai-summary.is-open {
+        max-height: 1200px;
+        opacity: 1;
+        margin-bottom: 1.5rem;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+        pointer-events: auto;
+    }
+
+    .js-toggle-summary {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .js-copy-ai-summary.is-copied {
+        background-color: #e9f8ee;
+        color: #1f7a45;
+        border-color: #1f7a45;
+    }
+    .blog-content table {
+        border-collapse: collapse;
+        width: 100%
+    }
+    
+    .blog-content table tbody tr:nth-child(odd) {
+        background-color: #f5fafd
+    }
+    
+    .blog-content table td {
+        font-size: 1em;
+        padding: 1.3rem 1rem
+    }
+    
+    .blog-content table td+td {
+        border-left: 1px solid #d5d5d8
+    }
+    
+    .blog-content table td p:last-child,table td p:only-child {
+        margin-bottom: 0
+    }
+    
+    .blog-content table thead th {
+        padding: 1.3rem 1rem;
+        font-size: 16px;
+        font-weight: 600;
+        text-transform: uppercase;
+        text-align: left
+    }
+    
+    .blog-content table thead th+th {
+        border-left: 1px solid #d5d5d8
+    }
+</style>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.chef.io/blog/supermarket-intermittent-unresponsiveness-postmortem"},"headline":"Supermarket Intermittent Unresponsiveness Postmortem","image":{"@type":"ImageObject","url":"https://www.chef.io/images/cheflibraries/blogs/puzzle_blog.png?sfvrsn=ed4039cb_0","caption":"puzzle_blog","height":462,"width":1200},"author":{"@type":"Person","name":"Christopher Webber"},"datePublished":"2014-07-10","dateModified":"2023-03-06","publisher":{"@type":"Organization","name":"Chef","url":"http://www.chef.io/","sameAs":["https://www.facebook.com/getchefdotcom","https://twitter.com/chef","https://www.linkedin.com/company/chef-software","http://chef.github.io","https://www.youtube.com/user/getchef"],"logo":{"@type":"ImageObject","url":"https://www.chef.io/images/cheflibraries/logos/chef-logo.svg"}},"description":null}</script>
+
+
+</main>
+
+
+<script type="text/javascript" src="/WebResource.axd?d=wnB2OjhYopty-dCFa4b2kF7JW_a6Rl5Sb5xAdHSsJT06YkxKod-9OLc69Cdbfi1d5vG_Yt6wGPJBRvY0WrTYe-_6T9Ubop3nLgZRp-H7gcYkOWLKgyTzf-AAeJYULDzcLjy-VjJ1a61q_71WJ_3_rmluYRwacqf5NG02Q4X61AEg0WUvryRjQM1PM-8X4wAWzAa6RWDtUXYMdXVk9gE0yLqnkSf_Bq3ZORuJKhFOuHY1&amp;t=639226418820000000">
+
+</script><script data-sf-pers-id="11d3209e-d34c-4d15-a5a8-6b3787ba3cf4" data-sf-pers-raise-events="True" data-sf-pers-page-node-id="83196fd1-cf61-4270-9003-0859708dc740" data-sf-pers-page-data-id="81d6ac92-48b1-4e22-9bc0-ed4028bfcd1a" data-sf-pers-page-node-key="83196FD1-CF61-4270-9003-0859708DC740/4e802ee8-4136-4a06-9fea-937635e4717b/SitefinitySiteMap" data-sf-app-path="/" data-sf-loaded-scripts="['https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jquery-migrate/3.4.1/jquery-migrate.min.js', '/Frontend-Assembly/Web.Widgets.SEO/Mvc/Scripts/Shared/referrer-policy.min.js?package=PureMVC&v=LTEzNDUzNzI5OTc%3d', 'https://d2i1toup5z0rfd.cloudfront.net/cache/4b1e430a19e2d5ad42a202316a065ddb8138af75/js/polyfills.min.js']"></script>
+
+<section class="Chef-Footer" data-sf-element="Row">
+  <div id="Content_TDA3D64C3004_Col00" class="sf_colsIn" data-sf-element="Column 1" data-placeholder-label="Section"><div id="Content_T7FE238AB027_Col00" class="sf_colsIn container -oh" data-sf-element="Row" data-placeholder-label="Row">
+
+
+<div class="row row--equal"><div class="-l-full -l-mb3 col-18"><div class="row"><div class="col-7 -l-third -m-full -m-mb3"><h6 class="-fs14 -co-black -op-6 -mb2">Chef 360</h6><ul class="List0 -vs2 -fs17 -fw6"><li><a class="-fs16" href="/products/chef-infrastructure-management">Infrastructure Management</a></li><li><a class="-fs16" href="/products/chef-compliance">Compliance Management</a></li><li><a class="-fs16" href="/products/job-orchestration">Job Orchestration</a></li><li><a class="-fs16" href="/products/node-management">Node Management</a></li><li><a class="-fs16" href="/products/chef-app-delivery">Application Delivery</a></li><li><a class="-fs16" href="/products/chef-cloud-security">Cloud Security</a></li></ul></div><div class="col-6 -l-third  -m-full -m-mb3"><h6 class="-fs14 -co-black -op-6 -mb2">Using Chef</h6><ul class="List0 -vs2 -fs17 -fw6"><li><a class="-fs16" href="/training/tutorials">LearnChef</a></li><li><a data-sf-ec-immutable="" target="_blank" href="https://docs.chef.io/" class="-fs16">Docs</a></li><li><a class="-fs16" href="/blog">Blog</a></li><li><a class="-fs16" href="/webinars">Webinars</a></li><li><a class="-fs16" href="/customers">Customer Stories</a></li><li><a class="-fs16" href="/security">Security</a></li></ul></div><div class="col-11 -l-third  -m-full"><h6 class="-fs14 -co-black -op-6 -mb2">Legal</h6><ul class="List0 -vs2 -fs17 -fw6"><li><a data-sf-ec-immutable="" target="_blank" href="https://www.progress.com/legal/terms-of-use" class="-fs16">Terms &amp; Conditions</a></li><li><a data-sf-ec-immutable="" target="_blank" href="https://www.progress.com/legal/privacy-policy" class="-fs16">Privacy Policy</a></li><li><a class="-fs16" href="/online-master-agreement">Online Master License and Services Agreement</a></li><li><a data-sf-ec-immutable="" target="_blank" href="https://www.progress.com/legal/trademarks" class="-fs16">Trademark Policy</a></li><li><a class="-fs16" href="/3rd-party-licenses">3rd Party Software Licenses</a></li><li><a data-sf-ec-immutable="" target="_blank" href="https://www.progress.com/legal/cookie-policy" class="-fs16">Cookie Policy</a></li></ul></div></div></div><div class="col-6 -l-full -s-full"><a href="/contact-us" aria-label="Contact Us" class="Btn Btn--ghost -c-black -bsn -db -mb2">Contact Us</a>
+ <div class="InlineItems InlineItems--social -df -fs24 -jc-between -l-w23 -mb2"><a data-sf-ec-immutable="" aria-label="GitHub" rel="noopener noreferrer" target="_blank" href="https://github.com/chef"><svg viewBox="0 0 24 24" height="24" width="24"><path clip-rule="evenodd" d="M11.964 0C5.348 0 0 5.388 0 12.053c0 5.328 3.427 9.838 8.18 11.434.595.12.813-.259.813-.578 0-.28-.02-1.237-.02-2.235-3.328.718-4.02-1.437-4.02-1.437-.536-1.397-1.328-1.756-1.328-1.756-1.09-.738.08-.738.08-.738 1.207.08 1.841 1.237 1.841 1.237 1.07 1.836 2.793 1.317 3.487.998.099-.779.416-1.317.752-1.617-2.654-.28-5.447-1.317-5.447-5.947 0-1.317.475-2.394 1.228-3.232-.119-.3-.535-1.537.12-3.193 0 0 1.01-.32 3.287 1.237.975-.264 1.981-.398 2.991-.4 1.01 0 2.04.14 2.991.4 2.278-1.557 3.288-1.237 3.288-1.237.654 1.656.238 2.894.12 3.193.772.838 1.227 1.915 1.227 3.232 0 4.63-2.792 5.648-5.467 5.947.436.38.812 1.098.812 2.235 0 1.617-.02 2.914-.02 3.313 0 .32.219.698.813.579a12.04 12.04 0 0 0 8.18-11.435C23.929 5.388 18.56 0 11.965 0" fill-rule="evenodd" fill="currentColor"></path></svg>
+ </a>
+ <a data-sf-ec-immutable="" aria-label="X" rel="noopener noreferrer" target="_blank" href="https://x.com/PrgsChef">
+ <svg aria-label="X.com icon" height="24" width="24" viewBox="0 -3 32 40"><path fill="currentColor" d="m18.9 13.7l12.9 18.8h-9.5l-8.7-12.6-10.8 12.6h-2.8l12.4-14.5-12.4-18h9.5l8.2 11.9 10.2-11.9h2.8l-11.8 13.7zm-3.8 4.5l8.5 12.2h4.3l-10.5-15-1.2-1.8-8.1-11.5h-4.3l10 14.3 1.3 1.8z"></path></svg>
+ </a>
+ <a data-sf-ec-immutable="" aria-label="YouTube" rel="noopener noreferrer" target="_blank" href="https://www.youtube.com/channel/UCvwl5-yXsQR5zluYPl8NEeQ">
+ <svg aria-label="YouTube icon" height="24" width="24" viewBox="0 0 42 30"><path fill="currentColor" d="m41.7 14.6c0 0 0 6.8-0.9 10-0.5 1.8-1.9 3.2-3.7 3.7-3.2 0.9-16.3 0.9-16.3 0.9 0 0-13 0-16.2-0.9-1.8-0.5-3.2-1.9-3.7-3.7-0.9-3.2-0.9-10-0.9-10 0 0 0-6.8 0.9-10 0.5-1.8 1.9-3.2 3.7-3.7 3.2-0.9 16.2-0.9 16.2-0.9 0 0 13.1 0 16.3 0.9 1.8 0.5 3.2 1.9 3.7 3.7 0.9 3.2 0.9 10 0.9 10zm-14.2 0l-10.8-6.3v12.5z"></path></svg>
+ </a>
+ <a data-sf-ec-immutable="" aria-label="Facebook" rel="noopener noreferrer" target="_blank" href="https://www.facebook.com/progresschef">
+ <svg aria-label="Facebook icon" height="24" width="24" viewBox="0 0 37 37"><path fill="currentColor" d="m36.8 18.4c0-10.1-8.2-18.4-18.4-18.4-10.1 0-18.4 8.3-18.4 18.4 0 8.7 6 15.9 14 17.9v-12.3l-3.8 0.1v-5.7h3.8v-2.4c0-6.3 2.8-9.2 9-9.2 1.1 0 3.1 0.3 4 0.5v5.1c-0.5-0.1-1.2-0.1-2.2-0.1-3 0-4.2 1.2-4.2 4.1v2h6.1l-1.1 5.7h-5v12.6c9.2-1.1 16.2-8.9 16.2-18.3"></path></svg>
+ </a>
+ <a data-sf-ec-immutable="" aria-label="LinkedIn" rel="noopener noreferrer" target="_blank" href="https://www.linkedin.com/company/progress-chef">
+ <svg aria-label="Linkedin icon" height="24" width="24" viewBox="-1 -1 37 37"><path fill="currentColor" d="m34 3.8v26.4c0 2.1-1.7 3.8-3.8 3.8h-26.4c-2.1 0-3.8-1.7-3.8-3.8v-26.4c0-2.1 1.7-3.8 3.8-3.8h26.4c2.1 0 3.8 1.7 3.8 3.8zm-23.7 9.1h-5.1v16.4h5.1zm0.4-5.2c0-1.6-1.3-3-3-3-1.6 0-3 1.4-3 3 0 1.7 1.4 3.1 3 3.1 1.7 0 3-1.4 3-3.1zm18.6 11.2c0-4.4-2.5-6.5-6-6.5-3.5 0-4.9 2.7-4.9 2.7v-2.2h-4.9v16.4h4.9v-8.6c0-2.3 1-3.7 3.1-3.7 1.8 0 2.7 1.3 2.7 3.7v8.6h5.1z"></path></svg>
+ </a>
+ </div></div></div>
+</div>
+
+
+
+<hr class="-mb4"><div id="Content_T7FE238AB029_Col00" class="sf_colsIn container -oh" data-sf-element="Row" data-placeholder-label="Row">
+
+
+<div class="Chef-Footer-info"><a title="Progress-logo" data-sf-ec-immutable="" class="-mb1" href="https://www.progress.com"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 120" width="144" style="width:144px;height:34px;"><path fill="#5ce500" d="M95.52,29.33h0v51a3.93,3.93,0,0,1-1.78,3.08l-1.67,1L79.35,91.76l-8.59,5-1.78,1V42.6L21.23,15,43.91,1.93,46,0.74a3.94,3.94,0,0,1,3.56,0L81,18.9l14.51,8.38v2.05ZM58.36,48.72l-9.79-5.66L25.66,29.83a4,4,0,0,0-3.56,0L1.77,41.57,0,42.6,34.49,62.51v39.83l20.3-11.73,1.79-1a3.94,3.94,0,0,0,1.78-3.08V48.72ZM0,82.43L23.86,96.21V68.63Z"></path><path fill="#4b4e52" d="M148.09,27.28h-26V97.76h11.55V70.1h14.57c15.77,0,24.45-7.7,24.45-21.69,0-6.35-2.4-21.12-24.55-21.12M160.89,48.6c0,7.95-4.12,11.19-14.24,11.19h-13V37.69h14.57c8.56,0,12.71,3.57,12.71,10.91M207,46.41l0.87,0.42-2,10.42-1.35-.42a11.32,11.32,0,0,0-3.34-.51c-10.79,0-11.67,8.59-11.67,19V97.76H178.87V46h10v6.24c2.73-4.2,6-6.37,10.37-6.9A14.55,14.55,0,0,1,207,46.41M233.29,45c-8.42,0-15.16,3.2-19.5,9.27-4.56,6.37-5.23,13.85-5.23,17.74,0,16.36,9.7,26.92,24.73,26.92,18.26,0,24.73-14.71,24.73-27.3,0-7.25-2.15-13.82-6-18.51-4.41-5.31-10.87-8.12-18.7-8.12m0,44.38c-8.37,0-13.57-6.66-13.57-17.37s5.2-17.55,13.57-17.55S247,61.23,247,71.78c0,10.83-5.24,17.56-13.66,17.56M347.89,46.41l0.87,0.42-2,10.42-1.35-.42a11.26,11.26,0,0,0-3.33-.51c-10.78,0-11.66,8.59-11.66,19V97.76H319.76V46h10v6.24c2.73-4.2,6-6.37,10.37-6.9a14.54,14.54,0,0,1,7.73,1.06m38.4,34.76-0.2.57c-2.23,6.36-7.57,7.7-11.65,7.7-8.09,0-13.3-5.37-13.81-14.09h36.59l0.13-1a31.26,31.26,0,0,0,.12-4.12c0-.34,0-0.64,0-0.93C396.93,54.78,387.48,45,374,45c-7.9,0-14.37,3.1-18.73,9a30.85,30.85,0,0,0-5.54,18c0,16,9.95,26.74,24.74,26.74,11.45,0,19.33-5.82,22.2-16.38L397,81.16h-10.7ZM361,66.05c0.9-7.17,5.81-11.73,12.79-11.73,5.33,0,11.64,3.1,12.52,11.73H361Zm-60.7-15.71c-3.45-3.58-8.06-5.39-13.76-5.39-15.69,0-22.83,13.81-22.83,26.63,0,13.16,7.06,26.44,22.83,26.44a18.33,18.33,0,0,0,13.35-5.42c0,2.28-.1,4.45-0.16,5.38-0.58,8.54-4.68,12.51-12.91,12.51-4.47,0-9.61-1.59-10.6-6l-0.22-1H265.46l0.17,1.41c1.1,9.12,9.11,14.79,20.9,14.79,10.34,0,17.7-3.9,21.28-11.26,1.73-3.55,2.6-8.72,2.6-15.37V46H300.28v4.34ZM287.19,88.49c-3.74,0-12.43-1.69-12.43-17.37,0-10.3,4.87-16.7,12.71-16.7,6.06,0,12.52,4.39,12.52,16.7,0,10.87-4.79,17.37-12.81,17.37m159.67-6.31c0,8.23-6.83,16.53-22.09,16.53-13.5,0-21.53-5.85-22.61-16.45L402,81.16h10.52L412.73,82c1.29,6.38,7.37,7.72,12.24,7.72,5.34,0,11-1.72,11-6.54,0-2.44-1.59-4.18-4.73-5.16-1.86-.55-4.15-1.2-6.56-1.87-4.16-1.16-8.47-2.38-11.12-3.29-6.56-2.35-10.33-6.93-10.33-12.56,0-10.43,10.16-15.11,20.22-15.11,13.46,0,20.42,5.07,21.3,15.49l0.09,1.07H434.5l-0.14-.82c-1-6-7-6.9-10.48-6.9-3,0-10,.53-10,5.5,0,2.25,1.93,3.91,5.89,5.06,1.18,0.33,2.94.78,5,1.31,4.22,1.09,9.48,2.46,12.13,3.37,6.59,2.32,9.93,6.67,9.93,13m49.39,0c0,8.23-6.83,16.53-22.09,16.53-13.5,0-21.53-5.85-22.61-16.45l-0.11-1.09H462L462.12,82c1.29,6.38,7.37,7.72,12.24,7.72,5.34,0,11-1.72,11-6.54,0-2.44-1.59-4.18-4.72-5.16-1.86-.55-4.15-1.2-6.57-1.87-4.16-1.16-8.46-2.38-11.11-3.29-6.57-2.35-10.33-6.93-10.33-12.56,0-10.43,10.16-15.11,20.22-15.11,13.46,0,20.42,5.07,21.29,15.49l0.09,1.07H483.9l-0.14-.82c-1-6-7-6.9-10.48-6.9-3,0-9.95.53-9.95,5.5,0,2.25,1.93,3.91,5.89,5.06,1.18,0.33,2.94.78,5,1.31,4.22,1.09,9.48,2.46,12.13,3.37,6.58,2.32,9.93,6.67,9.93,13"></path><path fill="#4b4e52" d="M504.71,51.49A7.37,7.37,0,1,1,512,44.12a7.23,7.23,0,0,1-7.29,7.37m0-13.49a6.12,6.12,0,1,0,6,6.12,5.91,5.91,0,0,0-6-6.12m-0.85,7.49v2.46h-2.17V40.21h3.62a2.58,2.58,0,0,1,2.86,2.7,2.26,2.26,0,0,1-1.49,2.34l1.77,2.7H506l-1.49-2.46h-0.68ZM505.07,42h-1.21v1.73h1.21a0.86,0.86,0,0,0,1-.85,0.88,0.88,0,0,0-1-.89"></path></svg></a>
+ <p class="-fs12 -mb1">Copyright &copy; 2026 Progress Software Corporation and/or its subsidiaries or affiliates. All Rights Reserved.</p><div class="row"><div class="-l-full col-16 -l-mb3"><a class="-fs16 -fw6 -mr1" data-sf-ec-immutable="" rel="noopener" target="_blank" href="https://www.progress.com/company">About Us</a>
+ <a class="-fs16 -fw6 -mr1" href="/awards">Awards</a>
+ <a class="-fs16 -fw6 -mr1" data-sf-ec-immutable="" rel="noopener" target="_blank" href="https://investors.progress.com/press-releases">Press Releases</a>
+ <a class="-fs16 -fw6 -mr1" data-sf-ec-immutable="" rel="noopener" target="_blank" href="https://www.progress.com/company/press-coverage">Media Coverage</a>
+ <a class="-fs16 -fw6 -mr1" href="/careers">Careers</a>
+ <a class="-fs16 -fw6 -mr1" data-sf-ec-immutable="" rel="noopener" target="_blank" href="https://www.progress.com/company/offices">Offices</a>
+
+ <p class="-ff-base -fs12 -pt2">Chef is part of the Progress product portfolio. Progress is the leading provider of application development and digital experience technologies. Progress and certain product names used herein are trademarks or registered trademarks of Progress Software Corporation and/or one of its subsidiaries or affiliates in the U.S. and/or other countries. See <a data-sf-ec-immutable="" target="_blank" href="https://www.progress.com/legal/trademarks" class="-ntdu -h-op-6 link">Trademarks</a> for appropriate markings. All rights in any other trademarks contained herein are reserved by their respective owners and their inclusion does not imply an endorsement, affiliation, or sponsorship as between Progress and the respective owners.</p></div><div class="-l-full -l-tal -tar -vab col col-8"><ul class="-fs11 -fw6 -mb0 -pl0 -vs0 List0"><li class="-dib -l-full -l-mb0h -l-ml0 -mr1"><a data-sf-ec-immutable="" rel="noopener" target="_blank" href="https://www.progress.com/trust-center" class="-fs12">Security Center</a></li><li class="-dib -ml1 -mr1  -l-full -l-mb0h -l-ml0"><a data-sf-ec-immutable="" rel="noopener" target="_blank" href="https://www.progress.com/legal" class="-fs12">License Agreement</a></li><li class="-dib -ml1 -l-full -l-mb0h -l-ml0"><a data-sf-ec-immutable="" rel="noopener" target="_blank" href="https://www.progress.com/company/code-of-conduct" class="-fs12">Code of Conduct</a></li></ul><p class="-dib -mb2 -ml1 -pt1 -l-ml0"><a data-sf-ec-immutable="" class="-c-black -fs12 -fw5 -h-op-6 -p0h Btn Btn--ghost" rel="noopener" target="_blank" href="https://forms.progress.com/ccpa-subscription">Do Not Sell or Share My Personal Information</a></p><p class="-fs12">Powered by <a data-sf-ec-immutable="" class="-fw5 -h-op-6 -ntdu" rel="noopener" target="_blank" href="https://www.progress.com/sitefinity-cms">Progress Sitefinity</a></p></div></div></div>
+</div>
+</div>
+</section>
+
+
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" type="text/javascript"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-migrate/3.4.1/jquery-migrate.min.js" type="text/javascript"></script>
+            <script type="text/javascript">
+                var oneTrustHelper = (function () {
+                    function evalGTMScript() {
+                        var gtmScript = document.getElementById("GTMScript");
+                        gtmScript.type = "text/javascript";
+                        gtmScript.classList.remove("optanon-category-1");
+                        eval(gtmScript.innerHTML);
+                    };
+
+                    return {
+                        gtmFallback: function () {
+                            console.warn('OneTrust not loaded.');
+                            if (document.readyState !== 'loading') {
+                                evalGTMScript();
+                            } else {
+                                document.addEventListener('readystatechange', function () {
+                                    if (document.readyState === 'interactive') {
+                                        evalGTMScript();
+                                    }
+                                });
+                            };
+                        }
+                    };
+                })();
+            </script>
+        
+               <script onerror="oneTrustHelper.gtmFallback()" src="https://cdn.cookielaw.org/consent/e231efa5-3ed9-4b92-96bc-f4c0872ca486-test/otSDKStub.js" data-language="en" type="text/javascript" charset="UTF-8" data-domain-script="e231efa5-3ed9-4b92-96bc-f4c0872ca486-test"></script>
+            
+<script type="text/javascript">
+    (function (w) {
+        w.OptanonGroups = {"StrictlyNecessaryCookies":"1","PerformanceCookies":"2","FunctionalCookies":"3","TargetingCookies":"4"};
+
+        w.isOptanonGroupActive = function (groupId, explicit) {
+            if (!w.OptanonActiveGroups) return false;
+            var groupMatchKey = ',' + groupId + ',';
+
+            return w.OptanonActiveGroups.indexOf(groupMatchKey) !== -1;
+        }
+
+        function toggleSitefinityTrackingConsent() {
+            var performanceCookiesGroupId = w.OptanonGroups.PerformanceCookies;
+            var isPerformanceCookiesGroupIdActive = w.isOptanonGroupActive(performanceCookiesGroupId, true);
+
+            if (w.TrackingConsentManager) {
+                w.TrackingConsentManager.updateUserConsent(isPerformanceCookiesGroupIdActive);
+            }
+        };
+
+        var trackingScriptsQueue = [];
+        w.invokeTrackingScript = function (thisReference, trackingGroup, functionReference) {
+            if (isOptanonGroupActive(trackingGroup, true)) {
+                functionReference.call(thisReference);
+            }
+            else {
+                trackingScriptsQueue.push({
+                    thisReference: thisReference,
+                    trackingGroup: trackingGroup,
+                    functionReference: functionReference
+                });
+            }
+        }
+
+        var isOptanonToggled = false;
+        var preferenceChangeHandlerAdded = false;
+
+        w.OptanonWrapper = function () {
+            var newTrackingScriptsQueue = [];
+            for (var i = 0; i < trackingScriptsQueue.length; i++) {
+                var trackingScriptData = trackingScriptsQueue[i];
+                if (isOptanonGroupActive(trackingScriptData.trackingGroup, true)) {
+                    trackingScriptData.functionReference.call(trackingScriptData.thisReference);
+                }
+                else {
+                    newTrackingScriptsQueue.push(trackingScriptData);
+                }
+            }
+
+            trackingScriptsQueue = newTrackingScriptsQueue;
+
+            if (!isOptanonToggled && w.location.hash === '#cookie-settings' && true) {
+                isOptanonToggled = true;
+                Optanon.ToggleInfoDisplay();
+            }
+
+            if(!preferenceChangeHandlerAdded){
+                
+                 OneTrust.OnConsentChanged(function() {
+
+                     // Trigger cookie check process after user makes changes to allowed cookie groups from the OneTrust cookie settings dialog.
+                     $.ajax(
+                     {
+                         url: '/webapi/CookiePreferences/Update',
+                         type: 'HEAD'
+                     });
+                 });
+
+                preferenceChangeHandlerAdded = true;
+            }
+
+            toggleSitefinityTrackingConsent();
+        }
+    })(window);
+</script>
+ <script id="GTMScript" type="text/plain" class="optanon-category-1" >(function (w, d, s, l, i) { w[l] = w[l] || []; w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' }); var f = d.getElementsByTagName(s)[0], j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''; j.async = true; j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f); })(window, document, 'script', 'dataLayer', 'GTM-NS7D7G');</script>  <script src='https://d6vtbcy3ong79.cloudfront.net/external-assets/latest/utils/store-lead-data.min.js' type="text/plain" class="optanon-category-2">
+		</script> <script type="text/javascript" defer src='/jsbundle/browsersession?v=CCToXvmugVTxtBu_K-vECSylXNAErmm3j66BGdkvlWs1'></script> <script src="/Frontend-Assembly/Web.Widgets.SEO/Mvc/Scripts/Shared/referrer-policy.min.js?package=PureMVC&amp;v=LTEzNDUzNzI5OTc%3d" type="text/javascript"></script><script src="https://d2i1toup5z0rfd.cloudfront.net/cache/4b1e430a19e2d5ad42a202316a065ddb8138af75/js/polyfills.min.js" type="text/javascript"></script><script type="text/plain" class="optanon-category-2">
+	(function() {
+				var script = 'https://s1325.t.eloqua.com/visitor/v200/svrGP?pps=70&siteid=1325';
+				(function getScript(source, callback) {
+					var script = document.createElement('script');
+					var prior = document.getElementsByTagName('script')[0];
+					script.async = 1;
+					prior.parentNode.insertBefore(script, prior);
+					script.onload = script.onreadystatechange = function( _, isAbort ) {
+						if(isAbort || !script.readyState || /loaded|complete/.test(script.readyState) ) {
+							script.onload = script.onreadystatechange = null;
+							script = undefined;
+
+							if(!isAbort) { if(callback) callback(); }
+						}
+					};
+					script.src = source;
+				})(script, function() {
+					if (typeof GetElqCustomerGUID == 'function') {
+						var userId = GetElqCustomerGUID();
+						document.cookie = 'elqUserId=' + userId + ';secure; path=/;SameSite=Lax;';
+					}
+				});
+			})();
+</script><script type="text/javascript">
+    
+(function() {
+    if (window._dataLayerTimeout) {
+        clearTimeout(window._dataLayerTimeout);
+    }
+
+    window._dataLayerTaxLoadedEvent = {
+		...(window._dataLayerTaxLoadedEvent || {}),
+		...{"tax_pagenode_products":"chef","event":"tax_loaded"}
+	};
+
+    window._dataLayerTimeout = setTimeout(function() {
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push(window._dataLayerTaxLoadedEvent);
+    }); 
+})();
+
+</script><script type="text/javascript">
+    
+(function() {
+    if (window._dataLayerTimeout) {
+        clearTimeout(window._dataLayerTimeout);
+    }
+
+    window._dataLayerTaxLoadedEvent = {
+		...(window._dataLayerTaxLoadedEvent || {}),
+		...{"tax_pagenode_products":"chef","event":"tax_loaded","tax_blogpost_author_name":"Christopher Webber","tax_blogpost_category":"community,cookbooks","tax_blogpost_title":"Supermarket Intermittent Unresponsiveness Postmortem","tax_blogpost_metatitle":"Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog","tax_blogpost_urlname":"supermarket-intermittent-unresponsiveness-postmortem","tax_blogpost_lastmodified":"20230306","tax_blogpost_publicationdate":"20140710"}
+	};
+
+    window._dataLayerTimeout = setTimeout(function() {
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push(window._dataLayerTaxLoadedEvent);
+    }); 
+})();
+
+</script><script type="application/json" id="PersonalizationTracker">
+	{"IsPagePersonalizationTarget":false,"IsUrlPersonalizationTarget":false,"PageId":"83196fd1-cf61-4270-9003-0859708dc740"}
+</script><script type="text/javascript" src="/WebResource.axd?d=NjxTqR2bqTw1rewxxlkHPne7wEMf8WdSHVNkpykxDiftDmdvziwtcCoYNKprF5asAczZ0ZiDwlp8Zh7zE8oiZpj5ua6BvpiDxr-zb3aexvWD6GOYcwcRQLOftdbfFPsd5Re3GYsrZYqBs3uKY6fVKoI4sbgmnJ29UtmOwscN1TgvHEQVQ4CiCZp4bEQbcQUvw9n9pMVuivrEsSbWUg9LCI9WKEI8rVI2PwSfh44po441&amp;t=639226418820000000">
+
+</script><script type="text/javascript">
+document.addEventListener("DOMContentLoaded",function(){const n=document.querySelector(".blog-content");if(n){function t(){const t=document.getElementById("ProgressBar"),i=n.scrollHeight,r=window.innerHeight,u=window.scrollY,f=Math.min(u/(i-r)*100,100);t.style.width=`${f}%`}document.addEventListener("scroll",t);t()}})
+</script><script type="text/javascript">
+document.addEventListener("DOMContentLoaded",function(){const n=document.querySelector(".blog-content");if(n){const t=n.querySelectorAll("h2");if(t.length>0){const u=document.createElement("div");u.id="TableOfContents-wrapper";const i=document.createElement("div");i.id="TableOfContents";const r=document.createElement("div");r.id="toc-list";t.forEach((n,t)=>{n.id||(n.id=`heading-${t+1}`);const i=document.createElement("a");i.href=`#${n.id}`;i.textContent=n.textContent;r.appendChild(i)});i.appendChild(r);document.getElementById("js-toc").appendChild(i);n.parentNode.insertBefore(u,n);function f(){let n="";t.forEach((i,r)=>{const e=i.getBoundingClientRect(),u=t[r+1],f=u?u.getBoundingClientRect():null;e.top<=300&&(!f||f.top>300)&&(n=i.id)});const r=i.querySelectorAll("a");r.forEach(t=>{t.classList.toggle("is-active",t.getAttribute("href")===`#${n}`)})}f();document.addEventListener("scroll",f)}}const t=document.querySelector("#js-toc"),r=document.querySelector(".js-toggle-toc"),i=r?.querySelector(".-i-arrow-d, .-i-arrow-u");function u(){window.innerWidth<961?t?.classList.add("is-collapsed"):(t?.classList.remove("is-collapsed"),i?.classList.remove("-i-arrow-u"),i?.classList.add("-i-arrow-d"))}u();window.addEventListener("resize",u);r?.addEventListener("click",()=>{if(!(window.innerWidth>=961)){t?.classList.toggle("is-collapsed");const n=!t?.classList.contains("is-collapsed");i?.classList.toggle("-i-arrow-d",!n);i?.classList.toggle("-i-arrow-u",n)}});var f=StickyElement.create({top:80,bottom:130,resize:!0,placeholder:!1,elevation:!0,breakpoint:961,classOnly:!1,fixClass:"is-fixedeLement",selector:".article-sidebar",stopSelector:".js-sticky-stopper"})})
+</script><script type="text/javascript">
+(function(){document.querySelectorAll(".js-toggle-summary").forEach(function(n){var t=n.closest(".ai-summary").querySelector(".js-ai-summary"),i=n.querySelector("a");if(t&&i){var r=function(r){t.classList.toggle("is-open",r);n.setAttribute("aria-expanded",r?"true":"false");t.setAttribute("aria-hidden",r?"false":"true");i.classList.toggle("-i-arrow-d",!r);i.classList.toggle("-i-arrow-u",r);Array.from(t.querySelectorAll(".js-ai-summary-to-copy li")).forEach(function(n,t){n.style.transitionDelay=r?t*.08+"s":"0s"})};n.addEventListener("click",function(n){n.preventDefault();r(!t.classList.contains("is-open"))});n.addEventListener("keydown",function(n){(n.key==="Enter"||n.key===" ")&&(n.preventDefault(),r(!t.classList.contains("is-open")))});r(!1)}});document.querySelectorAll(".js-copy-ai-summary").forEach(function(i){i.dataset.originalContent=i.innerHTML;i.addEventListener("click",function(r){r.preventDefault();var u=i.closest(".ai-summary").querySelector(".js-ai-summary-to-copy");if(u){var e=Array.from(u.querySelectorAll("li")).map(function(n){return n.innerText.trim()}).filter(Boolean).join("\n"),f=e||u.innerText.trim();navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(f).then(function(){t(i)}).catch(function(){n(f,i)}):n(f,i)}})});function n(n,i){var r=document.createElement("textarea");r.value=n;r.setAttribute("readonly","");r.style.position="fixed";r.style.left="-9999px";document.body.appendChild(r);r.select();document.execCommand("copy");document.body.removeChild(r);t(i)}function t(n){n.innerHTML="done :)";n.classList.add("is-copied");window.clearTimeout(n._copyResetTimer);n._copyResetTimer=window.setTimeout(function(){n.innerHTML=n.dataset.originalContent||"Copy";n.classList.remove("is-copied")},1500)}})()
+</script><script type="text/javascript" src="https://progress.telerik-web-assets.com/js/all.min.js"></script><script type="text/javascript">
+$(document).ready(function(){$(".blog-content blockquote").each(function(){($(this).children("pre").length>0||$(this).children("code").length>0)&&$(this).addClass("has-code")})})
+</script> </body> </html>

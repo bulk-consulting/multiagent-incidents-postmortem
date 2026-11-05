@@ -1,0 +1,57 @@
+{
+  "catalog_id": "DAN-076",
+  "category": "Conflicts",
+  "company": "CCP Games",
+  "completeness": {
+    "impact": true,
+    "mitigation_recovery": true,
+    "prevention": false,
+    "root_cause": false,
+    "summary_context": true,
+    "symptoms": true,
+    "timeline": true
+  },
+  "content_hash": "0b18b59de1ed23493532f14b2af61ebb496353900a5abf8d4b94d97bfbe7d8cb",
+  "content_type": "text/html",
+  "domain": "community.eveonline.com",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "# About the boot.ini issue\n\nMy name is Dr. Erlendur S. Thorsteinsson and I have been directing the EVE Online Software Group for the better part of this year. From my previous work experiences in the antivirus industry and following CCP for quite some time now, I have come to appreciate the need for full disclosure when things don't go according to plan.\n\nShortly after releasing **EVE Online: Trinity** at 22:04 GMT on Wednesday, 5 December, we started receiving reports that the Classic to Premium graphics content upgrade was causing problems to players by deleting the file C:\\boot.ini, which is a Windows system startup file. In some cases the computer was not able to recover on the next startup and would not start until the file had been fixed. In this dev blog I want to tell you how this happened.\n\nIn the weeks leading up to the release of Trinity, one of our concerns was how to deliver this update to our players in a very short amount of time and to players that might not all have a good internet connection. Significant effort was therefore put into making the Classic to Premium graphics content upgrade as small as possible at various stages in the process.\n\nInitially we had planned to use our third-party patching technology to create the graphics content upgrade file; however, we realized late in the development cycle that while it was suitable for creating small update patches for files that already existed on the computer, it did poorly in compressing new files. Since the content upgrade only had to replace two small text files - boot.ini and manifest.dat - and then copy 1.43 GB of new files, resDX9\\*.stuff, we decided to switch to our third-party installer technology that had superior compression, LZMA, enabling us to shrink the download from about 866 MB to 584 MB. The script to create the graphics content upgrade installer file was added to our source code management system on 30 November at 14:59 GMT. The first graphics content upgrade to use the installer technology was released on Singularity on Sunday, 2 December, and then a version for the final build, 45017, was released on Tranquility at 22:04 GMT on 5 December when the server was opened.\n\nIt might appear from the installer log that we made the mistake of explicitly deleting \\boot.ini instead of just boot.ini. The former would delete the file from the root of the current drive whereas the latter would only delete from the current working directory. It is not quite so; the mistake was to assume that the file would be deleted from the current working directory without giving the full path. In fact, this is the code in the installer script that caused the problems:\n\nSection \"EVE-ONLINE\"\n\nSetOutPath \"$INSTDIR\"\n\nDelete \"boot.ini\"\n\nDelete \"manifest.dat\"\n\nFile \"boot.ini\"\n\nFile \"manifest.dat\"\n\nFile \"resDX9\\*.stuff\"\n\nSectionEnd\n\n\nThe assumption was that by setting *SetOutPath \"$INSTDIR\"* then all commands that followed would use that working directory.\n\nThe *File* commands use the output path that has been set. The documentation for the *Delete* function says the file *should* be specified with a full path but in fact it *must* be specified with a full path, like so:\n\nDelete \"$INSTDIR\\boot.ini\"\n\nDelete \"$INSTDIR\\manifest.dat\"\n\n\nOtherwise, it is assumed that the file should be deleted from the root.\n\nThe fix we made to the installer script was not to explicitly delete these two files but rather implicitly overwrite them. That fix was made in the early morning after the release, on 6 December at 06:08 GMT, and a fixed graphics content upgrade was released shortly thereafter. The faulty upgrade had been pulled from Tranquility a few hours after the problem was discovered, at around 03:40 GMT.\n\nThere are a few observations that you could rightly make:\n\n*Why do you have a file with the same name as a Windows system startup file?* The answer is really \"legacy\"; it has been like that since 2001 when the file was introduced on the server and later migrated over to the client in 2002, so this file has been with us for over 6 years. We are reviewing all filenames and changing the name of any file that conflicts with Windows.\n\n*Why doesn't Windows protect its system startup files?* That's a good question, one that I have asked myself in these last few days and wish I knew the answer. But of course I'm not going to blame Microsoft for our mistake. Windows doesn't protect those files and therefore software developers must take care not to touch them. We should have been more careful.\n\n*Why wasn't this caught in a code review?* The installer scripting language is not easy to read. We had been working very hard for many weeks prior to release, evenings and weekends, and this error slipped by us.\n\n*Why didn't you catch this during testing?* It's partly the reason above, not enough time to test the graphics content upgrade thoroughly to notice it removed this file. We also discovered that we didn't have enough variation in our hardware and operating system setups since Windows will recover if it's on the first partition of the boot drive. It seems that most computers at CCP are set up this way and this was my personal experience in the evening of the release. I upgraded my Revelations 2.3 client to Trinity Classic and from there to Trinity Premium. I logged onto Tranquility, then logged directly out again and rebooted my computer without any visible problems. Needless to say, we have already revised our testing procedures to make sure this does not happen again.\n\nWhen this problem was discovered, developers were called back to work in the middle of the night to investigate and fix it. Since then we have been working hard around the clock helping our customers that were affected by this problem, quickly establishing phone support and even making arrangements for external support technicians, such as Geek Squad, to assist our customers when necessary. In all, we've been contacted by fewer than 215 users (170 by petition, 45 by phone) who were adversely affected by the boot.ini issue and we will remain diligent in our efforts to see that each case is resolved satisfactorily, first through our Customer Support and if that fails through third party tech assistance such as Geek Squad. (For more information on the boot.ini issue, please visit this webpage.)\n\nWe deeply regret this incident and appreciate the patience and support our community has shown through the recovery process.",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:10:05.583388+00:00",
+  "final_url": "https://www.eveonline.com/news/view/about-the-boot.ini-issue",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-076.html",
+  "redirect_history": [
+    {
+      "destination_url": "https://www.eveonline.com/article/about-the-boot.ini-issue/",
+      "result": "followed",
+      "source_url": "https://community.eveonline.com/news/dev-blogs/about-the-boot.ini-issue/",
+      "type": "http"
+    },
+    {
+      "destination_url": "https://www.eveonline.com/article/about-the-boot.ini-issue",
+      "result": "followed",
+      "source_url": "https://www.eveonline.com/article/about-the-boot.ini-issue/",
+      "type": "http"
+    },
+    {
+      "destination_url": "https://www.eveonline.com/news/view/about-the-boot.ini-issue",
+      "result": "followed",
+      "source_url": "https://www.eveonline.com/article/about-the-boot.ini-issue",
+      "type": "http"
+    }
+  ],
+  "redirects": [
+    "https://www.eveonline.com/article/about-the-boot.ini-issue/",
+    "https://www.eveonline.com/article/about-the-boot.ini-issue",
+    "https://www.eveonline.com/news/view/about-the-boot.ini-issue"
+  ],
+  "review_reason": [
+    "cross_domain_redirect"
+  ],
+  "source_url": "https://community.eveonline.com/news/dev-blogs/about-the-boot.ini-issue/",
+  "status": "needs_review",
+  "title": "About the boot.ini issue | EVE Online",
+  "word_count": 1084
+}

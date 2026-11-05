@@ -1,0 +1,32 @@
+{
+  "catalog_id": "DAN-205",
+  "category": "Uncategorized",
+  "company": "PagerDuty",
+  "completeness": {
+    "impact": false,
+    "mitigation_recovery": true,
+    "prevention": true,
+    "root_cause": true,
+    "summary_context": false,
+    "symptoms": true,
+    "timeline": true
+  },
+  "content_hash": "24ab24822c5701602218db766a9f258493ac157ec0194b18be6eb779642671ba",
+  "content_type": "text/html",
+  "domain": "web.archive.org",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "# Outage Post-Mortem – April 13, 2013\n\nWe spend enormous amount of our time on the reliability of PagerDuty and the infrastructure that hosts it. Most of this work is invisible, hidden behind the API and the user interface our customers interact with. However, when they fail, they become very noticeable as delays in notifications and 500s on our API endpoints. That’s what happened on Saturday, April 13, at around 8:00am Pacific Time. PagerDuty suffered an outage triggered by degradation in a peering point used by two AWS regions.\n\nWe are writing this post to let our customers know what had happened, what we have learned and what we’ll do to fix all the issues uncovered by this outage.\n\n## Background\n\nPagerDuty’s infrastructure is hosted in three different datacenters (two in AWS and another in Linode). For the past year, we’ve been rearchitecting our software with the goal of it being able to survive the outage of an entire datacenter (including it being partitioned from the network), but something not specifically built into our design was the ability to survive the failure of two datacenters at once. However unlikely, that is what happened on Saturday morning. Since we consider an AWS region as a datacenter, and having both of them fail at the same time, we weren’t able to remain available with only our last remaining datacenter.\n\nWe picked our three datacenters to have no dependency amongst them, and made sure that they are physically separated. However, we have since learned that two of the datacenters shared a common peering point. This peering point experienced an outage that resulted in both of our datacenters going offline.\n\n## The Outage\n\n**Note:** All times referenced below are in Pacific Time.\n\n- At 7:57am, according to AWS, connectivity issue begins due to a peering point degrading in Northern California\n- At 8:11am, PagerDuty on-call engineer is paged about an issue with the one of the nodes in our notification dispatch system\n- At 8:13am, an attempt is made to bring back the failed node but with no success\n- At 8:18am, our monitoring system detects multiple-provider failure for notifications (caused by connectivity issue). At this time, most of the notifications are still going through, but with increased latencies and error rates\n- At 8:31, a Sev-2 was declared and more engineers were paged to help out\n- At 8:35am, PagerDuty completely loses its ability to dispatch notification, as it couldn’t establish quorum due to high network latency. Sev-1 is declared\n- At 8:53am, PagerDuty notification dispatch system was able to reach quorum and started to process all queued notifications\n- At 9:23am, according to AWS, connectivity issue at the Northern California peering point ends\n\nDuring the post-mortem analysis, our engineers also determined that a misconfiguration on our coordinator service prevented us from recovering quickly. In all, PagerDuty wasn’t able to dispatch notifications for 18 minutes between 8:35am and 8:53am; however, during this time, our events API was still able to accept events.\n\n## What we’re going to do\n\nAs always with major outages, we learn something new about deficiencies in our software. These are some of our plans to rectify the discovered issues.\n\n### Short term\n\n1. During our analysis, we found that we didn’t have adequate logging to debug issues within some of our systems. We have now added more logging and started to aggregate them into a single source for better searchability.\n2. During the outage, most of the failed coordinator processes were restarted manually. We are going to add a process watcher to restart such processes automatically.\n3. We also found that we didn’t have good visibility into the inter-host connectivity. We’ll be building a dashboard that shows this.\n\n### Long term\n\n1. We also found that not all of our engineering staff are up to date with Cassandra and ZooKeeper. We’ll be investing time to train our staff on both of these technologies.\n2. Investigate moving off one of the AWS regions. We’ll need to do our homework when picking a new hosting provider and the datacenter to avoid single point of failure.",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:15:57.553830+00:00",
+  "final_url": "https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-205.html",
+  "redirect_history": [],
+  "redirects": [],
+  "review_reason": [],
+  "source_url": "https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/",
+  "status": "extracted",
+  "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty",
+  "word_count": 684
+}

@@ -1,0 +1,204 @@
+
+  <!DOCTYPE html>
+<html class="google" lang="en">
+  <head>
+    <script>
+      (function(H){H.className=H.className.replace(/\bgoogle\b/,'google-js')})(document.documentElement)
+    </script>
+    <script src="//www.google.com/js/maia.js"></script>
+
+    <script src="//status.cloud.google.com/js/cloudstatus_compiled.js?v=62206dc79d9eab8215d2191c1cc6f932"></script>
+    <meta charset="utf-8">
+    <meta content="initial-scale=1, minimum-scale=1, width=device-width" name="viewport">
+
+    <title>Google Cloud Status Dashboard</title>
+
+    <link type="application/atom+xml" rel="alternate" href="/feed.atom"/>
+
+    <link rel="icon" type="image/ico" href="//status.cloud.google.com/images/gcp-favicon.ico">
+
+    <link href="//fonts.googleapis.com/css?family=Open+Sans:300,400,600,700&amp;lang=en" rel="stylesheet">
+    <link href="//www.google.com/css/maia.css" rel="stylesheet">
+    <link rel="stylesheet" href="//status.cloud.google.com/css/cloud_status_compiled.css?v=62206dc79d9eab8215d2191c1cc6f932" type="text/css">
+  </head>
+  <body>
+    <div class="body">
+      <div class="header" id="maia-header" role="banner">
+        <div class="maia-aux">
+          <h1><a href="//cloud.google.com"><img alt="Google Cloud Platform" src="//cloud.google.com/_static/images/new-gcp-logo.png"></a></h1>
+        </div>
+      </div>
+        <div class="subheader maia-stage open-incident-bar-clear">
+          <div class="maia-aux">
+          <span class="date">
+            April 13, 2018
+          </span>
+          <span class="status">
+          
+            All services available
+          
+          </span>
+        </div>
+      </div>
+      <div class="maia-stage">
+        <ul class="breadcrumbs maia-aux">
+          
+  <li><a href="/">Google Cloud Status Dashboard</a></li>
+  <li><a href="/summary">Incidents</a></li>
+  <li><a href="/incident/compute/17007">Google Compute Engine</a></li>
+
+        </ul>
+      </div>
+      <div id="maia-main" role="main">
+        <h1 class="page-header"><a href="/">Google Cloud Status Dashboard</a></h1>
+        <p>
+        This page provides status information on the services that are part of Google Cloud Platform.
+        Check back here to view the current status of the services listed below. If you are experiencing an
+        issue not listed here, please <a href="//cloud.google.com/support/">contact Support</a>.
+        Learn more about what's posted on the dashboard in <a href="//cloud.google.com/support/docs/dashboard">
+        this FAQ</a>. For additional information on these services, please visit
+        <a href="//cloud.google.com">cloud.google.com</a>.
+        </p>
+        
+  
+
+  <h1>Google Compute Engine Incident #17007</h1>
+
+ 
+    <div class="secondary">
+      <p>502 errors for HTTP(S) Load Balancers</p>
+   </div>
+ 
+
+ 
+
+  <div class="secondary">
+    <p>
+    
+    Incident began at <strong>2017-04-05 01:13</strong>
+    
+
+    
+    and ended at <strong>2017-04-05 01:35</strong>
+    
+
+    (all times are <strong>US/Pacific</strong>).
+    </p>
+  </div>
+
+  <table class="updates incident">
+    <thead>
+      <tr>
+        <th class="status"></th>
+        <th class="date">Date</th>
+        <th class="time">Time</th>
+        <th class="description">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+        
+        <tr>
+          
+          
+              <td class="status"><span class="bubble ok"></span></td>
+          
+          <td class="date">Apr 12, 2017</td>
+          <td class="time">14:11</td>
+          <td class="description"><p>ISSUE SUMMARY</p>
+
+<p>On Wednesday 5 April 2017, requests to the Google Cloud HTTP(S) Load Balancer experienced a 25% error rate for a duration of 22 minutes.</p>
+
+<p>We apologize for this incident. We understand that the Load Balancer needs to be very reliable for you to offer a high quality service to your customers. We have taken and will be taking various measures to prevent this type of incident from recurring.</p>
+
+<p>DETAILED DESCRIPTION OF IMPACT</p>
+
+<p>On Wednesday 5 April 2017 from 01:13 to 01:35 PDT, requests to the Google Cloud HTTP(S) Load Balancer experienced a 25% error rate for a duration of 22 minutes. Clients received 502 errors for failed requests. Some HTTP(S) Load Balancers that were recently modified experienced error rates of 100%.</p>
+
+<p>Google paused all configuration changes to the HTTP(S) Load Balancer for three hours and 41 minutes after the incident, until our engineers had understood the root cause. This caused deployments of App Engine Flexible apps to fail during that period.</p>
+
+<p>ROOT CAUSE</p>
+
+<p>A bug in the HTTP(S) Load Balancer configuration update process caused it to revert to a configuration that was substantially out of date.</p>
+
+<p>The configuration update process is controlled by a master server. In this case, one of the replicas of the master servers lost access to Google's distributed file system and was unable to read recent configuration files. Mastership then passed to the server that could not access Google's distributed file system. When the mastership changes, it begins the next configuration push as normal by testing on a subset of HTTP(S) Load Balancers. If this test succeeds, the configuration is pushed globally to all HTTP(S) Load Balancers.  If the test fails (as it did in this case), the new master will revert all HTTP(S) Load Balancers to the last "known good" configuration. The combination of a mastership change, lack of access to more recent updates, and the initial test failure for the latest config caused the HTTP(S) Load Balancers to revert to the latest configuration that the master could read, which was substantially out-of-date.</p>
+
+<p>In addition, the update with the out-of-date configuration triggered a garbage collection process on the Google Frontend servers to free up memory used by the deleted configurations. The high number of deleted configurations caused the Google Frontend servers to spend a large proportion of CPU cycles on garbage collection which lead to failed health checks and eventual restart of the affected Google Frontend server. Any client requests served by a restarting server received 502 errors.</p>
+
+<p>REMEDIATION AND PREVENTION</p>
+
+<p>Google engineers were paged at 01:22 PDT. They switched the configuration update process to use a different master server at 01:34 which mitigated the issue for most services within one minute. Our engineers then paused the configuration updates to the HTTP(S) Load Balancer until 05:16 while the root cause was confirmed.</p>
+
+<p>To prevent incidents of this type in future, we are taking the following actions:</p>
+
+<ul>
+<li><p>Master servers will be configured to never push HTTP(S) Load Balancer configurations that are more than a few hours old.</p></li>
+<li><p>Google Frontend servers will reject loading a configuration file that is more than a few hours old.</p></li>
+<li><p>Improve testing for new HTTP(S) Load Balancer configurations so that out-of-date configurations are flagged before being pushed to production.</p></li>
+<li><p>Fix the issue that caused the master server to fail when reading files from Google's distributed file system.</p></li>
+<li><p>Fix the issue that caused health check failures on Google Frontends during heavy garbage collection.</p></li>
+</ul>
+
+<p>Once again, we apologize for the impact that this incident had on your service.</p></td>
+        </tr>
+        <tr class="next-row-desc">
+          <td></td>
+          <td colspan="3"><p>ISSUE SUMMARY</p>
+
+<p>On Wednesday 5 April 2017, requests to the Google Cloud HTTP(S) Load Balancer experienced a 25% error rate for a duration of 22 minutes.</p>
+
+<p>We apologize for this incident. We understand that the Load Balancer needs to be very reliable for you to offer a high quality service to your customers. We have taken and will be taking various measures to prevent this type of incident from recurring.</p>
+
+<p>DETAILED DESCRIPTION OF IMPACT</p>
+
+<p>On Wednesday 5 April 2017 from 01:13 to 01:35 PDT, requests to the Google Cloud HTTP(S) Load Balancer experienced a 25% error rate for a duration of 22 minutes. Clients received 502 errors for failed requests. Some HTTP(S) Load Balancers that were recently modified experienced error rates of 100%.</p>
+
+<p>Google paused all configuration changes to the HTTP(S) Load Balancer for three hours and 41 minutes after the incident, until our engineers had understood the root cause. This caused deployments of App Engine Flexible apps to fail during that period.</p>
+
+<p>ROOT CAUSE</p>
+
+<p>A bug in the HTTP(S) Load Balancer configuration update process caused it to revert to a configuration that was substantially out of date.</p>
+
+<p>The configuration update process is controlled by a master server. In this case, one of the replicas of the master servers lost access to Google's distributed file system and was unable to read recent configuration files. Mastership then passed to the server that could not access Google's distributed file system. When the mastership changes, it begins the next configuration push as normal by testing on a subset of HTTP(S) Load Balancers. If this test succeeds, the configuration is pushed globally to all HTTP(S) Load Balancers.  If the test fails (as it did in this case), the new master will revert all HTTP(S) Load Balancers to the last "known good" configuration. The combination of a mastership change, lack of access to more recent updates, and the initial test failure for the latest config caused the HTTP(S) Load Balancers to revert to the latest configuration that the master could read, which was substantially out-of-date.</p>
+
+<p>In addition, the update with the out-of-date configuration triggered a garbage collection process on the Google Frontend servers to free up memory used by the deleted configurations. The high number of deleted configurations caused the Google Frontend servers to spend a large proportion of CPU cycles on garbage collection which lead to failed health checks and eventual restart of the affected Google Frontend server. Any client requests served by a restarting server received 502 errors.</p>
+
+<p>REMEDIATION AND PREVENTION</p>
+
+<p>Google engineers were paged at 01:22 PDT. They switched the configuration update process to use a different master server at 01:34 which mitigated the issue for most services within one minute. Our engineers then paused the configuration updates to the HTTP(S) Load Balancer until 05:16 while the root cause was confirmed.</p>
+
+<p>To prevent incidents of this type in future, we are taking the following actions:</p>
+
+<ul>
+<li><p>Master servers will be configured to never push HTTP(S) Load Balancer configurations that are more than a few hours old.</p></li>
+<li><p>Google Frontend servers will reject loading a configuration file that is more than a few hours old.</p></li>
+<li><p>Improve testing for new HTTP(S) Load Balancer configurations so that out-of-date configurations are flagged before being pushed to production.</p></li>
+<li><p>Fix the issue that caused the master server to fail when reading files from Google's distributed file system.</p></li>
+<li><p>Fix the issue that caused health check failures on Google Frontends during heavy garbage collection.</p></li>
+</ul>
+
+<p>Once again, we apologize for the impact that this incident had on your service.</p></td>
+        </tr>
+      
+    </tbody>
+  </table>
+
+  <ul class="summary-bar">
+    <li>All times are US/Pacific</li>
+    <li class="right"><a href="" onClick="return cloudstatus.SendFeedback();">Send Feedback</a></li>
+  </ul>
+
+      </div>
+      <div id="maia-signature"></div>
+      <div class="maia-footer" id="maia-footer">
+        <div id="maia-footer-global">
+          <div class="maia-aux">
+            <ul>
+              <li>&nbsp;</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

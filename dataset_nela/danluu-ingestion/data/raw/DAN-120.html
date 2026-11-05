@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en-US">
+<head><script type="text/javascript" src="https://web-static.archive.org/_static/js/bundle-playback.js?v=3grhEDQT" charset="utf-8"></script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/wombat.js?v=o9P2E1FK" charset="utf-8"></script>
+<script>window.RufflePlayer=window.RufflePlayer||{};window.RufflePlayer.config={"autoplay":"on","unmuteOverlay":"hidden","showSwfDownload":true};</script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/ruffle/ruffle.js"></script>
+<script type="text/javascript">
+    __wm.init("https://web.archive.org/web");
+  __wm.wombat("https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/","20220529044310","https://web.archive.org/","web","https://web-static.archive.org/_static/",
+	      "1653799390");
+</script>
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/banner-styles.css?v=1utQkbB3" />
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/iconochive.css?v=3PDvdIFv" />
+<!-- End Wayback Rewrite JS Include -->
+
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="profile" href="https://gmpg.org/xfn/11">
+
+	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"/>
+<!-- Jetpack Site Verification Tags -->
+<meta name="google-site-verification" content="0DhapiM4O0UOfgAG0h7WKwcen-OnbamAZvubxFltbwE"/>
+<meta name="msvalidate.01" content="76FA9A6899F84C58C463EBD43BD0827E"/>
+
+	<!-- This site is optimized with the Yoast SEO plugin v18.9 - https://yoast.com/wordpress/plugins/seo/ -->
+	<title>Postmortem on the read-only outage of Basecamp on November 9th, 2018 - Signal v. Noise</title>
+	<link rel="canonical" href="https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/"/>
+	<meta name="twitter:label1" content="Written by"/>
+	<meta name="twitter:data1" content="DHH"/>
+	<meta name="twitter:label2" content="Est. reading time"/>
+	<meta name="twitter:data2" content="3 minutes"/>
+	<script type="application/ld+json" class="yoast-schema-graph">{"@context":"https://web.archive.org/web/20220529044310/https://schema.org","@graph":[{"@type":"WebSite","@id":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/#website","url":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/","name":"Signal v. Noise","description":"Strong opinions and shared thoughts on design, business, and tech. By the makers (and friends) of &lt;a href=&quot;https://web.archive.org/web/20220529044310/https://www.basecamp.com&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;&gt;Basecamp&lt;/a&gt;. Since 1999.","potentialAction":[{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/?s={search_term_string}"},"query-input":"required name=search_term_string"}],"inLanguage":"en-US"},{"@type":"ImageObject","inLanguage":"en-US","@id":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/#primaryimage","url":"https://web.archive.org/web/20220529044310/https://i0.wp.com/m.signalvnoise.com/wp-content/uploads/2018/11/16aOuZYkr-5o10PhGrzhgIA.png?fit=998%2C396&ssl=1","contentUrl":"https://web.archive.org/web/20220529044310/https://i0.wp.com/m.signalvnoise.com/wp-content/uploads/2018/11/16aOuZYkr-5o10PhGrzhgIA.png?fit=998%2C396&ssl=1","width":998,"height":396},{"@type":"WebPage","@id":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/#webpage","url":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/","name":"Postmortem on the read-only outage of Basecamp on November 9th, 2018 - Signal v. Noise","isPartOf":{"@id":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/#website"},"primaryImageOfPage":{"@id":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/#primaryimage"},"datePublished":"2018-11-12T20:28:45+00:00","dateModified":"2019-01-11T03:11:06+00:00","author":{"@id":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/#/schema/person/1bb65fee462de4267de9de9ef84fcd94"},"breadcrumb":{"@id":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/#breadcrumb"},"inLanguage":"en-US","potentialAction":[{"@type":"ReadAction","target":["https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/"]}]},{"@type":"BreadcrumbList","@id":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/"},{"@type":"ListItem","position":2,"name":"Postmortem on the read-only outage of Basecamp on November 9th, 2018"}]},{"@type":"Person","@id":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/#/schema/person/1bb65fee462de4267de9de9ef84fcd94","name":"DHH","image":{"@type":"ImageObject","inLanguage":"en-US","@id":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/#/schema/person/image/","url":"https://web.archive.org/web/20220529044310/https://secure.gravatar.com/avatar/040ac7f6cb78ffc0021411fd5a38127b?s=96&d=retro&r=pg","contentUrl":"https://web.archive.org/web/20220529044310/https://secure.gravatar.com/avatar/040ac7f6cb78ffc0021411fd5a38127b?s=96&d=retro&r=pg","caption":"DHH"},"description":"Creator of Ruby on Rails, Founder & CTO at Basecamp (formerly 37signals), NYT Best-selling author of REWORK and REMOTE, and Le Mans class-winning racing driver.","url":"https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/author/dhh37/"}]}</script>
+	<!-- / Yoast SEO plugin. -->
+
+
+<link rel="dns-prefetch" href="//web.archive.org/web/20220529044310/https://v0.wordpress.com/"/>
+<link rel="dns-prefetch" href="//web.archive.org/web/20220529044310/https://i0.wp.com/"/>
+<link rel="dns-prefetch" href="//web.archive.org/web/20220529044310/https://c0.wp.com/"/>
+<link rel="alternate" type="application/rss+xml" title="Signal v. Noise » Feed" href="https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/feed/"/>
+<link rel="alternate" type="application/rss+xml" title="Signal v. Noise » Comments Feed" href="https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/comments/feed/"/>
+<link rel="stylesheet" id="wp-block-library-css" href="https://web.archive.org/web/20220529044310cs_/https://c0.wp.com/c/6.0/wp-includes/css/dist/block-library/style.min.css" type="text/css" media="all"/>
+<style id="wp-block-library-inline-css" type="text/css">
+.has-text-align-justify{text-align:justify;}
+</style>
+<link rel="stylesheet" id="mediaelement-css" href="https://web.archive.org/web/20220529044310cs_/https://c0.wp.com/c/6.0/wp-includes/js/mediaelement/mediaelementplayer-legacy.min.css" type="text/css" media="all"/>
+<link rel="stylesheet" id="wp-mediaelement-css" href="https://web.archive.org/web/20220529044310cs_/https://c0.wp.com/c/6.0/wp-includes/js/mediaelement/wp-mediaelement.min.css" type="text/css" media="all"/>
+<style id="global-styles-inline-css" type="text/css">
+body{--wp--preset--color--black: #000000;--wp--preset--color--cyan-bluish-gray: #abb8c3;--wp--preset--color--white: #ffffff;--wp--preset--color--pale-pink: #f78da7;--wp--preset--color--vivid-red: #cf2e2e;--wp--preset--color--luminous-vivid-orange: #ff6900;--wp--preset--color--luminous-vivid-amber: #fcb900;--wp--preset--color--light-green-cyan: #7bdcb5;--wp--preset--color--vivid-green-cyan: #00d084;--wp--preset--color--pale-cyan-blue: #8ed1fc;--wp--preset--color--vivid-cyan-blue: #0693e3;--wp--preset--color--vivid-purple: #9b51e0;--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple: linear-gradient(135deg,rgba(6,147,227,1) 0%,rgb(155,81,224) 100%);--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan: linear-gradient(135deg,rgb(122,220,180) 0%,rgb(0,208,130) 100%);--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange: linear-gradient(135deg,rgba(252,185,0,1) 0%,rgba(255,105,0,1) 100%);--wp--preset--gradient--luminous-vivid-orange-to-vivid-red: linear-gradient(135deg,rgba(255,105,0,1) 0%,rgb(207,46,46) 100%);--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray: linear-gradient(135deg,rgb(238,238,238) 0%,rgb(169,184,195) 100%);--wp--preset--gradient--cool-to-warm-spectrum: linear-gradient(135deg,rgb(74,234,220) 0%,rgb(151,120,209) 20%,rgb(207,42,186) 40%,rgb(238,44,130) 60%,rgb(251,105,98) 80%,rgb(254,248,76) 100%);--wp--preset--gradient--blush-light-purple: linear-gradient(135deg,rgb(255,206,236) 0%,rgb(152,150,240) 100%);--wp--preset--gradient--blush-bordeaux: linear-gradient(135deg,rgb(254,205,165) 0%,rgb(254,45,45) 50%,rgb(107,0,62) 100%);--wp--preset--gradient--luminous-dusk: linear-gradient(135deg,rgb(255,203,112) 0%,rgb(199,81,192) 50%,rgb(65,88,208) 100%);--wp--preset--gradient--pale-ocean: linear-gradient(135deg,rgb(255,245,203) 0%,rgb(182,227,212) 50%,rgb(51,167,181) 100%);--wp--preset--gradient--electric-grass: linear-gradient(135deg,rgb(202,248,128) 0%,rgb(113,206,126) 100%);--wp--preset--gradient--midnight: linear-gradient(135deg,rgb(2,3,129) 0%,rgb(40,116,252) 100%);--wp--preset--duotone--dark-grayscale: url('/web/20220529044310im_/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/#wp-duotone-dark-grayscale');--wp--preset--duotone--grayscale: url('/web/20220529044310im_/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/#wp-duotone-grayscale');--wp--preset--duotone--purple-yellow: url('/web/20220529044310im_/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/#wp-duotone-purple-yellow');--wp--preset--duotone--blue-red: url('/web/20220529044310im_/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/#wp-duotone-blue-red');--wp--preset--duotone--midnight: url('/web/20220529044310im_/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/#wp-duotone-midnight');--wp--preset--duotone--magenta-yellow: url('/web/20220529044310im_/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/#wp-duotone-magenta-yellow');--wp--preset--duotone--purple-green: url('/web/20220529044310im_/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/#wp-duotone-purple-green');--wp--preset--duotone--blue-orange: url('/web/20220529044310im_/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/#wp-duotone-blue-orange');--wp--preset--font-size--small: 13px;--wp--preset--font-size--medium: 20px;--wp--preset--font-size--large: 36px;--wp--preset--font-size--x-large: 42px;}.has-black-color{color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-color{color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-color{color: var(--wp--preset--color--white) !important;}.has-pale-pink-color{color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-color{color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-color{color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-color{color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-color{color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-color{color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-color{color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-color{color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-color{color: var(--wp--preset--color--vivid-purple) !important;}.has-black-background-color{background-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-background-color{background-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-background-color{background-color: var(--wp--preset--color--white) !important;}.has-pale-pink-background-color{background-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-background-color{background-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-background-color{background-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-background-color{background-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-background-color{background-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-background-color{background-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-background-color{background-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-background-color{background-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-background-color{background-color: var(--wp--preset--color--vivid-purple) !important;}.has-black-border-color{border-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-border-color{border-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-border-color{border-color: var(--wp--preset--color--white) !important;}.has-pale-pink-border-color{border-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-border-color{border-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-border-color{border-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-border-color{border-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-border-color{border-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-border-color{border-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-border-color{border-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-border-color{border-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-border-color{border-color: var(--wp--preset--color--vivid-purple) !important;}.has-vivid-cyan-blue-to-vivid-purple-gradient-background{background: var(--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple) !important;}.has-light-green-cyan-to-vivid-green-cyan-gradient-background{background: var(--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan) !important;}.has-luminous-vivid-amber-to-luminous-vivid-orange-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange) !important;}.has-luminous-vivid-orange-to-vivid-red-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-orange-to-vivid-red) !important;}.has-very-light-gray-to-cyan-bluish-gray-gradient-background{background: var(--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray) !important;}.has-cool-to-warm-spectrum-gradient-background{background: var(--wp--preset--gradient--cool-to-warm-spectrum) !important;}.has-blush-light-purple-gradient-background{background: var(--wp--preset--gradient--blush-light-purple) !important;}.has-blush-bordeaux-gradient-background{background: var(--wp--preset--gradient--blush-bordeaux) !important;}.has-luminous-dusk-gradient-background{background: var(--wp--preset--gradient--luminous-dusk) !important;}.has-pale-ocean-gradient-background{background: var(--wp--preset--gradient--pale-ocean) !important;}.has-electric-grass-gradient-background{background: var(--wp--preset--gradient--electric-grass) !important;}.has-midnight-gradient-background{background: var(--wp--preset--gradient--midnight) !important;}.has-small-font-size{font-size: var(--wp--preset--font-size--small) !important;}.has-medium-font-size{font-size: var(--wp--preset--font-size--medium) !important;}.has-large-font-size{font-size: var(--wp--preset--font-size--large) !important;}.has-x-large-font-size{font-size: var(--wp--preset--font-size--x-large) !important;}
+</style>
+<link rel="stylesheet" id="svn-style-css" href="https://web.archive.org/web/20220529044310cs_/https://149363410.v2.pressablecdn.com/wp-content/themes/svn/style.css?ver=1617924954" type="text/css" media="all"/>
+<style id="svn-style-inline-css" type="text/css">
+.tags-links { clip: rect(1px, 1px, 1px, 1px); height: 1px; position: absolute; overflow: hidden; width: 1px; }
+</style>
+<link rel="stylesheet" id="jetpack_css-css" href="https://web.archive.org/web/20220529044310cs_/https://149363410.v2.pressablecdn.com/wp-content/plugins/jetpack/css/jetpack.css?ver=11.0-a.11" type="text/css" media="all"/>
+<link rel="https://api.w.org/" href="https://m.signalvnoise.com/wp-json/"/><link rel="alternate" type="application/json" href="https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/wp-json/wp/v2/posts/12"/><link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://m.signalvnoise.com/xmlrpc.php?rsd"/>
+<link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://m.signalvnoise.com/wp-includes/wlwmanifest.xml"/> 
+
+<link rel="shortlink" href="https://web.archive.org/web/20220529044310/https://wp.me/paCyqq-c"/>
+<link rel="alternate" type="application/json+oembed" href="https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fm.signalvnoise.com%2Fpostmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018%2F"/>
+<link rel="alternate" type="text/xml+oembed" href="https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fm.signalvnoise.com%2Fpostmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018%2F&amp;format=xml"/>
+<style>img#wpstats{display:none}</style>
+				<style type="text/css">
+				/* If html does not have either class, do not show lazy loaded images. */
+				html:not( .jetpack-lazy-images-js-enabled ):not( .js ) .jetpack-lazy-image {
+					display: none;
+				}
+			</style>
+			<script>
+				document.documentElement.classList.add(
+					'jetpack-lazy-images-js-enabled'
+				);
+			</script>
+		<link rel="preload" as="style" href="https://web.archive.org/web/20220529044310/https://149363410.v2.pressablecdn.com/wp-content/plugins/code-prettify/prettify/prettify.css"/>
+<!-- Jetpack Open Graph Tags -->
+<meta property="og:type" content="article"/>
+<meta property="og:title" content="Postmortem on the read-only outage of Basecamp on November 9th, 2018"/>
+<meta property="og:url" content="https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/postmortem-on-the-read-only-outage-of-basecamp-on-november-9th-2018/"/>
+<meta property="og:description" content="Last Thursday, November 9th, Basecamp 3 was in read-only mode for almost five hours starting 7:21am CST and ending 12:11pm CST. That meant users could access existing messages, todo lists, and file…"/>
+<meta property="article:published_time" content="2018-11-12T20:28:45+00:00"/>
+<meta property="article:modified_time" content="2019-01-11T03:11:06+00:00"/>
+<meta property="og:site_name" content="Signal v. Noise"/>
+<meta property="og:image" content="https://web.archive.org/web/20220529044310im_/https://i0.wp.com/m.signalvnoise.com/wp-content/uploads/2019/01/cropped-svn-icon.gif?fit=512%2C512&amp;ssl=1"/>
+<meta property="og:image:width" content="512"/>
+<meta property="og:image:height" content="512"/>
+<meta property="og:image:alt" content=""/>
+<meta property="og:locale" content="en_US"/>
+<meta name="twitter:site" content="@37svn"/>
+<meta name="twitter:text:title" content="Postmortem on the read-only outage of Basecamp on November 9th, 2018"/>
+<meta name="twitter:image" content="https://web.archive.org/web/20220529044310im_/https://i0.wp.com/m.signalvnoise.com/wp-content/uploads/2019/01/cropped-svn-icon.gif?fit=240%2C240&amp;ssl=1"/>
+<meta name="twitter:card" content="summary"/>
+
+<!-- End Jetpack Open Graph Tags -->
+<link rel="icon" href="https://web.archive.org/web/20220529044310im_/https://i0.wp.com/m.signalvnoise.com/wp-content/uploads/2019/01/cropped-svn-icon.gif?fit=32%2C32&amp;ssl=1" sizes="32x32"/>
+<link rel="icon" href="https://web.archive.org/web/20220529044310im_/https://i0.wp.com/m.signalvnoise.com/wp-content/uploads/2019/01/cropped-svn-icon.gif?fit=192%2C192&amp;ssl=1" sizes="192x192"/>
+<link rel="apple-touch-icon" href="https://web.archive.org/web/20220529044310im_/https://i0.wp.com/m.signalvnoise.com/wp-content/uploads/2019/01/cropped-svn-icon.gif?fit=180%2C180&amp;ssl=1"/>
+<meta name="msapplication-TileImage" content="https://i0.wp.com/m.signalvnoise.com/wp-content/uploads/2019/01/cropped-svn-icon.gif?fit=270%2C270&amp;ssl=1"/>
+
+	<script defer data-domain="m.signalvnoise.com" src="https://web.archive.org/web/20220529044310js_/https://plausible.io/js/plausible.js"></script>
+</head>
+
+<body class="post-template-default single single-post postid-12 single-format-standard tags-hidden">
+<div id="page" class="site">
+	<a class="skip-link screen-reader-text" href="#content">Skip to content</a>
+
+	<header id="masthead" class="site-header">
+
+		
+			<nav id="site-navigation" class="main-navigation
+						">
+				<div class="main-navigation__group">
+					<a class="main-navigation__icon" href="https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/" rel="home">Signal v. Noise</a>
+				</div>
+			</nav>
+
+			
+
+	</header><!-- #masthead -->
+
+	<main id="content" class="site-content">
+
+
+	
+
+<article class="entry
+entry--perma grid grid--centered" id="post-12" class="post-12 post type-post status-publish format-standard hentry category-basecamp-updates category-uncategorized">
+
+	<header class="entry-header
+	entry-header--perma	 grid__item grid__item--large">
+
+		<h1 class="entry-title entry-title--perma centered push--bottom">Postmortem on the read-only outage of Basecamp on November 9th, 2018</h1>
+					<div class="entry-meta">
+				<div class="entry-meta__avatars">
+					<img alt src="https://web.archive.org/web/20220529044310im_/https://secure.gravatar.com/avatar/040ac7f6cb78ffc0021411fd5a38127b?s=60&amp;d=retro&amp;r=pg" class="avatar avatar-60 photo jetpack-lazy-image" height="60" width="60" loading="lazy" data-lazy-srcset="https://web.archive.org/web/20220529044310/https://secure.gravatar.com/avatar/040ac7f6cb78ffc0021411fd5a38127b?s=120&amp;d=retro&amp;r=pg 2x" data-lazy-src="https://web.archive.org/web/20220529044310/https://secure.gravatar.com/avatar/040ac7f6cb78ffc0021411fd5a38127b?s=60&amp;is-pending-load=1#038;d=retro&amp;r=pg" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"><noscript><img alt="" src="https://web.archive.org/web/20220529044310im_/https://secure.gravatar.com/avatar/040ac7f6cb78ffc0021411fd5a38127b?s=60&amp;d=retro&amp;r=pg" srcset="https://web.archive.org/web/20220529044310im_/https://secure.gravatar.com/avatar/040ac7f6cb78ffc0021411fd5a38127b?s=120&amp;d=retro&amp;r=pg 2x" class="avatar avatar-60 photo" height="60" width="60" loading="lazy"/></noscript>				</div>
+				<div class="entry-meta__text">
+					<span class="byline"><a href="https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/author/dhh/" title="Posts by DHH" class="author url fn" rel="author">DHH</a></span> <span aria-hidden="true">/</span> <span class="posted-on"><span class="screen-reader-text">posted on </span> <time class="entry-date published updated" datetime="2018-11-12T14:28:45-06:00">November 12, 2018</time></span>				</div>
+			</div><!-- .entry-meta -->
+		
+		
+	</header><!-- .entry-header -->
+
+	<div class="entry-content grid__item grid__item--max grid grid--centered">
+		<figure>
+<p><img data-image-id="1*6aOuZYkr-5o10PhGrzhgIA.png" data-width="998" data-height="396" data-is-featured="true" src="https://web.archive.org/web/20220529044310im_/https://i0.wp.com/m.signalvnoise.com/wp-content/uploads/2018/11/16aOuZYkr-5o10PhGrzhgIA.png?w=640&amp;ssl=1" data-recalc-dims="1" data-lazy-src="https://web.archive.org/web/20220529044310/https://i0.wp.com/m.signalvnoise.com/wp-content/uploads/2018/11/16aOuZYkr-5o10PhGrzhgIA.png?w=640&amp;is-pending-load=1#038;ssl=1" srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" class=" jetpack-lazy-image"><noscript><img data-image-id="1*6aOuZYkr-5o10PhGrzhgIA.png" data-width="998" data-height="396" data-is-featured="true" src="https://web.archive.org/web/20220529044310im_/https://i0.wp.com/m.signalvnoise.com/wp-content/uploads/2018/11/16aOuZYkr-5o10PhGrzhgIA.png?w=640&amp;ssl=1" data-recalc-dims="1"></noscript><br/>
+</figure>
+<p>Last Thursday, November 9th, Basecamp 3 was in read-only mode for almost five hours starting 7:21am CST and ending 12:11pm CST. That meant users could access existing messages, todo lists, and files, but no new information could be entered, and no existing information could be altered. Everything was frozen in place.</p>
+<p>The root cause was that our database hit the ceiling of 2,147,483,647 on our very busy events table. Almost every single activity in Basecamp is tracked in this table. When you post a message, update a todo list, or applaud a comment, we track that activity in the events table. So when we became unable to write new events to that table, every attempt to do practically anything in Basecamp was halted.</p>
+<p>This was an avoidable problem. We were actively working on expanding the capacity of the events table in the days prior to this outage, but we failed to properly account for how quickly we were running out of headroom.</p>
+<p>To compound the avoidable factor, we should had been aware of the general issue much sooner. The programming framework we use, <a href="https://web.archive.org/web/20220529044310/https://rubyonrails.org/" data-href="https://rubyonrails.org" target="_blank">Ruby on Rails</a> (which was originally extracted from Basecamp!), moved to <a href="https://web.archive.org/web/20220529044310/https://github.com/rails/rails/pull/26266" data-href="https://github.com/rails/rails/pull/26266" target="_blank">a new default for database tables</a> in version 5.1 that was released in 2017. That change lifting the headroom for records from 2,147,483,647 to 9,223,372,036,854,775,807 on all tables. Which ended up being the same root-cause fix that we applied to our tables.</p>
+<p>It’s bad enough that we had the worst outage at Basecamp in probably 10 years, but to know that it was avoidable is hard to swallow. And I cannot express my apologies clearly or deeply enough.</p>
+<p>We pride ourselves at Basecamp on being “boring software” because it just works and it’s always available. Since Basecamp 3 was launched, and up until this outage, we’ve had an uptime record of 99.998%. This near five-hour outage has taken that impressive statistic down to <a href="https://web.archive.org/web/20220529044310/https://basecamp.com/3/uptime" data-href="https://basecamp.com/3/uptime" target="_blank">a more humbling 99.978%</a>.</p>
+<p>Some companies might choose to weasel around an outage like ours by claiming that it was only a “partial outage”, because the application remained available in read-only mode for the majority of this time. But that’s not what we’re going to do at Basecamp. We’re going to take the scar in our uptime record as a reminder to do better.</p>
+<p>Because we owe everyone using Basecamp to do better. It’s embarrassing and humbling to have suffered the biggest outage at Basecamp in a decade from an issue that we should have addressed years ago, and that we were actively working on addressing, but failed to complete in time.</p>
+<p>As the CTO of Basecamp and the creator of Ruby on Rails, I accept full responsibility for our failures. I should have been more vigilant with our own database schema when Rails 5.1 announced the new default, and I should have followed up and asked the right questions when we finally did start work on remediation. I’m really sorry to have failed you 😢</p>
+<p>If you have any questions, or if we can help in any way, please reach out to our wonderful support crew who’ve been dealing with each report individually.</p>
+<p>I also want to express my deep gratitude to everyone who’ve been so gracious with their kind words of encouragement and support during and after this ordeal. I don’t know if we’ve earned such understanding, given our clear culpability, but we are extremely grateful none the less.</p>
+<p>Note: If you weren’t using Basecamp at the time, you can see how we kept everyone in the loop <a href="https://web.archive.org/web/20220529044310/https://status.basecamp.com/status/bc3/2018/11/8" data-href="https://status.basecamp.com/status/bc3/2018/11/8" target="_blank">using our status.basecamp.com updates</a> and <a href="https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/update-on-basecamp-3-being-stuck-in-read-only-as-of-nov-8-9-22am-cst-c41df1a58352?source=collection_home---4------1---------------------&amp;gi=d7434c48625d" data-href="https://m.signalvnoise.com/update-on-basecamp-3-being-stuck-in-read-only-as-of-nov-8-9-22am-cst-c41df1a58352?source=collection_home---4------1---------------------&amp;gi=d7434c48625d" target="_blank">a play-by-play record on our blog</a>. We can’t promise to be perfect, but we promise always to keep you informed in a timely and completely transparent manner.</p>
+<hr>
+<p><em>On a personal note, I want to apologize for not posting this postmortem until today. The plan was to have this final summary ready on Friday, but then the Woolsey fire hit, and our family was forced to evacuate our home in Malibu. It’s been a crazy week 😬</em></p>
+	</div><!-- .entry-content -->
+
+</article><!-- .entry -->
+
+		
+		<div class="grid grid--centered">
+			<section class="apps grid__item grid__item--xlarge push--top">
+
+				<a class="apps__card apps__card--hey" href="https://web.archive.org/web/20220529044310/https://hey.com/?source=svn" target="_blank" rel="noopener">
+					<img class="apps__hero" srcset="https://web.archive.org/web/20220529044310im_/https://149363410.v2.pressablecdn.com/wp-content/themes/svn/images/app-hey.png 1x, https://web.archive.org/web/20220529044310im_/https://149363410.v2.pressablecdn.com/wp-content/themes/svn/images/app-hey@2x.png 2x" src="https://web.archive.org/web/20220529044310im_/https://149363410.v2.pressablecdn.com/wp-content/themes/svn/images/app-hey.png" alt="the HEY Imbox"/>
+					<h2 class="apps__headline">Email’s new heyday</h2>
+					<p class="apps__copy">Email sucked for years. Not anymore — we fixed it. HEY’s fresh approach transforms email into something you want to use, not something you’re forced to deal with.</p>
+					<p><span class="button button--solid apps__cta-hey">Try HEY for free</span></p>
+				</a>
+
+				<a class="apps__card apps__card--basecamp" href="https://web.archive.org/web/20220529044310/https://basecamp.com/?source=svn" target="_blank" rel="noopener">
+					<img class="apps__hero" srcset="https://web.archive.org/web/20220529044310im_/https://149363410.v2.pressablecdn.com/wp-content/themes/svn/images/app-basecamp.png 1x, https://web.archive.org/web/20220529044310im_/https://149363410.v2.pressablecdn.com/wp-content/themes/svn/images/app-basecamp@2x.png 2x" src="https://web.archive.org/web/20220529044310im_/https://149363410.v2.pressablecdn.com/wp-content/themes/svn/images/app-basecamp.png" alt="a project in Basecamp"/>
+					<h2 class="apps__headline">Tried Basecamp lately?</h2>
+					<p class="apps__copy">Used an earlier version, but moved on? Heard of it, but never signed up? Today’s Basecamp will surprise you! It’s all-new, entirely modern, and unlike anything else.</p>
+					<p><span class="button button--solid apps__cta-basecamp">Try Basecamp free</span></p>
+				</a>
+
+			</section>
+		</div>
+
+	
+
+
+	</main><!-- #content -->
+
+	<footer id="colophon" class="footer">
+
+		<div class="footer__block">
+			<p class="footer__logo"><a href="https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/" rel="home">Signal v. Noise</a></p>
+			<form role="search" method="get" class="search-form" action="https://web.archive.org/web/20220529044310/https://m.signalvnoise.com/">
+  <label>
+	<span class="screen-reader-text">Search for:</span>
+	<input type="text" class="search-field" placeholder="Search …" value="" name="s">
+  </label>
+  <input type="submit" class="search-submit" value="Search">
+</form>
+
+			<p class="footer__copyright">
+				<a href="https://web.archive.org/web/20220529044310/https://pressable.com/?utm_source=Automattic&amp;utm_medium=rpc&amp;utm_campaign=Concierge%20Referral&amp;utm_term=concierge" target="_blank" rel="noopener">Hosted by Pressable</a> and <a href="https://web.archive.org/web/20220529044310/https://wordpress.org/" target="_blank" rel="noopener">proudly powered by WordPress</a>.
+				<br>
+				&copy; 1999 – 2022 <a href="https://web.archive.org/web/20220529044310/https://www.basecamp.com/" target="_blank" rel="noopener">Basecamp</a>. <a href="/web/20220529044310/https://m.signalvnoise.com/privacy-policy">Privacy policy</a>.
+			</p>
+
+		</div>
+		
+	</footer><!-- #colophon -->
+
+<script type="text/javascript" src="https://web.archive.org/web/20220529044310js_/https://149363410.v2.pressablecdn.com/wp-content/plugins/jetpack/_inc/build/photon/photon.min.js?ver=20191001" id="jetpack-photon-js"></script>
+<script type="text/javascript" id="code-prettify-js-before">
+var codePrettifyLoaderBaseUrl = "https:\/\/web.archive.org\/web\/20220529044310\/https:\/\/m.signalvnoise.com\/wp-content\/plugins\/code-prettify\/prettify";
+</script>
+<script type="text/javascript" src="https://web.archive.org/web/20220529044310js_/https://149363410.v2.pressablecdn.com/wp-content/plugins/code-prettify/prettify/run_prettify.js?ver=1.4.0" id="code-prettify-js"></script>
+<script type="text/javascript" src="https://web.archive.org/web/20220529044310js_/https://149363410.v2.pressablecdn.com/wp-content/themes/svn/js/skip-link-focus-fix.js?ver=1547494085" id="svn-skip-link-focus-fix-js"></script>
+<script type="text/javascript" src="https://web.archive.org/web/20220529044310js_/https://149363410.v2.pressablecdn.com/wp-content/themes/svn/js/comments.js?ver=1548887195" id="comments-js"></script>
+<script type="text/javascript" src="https://web.archive.org/web/20220529044310js_/https://149363410.v2.pressablecdn.com/wp-content/themes/svn/js/clear-hash.js?ver=1548796990" id="clear-hash-js"></script>
+<script type="text/javascript" src="https://web.archive.org/web/20220529044310js_/https://149363410.v2.pressablecdn.com/wp-content/plugins/jetpack/jetpack_vendor/automattic/jetpack-lazy-images/dist/intersection-observer.js?minify=false&amp;ver=f5a9d453c5a79e347f9ee90353c1abdf" id="jetpack-lazy-images-polyfill-intersectionobserver-js"></script>
+<script type="text/javascript" id="jetpack-lazy-images-js-extra">
+/* <![CDATA[ */
+var jetpackLazyImagesL10n = {"loading_warning":"Images are still loading. Please cancel your print and try again."};
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://web.archive.org/web/20220529044310js_/https://149363410.v2.pressablecdn.com/wp-content/plugins/jetpack/jetpack_vendor/automattic/jetpack-lazy-images/dist/lazy-images.js?minify=false&amp;ver=25eafb3f2ad93939cdfaaa7782cb8b85" id="jetpack-lazy-images-js"></script>
+<script src="https://web.archive.org/web/20220529044310js_/https://stats.wp.com/e-202221.js" defer></script>
+<script>
+	_stq = window._stq || [];
+	_stq.push([ 'view', {v:'ext',j:'1:11.0-a.11',blog:'156952158',post:'12',tz:'-5',srv:'m.signalvnoise.com',hp:'atomic',ac:'3',amp:'0'} ]);
+	_stq.push([ 'clickTrackerInit', '156952158', '12' ]);
+</script>
+
+</body>
+</html>
+<!--
+	generated in 0.150 seconds
+	31379 bytes batcached for 300 seconds
+-->
+<!--
+     FILE ARCHIVED ON 04:43:10 May 29, 2022 AND RETRIEVED FROM THE
+     INTERNET ARCHIVE ON 22:12:01 Oct 27, 2026.
+     JAVASCRIPT APPENDED BY WAYBACK MACHINE, COPYRIGHT INTERNET ARCHIVE.
+
+     ALL OTHER CONTENT MAY ALSO BE PROTECTED BY COPYRIGHT (17 U.S.C.
+     SECTION 108(a)(3)).
+-->
+<!--
+playback timings (ms):
+  captures_list: 0.568
+  exclusion.robots: 0.101
+  exclusion.robots.policy: 0.09
+  esindex: 0.008
+  cdx.remote: 11.586
+  LoadShardBlock: 135.434 (3)
+  PetaboxLoader3.datanode: 92.716 (4)
+  load_resource: 1028.837
+  PetaboxLoader3.resolve: 988.168
+-->

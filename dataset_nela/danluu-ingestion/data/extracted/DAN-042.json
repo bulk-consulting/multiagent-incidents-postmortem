@@ -1,0 +1,50 @@
+{
+  "catalog_id": "DAN-042",
+  "category": "Config Errors",
+  "company": "Heroku",
+  "completeness": {
+    "impact": false,
+    "mitigation_recovery": true,
+    "prevention": false,
+    "root_cause": false,
+    "summary_context": true,
+    "symptoms": true,
+    "timeline": false
+  },
+  "content_hash": "2bce63ef0e0b572ced431a5ba20ac0b913498922dbd188672a7903a5ff59f45d",
+  "content_type": "text/html",
+  "domain": "blog.heroku.com",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "# How I Broke \\`git push heroku main\\`\n\nIncidents are inevitable. Any platform, large or small will have them. While resiliency work will definitely be an important factor in reducing the number of incidents, hoping to remove all of them (and therefore reach 100% uptime) is not an achievable goal.\n\nWe should, however, learn as much as we can from incidents, so we can avoid repeating them.\n\nIn this post, we will look at one of those incidents, #2105, see how it happened (spoiler: I messed up), and what we’re doing to avoid it from happening again (spoiler: I’m not fired).\n\nOur Git server is a component written in Go which can listen for HTTP and SSH connections to process a Git command.\n\nWhile we try to run all our components as Heroku apps on our platform just like Heroku customers, this component is different, as it has several constraints which make it unsuitable for running on the Heroku platform. Indeed, Heroku currently only provides HTTP routing, so it can’t handle incoming SSH connections.\n\nThis component is therefore hosted as a “kernel app” using an internal framework which mimics the behavior of Heroku, but runs directly on virtual servers.\n\nWhenever we deploy new code for this component, we will mark instances running the previous version of the code as poisoned. They won’t be able to receive new requests but will have the time they need to finish processing any ongoing requests (every Git push is one request, and those can take up to one hour).\n\nOnce they don’t have any active requests open, the process will stop and restart using the new code.\n\nWhen all selected instances have been deployed to, we can move to another batch, and repeat until all instances are running the new code.\n\nOn September 3, I had to deploy a change to switch from calling one internal API endpoint to another. It included a new authentication method between components.\n\nThis deploy was unusual because it required setting a new configuration variable, which includes the following manual actions:\n\n1. Set the new config variable with the framework handling our instances\n2. Run a command to have the new config variable transmitted to every instance\n3. Trigger the deploy so the config variables starts being used\n\nSo, on that morning, I started deploying our staging instance. I set the new configuration variable on both staging and production.\n\nThen, I had the config variables transmitted to every instance, but only in staging as I figured I’d avoid touching production right now.\n\nFinally, I kicked off the staging deployment, and started monitoring that everything went smoothly, which it did.\n\nA few hours later, I went on to production.\n\nI started my production deployment. Since I had set the configuration variable earlier, I went straight to deploying the new code.\n\nYou may see what I did wrong now.\n\nSo my code change went to a batch of instances. I didn’t move to another batch though, as I was about to go to lunch. There was no rush to move forward right away, especially since deploying every instance can take several hours.\n\nSo I went to lunch, but came back a few minutes later as an alert had gone off.\n\nThe spike you can see on this graph is HTTP 401 responses.\n\nIf you read carefully the previous section, you may have noticed that I set the new configuration variable in production, but didn’t apply it to the instances.\n\nSo my deploy to a batch of servers didn’t have the new configuration variable, meaning we were making unauthenticated calls to a private API, which gave us 401 responses. Hence the 401s being sent back publicly.\n\nOnce I realized that, I ran the script to transmit the configuration variables to the instances, killed the impacted processes, which restarted using the updated configuration variables, and the problem was resolved.\n\nAn untrained eye could say “wow, you messed up bad. Why didn’t you run that command?”, and they would be right. Except they actually wouldn’t.\n\nThe problem isn’t that I forgot to run one command. It’s that the system has allowed me to go forward with the deployment when it could have helped me avoid the issue.\n\nBefore figuring out any solution, the real fix is to do a truly blameless retrospective. If we had been blaming me for forgetting to run a command instead of focusing on why the system still permitted the deployment, I would probably have felt unsafe reporting this issue, and we would not have been able to improve our systems so that this doesn’t happen again.\n\nThen we can focus on solutions. In this specific case, we are going to merge the two steps of updating configuration variables and deploying code into a single step.\n\nThat way there isn’t an additional step to remember to run from time to time.\n\nIf we didn’t want or were unable to merge the two steps, we could also have added a safeguard in the form of a confirmation warning if we’re trying to deploy the application’s code while configuration variables aren’t synchronized.\n\nRelying on humans to perform multiple manual actions, especially when some of them are only required rarely (we don’t change configuration variables often) is a recipe for incidents.\n\nOur job as engineers is to build systems that avoid those human flaws, so we can do our human job of thinking about new things, and computers can do theirs: performing laborious and repetitive tasks.\n\nThis incident shows how a blameless culture benefits everyone in a company (and customers!). Yes, I messed up. But the fix is to improve the process, not to assign blame. We can’t expect folks to be robots who never make mistakes. Instead, we need to build a system that’s safe enough so those mistakes can’t happen.",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:08:28.472704+00:00",
+  "final_url": "https://www.heroku.com/blog/how-i-broke-git-push-heroku-main/",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-042.html",
+  "redirect_history": [
+    {
+      "destination_url": "https://www.heroku.com/blog/how-i-broke-git-push-heroku-main",
+      "result": "followed",
+      "source_url": "https://blog.heroku.com/how-i-broke-git-push-heroku-main",
+      "type": "http"
+    },
+    {
+      "destination_url": "https://www.heroku.com/blog/how-i-broke-git-push-heroku-main/",
+      "result": "followed",
+      "source_url": "https://www.heroku.com/blog/how-i-broke-git-push-heroku-main",
+      "type": "http"
+    }
+  ],
+  "redirects": [
+    "https://www.heroku.com/blog/how-i-broke-git-push-heroku-main",
+    "https://www.heroku.com/blog/how-i-broke-git-push-heroku-main/"
+  ],
+  "review_reason": [
+    "cross_domain_redirect"
+  ],
+  "source_url": "https://blog.heroku.com/how-i-broke-git-push-heroku-main",
+  "status": "needs_review",
+  "title": "How I Broke `git push heroku main` | Heroku",
+  "word_count": 969
+}

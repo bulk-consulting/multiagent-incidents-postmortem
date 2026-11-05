@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en-US" class="scroll-pt-24">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="stylesheet" href="/assets/css/main.css?v="/>
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Post-mortem report on 23-24, October 2014 failure | blog.allegro.tech</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Post-mortem report on 23-24, October 2014 failure" />
+<meta name="author" content="julian.szulc" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="On 23rd and 24th October, the Allegro platform suffered a failure of a subsystem responsible for asynchronous distributed task processing. The subsystem consists of several daemon processes, Gearman job server, Redis and Oracle databases. The problem affected many areas, e.g. features such as purchasing numerous offers via cart and bulk offer editing (including price list editing) did not work at all. Moreover, it partially failed to send daily newsletter with new offers. Also some parts of internal administration panel were affected." />
+<meta property="og:description" content="On 23rd and 24th October, the Allegro platform suffered a failure of a subsystem responsible for asynchronous distributed task processing. The subsystem consists of several daemon processes, Gearman job server, Redis and Oracle databases. The problem affected many areas, e.g. features such as purchasing numerous offers via cart and bulk offer editing (including price list editing) did not work at all. Moreover, it partially failed to send daily newsletter with new offers. Also some parts of internal administration panel were affected." />
+<link rel="canonical" href="https://blog.allegro.tech/2015/01/allegro-cast-post-mortem.html" />
+<meta property="og:url" content="https://blog.allegro.tech/2015/01/allegro-cast-post-mortem.html" />
+<meta property="og:site_name" content="blog.allegro.tech" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2015-01-07T00:00:00+01:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Post-mortem report on 23-24, October 2014 failure" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"julian.szulc"},"dateModified":"2015-01-07T00:00:00+01:00","datePublished":"2015-01-07T00:00:00+01:00","description":"On 23rd and 24th October, the Allegro platform suffered a failure of a subsystem responsible for asynchronous distributed task processing. The subsystem consists of several daemon processes, Gearman job server, Redis and Oracle databases. The problem affected many areas, e.g. features such as purchasing numerous offers via cart and bulk offer editing (including price list editing) did not work at all. Moreover, it partially failed to send daily newsletter with new offers. Also some parts of internal administration panel were affected.","headline":"Post-mortem report on 23-24, October 2014 failure","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.allegro.tech/2015/01/allegro-cast-post-mortem.html"},"url":"https://blog.allegro.tech/2015/01/allegro-cast-post-mortem.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    
+        
+            <meta property="og:image" content="https://ogp.dsabyte.com/api/image.png?layoutName=Blog&Title=Post-mortem+report+on+23-24%2C+October+2014+failure&Author+Name=julian.szulc&Author+Avtar=https://blog.allegro.tech/assets/img/authors/julian.szulc.jpg&Icon+URL=https://blog.allegro.tech/assets/img/og-icon.png&Tags=allegro,post-mortem,failure&Theme=light&ext=.png">
+        
+    
+    <link rel="icon" href="/favicon.ico">
+    <link rel="alternate" type="application/atom+xml" title="RSS Feed" href="/feed.xml" />
+    <script defer data-domain="blog.allegro.tech" src="https://plausible.io/js/script.js"></script>
+    <script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<nav class="bg-white dark:bg-gray-900 w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-600 sticky">
+    <div class="max-w-2xl flex items-center justify-between mx-auto p-4 md:py-4 md:px-0">
+        <a href="/" class="flex items-center space-x-3 rtl:space-x-reverse">
+            <picture>
+                <source srcset="/assets/img/allegro-tech-blog-dark.svg" media="(prefers-color-scheme: dark)" />
+                <source srcset="/assets/img/allegro-tech-blog.svg" media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)" />
+                <img src="/assets/img/allegro-tech-blog.svg" class="h-8" alt="Allegro Tech Blog" height="24px" width="206px" />
+            </picture>
+        </a>
+        <div class="items-center flex w-auto order-1">
+            <a href="/tag/popular" class="block py-2 px-3 bg-transparent text-primary-500 p-0 dark:text-primary-500">Popular posts</a>
+            <a href="/about" class="block py-2 px-3 bg-transparent text-primary-500 p-0 dark:text-primary-500">About</a>
+        </div>
+    </div>
+</nav>
+
+<main class="pt-8 pb-8 bg-white dark:bg-gray-900 antialiased" style="min-height: calc(100dvh - 15rem);">
+    <div class="flex justify-between px-4 md:p-0 mx-auto max-w-screen-xl">
+        <div class="mx-auto w-full max-w-2xl format format-sm sm:format-base lg:format-lg dark:format-invert">
+            <link rel="stylesheet" href="/assets/css/highlights.css?v="/>
+<article class="mx-auto w-full max-w-2xl format format-sm sm:format-base lg:format-lg format-brand dark:format-invert">
+    <header class="mb-4 lg:mb-6 not-format">
+        
+            
+<div class="flex items-center mb-6 not-italic">
+    <div class="inline-flex items-center text-sm text-gray-900 dark:text-white gap-4">
+        <img
+            class="w-16 h-16 rounded-full"
+            src="/assets/img/authors/julian.szulc.jpg"
+            alt="Julian Szulc"
+        />
+        <div>
+            <a href="/authors/julian.szulc" rel="author" class="text-xl font-bold text-gray-900 dark:text-white">
+                Julian Szulc
+            </a>
+            <p class="text-base text-gray-500 dark:text-gray-400">
+                <time datetime="2015-01-07 00:00:00 +0100" title="<strong>Jan 7</strong> 2015">
+                    <strong>Jan 7</strong> 2015
+                </time>
+            </p>
+        </div>
+    </div>
+</div>
+
+        
+    </header>
+    <h1 class="mb-4 text-3xl font-extrabold leading-tight text-gray-900 lg:mb-6 lg:text-4xl dark:text-white text-balance">
+        Post-mortem report on 23-24, October 2014 failure
+    </h1>
+    <div class="post-content" id="post-content">
+        <p>On 23rd and 24th October, the Allegro platform suffered a failure of a subsystem
+responsible for asynchronous distributed task processing. The subsystem consists
+of several daemon processes, <a href="http://gearman.org">Gearman job server</a>,
+<a href="http://redis.io">Redis</a> and Oracle databases. The problem affected many areas,
+e.g. features such as purchasing numerous offers via cart and bulk offer editing
+(including price list editing) did not work at all.
+Moreover, it partially failed to send daily newsletter with new offers.
+Also some parts of internal administration panel were affected.</p>
+<h2 id="what-happened">
+  
+  
+    What happened? <a href="#what-happened" class="no-underline hover:underline text-gray-500 dark:text-gray-400">#</a>
+  
+  
+</h2>
+    
+
+<p>On 23rd October, at 4:19 AM a wrong server was restarted by mistake. In fact, it
+was the wrong “half” of a blade server running in the active datacentre and
+hosting important components of the task processing system: Gearman server,
+Redis servers and daemons retrieving tasks from a database and adding them to a
+queue. After re-launching daemons, the system did not start automatically, due
+to loss of settings.</p>
+<h2 id="how-did-we-respond">
+  
+  
+    How did we respond? <a href="#how-did-we-respond" class="no-underline hover:underline text-gray-500 dark:text-gray-400">#</a>
+  
+  
+</h2>
+    
+
+<p>Because the mechanism was poorly monitored, we had no idea about the problem
+until 8:40 AM. At 9:20 AM, we managed to start processing queued tasks. However,
+we could not retrieve any new tasks from a database. For reasons unknown, the
+panel with statistics and settings of daemons retrieving tasks was unavailable.
+At 10:04 AM, task retrieving was working, but we found another problem – several
+million tasks waiting to be processed, which would take roughly 84 hours.
+Naturally, when the oldest tasks are transferred first, such a situation is
+unacceptable. As a result, one of offered features, i.e. the cart with numerous
+offers had no chance to work at all.</p>
+
+<p>The Site Reliability Engineering Team was working on minimising the damage and
+solving problems. We started with increasing the efficiency of task processing.
+As a result, we were able to establish new efficiency limits of the system,
+which are now about twice as high. In order to prevent further delay and
+decrease the number of tasks to be processed, we decided to cancel the release
+scheduled on 23rd October as well as subscribed offer alerts that were supposed
+to be sent on the night of 23rd October.
+Besides, we wanted to reduce the number of tasks waiting to be retrieved. We
+decided to remove those that could not be processed, i.e. cart purchases and
+overdue subscription.</p>
+
+<p>The third thing we needed to do, was finding the cause of this enormous number
+of tasks. For reasons which we still do not understand, after rebooting, daemons
+started to retrieve tasks dated 11th September 2014. When we noticed it, we set
+the task counter to the first task submitted on 23rd October 2014. As a result,
+the queue displayed only most recent tasks waiting to be processed. Moreover,
+this modification also fixed the administration panel of task retrieving
+daemons. The processing delay ended on 24th October about 7:00 PM.</p>
+<h2 id="consequences-of-failure">
+  
+  
+    Consequences of failure <a href="#consequences-of-failure" class="no-underline hover:underline text-gray-500 dark:text-gray-400">#</a>
+  
+  
+</h2>
+    
+
+<p>The failure caused several hours of delay in task processing. Some tasks that
+were submitted after 11th September 2014, but for some reason had not been
+correctly re-processed, were finally executed. In certain cases, invalid task
+may not correctly indicate its execution status. Nevertheless, such tasks were
+processed again.</p>
+<h2 id="prevention">
+  
+  
+    Prevention? <a href="#prevention" class="no-underline hover:underline text-gray-500 dark:text-gray-400">#</a>
+  
+  
+</h2>
+    
+
+<p>It is necessary to monitor the task processing subsystem. Currently, we do not
+notice most of the system problems. Each restart of any Allegro Platform server
+must be supervised by an on-duty service specialist who can verify whether
+everything works as it should. Still, it is absolutely unacceptable when a
+reboot or failure of one machine affects the site. Unfortunately, the mentioned
+system includes a <a href="http://www.wikiwand.com/en/Single_point_of_failure">SPOF</a>. We
+need to take necessary steps to increase the reliability and resilience to
+failures of system components. Moreover, old tasks will be removed from the
+database automatically.
+We do not know what triggered the switch of task counter. We think it was a code
+bug or error in database connection configuration. It could explain why the task
+retrieving daemon, which was running continuously for several months, did not
+save the counter. After the restart, the counter is saved properly.</p>
+
+    </div>
+    <section class="my-8">
+        <div class="flex flex-wrap gap-2 sm:gap-4">
+            
+            <a href="/tag/allegro"
+                    class="no-underline hover:underline text-primary-600 dark:text-primary-500 text-sm sm:text-md font-medium inline-flex items-center py-0.5 px-1 whitespace-nowrap"
+            >
+                <svg class="mr-1 w-3 h-3  text-primary-600 dark:text-primary-500" aria-hidden="true"
+                     xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor"
+                     viewBox="0 0 24 24">
+                  <path d="M18.045 3.007 12.31 3a1.965 1.965 0 0 0-1.4.585l-7.33 7.394a2 2 0 0 0 0 2.805l6.573 6.631a1.957 1.957 0 0 0 1.4.585 1.965 1.965 0 0 0 1.4-.585l7.409-7.477A2 2 0 0 0 21 11.479v-5.5a2.972 2.972 0 0 0-2.955-2.972Zm-2.452 6.438a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>
+                </svg>
+                  allegro
+            </a>
+            
+            <a href="/tag/post-mortem"
+                    class="no-underline hover:underline text-primary-600 dark:text-primary-500 text-sm sm:text-md font-medium inline-flex items-center py-0.5 px-1 whitespace-nowrap"
+            >
+                <svg class="mr-1 w-3 h-3  text-primary-600 dark:text-primary-500" aria-hidden="true"
+                     xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor"
+                     viewBox="0 0 24 24">
+                  <path d="M18.045 3.007 12.31 3a1.965 1.965 0 0 0-1.4.585l-7.33 7.394a2 2 0 0 0 0 2.805l6.573 6.631a1.957 1.957 0 0 0 1.4.585 1.965 1.965 0 0 0 1.4-.585l7.409-7.477A2 2 0 0 0 21 11.479v-5.5a2.972 2.972 0 0 0-2.955-2.972Zm-2.452 6.438a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>
+                </svg>
+                  post-mortem
+            </a>
+            
+            <a href="/tag/failure"
+                    class="no-underline hover:underline text-primary-600 dark:text-primary-500 text-sm sm:text-md font-medium inline-flex items-center py-0.5 px-1 whitespace-nowrap"
+            >
+                <svg class="mr-1 w-3 h-3  text-primary-600 dark:text-primary-500" aria-hidden="true"
+                     xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor"
+                     viewBox="0 0 24 24">
+                  <path d="M18.045 3.007 12.31 3a1.965 1.965 0 0 0-1.4.585l-7.33 7.394a2 2 0 0 0 0 2.805l6.573 6.631a1.957 1.957 0 0 0 1.4.585 1.965 1.965 0 0 0 1.4-.585l7.409-7.477A2 2 0 0 0 21 11.479v-5.5a2.972 2.972 0 0 0-2.955-2.972Zm-2.452 6.438a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>
+                </svg>
+                  failure
+            </a>
+            
+        </div>
+    </section>
+    <section class="not-format">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-lg lg:text-2xl font-bold text-gray-900 dark:text-white">Discussion</h2>
+        </div>
+        <div id="disqus_thread"></div>
+        <script>
+            (function() { // DON'T EDIT BELOW THIS LINE
+                let d = document, s = d.createElement('script');
+                s.src = 'https://allegrotechio.disqus.com/embed.js';
+                s.setAttribute('data-timestamp', +new Date());
+                (d.head || d.body).appendChild(s);
+            })();
+        </script>
+        <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    </section>
+</article>
+<script defer src="/assets/js/post-image-lightbox.js?v="></script>
+
+        </div>
+    </div>
+</main>
+<footer class="bg-gray-100 dark:bg-gray-800 antialiased">
+    <div class="p-8 py-6 mx-auto max-w-screen-xl">
+        <div class="text-center">
+            <a href="https://allegro.tech" class="flex justify-center items-center mb-5 text-2xl font-semibold text-gray-900 dark:text-white">
+                <picture>
+                    <source srcset="/assets/img/allegro-tech-dark.svg" media="(prefers-color-scheme: dark)" />
+                    <source srcset="/assets/img/allegro-tech.svg" media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)" />
+                    <img alt="allegro.tech" class="h-6" src="/assets/img/allegro-tech.svg" height="24px" width="115px" />
+                </picture>
+            </a>
+            <span class="block text-sm text-center text-gray-500 dark:text-gray-400">© 2026 <a href="https://about.allegro.eu/who-we-are/at-a-glance" class="hover:underline">Allegro</a><br />Proudly built by <a href="/authors" class="text-primary-600 dark:text-primary-500 text-sm sm:text-md font-medium inline-flex items-center">engineers</a></span>
+            <ul class="flex justify-center mt-5 space-x-5">
+                <li>
+                    <a href="https://facebook.com/allegro.tech" class="text-gray-500 hover:text-gray-900 dark:hover:text-white dark:text-gray-400">
+                        <svg class="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 8 19">
+                            <path
+                                fill-rule="evenodd"
+                                d="M6.135 3H8V0H6.135a4.147 4.147 0 0 0-4.142 4.142V6H0v3h2v9.938h3V9h2.021l.592-3H5V3.591A.6.6 0 0 1 5.592 3h.543Z"
+                                clip-rule="evenodd"
+                            />
+                        </svg>
+                    </a>
+                </li>
+                <li>
+                    <a href="https://twitter.com/allegrotech" class="text-gray-500 hover:text-gray-900 dark:hover:text-white dark:text-gray-400">
+                        <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                            <path
+                                fill="currentColor"
+                                d="M12.186 8.672 18.743.947h-2.927l-5.005 5.9-4.44-5.9H0l7.434 9.876-6.986 8.23h2.927l5.434-6.4 4.82 6.4H20L12.186 8.672Zm-2.267 2.671L8.544 9.515 3.2 2.42h2.2l4.312 5.719 1.375 1.828 5.731 7.613h-2.2l-4.699-6.237Z"
+                            />
+                        </svg>
+                    </a>
+                </li>
+                <li>
+                    <a href="https://github.com/allegro" class="text-gray-500 hover:text-gray-900 dark:hover:text-white dark:text-gray-400">
+                        <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                fill-rule="evenodd"
+                                d="M10 .333A9.911 9.911 0 0 0 6.866 19.65c.5.092.678-.215.678-.477 0-.237-.01-1.017-.014-1.845-2.757.6-3.338-1.169-3.338-1.169a2.627 2.627 0 0 0-1.1-1.451c-.9-.615.07-.6.07-.6a2.084 2.084 0 0 1 1.518 1.021 2.11 2.11 0 0 0 2.884.823c.044-.503.268-.973.63-1.325-2.2-.25-4.516-1.1-4.516-4.9A3.832 3.832 0 0 1 4.7 7.068a3.56 3.56 0 0 1 .095-2.623s.832-.266 2.726 1.016a9.409 9.409 0 0 1 4.962 0c1.89-1.282 2.717-1.016 2.717-1.016.366.83.402 1.768.1 2.623a3.827 3.827 0 0 1 1.02 2.659c0 3.807-2.319 4.644-4.525 4.889a2.366 2.366 0 0 1 .673 1.834c0 1.326-.012 2.394-.012 2.72 0 .263.18.572.681.475A9.911 9.911 0 0 0 10 .333Z"
+                                clip-rule="evenodd"
+                            />
+                        </svg>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en-US" class="scroll-pt-24">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="stylesheet" href="/assets/css/main.css?v="/>
+    <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Postmortem — why Allegro went down | blog.allegro.tech</title>
+<meta name="generator" content="Jekyll v4.4.1" />
+<meta property="og:title" content="Postmortem — why Allegro went down" />
+<meta name="author" content="michal.kosmulski" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="We messed up. On July 18th, 2018, at noon, Allegro went down and was unavailable for twenty minutes. The direct cause was a special offer in which one hundred Honor 7C phones whose regular price is around PLN 850 (about € 200), were offered at a price of PLN 1 (less than € 1). This attracted more traffic than we anticipated and at the same time triggered a configuration error in the way services are scaled out. This caused the site to go down despite there being plenty of CPUs, RAM, and network capacity available in our data centers." />
+<meta property="og:description" content="We messed up. On July 18th, 2018, at noon, Allegro went down and was unavailable for twenty minutes. The direct cause was a special offer in which one hundred Honor 7C phones whose regular price is around PLN 850 (about € 200), were offered at a price of PLN 1 (less than € 1). This attracted more traffic than we anticipated and at the same time triggered a configuration error in the way services are scaled out. This caused the site to go down despite there being plenty of CPUs, RAM, and network capacity available in our data centers." />
+<link rel="canonical" href="https://blog.allegro.tech/2018/08/postmortem-why-allegro-went-down.html" />
+<meta property="og:url" content="https://blog.allegro.tech/2018/08/postmortem-why-allegro-went-down.html" />
+<meta property="og:site_name" content="blog.allegro.tech" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2018-08-31T00:00:00+02:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Postmortem — why Allegro went down" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"michal.kosmulski"},"dateModified":"2018-08-31T00:00:00+02:00","datePublished":"2018-08-31T00:00:00+02:00","description":"We messed up. On July 18th, 2018, at noon, Allegro went down and was unavailable for twenty minutes. The direct cause was a special offer in which one hundred Honor 7C phones whose regular price is around PLN 850 (about € 200), were offered at a price of PLN 1 (less than € 1). This attracted more traffic than we anticipated and at the same time triggered a configuration error in the way services are scaled out. This caused the site to go down despite there being plenty of CPUs, RAM, and network capacity available in our data centers.","headline":"Postmortem — why Allegro went down","mainEntityOfPage":{"@type":"WebPage","@id":"https://blog.allegro.tech/2018/08/postmortem-why-allegro-went-down.html"},"url":"https://blog.allegro.tech/2018/08/postmortem-why-allegro-went-down.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    
+        
+            <meta property="og:image" content="https://ogp.dsabyte.com/api/image.png?layoutName=Blog&Title=Postmortem+%E2%80%94+why+Allegro+went+down&Author+Name=michal.kosmulski&Author+Avtar=https://blog.allegro.tech/assets/img/authors/michal.kosmulski.jpg&Icon+URL=https://blog.allegro.tech/assets/img/og-icon.png&Tags=postmortem,devops,deployment,cloud&Theme=light&ext=.png">
+        
+    
+    <link rel="icon" href="/favicon.ico">
+    <link rel="alternate" type="application/atom+xml" title="RSS Feed" href="/feed.xml" />
+    <script defer data-domain="blog.allegro.tech" src="https://plausible.io/js/script.js"></script>
+    <script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<nav class="bg-white dark:bg-gray-900 w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-600 sticky">
+    <div class="max-w-2xl flex items-center justify-between mx-auto p-4 md:py-4 md:px-0">
+        <a href="/" class="flex items-center space-x-3 rtl:space-x-reverse">
+            <picture>
+                <source srcset="/assets/img/allegro-tech-blog-dark.svg" media="(prefers-color-scheme: dark)" />
+                <source srcset="/assets/img/allegro-tech-blog.svg" media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)" />
+                <img src="/assets/img/allegro-tech-blog.svg" class="h-8" alt="Allegro Tech Blog" height="24px" width="206px" />
+            </picture>
+        </a>
+        <div class="items-center flex w-auto order-1">
+            <a href="/tag/popular" class="block py-2 px-3 bg-transparent text-primary-500 p-0 dark:text-primary-500">Popular posts</a>
+            <a href="/about" class="block py-2 px-3 bg-transparent text-primary-500 p-0 dark:text-primary-500">About</a>
+        </div>
+    </div>
+</nav>
+
+<main class="pt-8 pb-8 bg-white dark:bg-gray-900 antialiased" style="min-height: calc(100dvh - 15rem);">
+    <div class="flex justify-between px-4 md:p-0 mx-auto max-w-screen-xl">
+        <div class="mx-auto w-full max-w-2xl format format-sm sm:format-base lg:format-lg dark:format-invert">
+            <link rel="stylesheet" href="/assets/css/highlights.css?v="/>
+<article class="mx-auto w-full max-w-2xl format format-sm sm:format-base lg:format-lg format-brand dark:format-invert">
+    <header class="mb-4 lg:mb-6 not-format">
+        
+            
+<div class="flex items-center mb-6 not-italic">
+    <div class="inline-flex items-center text-sm text-gray-900 dark:text-white gap-4">
+        <img
+            class="w-16 h-16 rounded-full"
+            src="/assets/img/authors/michal.kosmulski.jpg"
+            alt="Michał Kosmulski"
+        />
+        <div>
+            <a href="/authors/michal.kosmulski" rel="author" class="text-xl font-bold text-gray-900 dark:text-white">
+                Michał Kosmulski
+            </a>
+            <p class="text-base text-gray-500 dark:text-gray-400">
+                <time datetime="2018-08-31 00:00:00 +0200" title="<strong>Aug 31</strong> 2018">
+                    <strong>Aug 31</strong> 2018
+                </time>
+            </p>
+        </div>
+    </div>
+</div>
+
+        
+    </header>
+    <h1 class="mb-4 text-3xl font-extrabold leading-tight text-gray-900 lg:mb-6 lg:text-4xl dark:text-white text-balance">
+        Postmortem — why Allegro went down
+    </h1>
+    <div class="post-content" id="post-content">
+        <p>We messed up. On July 18<sup>th</sup>, 2018, at noon, Allegro went down and was unavailable for twenty minutes. The direct cause
+was a special offer in which one hundred Honor 7C phones whose regular price is around PLN 850 (about € 200),
+were offered at a price of PLN 1 (less than € 1). This attracted more traffic than we anticipated and at the same time
+triggered a configuration error in the way services are scaled out. This caused the site to go down despite there
+being plenty of CPUs, RAM, and network capacity available in our data centers.</p>
+
+<p>In order to make up for the issues and apologize, <a href="https://www.spidersweb.pl/2018/07/allegro-honor-za-1zl-przeprosiny.html">we made it possible to finish the transaction afterwards</a>
+to buyers who managed to buy the phone at the low price but whose transactions were aborted as the system went down.</p>
+
+<p>But we believe that we also owe our customers and the tech community an explanation of how the crash came about
+and what technical measures we are putting in place in order to make such events less likely in the future.
+We prepare internal postmortems after any serious issue in order to analyze the causes and learn from our mistakes.
+This text is based on such an internal postmortem, prepared by multiple people from the teams
+that took part in dealing with the outage.</p>
+<h2 id="architecture-overview">
+  
+  
+    Architecture overview <a href="#architecture-overview" class="no-underline hover:underline text-gray-500 dark:text-gray-400">#</a>
+  
+  
+</h2>
+    
+
+<p>First of all, let’s start with an overview of our architecture. As you probably already know from <a href="/blog/">our blog</a>,
+our system is based on microservices which run in a private cloud environment. In the typical case of a user
+searching for an offer, clicking on it to view details, and then buying, following major services are involved:</p>
+<ul>
+  <li>Listing — prepares data related to item listing (search result) pages</li>
+  <li>Search — responsible for low-level search in offers, based on keywords, parameters and other criteria</li>
+  <li>Transaction — allows items to be bought</li>
+  <li><a href="/2016/03/Managing-Frontend-in-the-microservices-architecture.html">Opbox</a> — responsible for frontend rendering
+of the data returned by backend services</li>
+  <li>Item — service for frontend rendering of item pages</li>
+</ul>
+<h2 id="outage-timeline">
+  
+  
+    Outage timeline <a href="#outage-timeline" class="no-underline hover:underline text-gray-500 dark:text-gray-400">#</a>
+  
+  
+</h2>
+    
+
+<p>The special offer was to start at noon sharp, and a direct link to its item page had been published before.
+At 11:15 we manually scaled out Listing service in order to be prepared for increased incoming traffic.</p>
+
+<figure>
+<img alt="Search service traffic around noon" src="/assets/img/articles/2018-08-31-postmortem-why-allegro-went-down/search-traffic.png" />
+<figcaption>
+Search service traffic around noon. The number of requests per unit of time rose before noon, causing some requests
+to fail after reaching a high enough level. Apart from natural changes in traffic, this chart also shows the time
+of low traffic caused by frontend services failing around 12:05 and traffic rising again after those issues were resolved.
+</figcaption>
+</figure>
+
+<p>At 11:50, traffic to the major services was already 50% higher than the day before at the same time of day.
+At 11:55, further traffic increase caused response times of major services to rise, forcing us to scale out these services.
+A minute or two later, response times from Search and Listing services rose even more, forcing further scaling.</p>
+
+<p>By 11:58, almost all resources in the part of the cluster provisioned for these services had been reserved even though
+only a fraction of the cluster’s capacity (or even that particular compartment) was actually used. When an application
+is deployed to our cloud, it declares the amount of resources such as processor cores and memory which it needs for each
+instance. These resources are reserved for a particular instance and can’t be used by others even if the owner
+is not really consuming them. Some services share their cluster space with others while others have separate compartments
+due to special needs.</p>
+
+<p>As we later found out, due to a misconfiguration, some services reserved much more resources than they actually needed.
+This lead to a paradoxical situation in which there were plenty of resources available in the cluster but since they were
+reserved, they couldn’t be assigned to any other services. This prevented more instances from starting despite resources
+being there. Some other compartments within the cluster were not even affected at all, with lots of CPUs idling
+and tons of RAM laying around unused.</p>
+
+<figure>
+<img alt="Listing service response times" src="/assets/img/articles/2018-08-31-postmortem-why-allegro-went-down/listing-response-times.png" />
+<figcaption>
+Listing service response times (avg median - average between instances of the median value, max p99 - maximum between
+instances of 99<sup>th</sup> percentile). Response times stayed stable despite growing traffic but after reaching saturation,
+they increased very quickly, only to fall due to frontend services failing and later successful scaling of Listing service.
+</figcaption>
+</figure>
+
+<p>Seconds before noon, the price of the special offer was decreased to PLN 1 in order to ensure that at 12:00 sharp
+it would already be visible in all channels, and the first sales took place.</p>
+
+<p>Also just before noon, traffic peaked at 200%-300% of the traffic from previous day, depending on service. At this stage,
+traffic was at its highest but due to excessive resource reservations, in some parts of the cluster we could not use
+available CPUs and RAM for starting new service instances. Meanwhile, the frontend service, Opbox, was starting to fail.
+This caused a decrease in traffic to the backend services. It was still quite high, though, and autoscaler started to
+spin up new instances of Search service. We manually added even more instances, but the resource reservations created
+previously prevented us from scaling up as far as to decrease response times significantly.</p>
+
+<p>Increased response times caused some Opbox instances to not report their health status to the cluster correctly and
+at 12:05 the cluster started killing off unresponsive instances. While automated and manual scaling efforts continued,
+before 12:15 we started adding more resources to the cluster. At the same time, we started shutting down some non-critical
+services in order to free CPU and memory. Around 12:20, the situation was fully under control and Allegro became
+responsive again.</p>
+<h2 id="analysis">
+  
+  
+    Analysis <a href="#analysis" class="no-underline hover:underline text-gray-500 dark:text-gray-400">#</a>
+  
+  
+</h2>
+    
+
+<p>What is going on inside a service which experiences traffic higher than it can handle with available resources?
+As response times increase, the autoscaler tries to scale up the service. On the other hand, instances whose health
+endpoint can’t respond within a specified timeout, are automatically shut down. During the outage, autoscaler did not
+respond quickly enough to rising traffic and we had to scale up manually. There were also some bad interactions between
+the autoscaler scaling services up and the cluster watchdog killing off unresponsive instances.</p>
+
+<p>Excessive resource reservations were a major cause of problems since they prevented more instances from being started
+even though there were still plenty of resources available. As the probably most important action resulting from this
+postmortem, we plan to change the cluster’s approach to reserving resources so that there is less waste and resources
+are not locked out of the pool if they are not really used.</p>
+
+<p>Apart from the obvious resources of the cluster: CPU and RAM, another resource which can become saturated are
+the connection pools for incoming and outgoing network connections as well as file descriptors associated with them.
+If we run out of them, our service becomes unresponsive even if CPU and RAM are available, and this is what happened
+to some of the backend services during the outage. By better tuning the configuration of thread and connection pools
+as well as the retry policies, we will be able to mitigate the impact of high traffic the next time it happens.</p>
+
+<figure>
+<img alt="Undertow thread count in Listing service" src="/assets/img/articles/2018-08-31-postmortem-why-allegro-went-down/undertow-threads.png" />
+<figcaption>
+Undertow thread count in Listing service. A sudden increase is visible during the time when there were too few instances
+to handle incoming traffic. Compare with the graph of response times above.
+</figcaption>
+</figure>
+
+<p>In most cases, requests which time out, are repeated after a short delay. Under normal conditions, the second or third
+attempt usually succeeds, so these retries can often fix the situation and allow a response to still be delivered
+to the end user. However, if the whole cluster is maxed out, retries only increase the load while the whole request
+fails anyway. In such a situation, a <a href="https://en.wikipedia.org/wiki/Circuit_breaker_design_pattern">circuit breaker</a>
+should prevent further requests, but as we found out during postmortem analysis, one of the circuit breakers between
+our services was not correctly configured: the failure threshold for triggering it was set to a high value which
+we didn’t reach even during such a serious surge in traffic. Apart from fixing this, we are also adding an additional
+layer of circuit breakers directly after the frontend service.</p>
+
+<p>The role of <a href="https://en.wikipedia.org/wiki/Rate_limiting">rate limiters</a> is to cut off incoming traffic which displays
+suspicious patterns before it even enters the system. Such rate limiters did in fact kick in and were the cause of many
+“blank pages” seen by our users during the outage. Unfortunately, the coverage of the site by rate limiters was not complete,
+so while some pages were protected very well, others were not. The “blank page” had an internal retry, so a user
+looking at such a page was actually still generating requests to the system once in a while, further increasing the load.
+On the other hand, upon seeing that the site was broken, some users tried to manually refresh the pages they were
+viewing or to enter allegro.pl into the address bar and searching for the phone’s name, thus generating even more search
+requests manually.</p>
+
+<p>Another takeaway was the observation that new Opbox instances had issues while starting under high load. Newly started
+instances very quickly reached “unresponsive” status and were automatically killed. We will try out several ideas which
+should make the service start up faster even if it gets hit with lots of requests right away.</p>
+
+<p>Finally, by introducing smart caches, we should be able to eliminate the need for many requests altogether.
+Due to personalisation, item pages are normally not cached and neither is the data returned by backend services used
+for rendering those pages. However, we plan to introduce a mechanism which will be able to tell backend services
+to generate simplified, cacheable responses under special conditions. This will allow us to decrease load under heavy traffic.</p>
+<h2 id="closing-remarks">
+  
+  
+    Closing remarks <a href="#closing-remarks" class="no-underline hover:underline text-gray-500 dark:text-gray-400">#</a>
+  
+  
+</h2>
+    
+
+<p>Apart from the need of introducing the improvements mentioned above, we learned a few other interesting things.</p>
+
+<p>First off, we certainly learned that traffic drawn in by an attractive offer can outgrow our expectations.
+We should have been ready for more than we were, both in terms of using cluster capacity effectively and in terms of
+general readiness to handle unexpected situations caused by a sudden surge in traffic. Apart from technical insights,
+we also learned some lessons on the business side of things, related to dealing with attractive offers
+and organizing promotions, for example that publishing a direct link to the special offer ahead of time was a rather bad idea.</p>
+
+<p>Interestingly enough, the traffic which brought us down, was in large part bots rather than human users. Apparently,
+some people were so eager to buy the phone cheaply that they used automated bots in order to increase their chances
+of being in the lucky hundred. Some even shared their custom solutions online. Since we want to create a level playing
+field for all users, we plan to make it harder for bots to participate in this kind of offers.</p>
+
+<p>Even though it may have looked as if the site had gone down due to an exhaustion of resources such as processing power
+or memory, actually plenty of these resources were available. However, an invalid approach to reserving resources
+made it impossible at one point to use them for starting new instances of the services which we needed to scale out.</p>
+
+<p>I think that despite the outage taking place, the way we handled it validated our approach to architecture.
+Thanks to the cloud, we were able to scale out all critical services as long as the resource limits allowed us to.
+Using microservices, we were able to scale different parts of the system differently which made it possible to use
+the available cluster more effectively. Loose coupling and separation of concerns between the services
+allowed us to safely shut down those parts of the system which were not critical in order to make room
+for more instances of the critical services.</p>
+
+<p>Our decentralized team structure was a mixed bag, but with advantages outweighing disadvantages. It certainly lead
+to some communication overhead and occasional miscommunication, but on the other hand, it allowed teams
+responsible for different services to act mostly independently, which increased our reaction speed overall.
+Note, that “decentralized team structure” does not mean “free for all”. In particular, during an outage, there is
+a formal command structure for coordinating the whole effort, but it does not mean micromanagement.</p>
+
+<p>We know that Allegro is an important place for our customers, and every day we work hard to make it better.
+We hope that the information contained in this postmortem will be interesting for the IT community.
+We are implementing actions outlined in a much more detailed internal report in order to make such events
+less probable in the future. Even in failure there is opportunity for learning.</p>
+
+<p>Allegro Engineering Team</p>
+
+    </div>
+    <section class="my-8">
+        <div class="flex flex-wrap gap-2 sm:gap-4">
+            
+            <a href="/tag/postmortem"
+                    class="no-underline hover:underline text-primary-600 dark:text-primary-500 text-sm sm:text-md font-medium inline-flex items-center py-0.5 px-1 whitespace-nowrap"
+            >
+                <svg class="mr-1 w-3 h-3  text-primary-600 dark:text-primary-500" aria-hidden="true"
+                     xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor"
+                     viewBox="0 0 24 24">
+                  <path d="M18.045 3.007 12.31 3a1.965 1.965 0 0 0-1.4.585l-7.33 7.394a2 2 0 0 0 0 2.805l6.573 6.631a1.957 1.957 0 0 0 1.4.585 1.965 1.965 0 0 0 1.4-.585l7.409-7.477A2 2 0 0 0 21 11.479v-5.5a2.972 2.972 0 0 0-2.955-2.972Zm-2.452 6.438a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>
+                </svg>
+                  postmortem
+            </a>
+            
+            <a href="/tag/devops"
+                    class="no-underline hover:underline text-primary-600 dark:text-primary-500 text-sm sm:text-md font-medium inline-flex items-center py-0.5 px-1 whitespace-nowrap"
+            >
+                <svg class="mr-1 w-3 h-3  text-primary-600 dark:text-primary-500" aria-hidden="true"
+                     xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor"
+                     viewBox="0 0 24 24">
+                  <path d="M18.045 3.007 12.31 3a1.965 1.965 0 0 0-1.4.585l-7.33 7.394a2 2 0 0 0 0 2.805l6.573 6.631a1.957 1.957 0 0 0 1.4.585 1.965 1.965 0 0 0 1.4-.585l7.409-7.477A2 2 0 0 0 21 11.479v-5.5a2.972 2.972 0 0 0-2.955-2.972Zm-2.452 6.438a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>
+                </svg>
+                  devops
+            </a>
+            
+            <a href="/tag/deployment"
+                    class="no-underline hover:underline text-primary-600 dark:text-primary-500 text-sm sm:text-md font-medium inline-flex items-center py-0.5 px-1 whitespace-nowrap"
+            >
+                <svg class="mr-1 w-3 h-3  text-primary-600 dark:text-primary-500" aria-hidden="true"
+                     xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor"
+                     viewBox="0 0 24 24">
+                  <path d="M18.045 3.007 12.31 3a1.965 1.965 0 0 0-1.4.585l-7.33 7.394a2 2 0 0 0 0 2.805l6.573 6.631a1.957 1.957 0 0 0 1.4.585 1.965 1.965 0 0 0 1.4-.585l7.409-7.477A2 2 0 0 0 21 11.479v-5.5a2.972 2.972 0 0 0-2.955-2.972Zm-2.452 6.438a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>
+                </svg>
+                  deployment
+            </a>
+            
+            <a href="/tag/cloud"
+                    class="no-underline hover:underline text-primary-600 dark:text-primary-500 text-sm sm:text-md font-medium inline-flex items-center py-0.5 px-1 whitespace-nowrap"
+            >
+                <svg class="mr-1 w-3 h-3  text-primary-600 dark:text-primary-500" aria-hidden="true"
+                     xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor"
+                     viewBox="0 0 24 24">
+                  <path d="M18.045 3.007 12.31 3a1.965 1.965 0 0 0-1.4.585l-7.33 7.394a2 2 0 0 0 0 2.805l6.573 6.631a1.957 1.957 0 0 0 1.4.585 1.965 1.965 0 0 0 1.4-.585l7.409-7.477A2 2 0 0 0 21 11.479v-5.5a2.972 2.972 0 0 0-2.955-2.972Zm-2.452 6.438a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/>
+                </svg>
+                  cloud
+            </a>
+            
+        </div>
+    </section>
+    <section class="not-format">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-lg lg:text-2xl font-bold text-gray-900 dark:text-white">Discussion</h2>
+        </div>
+        <div id="disqus_thread"></div>
+        <script>
+            (function() { // DON'T EDIT BELOW THIS LINE
+                let d = document, s = d.createElement('script');
+                s.src = 'https://allegrotechio.disqus.com/embed.js';
+                s.setAttribute('data-timestamp', +new Date());
+                (d.head || d.body).appendChild(s);
+            })();
+        </script>
+        <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    </section>
+</article>
+<script defer src="/assets/js/post-image-lightbox.js?v="></script>
+
+        </div>
+    </div>
+</main>
+<footer class="bg-gray-100 dark:bg-gray-800 antialiased">
+    <div class="p-8 py-6 mx-auto max-w-screen-xl">
+        <div class="text-center">
+            <a href="https://allegro.tech" class="flex justify-center items-center mb-5 text-2xl font-semibold text-gray-900 dark:text-white">
+                <picture>
+                    <source srcset="/assets/img/allegro-tech-dark.svg" media="(prefers-color-scheme: dark)" />
+                    <source srcset="/assets/img/allegro-tech.svg" media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)" />
+                    <img alt="allegro.tech" class="h-6" src="/assets/img/allegro-tech.svg" height="24px" width="115px" />
+                </picture>
+            </a>
+            <span class="block text-sm text-center text-gray-500 dark:text-gray-400">© 2026 <a href="https://about.allegro.eu/who-we-are/at-a-glance" class="hover:underline">Allegro</a><br />Proudly built by <a href="/authors" class="text-primary-600 dark:text-primary-500 text-sm sm:text-md font-medium inline-flex items-center">engineers</a></span>
+            <ul class="flex justify-center mt-5 space-x-5">
+                <li>
+                    <a href="https://facebook.com/allegro.tech" class="text-gray-500 hover:text-gray-900 dark:hover:text-white dark:text-gray-400">
+                        <svg class="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 8 19">
+                            <path
+                                fill-rule="evenodd"
+                                d="M6.135 3H8V0H6.135a4.147 4.147 0 0 0-4.142 4.142V6H0v3h2v9.938h3V9h2.021l.592-3H5V3.591A.6.6 0 0 1 5.592 3h.543Z"
+                                clip-rule="evenodd"
+                            />
+                        </svg>
+                    </a>
+                </li>
+                <li>
+                    <a href="https://twitter.com/allegrotech" class="text-gray-500 hover:text-gray-900 dark:hover:text-white dark:text-gray-400">
+                        <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+                            <path
+                                fill="currentColor"
+                                d="M12.186 8.672 18.743.947h-2.927l-5.005 5.9-4.44-5.9H0l7.434 9.876-6.986 8.23h2.927l5.434-6.4 4.82 6.4H20L12.186 8.672Zm-2.267 2.671L8.544 9.515 3.2 2.42h2.2l4.312 5.719 1.375 1.828 5.731 7.613h-2.2l-4.699-6.237Z"
+                            />
+                        </svg>
+                    </a>
+                </li>
+                <li>
+                    <a href="https://github.com/allegro" class="text-gray-500 hover:text-gray-900 dark:hover:text-white dark:text-gray-400">
+                        <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                fill-rule="evenodd"
+                                d="M10 .333A9.911 9.911 0 0 0 6.866 19.65c.5.092.678-.215.678-.477 0-.237-.01-1.017-.014-1.845-2.757.6-3.338-1.169-3.338-1.169a2.627 2.627 0 0 0-1.1-1.451c-.9-.615.07-.6.07-.6a2.084 2.084 0 0 1 1.518 1.021 2.11 2.11 0 0 0 2.884.823c.044-.503.268-.973.63-1.325-2.2-.25-4.516-1.1-4.516-4.9A3.832 3.832 0 0 1 4.7 7.068a3.56 3.56 0 0 1 .095-2.623s.832-.266 2.726 1.016a9.409 9.409 0 0 1 4.962 0c1.89-1.282 2.717-1.016 2.717-1.016.366.83.402 1.768.1 2.623a3.827 3.827 0 0 1 1.02 2.659c0 3.807-2.319 4.644-4.525 4.889a2.366 2.366 0 0 1 .673 1.834c0 1.326-.012 2.394-.012 2.72 0 .263.18.572.681.475A9.911 9.911 0 0 0 10 .333Z"
+                                clip-rule="evenodd"
+                            />
+                        </svg>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</footer>
+
+</body>
+</html>

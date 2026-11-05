@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]><html class="no-js lt-ie9 lt-ie8 lt-ie7"><![endif]-->
+<!--[if IE 7]><html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]><html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+
+<head><script type="text/javascript" src="https://web-static.archive.org/_static/js/bundle-playback.js?v=3grhEDQT" charset="utf-8"></script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/wombat.js?v=o9P2E1FK" charset="utf-8"></script>
+<script>window.RufflePlayer=window.RufflePlayer||{};window.RufflePlayer.config={"autoplay":"on","unmuteOverlay":"hidden","showSwfDownload":true};</script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/ruffle/ruffle.js"></script>
+<script type="text/javascript">
+    __wm.init("https://web.archive.org/web");
+  __wm.wombat("https://www.joyent.com/blog/manta-postmortem-7-27-2015","20220528044329","https://web.archive.org/","web","https://web-static.archive.org/_static/",
+	      "1653713009");
+</script>
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/banner-styles.css?v=1utQkbB3" />
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/iconochive.css?v=3PDvdIFv" />
+<!-- End Wayback Rewrite JS Include -->
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Postmortem for July 27 outage of the Manta service | Joyent</title>
+<meta name="description" content="We would like to share the details of what happened during the July 27 Manta service outage, including what we have learned and what actions we are taking to prevent this from happening again."/>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="Postmortem for July 27 outage of the Manta service"/>
+<meta property="og:description" content="We would like to share the details of what happened during the July 27 Manta service outage, including what we have learned and what actions we are taking to prevent this from happening again."/>
+<meta property="og:url" content="https://web.archive.org/web/20220528044329/https://www.joyent.com/blog/manta-postmortem-7-27-2015"/>
+<meta property="og:site_name" content="Joyent"/>
+<meta property="og:locale" content="en"/>
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:site" content="@joyent"/>
+<meta name="twitter:title" content="Postmortem for July 27 outage of the Manta service"/>
+<meta name="twitter:description" content="We would like to share the details of what happened during the July 27 Manta service outage, including what we have learned and what actions we are taking to prevent this from happening again."/>
+
+<link href="https://www.joyent.com/" rel="home"/>
+<link href="https://web.archive.org/web/20220528044329/https://www.joyent.com/blog/manta-postmortem-7-27-2015" rel="canonical"/>
+<link type="text/plain" rel="author" href="https://www.joyent.com/humans.txt"/>
+
+    <script src="//web.archive.org/web/20220528044329js_/https://code.jquery.com/jquery-3.5.1.min.js" integrity="" crossorigin="anonymous"></script>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+    <title>Postmortem for July 27 outage of the Manta service | Joyent</title>
+    <script src="https://web.archive.org/web/20220528044329js_/https://www.joyent.com/site/themes/joyent/js/prism.js" type="text/javascript"></script>
+    <link rel="stylesheet" href="https://web.archive.org/web/20220528044329cs_/https://www.joyent.com/site/themes/joyent/css/joyent.css?v=1619633627">
+    <script type="text/javascript" src="//web.archive.org/web/20220528044329js_/https://app-sjf.marketo.com/js/forms2/js/forms2.min.js" class="optanon-category-3"></script>
+    <script async type="text/javascript" src="https://web.archive.org/web/20220528044329js_/https://static.edgeme.sh/client.js" onload="window.edgemesh = new Edgemesh()"></script>
+</head>
+
+<body class="article manta-postmortem-7-27-2015 ">
+
+    <div id="menu">
+    <nav>
+        <div class="row">
+            <div class="col-xs-12">
+                <div class="logo"><a href="/web/20220528044329/https://www.joyent.com/" class="logo"></a><a href="" class="x"><svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:a="http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/" x="0px" y="0px" width="27.7px" height="27.7px" viewbox="0 0 27.7 27.7" style="enable-background:new 0 0 27.7 27.7;" xml:space="preserve"><style type="text/css">.st10{fill:none;stroke:#bbbbbb;stroke-width:3.6776;stroke-linecap:round;stroke-miterlimit:10;}</style><defs></defs><g><line class="st10" x1="1.8" y1="25.8" x2="25.8" y2="1.8"/><line class="st10" x1="1.8" y1="1.8" x2="25.8" y2="25.8"/></g></svg></a></div>
+                <hr>
+                <ul class="main-nav hidden-print">
+                    <li class="top subs"><a id="products-mobile" href="/web/20220528044329/https://www.joyent.com/triton">Products &amp; Services</a>
+                        <ul class="nav-drop products-mobile">
+                        <li><a href="/web/20220528044329/https://www.joyent.com/triton/managed-private-cloud">Managed Private Cloud</a></li>
+                        <li><a href="/web/20220528044329/https://www.joyent.com/triton/managed-hardware-cloud">Managed Hardware Cloud</a></li>
+                        <li><a href="/web/20220528044329/https://www.joyent.com/triton/on-premise">On Premise Private Cloud</a></li>
+                        <li><a href="/web/20220528044329/https://www.joyent.com/node-js/support">Node.js Support</a></li>
+                        <li><a href="/web/20220528044329/https://www.joyent.com/triton/compute">Triton Compute</a></li>
+                        <li><a href="/web/20220528044329/https://www.joyent.com/triton/object-storage">Triton Object Storage</a></li>
+                        </ul>
+                    </li>
+                    <li class="top subs"><a id="developers-mobile" class="" href="/web/20220528044329/https://www.joyent.com/getting-started">Developer Support</a>
+                        <ul class="nav-drop developers-mobile">
+                            <li><a id="getstarted-mobile" class="" href="/web/20220528044329/https://www.joyent.com/getting-started">Getting Started</a></li>
+                            <li><a id="node-practices-mobile" class="" href="/web/20220528044329/https://www.joyent.com/node-js/production">Node.js Best Practices</a></li>
+                            <li><a id="downloads-mobile" class="" href="/web/20220528044329/https://www.joyent.com/downloads">Downloads</a></li>
+                            <li><a id="documentation-mobile" class="" href="/web/20220528044329/https://www.joyent.com/documentation">Documentation</a></li>
+                            <li><a id="tech-videos-mobile" class="" href="/web/20220528044329/https://www.joyent.com/tech-videos">Tech Videos</a></li>
+                            <li class="why-joyent"><a href="/web/20220528044329/https://www.joyent.com/why" id="mobile-menu-why">Why Triton</a></li>
+                        </ul>
+                    </li>
+                    <li class="top subs"><a id="pricing-mobile" class="" href="/web/20220528044329/https://www.joyent.com/pricing">Pricing &amp; Support</a>
+                        <ul class="nav-drop pricing-mobile">
+                            <li><a id="pricing-overview-mobile" class="" href="/web/20220528044329/https://www.joyent.com/pricing">Private Cloud Pricing</a></li>
+                            <li><a id="node-support-pricing-mobile" href="/web/20220528044329/https://www.joyent.com/node-js/support" class="">Node.js Support</a></li>
+                        </ul>
+                    </li>
+                    <li class="top subs"><a id="events-mobile" href="/web/20220528044329/https://www.joyent.com/events">Events</a>
+                        <ul class="nav-drop events-mobile">
+                            <li><a id="events-main-mobile" class="" href="/web/20220528044329/https://www.joyent.com/events">Upcoming</a></li>
+                            <li><a id="events-on-demand-mobile" class="" href="/web/20220528044329/https://www.joyent.com/events/on-demand">On-Demand</a></li>
+                        </ul>
+                    </li>
+                    <li class="top subs"><a id="about-mobile" href="/web/20220528044329/https://www.joyent.com/about">About</a>
+                        <ul class="nav-drop about-mobile">
+                            <li><a id="about-overview-mobile" href="/web/20220528044329/https://www.joyent.com/about">Company Overview</a></li>
+                            <li><a id="management-mobile" href="/web/20220528044329/https://www.joyent.com/about#management">Leadership Team</a></li>
+                                                        <li><a id="case-studies-mobile" class="" href="/web/20220528044329/https://www.joyent.com/about/case-studies">Use Cases</a></li>
+                                                        <li><a id="careers-mobile" class="" href="/web/20220528044329/https://www.joyent.com/about/careers">Careers</a></li>
+                                                        <li><a id="management-mobile" class="" href="/web/20220528044329/https://www.joyent.com/about/management">Management</a></li>
+                                                        <li><a id="press-mobile" class="" href="/web/20220528044329/https://www.joyent.com/about/press">Press Room</a></li>
+                                                        <li><a id="policies-mobile" class="" href="/web/20220528044329/https://www.joyent.com/about/policies">Policies</a></li>
+                            
+                            <li><a id="contact-mobile" href="/web/20220528044329/https://www.joyent.com/contact">Contact Us</a></li>
+                        </ul>
+                    </li>
+                    <li class="top"><a id="blog-mobile" href="/web/20220528044329/https://www.joyent.com/blog" class="active">Blog</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+        <a href="/web/20220528044329/https://www.joyent.com/contact" class="free-trial" id="mobile-menu-getstarted">Contact Us</a>
+    </div><!-- #menu -->
+    <div id="page">
+        <div class="wrap top">
+    <header class="header cf" role="banner">
+        <nav class="navbar-fixed-top main navbar navbar-default" role="navigation">
+            <div class="container-fluid">
+                <div class="row main">
+                    <div class="col-sm-12">
+                        <a href="#" class="menu-toggle btn navbar-toggle visible-xs" data-segment="hamburger-menu" id="toggle-menu"><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></a>
+                        <div class="logo"><a href="/web/20220528044329/https://www.joyent.com/"></a></div>
+                        <ul class="menu main hidden-xs">
+                            <li class="products subs"><a href="/web/20220528044329/https://www.joyent.com/triton" id="header-products">Products<span class="hidden-sm"> &amp; Services</span></a>
+                                <nav class="product-nav">
+                                    <div class="container-fluid">
+                                        <div class="row products">
+                                            <div class="col-sm-2 primary private">
+                                                <a href="/web/20220528044329/https://www.joyent.com/triton/managed-private-cloud"><span></span><h4>Managed<br>Private Cloud</h4>
+                                                    <p>Fully Isolated &amp; Managed Single-Tenant Cloud; Customized and Optimized for your Enterprise</p></a>
+                                            </div>
+                                            <div class="col-sm-2 primary hardware">
+                                                <a href="/web/20220528044329/https://www.joyent.com/triton/managed-hardware-cloud"><span></span><h4>Managed<br>Hardware Cloud</h4>
+                                                    <p>Managed Hosting or Managed Bare Metal Ready Private Cloud Support and Installation</p></a>
+                                            </div>
+                                            <div class="col-sm-2 primary onprem">
+                                                <a href="/web/20220528044329/https://www.joyent.com/triton/on-premise"><span></span><h4>On Premise<br>Private Cloud</h4>
+                                                    <p>Open Source or Commercial Support &amp; Services for On-Premises, User Operated &amp; Owned Cloud</p></a>
+                                            </div>
+                                            <div class="col-sm-2 primary node">
+                                                <a href="/web/20220528044329/https://www.joyent.com/node-js/support"><span></span><h4>Node.js Support</h4>
+                                                    <p>Comprehensive Enterprise Support Services for Node.js Applications and Microservices</p></a>
+                                            </div>
+                                            <div class="col-sm-2 primary compute">
+                                                <a href="/web/20220528044329/https://www.joyent.com/triton"><span></span><h4>Compute</h4>
+                                                    <p>Easy to Manage Cloud Orchestration Service with Triton DataCenter delivering End User Self Service Cloud UI &amp; APIs</p></a>
+                                            </div>
+                                            <div class="col-sm-2 primary storage">
+                                                <a href="/web/20220528044329/https://www.joyent.com/triton/object-storage"><span></span><h4>Storage</h4>
+                                                    <p>Simple and Highly Scalable Object Storage with Triton Object Storage with converged Compute</p></a>
+                                            </div>
+                                        </div>
+                                </div>
+                                </nav>
+                            </li>
+                            <li class="developers subs"><a href="/web/20220528044329/https://www.joyent.com/getting-started" id="header-developers">Developers</a>
+                                <ul>
+                                    <li><a href="/web/20220528044329/https://www.joyent.com/getting-started">Getting Started</a></li>
+                                    <li><a href="/web/20220528044329/https://www.joyent.com/node-js/production">Node.js Best Practices</a></li>
+                                    <li><a href="/web/20220528044329/https://www.joyent.com/downloads">Downloads</a></li>
+                                    <li><a href="/web/20220528044329/https://www.joyent.com/documentation">Documentation</a></li>
+                                    <li><a href="/web/20220528044329/https://www.joyent.com/tech-videos">Tech Videos</a></li>
+                                    <li class="why-joyent"><a href="/web/20220528044329/https://www.joyent.com/why" id="header-why">Why Triton</a></li>
+                                </ul>
+                            </li>
+                            <li class="pricing subs"><a href="/web/20220528044329/https://www.joyent.com/pricing" id="header-pricing">Pricing</a>
+                                <!-- <ul>
+                                    <li><a href="/pricing">Private Cloud Pricing</a></li>
+                                    <li><a href="/node-js/support">Node.js Support</a></li>
+                                </ul> -->
+                            </li>
+                            <li class="events subs"><a href="/web/20220528044329/https://www.joyent.com/events">Events</a>
+                                <ul>
+                                    <li><a href="/web/20220528044329/https://www.joyent.com/events">Upcoming</a></li>
+                                    <li><a href="/web/20220528044329/https://www.joyent.com/events/on-demand">On Demand</a></li>
+                                </ul>
+                            </li>
+                            <li class="about subs"><a href="/web/20220528044329/https://www.joyent.com/about" id="header-about">About<span class="hidden-sm hidden-md"> Us</span></a>
+                                <ul>
+                                    <li><a id="about-overview-main" href="/web/20220528044329/https://www.joyent.com/about">Company Overview</a></li>
+                                    <li><a href="/web/20220528044329/https://www.joyent.com/about#management">Leadership Team</a></li>
+                                    <li><a href="/web/20220528044329/https://www.joyent.com/about/case-studies">Use Cases</a></li>
+                                    <li><a href="/web/20220528044329/https://www.joyent.com/about/careers">Careers</a></li>
+                                    <li><a href="/web/20220528044329/https://www.joyent.com/about/press">Press Room</a></li>
+                                    <li><a href="/web/20220528044329/https://www.joyent.com/contact">Contact Us</a></li>
+                                    <li><a href="/web/20220528044329/https://www.joyent.com/blog">Blog</a></li>
+                                </ul>
+                            </li>
+                            <!--<li class="visible-sm-inline-block visible-md-inline-block"><a href="/blog" id="header-blog" class="active">Blog</a></li>-->
+                            <!--<li class="visible-sm-inline-block visible-md-inline-block"><a href="https://my.joyent.com" id="header-signin">Sign In</a></li>-->
+                            <li class="events subs"><a href="/web/20220528044329/https://www.joyent.com/blog">Blog</a>
+                        </ul>
+                        <ul class="menu actions">
+                            <li class="hidden-xs hidden-sm hidden-md"><a href="/web/20220528044329/https://www.joyent.com/search" id="header-search"><img src="/web/20220528044329im_/https://www.joyent.com/assets/img/search-icon.170828.svg"></a></li>
+                            <!--<li class="hidden-xs hidden-sm hidden-md"><a href="/blog" id="header-blog" class="active">Blog</a></li>-->
+                            <!--<li class="hidden-xs hidden-sm hidden-md"><a href="https://my.joyent.com" id="header-signin">Sign In</a></li>-->
+                            <!--<li class="free-trial"><a href="/contact" id="main-nav-free-trial">Contact Us</a></li>-->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+    <script type="application/ld+json">
+    {
+        "@context" : "https://web.archive.org/web/20220528044329/http://schema.org",
+        "@type" : "BlogPosting",
+        "headline" : "Postmortem for July 27 outage of the Manta service",
+        "datePublished" : "2015-08-03T00:00",
+        "author" : "The Joyent Team",
+        "publisher" : {
+            "name" : "Joyent",
+            "@type" : "Organization",
+            "logo" : "https://web.archive.org/web/20220528044329/https://www.joyent.com/assets/img/logo-bug.svg"
+        },
+        "description" : "We would like to share the details of what happened during the July 27 Manta service outage, including what we have learned and what actions we are taking to prevent this from happening again.
+"
+            }
+</script>
+
+<div class="container">
+    <div class="row top single">
+        <div class="col-sm-8">
+            <h2 id="b" itemscope itemtype="http://data-vocabulary.org/Breadcrumb" itemprop="child"><a href="<?= $page->url() ?>" itemprop="url"></a><span itemprop="title">Postmortem for July 27 outage of the Manta service</span></h2>
+            <div class="thankyou alert-success" style="display: none; margin-bottom: 20px;">
+                <h4>Thank You</h4>
+                <p>Thank you for contacting us. We will get back to you shortly.</p>
+            </div>
+            <div class="article">
+            <p class="date">August 03, 2015 - by <strong>The Joyent Team</strong></p>
+                <p class="share top"><span>Share: </span> <a href="https://web.archive.org/web/20220528044329/https://twitter.com/intent/tweet?source=Joyent%20Blog&amp;text=Postmortem+for+July+27+outage+of+the+Manta+service&amp;url=https%3A%2F%2Fwww.joyent.com/blog/manta-postmortem-7-27-2015&amp;via=joyent" class="twitter"></a><a href="https://web.archive.org/web/20220528044329/http://www.facebook.com/share.php?u=https%3A%2F%2Fwww.joyent.com/blog/manta-postmortem-7-27-2015" class="facebook"></a><a href="https://web.archive.org/web/20220528044329/http://www.linkedin.com/shareArticle?url=https%3A%2F%2Fwww.joyent.com/blog/manta-postmortem-7-27-2015&amp;title=Postmortem+for+July+27+outage+of+the+Manta+service&amp;summary=We+would+like+to+share+the+details+of+what+happened+during+the+July+27+Manta+service+outage%2C+including+what+we+have+learned+and+what+actions+we+are+taking+to+prevent+this+from+happening+again." class="linkedin"></a><a href="https://web.archive.org/web/20220528044329/mailto:/?subject=Postmortem for July 27 outage of the Manta service&amp;body=We would like to share the details of what happened during the July 27 Manta service outage, including what we have learned and what actions we are taking to prevent this from happening again.%0D%0A%0D%0Ahttps%3A%2F%2Fwww.joyent.com/blog/manta-postmortem-7-27-2015" class="mail"></a></p>
+                <div class="clearfix"></div>
+                                <p>We would like to share the details of what happened during the July 27 Manta service outage, including what we have learned and what actions we are taking to prevent this from happening again. We know that the Manta service is critical for many of our customers (and indeed, it plays a critical role in our own infrastructure), and we apologize for the outage and the inconvenience it caused.</p>
+<h2 id="scope-of-the-event">Scope of the event</h2>
+<p>Around 10:30 UTC (3:30AM US Pacific), the Manta service started serving a high percentage of error responses.  Clients experienced very high latency, and ultimately received 500-level errors in response to about 22% of all types of requests, including PUT, GET, and DELETE for both objects and directories.  At peak, the error rate approached 27% of all requests, and for most of the window the error rate varied between 19 and 23%.  This lasted until about 20:45 UTC (1:45PM US Pacific).  By 20:45 UTC, the error rate returned back to zero.</p>
+<h2 id="root-cause-analysis">Root cause analysis</h2>
+<p>For transparency, we've included a lot of detail here about how the incident proceeded.  If you're interested in more of a summary, skip to the Summary of Root Cause section below.</p>
+<h3 id="background">Background</h3>
+<p>The Manta service employs a metadata tier consisting of sharded PostgreSQL databases.  These databases map the user-visible namespace of directories and objects (e.g., &quot;/$MANTA_USER/stor/your/object&quot;) to a list of backend servers that store the object.</p>
+<p>The metadata tier is queried for all Manta requests relating to directories and objects, including creating, listing, and removing directories, as well as fetching and saving objects.  Job data is also stored in the metadata tier, so job-related requests also access the metadata tier.</p>
+<p>Each shard of the Metadata tier is a three-node PostgreSQL cluster using synchronous replication and using our <a href="https://web.archive.org/web/20220528044329/https://github.com/joyent/manatee-state-machine">Manatee</a> component to manage automatic failover.</p>
+<h3 id="the-problem">The problem</h3>
+<p>We quickly identified that API requests were hanging and ultimately failing because all queries to one of the PostgreSQL databases were themselves hanging.  API servers timed out these PostgreSQL queries and returned 500-level errors to clients.  Only one metadata shard was affected, which is why a large percentage of requests continued to succeed.</p>
+<p>The affected database was responding to simple queries, but was not responding to any queries on the table used for Manta metadata.  We saw that nearly all queries were &quot;waiting&quot;, which typically means they're blocked on a lock.  The only unblocked query was an &quot;autovacuum&quot; operation that had been kicked off at 10:30:09, right around the start of the outage.</p>
+<p>In the past, we have experienced similar, much less severe situations where queries appeared to be blocked and autovacuum was the only unblocked operation.  In those cases, we've successfully restored service by cancelling the autovacuum operation.  In attempt to restore service as quickly as possible, we decided to restart PostgreSQL around 14:11.  To help root-cause the problem after restoring service, we saved the data that PostgreSQL makes available around locking status for locks both held and wanted, as well as the list of queries running.  (More on this data later.)  Then we restarted PostgreSQL.  This did restore service for about 5-10 minutes, but another autovacuum kicked off that shortly resulted in the same situation: all queries blocked on locks, with only the autovacuum operation actually running.  At this point we observed that the autovacuum had been kicked off and that it was (according to PostgreSQL) &quot;to prevent wraparound&quot;.</p>
+<p>While this particular reason for autovacuuming was new to us, and while we did not understand why the autovacuum operation was causing all other queries to block, we also believed that it was out of our control (e.g., a PostgreSQL issue).  We also believed that this operation was important to the continued functioning of PostgreSQL.  As we were quickly learning, transaction wraparound is a serious concern, and it's important to allow PostgreSQL to perform the maintenance required to avoid the problem.  More on both of these issues later.</p>
+<p>So engineering spent the next several hours attempting to speed up the autovacuum process, principally in two ways:</p>
+<ul>
+<li>Using process microstate accounting (in particular, <a href="https://web.archive.org/web/20220528044329/https://www.illumos.org/man/1m/prstat">prstat -Lm</a>), we determined that the autovacuum process was spending a large percentage of its time sleeping.  Using DTrace, we determined that the vast majority of time it was coming off-CPU was in order to read filesystem data.  Also using DTrace to see which files were being read, we found that PostgreSQL was reading through a large number of files in order.  While ZFS identifies sequential read behavior within a file and prefetches file data, it does not prefetch files that that have not been read yet.  We manually prefetched this data, which improved autovacuum speed considerably.  (This particular PostgreSQL operation is essentially a full scan of a table and all of its indexes -- which exceeded the memory of the system, inducing substantial read I/O.)</li>
+<li>Once we started prefetching data, we found that PostgreSQL was still sleeping a lot, and was coming off-CPU as a result of a PostgreSQL function that was explicitly sleeping as part of the <a href="https://web.archive.org/web/20220528044329/http://www.postgresql.org/docs/9.2/static/runtime-config-resource.html#RUNTIME-CONFIG-RESOURCE-VACUUM-COST">cost-based vacuum delay</a> mechanism, which attempts to limit resources used by vacuum operations.  In this case, with all database activity effectively blocked on this operation, this delay was only hurting us.  Since these tunables are not dynamically adjustable, we manually patched the running process to avoid sleeping in this case.  This improved performance considerably.</li>
+</ul>
+<p>We observed the autovacuum scan the full table and all of its indexes, and then do the same thing again.  After several hours, it successfully completed and updated the &quot;last_autovacuum_time&quot; metadata for the table.  The blocked queries completed and service was restored.  However, a few minutes later, another autovacuum kicked off for the same table, also &quot;to prevent wraparound&quot;.  We still do not understand why the first autovacuum did not work to clear this problem, but it was clear that we could not wait several more hours for another operation to complete that may still not clear the issue.</p>
+<p>By this point, we'd learned that we could tune up the threshold at which PostgreSQL kicks off this operation, and that doing so was very safe as a short-term measure.  By doing so, we planned to restore service and give ourselves time to better understand the issue and resolve it less disruptively.  We made the change around 20:40, service was quickly restored, and the incident ended.  We took action items to better understand the underlying issues so that we could deal with the immediate threat of wraparound threat in a less disruptive way, and also to make sure that we continue dealing with it more proactively instead of having these disruptive operations kick in.</p>
+<h3 id="subsequent-analysis">Subsequent analysis</h3>
+<h4 id="more-background">More background</h4>
+<p>To fully understand what happened, a little more background on PostgreSQL is required.  PostgreSQL's implementation of <a href="https://web.archive.org/web/20220528044329/http://www.postgresql.org/docs/7.1/static/mvcc.html">Multi-Version Concurrency Control</a> means that when a tuple (basically, a row) is changed, a new copy of it is created.  The old copy is kept around in case concurrent transactions reference that version.  These old copies eventually have to be removed by a routine maintenance operation called <em>vacuuming</em>.</p>
+<p>The vacuum process is also used to address the separate problem of transaction id wraparound.  In order to manage both consistency and concurrency, rows are assigned a transaction id relating to when they were created, and transactions can only see rows whose transaction id is before their own transaction id.  As with any fixed-size integer, transaction ids can wrap around.  To deal with this, the 32-bit transaction id space behaves as a circular space, where the previous 2 billion transactions are in the &quot;past&quot; and the next 2 billion transactions are in the &quot;future&quot;.  But in order for a table to contain rows that span more than 2 billion transactions, an additional step is necessary: very old rows are assigned a special value that indicates that they're in the past for all current and future transactions.  This is called &quot;freezing&quot; a tuple.  When deemed necessary, routine vacuuming will perform an extra full table scan just to make sure old tuples are frozen.  Administrators can do this themselves using the &quot;VACUUM FREEZE&quot; operation.  (This is all a gross simplification of the underlying concerns.  The <a href="https://web.archive.org/web/20220528044329/http://www.postgresql.org/docs/9.2/static/routine-vacuuming.html#VACUUM-FOR-WRAPAROUND">official documentation</a> and <a href="https://web.archive.org/web/20220528044329/http://www.databasesoup.com/2012/09/freezing-your-tuples-off-part-1.html">Josh Berkus's blog series</a> explain it in much more detail.)</p>
+<p>PostgreSQL has an autovacuum mechanism that's intended to kick off vacuum operations as needed to deal with both of the above problems.  It cleans up old tuples and, if necessary, scans the entire table to freeze very old tuples.</p>
+<p>The normal autovacuum mechanism is skipped when locks are held in order to minimize service disruption.  However, because transaction wraparound is such a severe problem, if the system gets too close to wraparound, an autovacuum is launched that does not back off under lock contention.  The default configuration is aggressive: although a table can go about 2 billion transactions without freezing, a &quot;wraparound autovacuum&quot; is kicked off if a table has gone at least 200 million transactions in total and more than 150 million transactions since the last &quot;freeze&quot; vacuum.</p>
+<h4 id="back-to-the-incident">Back to the incident</h4>
+<p>As mentioned above, we hit the wraparound autovacuum condition at 10:30 UTC on July 27.  We ultimately resolved the outage by adjusting the PostgreSQL configuration to be less aggressive.  The documentation is very clear that there is little impact to tuning this up as long as the database never gets close to the true underlying limit.</p>
+<p>When the outage was resolved, we still had a number of questions: is a wraparound autovacuum always so disruptive?  Given that it was blocking all table operations, why does it throttle itself?  Was this the first time we'd experienced a wraparound autovacuum, or had we seen it before and those previous operations were less disruptive?  How close were the other shards to hitting this condition?  Now that we've tuned the point at which PostgreSQL engages this operation, will a manual &quot;VACUUM FREEZE&quot; operation address the problem in a less disruptive way, or will it be just as disruptive?  Longer-term: what's the correct combination of tunables and scheduled maintenance that will avoid the problem, and how can we tell that those mechanisms are working?</p>
+<p>It seemed most important to understand better whether it was expected that the autovacuum operation would be so disruptive.  We analyzed the locking data that we'd saved during the incident (<a href="https://web.archive.org/web/20220528044329/https://github.com/joyent/pglockanalyze">writing a program to summarize lock dependencies</a>) and found that the locks held and wanted by the autovacuum operation did <em>not</em> conflict with the shared locks wanted by the data path queries.  Instead, there was a single &quot;DROP TRIGGER&quot; query that was attempting to take an exclusive lock on the whole table.  It appears that PostgreSQL blocks new attempts to take a shared lock while an exclusive lock is wanted.  (This sounds bad, but it's necessary in order to avoid writer starvation.)  However, the exclusive lock was itself blocked on a different shared lock held by the autovacuum operation.  In short: the autovacuum itself wasn't blocking all the data path queries, but it was holding a shared lock that conflicted with the exclusive lock wanted by the &quot;DROP TRIGGER&quot; query, and the presence of that &quot;DROP TRIGGER&quot; query blocked others from taking shared locks.  This explanation was corroborated by the fact that during the outage, the oldest active query in the database was the &quot;DROP TRIGGER&quot;.  Everything before that query had acquired the shared lock and completed, while queries after that one blocked behind it.</p>
+<p>In Manta, the &quot;DROP TRIGGER&quot; query is normally made when a certain component reconnects to the database.  It <a href="https://web.archive.org/web/20220528044329/https://github.com/joyent/node-libmanta/blob/898a5c7f0edbd491e2304852fd37fbbc30186485/lib/moray.js#L141-L150">drops the trigger if it exists and then recreates it</a>, as a simple way to idempotently make sure the trigger is present and up-to-date.  We now know that this operation is quite disruptive (since it takes an exclusive table lock), even if most of the time it was not a big deal (because it's quick).  It only became a problem because of the locking constraints introduced by the wraparound autovacuum.  (Note that a regular autovacuum may have just aborted, seeing lock contention.  It's likely that in order to see this problem you'd have to have this special wraparound autovacuum.)  Fortunately, we expect to be able to resolve this issue by simply avoiding dropping and recreating the trigger.  With that change in place, we expect to be able to perform a manual &quot;VACUUM FREEZE&quot; on all shards without disruption to deal with the wraparound issue.</p>
+<p>This answers several of the questions above: wraparound autovacuum operations are not normally so disruptive, though they do have the potential to be much worse than other autovacuums.  Throttling itself is not as unreasonable if it's not expected to be blocking all other queries.  With the fix in place, we expect to be able to resolve this problem without disruption with a &quot;VACUUM FREEZE&quot;, though without the fix, we can expect that operation would have been just as disruptive.</p>
+<p>We don't know if this is the first time we saw this, but based on our traffic patterns, we would have expected to see wraparaound autovacuums a few times on each shard already.  It may be that we've been lucky in the past with not having a concurrent exclusive-lock operation.</p>
+<p>To deal with this in the future, we will be monitoring the PostgreSQL statistics that are used to calculate when the wraparound autovacuum should happen.  We'll be making sure that normal autovacuum operations complete regularly, and that these statistics are updated when they do.</p>
+<p>We still don't know why the completed autovacuum did not resolve the wraparound issue.</p>
+<h3 id="summary-of-root-cause">Summary of Root Cause</h3>
+<p>In summary:</p>
+<ul>
+<li>All Manta operations touch our sharded, PostgreSQL-backed metadata tier.</li>
+<li>During the event, one of the shard databases had all queries on our primary table blocked by a three-way interaction between the data path queries that wanted shared locks, a &quot;transaction wraparound&quot; autovacuum that held a shared lock and ran for several hours, and an errant query that wanted an exclusive table lock.</li>
+<li>We temporarily addressed the issue by configuring PostgreSQL to avoid the transaction wraparound autovacuum operation.  We believe this is safe for quite some time, but we will be prioritizing work to avoid the query that attempted to take the exclusive table lock, manually vacuum the table to deal with the wraparound threat, and monitor statistics that will tell us that autovacuum is proceeding regularly.</li>
+</ul>
+<h2 id="reflections">Reflections</h2>
+<p>First of all, we want to emphasize that we're sorry about this incident.  We strive to maintain very high availability for all our services, and we know our customers are greatly impacted by service disruptions.  We're committed to make sure we fully understand what happened and fix our software and procedures to make sure it does not happen again.  That's why we've shared this detailed analysis.</p>
+<p>While there are still some lingering questions (notably: why the first successful autovacuum did not clear the problem), we're heartened that the data we gathered during the outage later allowed us to identify our own locking issue as the most direct and actionable cause.  Without that, we would still be wondering whether wraparound autovacuums were always so disruptive and whether this was at heart a PostgreSQL issue.</p>
+<p>This was not the first incident we've experienced resulting from insufficient autovacuuming, though it was by far the most disruptive.  Other incidents have largely affected performance of the compute service, and resulted from:</p>
+<ul>
+<li>table bloat, leading to more I/O, memory, and compute required to process queries</li>
+<li>table fragmentation, resulting in much more I/O to read the same amount of data</li>
+<li>vastly distorted query planner statistics, resulting in very inefficient queries (e.g., table scans instead of index scans)</li>
+</ul>
+<p>We've historically struggled to tune our databases to automatically perform these operations in the background.  Many resources suggest running periodic &quot;vacuum&quot; and &quot;analyze&quot; operations out of cron, while other solutions attempt to identify periods of low activity and run these operations at those times.  But Manta runs a 24/7 duty cycle: customers are using it constantly and do not expect latency bubbles for periodic maintenance.  We had been optimistic that background autovacuum operations would address these issues with little impact to service, or at least that performance degradation would be gradual.  This optimism was clearly not warranted, and as part of this outage we learned that we need to monitor these operations much more closely.</p>
+<p>This failure mode was especially painful because by its nature, a database can go years without seeing any symptoms -- until the threat of wraparound suddenly causes a major disruption.  Indeed, we were not the first service provider within a week to experience <a href="https://web.archive.org/web/20220528044329/http://blog.getsentry.com/2015/07/23/transaction-id-wraparound-in-postgres.html">an outage related to this behavior</a>.  We will take this opportunity to carefully examine the relevant tunables to make sure they're configured to run autovacuum appropriately.  We'll validate those settings in our pre-production environment under high load.  We will also be examining the relevant statistics that can be used to identify that these operations are running, have completed, and are cleaning up the issues they're intended to clean up.</p>
+<p>These issues aside, we're still happy with PostgreSQL, and we've not seriously considered switching away from it.  On the contrary, the documentation and data that's available to understand such issues is very valuable.  We believe we can do better to tune and monitor these operations.</p>
+<h2 id="closing">Closing</h2>
+<p>We want to reiterate our apology for the magnitude of this issue and the impact it caused our customers and their customers.  We will be working hard to prevent an issue like this from happening again, and do not hesitate to reach out to us if you have any follow-up questions about this outage or its postmortem!</p>
+<p>Sincerely,
+The Joyent Team</p>
+
+                                
+                <div class="clearfix"></div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="sidebar first imgad">
+    <a href="/web/20220528044329/https://www.joyent.com/node-js/support"><img src="/web/20220528044329im_/https://www.joyent.com/assets/img/ads/more-time.190726.png" class="img-responsive"></a>
+</div>
+
+            <div class="sidebar second hidden-xs">
+                <ul class="social clearfix">
+  <li><a href="https://web.archive.org/web/20220528044329/http://www.linkedin.com/company/joyent" class="linkedin" target="_blank"></a></li>
+  <li><a href="https://web.archive.org/web/20220528044329/https://www.facebook.com/joyentcloud" class="facebook" target="_blank"></a></li>
+  <li><a href="https://web.archive.org/web/20220528044329/http://twitter.com/joyent" class="twitter" target="_blank"></a></li>
+  <li><a href="https://web.archive.org/web/20220528044329/https://www.instagram.com/joyenttriton/" class="instagram" target="_blank"></a></li>
+  <li><a href="/web/20220528044329/https://www.joyent.com/blog/feed" class="rss"></a></li>
+</ul>
+
+                <h4>More From Manta</h4>
+                <ul class="events">
+                                        <li><a href="/web/20220528044329/https://www.joyent.com/blog/setting-up-a-manta-triton-development-environment">Video Blog: Setting up a Manta/Triton development environment</a></li>
+                                        <li><a href="/web/20220528044329/https://www.joyent.com/blog/visualize-ip-world-map">Visualize IPs on a world map with Triton Converged Analytics</a></li>
+                                        <li><a href="/web/20220528044329/https://www.joyent.com/blog/cyberduck-now-supports-triton-object-storage">Cyberduck now supports Triton Object Storage</a></li>
+                                        <li><a href="/web/20220528044329/https://www.joyent.com/blog/debugging-nodejs-with-mdb">Debugging Node.js with MDB</a></li>
+                                        <li><a href="/web/20220528044329/https://www.joyent.com/blog/sdc-and-manta-are-now-open-source">SmartDataCenter and Manta are now open source</a></li>
+                    
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+  $(document).ready(function() {
+    $('table').each(function() {
+        $(this).addClass('table').addClass('table-bordered').addClass('table-striped');
+    });
+   });
+</script>
+</div>
+
+
+
+    <link href="https://web.archive.org/web/20220528044329cs_/https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700|Inconsolata" rel="stylesheet">
+<script type="text/javascript" src="https://web.archive.org/web/20220528044329js_/https://www.joyent.com/site/themes/joyent/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="https://web.archive.org/web/20220528044329js_/https://www.joyent.com/site/themes/joyent/js/combined.js"></script>
+
+<div class="offerings-cta wrap footer">
+    <div class="container">
+        <div class="row">
+            <div class="col-xs-12">
+                <p>Want to learn more about our cloud offerings? <a href="https://web.archive.org/web/20220528044329/https://lpage.joyent.com/Contact-Us-Form-Featured-Homepage.html" title="" class="getstarted">Request a Cloud Specialist</a></p>
+
+            </div>
+        </div>
+    </div>
+</div>
+<footer class="footer" id="footer">
+<div class="container hidden-print">
+		<div class="foot-logo row">
+				<div class="col-sm-12">
+						<p><img src="/web/20220528044329im_/https://www.joyent.com/assets/img/triton-logo.svg" alt="Triton Logo" class="footer-logo"></p>
+				</div>
+				<div class="col-sm-8">
+						<p class="foot-tag">Hybrid, Modern and Open, Triton is engineered to run the world’s largest cloud native applications</p>
+				</div>
+				<div class="col-sm-3 col-sm-offset-1">
+						<p>Connect with Joyent</p>
+						<ul class="social clearfix">
+  <li><a href="https://web.archive.org/web/20220528044329/http://www.linkedin.com/company/joyent" class="linkedin" target="_blank"></a></li>
+  <li><a href="https://web.archive.org/web/20220528044329/https://www.facebook.com/joyentcloud" class="facebook" target="_blank"></a></li>
+  <li><a href="https://web.archive.org/web/20220528044329/http://twitter.com/joyent" class="twitter" target="_blank"></a></li>
+  <li><a href="https://web.archive.org/web/20220528044329/https://www.instagram.com/joyenttriton/" class="instagram" target="_blank"></a></li>
+  <li><a href="/web/20220528044329/https://www.joyent.com/blog/feed" class="rss"></a></li>
+</ul>
+
+				</div>
+		</div>
+</div>
+<div class="container hidden-xs" id="footer">
+		<div class="row hidden-xs hidden-print">
+				<div class="col-sm-3 col-md-2 column">
+						<h4>Open Source</h4>
+						<ul>
+								<li><a href="https://web.archive.org/web/20220528044329/http://github.com/joyent" id="foot-github">Github/joyent</a></li>
+								<li><a href="/web/20220528044329/https://www.joyent.com/triton/compute" id="foot-triton-open-source">Triton Compute Service</a></li>
+								<li><a href="/web/20220528044329/https://www.joyent.com/smartos" id="foot-smartos-open-source">SmartOS</a></li>
+								<li><a href="/web/20220528044329/https://www.joyent.com/triton/object-storage" id="foot-triton-object-storage">Object Storage</a></li>
+								<!--<li><a href="http://github.com/autopilotpattern" id="foot-github-autopilotpattern">Github/autopilotpattern</a></li>
+								<li><a href="/containerpilot" id="foot-containerpilot-open-source">ContainerPilot</a></li>
+								<li><a href="/node-js" id="foot-node-open-source">Node.js</a></li>-->
+						</ul>
+				</div>
+				<div class="col-sm-2 col-md-2 column">
+						<h4>Documentation</h4>
+						<ul>
+								<li><a href="/web/20220528044329/https://www.joyent.com/blog" id="foot-blog">Joyent Blog</a></li>
+								<li><a href="/web/20220528044329/https://www.joyent.com/getting-started" id="foot-triton-getting-started">Triton Getting Started</a></li>
+								<li><a href="https://web.archive.org/web/20220528044329/https://docs.joyent.com/public-cloud" id="foot-triton-compute-docs">Triton Compute</a></li>
+								<li><a href="https://web.archive.org/web/20220528044329/https://wiki.smartos.org/" id="foot-triton-smartos-docs">Triton SmartOS</a></li>
+								<li><a href="https://web.archive.org/web/20220528044329/https://apidocs.joyent.com/manta/index.html" id="foot-object-storage-docs">Object Storage</a></li>
+								<!--<li><a href="https://docs.joyent.com/public-cloud/instances/docker/containerpilot" id="foot-containerpilot-docs">ContainerPilot</a></li>-->
+								<!--<li><a href="/node-js/production" id="foot-node-docs">Node.js Production Practices</a></li>-->
+						</ul>
+				</div>
+				<div class="col-sm-2 col-md-2 column">
+						<h4>About</h4>
+						<ul>
+								<li><a href="/web/20220528044329/https://www.joyent.com/about/press" id="foot-press">Press Room</a></li>
+								<li><a href="/web/20220528044329/https://www.joyent.com/about/events" id="foot-events">Events</a></li>
+								<li><a href="/web/20220528044329/https://www.joyent.com/about/management" id="foot-management">Management</a></li>
+								<li><a href="/web/20220528044329/https://www.joyent.com/about/careers" id="foot-careers">Careers</a></li>
+								<li><a href="/web/20220528044329/https://www.joyent.com/contact" id="foot-contact">Contact Us</a></li>
+						</ul>
+				</div>
+				<div class="col-sm-2 column">
+						<h4>Support</h4>
+						<ul>
+								<li><a href="https://web.archive.org/web/20220528044329/https://help.joyent.com/home" id="footer-help-desk">Support Center</a></li>
+								<!--<li><a href="https://status.joyent.com" id="footer-system-status">System Status</a></li>-->
+								<li><a href="#" id="footer-feedback" data-toggle="modal" data-target="#feedback">Site Feedback</a></li>
+								<li><a href="/web/20220528044329/https://www.joyent.com/search" id="footer-search">Site Search</a></li>
+						</ul>
+				</div>
+		</div>
+		<div class="row copyright">
+				<div class="col-sm-6 logorow">
+					<p>© 2022 Joyent, Inc. | <a href="/web/20220528044329/https://www.joyent.com/about/policies">Policies</a></p>
+
+				</div>
+		</div>
+</div>
+
+<!-- Marketo Munchkin -->
+<script type="text/plain" src="//web.archive.org/web/20220528044329js_/https://munchkin.marketo.net/munchkin.js" class="optanon-category-2"></script>
+<script type="text/plain" class="optanon-category-2">try { mktoMunchkin("993-RJQ-253"); } catch(err) { }</script>
+<!-- End Marketo Munchkin -->
+<link rel="stylesheet" href="https://web.archive.org/web/20220528044329cs_/https://www.joyent.com/site/themes/joyent/css/MyFontsWebfontsKit.css">
+</footer>
+</div>
+<div class="modal" id="feedback">
+<div class="modal-dialog">
+		<div class="modal-content">
+				<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+						<h2>Joyent.com Feedback</h2>
+				</div>
+				<div class="modal-body">
+					<div class="thankyou alert-success" style="display: none;">
+							<h4>Thank You</h4>
+							<p>Thank you for helping us improve joyent.com.</p>
+					</div>
+						<div class="alert-danger feedback" style="display: none;">
+								<h4>Forms are blocked</h4>
+								<p>It appears you have an ad or script blocker that won't allow us to load our feedback form from <code>app-sjf.marketo.com</code>. To submit feedback, you can either temporarily unblock that domain, or email <a href="https://web.archive.org/web/20220528044329/mailto:marketing@joyent.com">marketing@joyent.com</a>. Email may take longer to get to the relevant people.</p>
+						</div>
+					<form id="mktoForm_1244"></form>
+					<script>
+						try {
+						MktoForms2.loadForm("//web.archive.org/web/20220528044329/https://app-sjf.marketo.com", "993-RJQ-253", 1244, function(form){
+								form.onSuccess(function(values, followUpUrl){
+									//get the form's jQuery element and hide it
+									form.getFormElem().hide();
+									//return false to prevent the submission handler from taking the lead to the follow up url.
+									$('.thankyou').show();
+									return false;
+								});
+							});
+						} catch(err) {
+								$('.alert-danger.feedback').show();
+						}
+					</script>
+				</div>
+		</div>
+</div>
+</div>
+
+
+
+    <!-- OneTrust Cookies Consent Notice start -->
+    <script src="https://web.archive.org/web/20220528044329js_/https://cdn.cookielaw.org/consent/9802b854-894a-4fdc-a636-c078e2129a19.js" type="text/javascript" charset="UTF-8"></script>
+    <script type="text/javascript">
+        function OptanonWrapper() { }
+    </script>
+    <!-- OneTrust Cookies Consent Notice end -->
+
+    <script type="text/javascript">
+        $(document).ready(function() {
+            $('#toggle-menu').on('touchstart click',menu);
+            $('.x').on('touchstart click',menu);
+            $('#page').on('touchstart click',function(e) {
+                var $bod = $('body');
+                if ($bod.hasClass('menu-visible')) {
+                    menu(e);
+                }
+            });
+            $('#menu .main-nav li.top.subs > a').on('touchstart click', function() {
+                var theClass = $(this).attr('id');
+                if($(this).parent().hasClass('dropped')) {
+                    $('li.top').removeClass('dropped');
+                    $('ul.nav-drop').hide(300);
+                } else {
+                    $('li.top').removeClass('dropped');
+                    $('ul.nav-drop').hide(300);
+                    $(this).parent().addClass('dropped');
+                    $('ul.nav-drop.' + theClass).show(300);
+                }
+                return false;
+            });
+        });
+        function menu(e) {
+            e.preventDefault();
+
+            var $body = $( 'body' ),
+                $page = $( '#page' ),
+                $menu = $( '#menu' ),
+                transitionEnd = 'transitionend webkitTransitionEnd otransitionend MSTransitionEnd';
+
+            $body.addClass( 'animating' );
+
+            if ( $body.hasClass( 'menu-visible' ) ) {
+                $body.addClass( 'right' );
+            } else {
+                $body.addClass( 'left' );
+            }
+
+            $page.on( transitionEnd, function() {
+                $body.removeClass( 'animating right left' ).toggleClass( 'menu-visible' );
+                $page.off( transitionEnd );
+            });
+            e.stopPropagation();
+        };
+    </script>
+
+    
+    
+
+</body>
+</html>
+<!--
+     FILE ARCHIVED ON 04:43:29 May 28, 2022 AND RETRIEVED FROM THE
+     INTERNET ARCHIVE ON 22:15:15 Oct 27, 2026.
+     JAVASCRIPT APPENDED BY WAYBACK MACHINE, COPYRIGHT INTERNET ARCHIVE.
+
+     ALL OTHER CONTENT MAY ALSO BE PROTECTED BY COPYRIGHT (17 U.S.C.
+     SECTION 108(a)(3)).
+-->
+<!--
+playback timings (ms):
+  captures_list: 0.439
+  exclusion.robots: 0.052
+  exclusion.robots.policy: 0.044
+  esindex: 0.006
+  cdx.remote: 12.064
+  LoadShardBlock: 166.283 (3)
+  PetaboxLoader3.resolve: 121.274 (4)
+  PetaboxLoader3.datanode: 118.378 (4)
+  load_resource: 160.068
+-->
