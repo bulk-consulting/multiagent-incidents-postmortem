@@ -19,7 +19,7 @@ Este documento define o stack do MVP do Incident Copilot. A base de conhecimento
 
 ## 3. Orquestração: LangGraph versus CrewAI
 
-**Decisão:** adotar **LangGraph**, principalmente pela **clareza para representar o processo de investigação**. No Incident Copilot, depois de analisar as evidências, o sistema pode gerar o relatório, voltar ao Agente 1 para refinar a busca ou pausar para pedir informações ao analista. No LangGraph, cada etapa é desenhada como um nó e cada decisão como um caminho entre os nós, o que corresponde diretamente a esse fluxo. Ele também salva o estado da investigação, permitindo pausar e retomar o mesmo `incident_id`.
+**Decisão:** adotar **LangGraph**, principalmente pela **clareza para representar o processo de investigação**. No Incident Copilot, depois que o Agente Diagnóstico avalia as evidências, o sistema pode seguir para o Agente Relatório, voltar ao Agente Pesquisa RAG para refinar a busca ou pausar para pedir informações ao analista. No LangGraph, cada etapa é desenhada como um nó e cada decisão como um caminho entre os nós, o que corresponde diretamente a esse fluxo. Ele também salva o estado da investigação, permitindo pausar e retomar o mesmo `incident_id`.
 
 O CrewAI também atenderia a esses requisitos, mas é mais centrado em equipes de agentes e tarefas. **Como nosso fluxo tem caminhos bem definidos, o LangGraph é a opção mais adequada.**
 
@@ -102,7 +102,7 @@ app/
     incident_service.py # validação e envio de incidentes aos agentes
     alert_service.py    # validação e envio dos alertas aos agentes
     dedup.py            # detecção de incidentes/alertas repetidos
-  agents/               # grafo LangGraph: Agente 1 (RAG), Agente 2 (análise)
+  agents/               # grafo LangGraph: agentes Triagem, Pesquisa RAG, Diagnóstico e Relatório
   db/                   # acesso ao PostgreSQL + pgvector
   core/                 # configuração, logging
 ```
