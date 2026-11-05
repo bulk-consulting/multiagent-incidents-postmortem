@@ -12,14 +12,14 @@ from sentence_transformers import SentenceTransformer
 
 from search import DATABASE_URL, MODEL, search
 
-# Descrição do incidente (em português) -> incidente que deveria aparecer
+# Descrição do incidente (em inglês, o idioma do corpus) -> incidente que deveria aparecer
 TESTES = [
-    ("um administrador cansado apagou o diretório errado e perdemos seis horas de dados", "DAN-164"),
-    ("um comando digitado errado removeu servidores demais e derrubou o armazenamento S3", "DAN-104"),
-    ("um certificado expirou e os complementos do navegador Firefox pararam de funcionar", "DAN-090"),
-    ("raios atingiram o datacenter e causaram queda de energia nos discos", "DAN-071"),
-    ("um deploy com versões diferentes do código causou prejuízo de 460 milhões de dólares", "DAN-084"),
-    ("o cliente do Steam apagou todos os arquivos do computador do usuário", "DAN-236"),
+    ("a tired administrator deleted the wrong directory and we lost six hours of data", "DAN-164"),
+    ("a mistyped command removed too many servers and took down S3 storage", "DAN-104"),
+    ("a certificate expired and Firefox browser add-ons stopped working", "DAN-090"),
+    ("lightning strikes hit the datacenter and caused power loss on the disks", "DAN-071"),
+    ("a deploy with different versions of the code caused a loss of 460 million dollars", "DAN-084"),
+    ("the Steam client deleted all files on the user's computer", "DAN-236"),
 ]
 
 

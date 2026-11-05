@@ -27,6 +27,12 @@ TITULOS_MANUAIS = {
     "DAN-155": "CA Flowdock – Outage 22nd & 23rd April 2020",
 }
 
+# Documentos que trazem uma tradução depois do texto em inglês: o texto é
+# cortado a partir do início da tradução
+TRADUCOES = {
+    "DAN-063": "Gostaríamos de compartilhar",  # AWS SA-EAST-1: versão em português
+}
+
 
 def main() -> None:
     with CATALOG.open(encoding="utf-8") as f:
@@ -49,6 +55,8 @@ def main() -> None:
         if doc["catalog_id"] in EXCLUIDOS:
             excluidos += 1
             continue
+        if doc["catalog_id"] in TRADUCOES:
+            texto = texto.split(TRADUCOES[doc["catalog_id"]])[0].strip()
 
         documentos.append({
             "extracted_text": texto,
