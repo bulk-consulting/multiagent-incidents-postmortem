@@ -15,10 +15,16 @@ Uso (a partir da raiz do repositório):
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
 
 import numpy as np
+
+# saída limpa (sem barras de progresso nem avisos do Hugging Face ao carregar o modelo)
+for _var, _valor in {"TRANSFORMERS_VERBOSITY": "error", "HF_HUB_DISABLE_PROGRESS_BARS": "1",
+                     "HF_HUB_VERBOSITY": "error", "TOKENIZERS_PARALLELISM": "false"}.items():
+    os.environ.setdefault(_var, _valor)
 
 ROOT = Path(__file__).resolve().parents[2]
 PASTA = Path(__file__).resolve().parent

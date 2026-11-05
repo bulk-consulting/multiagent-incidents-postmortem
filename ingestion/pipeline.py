@@ -61,7 +61,8 @@ ETAPAS: list[tuple[str, str, list[list[str]]]] = [
 ]
 NOMES = [e[0] for e in ETAPAS]
 AMBIENTE = {**os.environ, "TRANSFORMERS_VERBOSITY": "error", "HF_HUB_DISABLE_PROGRESS_BARS": "1",
-            "TOKENIZERS_PARALLELISM": "false", "PYTHONWARNINGS": "ignore"}
+            "TOKENIZERS_PARALLELISM": "false", "PYTHONWARNINGS": "ignore",
+            "HF_HUB_VERBOSITY": "error"}  # sem o aviso "Could not reach the Hub" no modo offline
 # com o modelo já baixado, não consulta o Hugging Face pela internet a cada carga (mais rápido)
 _CACHE_QWEN = Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub" / "models--Qwen--Qwen3-Embedding-0.6B"
 if _CACHE_QWEN.exists() and (Path.home() / ".cache" / "huggingface" / "hub" / "models--intfloat--multilingual-e5-base").exists():

@@ -381,8 +381,21 @@ def main() -> None:
             w = csv.DictWriter(f, fieldnames=list(linhas_chk[0]))
             w.writeheader()
             w.writerows(linhas_chk)
+    if sys.argv[1:]:  # documentos escolhidos: detalhe de cada um
+        for r in linhas_chk:
+            print(" ".join(f"{k}={v}" for k, v in r.items()))
+        return
+    # lista completa: resumo (o detalhe de cada documento fica em checagem.csv)
+    metodos: dict[str, int] = {}
     for r in linhas_chk:
-        print(" ".join(f"{k}={v}" for k, v in r.items()))
+        metodos[r["metodo"]] = metodos.get(r["metodo"], 0) + 1
+    novos = [r["catalog_id"] for r in linhas_chk if float(r["cobertura_antigo"]) < 0.5]
+    print(f"{len(linhas_chk)} documentos reextraídos -> {SAIDA.relative_to(ROOT)}/")
+    print("  por formato de página: " + ", ".join(f"{m.removeprefix('bs4-')} {n}" for m, n in
+                                                 sorted(metodos.items(), key=lambda x: -x[1])))
+    print(f"  texto quase todo novo (a extração original tinha pegado outra coisa): {len(novos)} "
+          f"({', '.join(novos)})")
+    print(f"  detalhe por documento: {(PASTA / 'checagem.csv').relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

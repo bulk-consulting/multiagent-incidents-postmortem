@@ -48,11 +48,10 @@ se não houver. A única etapa pesada é gerar os vetores (~3,5 min na GPU, ~2 h
 só roda quando os chunks mudam: os vetores do Qwen3 estão no git, e o pipeline confere se eles batem
 com os chunks atuais antes de gerar de novo. Sem GPU, cada pergunta leva ~1 s a mais para virar vetor.
 
-**Para a apresentação:** `--desde banco` (~1 minuto) mostra a carga no banco e a validação com as
-perguntas de teste; o pipeline completo mostra todas as etapas rodando. Uma pergunta avulsa:
+**Para a apresentação:** roteiro em `docs/E2_Ingestao_de_Dados_Projeto4.md`. Uma pergunta avulsa:
 
 ```bash
-multiagent_env/bin/python -I ingestion/banco/busca.py "usuários estão vendo dados de outros usuários"
+multiagent_env/bin/python -I ingestion/banco/busca.py "depois de uma mudança de BGP, nossos datacenters sumiram da internet"
 ```
 
 ## Etapas

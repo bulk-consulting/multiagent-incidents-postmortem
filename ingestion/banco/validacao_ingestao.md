@@ -1,4 +1,4 @@
-# Validação da ingestão — 2026-11-04 19:27
+# Validação da ingestão — 2026-11-05 09:27
 
 ## 1. Contagens
 
@@ -8,7 +8,7 @@
 | chunks | danluu | ficha | 867 | 206 |
 | chunks | danluu | texto | 2018 | 297 |
 
-Última carga: 211 documentos e 2885 chunks, modelo Qwen/Qwen3-Embedding-0.6B, em 2026-11-04 19:27, commit 7affd72.
+Última carga: 211 documentos e 2885 chunks, modelo Qwen/Qwen3-Embedding-0.6B, em 2026-11-05 09:27, commit babb85e.
 
 ## 2. Integridade
 
@@ -36,7 +36,7 @@
 
 Esperado: DAN-189 → posição 1
 
-1. `danluu:DAN-189` (0.649) Joyent — Postmortem for outage of us-east-1 ← esperado
+1. `danluu:DAN-189` (0.648) Joyent — Postmortem for outage of us-east-1 ← esperado
    - ficha (causa): Root cause (concreta): The remote-execution tool did not have enough input validation to prevent a reboot of all servers without extra steps or confirmation, and it issued a reboot command to every server in the us-east-
    - texto, etapa 2 [What Happened?]: ## What Happened?  Due to an operator error, all us-east-1 API systems and customer instances were simultaneously rebooted at 2014-05-27T20:13Z (13:13PDT). Rounded to minutes, the minimum downtime for customer instances 
 2. `danluu:DAN-070` (0.626) GitHub — January 28th Incident Report
@@ -70,7 +70,7 @@ Esperado: DAN-017 → posição 3
    - ficha (mitigacao): Mitigation steps: 1. The deploying developer rolled back to the previous deployment through the Heroku user interface (taking about one minute); the deployment was rolled back at 12:30 UTC and the system immediately prod
    - texto, etapa 2 [Response / Recovery]: ## Response  After the incident was detected, the deploying developer immediately initiated a rollback to the previous deployment through the Heroku user interface. This process took about one minute due to the login pro
 2. `danluu:DAN-220` (0.598) Spotify — Incident Management at Spotify
-3. `danluu:DAN-017` (0.595) Cloudflare — Cloudflare incident on October 30, 2023 ← esperado
+3. `danluu:DAN-017` (0.594) Cloudflare — Cloudflare incident on October 30, 2023 ← esperado
 
 Incidente esperado no top-3: 4 de 4 perguntas.
 
