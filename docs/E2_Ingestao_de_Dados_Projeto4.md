@@ -24,7 +24,7 @@ valida a carga e faz perguntas de teste no banco. Tempo total: ~1 minuto com GPU
 
 | Dataset | Veredito |
 |---|---|
-| `incident-postmortem-assistant` | não indexado: são reescritas feitas por LLM, 13 delas de incidentes que já temos no original pelo danluu, e com fonte incompleta. **As perguntas de avaliação dele foram reaproveitadas** (suíte IPA). |
+| `incident-postmortem-assistant` | não indexado: são reescritas feitas por LLM (o Claude, segundo a decisão ADR-010 do próprio repositório), 13 delas de incidentes que já temos no original pelo danluu, e com fonte incompleta. **As perguntas de avaliação dele foram reaproveitadas** (suíte IPA). |
 | `incidentdb-statuspage` | não usado agora: os campos de causa e correção são gerados por template no crawler, iguais para todos os registros |
 | `agent-postmortems` | fora do escopo: são falhas de agentes de IA, não de infraestrutura |
 | `postmortem-intelligence` | descartado: registros fictícios, como o próprio repositório declara |
@@ -194,6 +194,21 @@ copiloto precisa citar a origem.
 - cada afirmação tem trecho literal do texto, e o validador confere que o trecho existe (213 de 213 ok);
 - um segundo modelo conferiu as fichas;
 - cada crítica dele foi checada contra o texto antes de corrigir.
+
+**Vocês descartaram o `incident-postmortem-assistant` por ser reescrito por LLM, mas as fichas também
+foram feitas por LLM. Qual a diferença?**
+
+O autor do repositório registra o processo na decisão ADR-010 do próprio projeto: o Claude baixava o
+postmortem original e o reescrevia num formato fixo. Na conferência, achamos um resumo da Cloudflare citando
+Spotify, ChatGPT, X e Canva fora do ar, o que não está no postmortem original. A diferença está no que fica
+no banco e em como cada afirmação é checada:
+
+| | `incident-postmortem-assistant` | nossas fichas |
+|---|---|---|
+| o que fica no banco | só a reescrita (o original não está no repositório) | **o texto original** do postmortem, que é o que a etapa 2 busca |
+| como conferir uma afirmação | não dá: a reescrita não aponta o trecho de onde veio | cada afirmação cita um **trecho literal** do original, e um script confere que ele existe (213 de 213 ok) |
+| link da fonte | fora do documento; ausente em 5 de 20 e errado em 1 | `url` em todo documento |
+| papel do texto gerado | é o conteúdo | é um índice para achar o incidente; a evidência mostrada é sempre o texto original |
 
 **Por que 450 tokens e não 512, 800 ou 1000?** Para os três modelos comparados lerem cada chunk inteiro (o
 e5 lê no máximo 512). Com o Qwen3, que lê mais, daria para aumentar. Mas a mediana das seções já fica
