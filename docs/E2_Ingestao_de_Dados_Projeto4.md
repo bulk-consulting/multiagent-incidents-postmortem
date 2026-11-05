@@ -66,6 +66,17 @@ mais vezes do que ranquear pelo texto completo:
 | só texto completo | 61% | 85% |
 | fichas + texto juntos | 69% | 91% |
 
+> **Como ler as porcentagens (aqui e na tabela dos modelos):** para cada uma das 278 perguntas de teste,
+> sabemos qual documento é a resposta certa. A busca ordena os documentos do mais parecido para o menos
+> parecido, e anotamos em que posição o certo apareceu.
+> - **1º lugar** é a fração das perguntas em que o documento certo veio em primeiro: 72% são ~200 das 278
+>   perguntas.
+> - **Entre os 5 primeiros** é a fração em que ele apareceu em qualquer posição do 1º ao 5º. Importa porque
+>   o agente recebe os 5 primeiros incidentes, e não só o primeiro.
+>
+> Em resumo: com o Qwen3 buscando nas fichas, a resposta certa vem em primeiro em 7 de cada 10 perguntas e
+> está entre os 5 primeiros em quase 9 de cada 10.
+
 Nas perguntas de sintoma em português, que são o caso real de uso, a diferença no 1º lugar é de 67%
 contra 47%.
 
@@ -109,6 +120,10 @@ fichas:
 | multilingual-e5-base | MIT | 49% | 28% / 48% |
 | bge-m3 | MIT | 63% | 58% / 75% |
 | **Qwen3-Embedding-0.6B** | Apache 2.0 | **72%** | **67% / 83%** |
+
+"Sintoma em português" são as 60 perguntas mais próximas do uso real: alguém descrevendo em português o
+que está acontecendo ("os certificados estão sendo rejeitados desde a meia-noite"), sem saber a causa,
+enquanto os documentos estão em inglês. É onde os modelos mais se separam.
 
 *Por quê:*
 - foi o melhor em todos os recortes;
