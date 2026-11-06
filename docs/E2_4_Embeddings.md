@@ -38,13 +38,6 @@ Definidas em `db/schema.sql`:
 
 A data fica vazia: a danluu não tem um campo de data. Às vezes ela aparece no título ou no primeiro parágrafo, mas em formatos diferentes e difíceis de extrair automaticamente.
 
-## Como funciona
-
-1. Cria as tabelas, se não existirem.
-2. Esvazia as tabelas, para que cada execução carregue tudo de novo, sem duplicados.
-3. Gera os embeddings com o modelo `multilingual-e5-base`
-4. Grava os 211 incidentes e os 2.525 chunks.
-
 ## Como executar
 
 Com o banco ativo (ver `E2_1_Ambiente_Desenvolvimento.md`):
@@ -54,3 +47,10 @@ python ./dataset_nela/danluu-ingestion/scripts/embed.py
 ```
 
 Leva cerca de 20 minutos em CPU.
+
+## Como funciona
+
+1. Cria as tabelas, se não existirem.
+2. A cada nova execução, as tabelas são esvaziadas e carregadas de novo, sem duplicados.
+3. Gera os embeddings com o modelo `multilingual-e5-base`
+4. Grava os 211 incidentes e os 2.525 chunks.
