@@ -2,7 +2,12 @@
 Monta o corpus do danluu: um registro por documento, com o texto já limpo.
 
 Quais documentos: os que têm ficha em ingestion/fichas/saida/ com triagem.catalogo `sim` ou
-`parcial` (211). Ficam de fora `nao`, `nao_verificavel` e os `inutilizavel` (que não têm ficha).
+`parcial` (211), mais os da tabela SEM_FICHA (conferidos à mão, entram sem ficha). Ficam de fora
+`nao`, `nao_verificavel` e os `inutilizavel`. A ficha não é obrigatória: quando existe, dá a data
+do incidente e os trechos conferidos no fim.
+
+Resumo: cada documento leva o resumo do catálogo do danluu (`description`, escrito por pessoas),
+sem os links markdown, em `resumo` (`resumo_origem` = danluu). É ele que vira o chunk de resumo.
 
 Qual texto: o reextraído (ingestion/reextracao/extraidos/) quando existe, senão o original do
 danluu. Os documentos do gabarito (DAN-053, DAN-183) ficam com o texto original nas fichas, por
@@ -20,8 +25,8 @@ fichas continuam existindo no texto):
    comentários começam (tabela CORTE_COMENTARIOS, ponto achado à mão em cada um). DAN-236 não é
    cortado: é uma issue do GitHub, e a discussão faz parte do relato.
 
-5. títulos: quando o título da página não diz de que incidente se trata, vale o da tabela
-   TITULO_MANUAL (o título da página fica em `page_title`).
+5. títulos: quando o título da página não diz de que incidente se trata (ou veio embaralhado ou
+   em outro idioma), vale o da tabela TITULO_MANUAL (o título da página fica em `page_title`).
 
 Ao final confere se cada trecho das fichas existe no texto do corpus (mesma normalização do
 validar_fichas.py) e lista os que não existem.
@@ -73,8 +78,21 @@ CORTE_COMENTARIOS = {
 # título da página que não identifica o incidente -> título tirado do próprio documento
 TITULO_MANUAL = {
     "DAN-191": "IT Infrastructure Resiliency Review (23 February 2017)",
+    # título da página embaralhado ou em outro idioma -> o 1º intertítulo do próprio documento
+    "DAN-002": "Summary of the Amazon EC2 DNS Resolution Issues in the Asia Pacific (Seoul) Region (AP-NORTHEAST-2)",
+    "DAN-104": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+}
+# documentos que entram no corpus sem ficha -> cobertura do catálogo (conferida à mão)
+SEM_FICHA = {
+    "DAN-084": "sim",  # Knight Capital: a coleta original falhou (403); HTML da coleta da Mari
 }
 ESTRUTURA = re.compile(r"[|+]|^[-=]{3,}$")
+LINK_MD = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+
+
+def resumo_do_catalogo(descricao: str) -> str:
+    """Resumo do danluu sem os links markdown ([texto](url) -> texto)."""
+    return re.sub(r"\s+", " ", LINK_MD.sub(r"\1", descricao or "")).strip()
 
 
 def tirar_linhas_vazias_de_sentido(texto: str) -> tuple[str, int]:
@@ -108,17 +126,21 @@ def main() -> None:
     catalogo = {r["catalog_id"]: r for r in csv.DictReader(
         (DANLUU / "catalog.csv").open(encoding="utf-8"))}
     registros, relatorio, faltando = [], [], []
+    escolhidos: dict[str, tuple[dict | None, str]] = {}  # cid -> (ficha ou None, cobertura do catálogo)
     for caminho in sorted((FICHAS / "saida").glob("DAN-*.json")):
         ficha = json.loads(caminho.read_text(encoding="utf-8"))
-        if ficha["triagem"]["catalogo"] not in ("sim", "parcial"):
-            continue
-        cid = ficha["catalog_id"]
+        if ficha["triagem"]["catalogo"] in ("sim", "parcial"):
+            escolhidos[ficha["catalog_id"]] = (ficha, ficha["triagem"]["catalogo"])
+    for cid, cobertura in SEM_FICHA.items():
+        escolhidos.setdefault(cid, (None, cobertura))
+    for cid in sorted(escolhidos):
+        ficha, cobertura = escolhidos[cid]
         bruto, origem, doc = texto_do_documento(cid)
         texto, feito = prompts.limpar(bruto)
         texto, linhas = tirar_linhas_vazias_de_sentido(texto)
         if linhas:
             feito.append(f"{linhas} lines without letters or digits")
-        problemas = list(ficha["triagem"].get("problemas_texto", []))
+        problemas = list(ficha["triagem"].get("problemas_texto", [])) if ficha else []
         if cid in CORTE_COMENTARIOS:
             pos = texto.find(CORTE_COMENTARIOS[cid])
             if pos < 0:
@@ -128,7 +150,7 @@ def main() -> None:
             feito.append(f"reader comments cut ({removidas} words)")
             problemas = [x for x in problemas if x != "comentarios"]
         cat = catalogo.get(cid, {})
-        inc = ficha.get("incidente") or {}
+        inc = (ficha or {}).get("incidente") or {}
         registros.append({
             "catalog_id": cid,
             "company": cat.get("company") or doc.get("company"),
@@ -136,8 +158,11 @@ def main() -> None:
             "page_title": doc.get("title"),
             "url": doc.get("source_url") or cat.get("url"),
             "incident_date": inc.get("data_incidente"),
+            "resumo": resumo_do_catalogo(cat.get("description")),
+            "resumo_origem": "danluu",
+            "tem_ficha": ficha is not None,
             "text_source": origem,
-            "catalogo": ficha["triagem"]["catalogo"],
+            "catalogo": cobertura,
             "problemas_texto": problemas,
             "cleaning": feito,
             "word_count": len(texto.split()),
@@ -147,7 +172,7 @@ def main() -> None:
                           "palavras_antes": len(bruto.split()), "palavras_depois": len(texto.split()),
                           "limpeza": "; ".join(feito)})
         # os trechos da ficha continuam no texto do corpus?
-        if origem != "reextraido_corpus":  # gabarito: trechos foram validados contra o original
+        if ficha and origem != "reextraido_corpus":  # gabarito: trechos foram validados contra o original
             norm = validar.normalizar(texto)
             for local, trecho in validar.trechos_da_ficha(ficha):
                 if isinstance(trecho, str) and trecho not in texto and validar.normalizar(trecho) not in norm:
@@ -166,6 +191,8 @@ def main() -> None:
         origens[r["text_source"]] = origens.get(r["text_source"], 0) + 1
     limpos = [r for r in relatorio if r["limpeza"]]
     print(f"{len(registros)} documentos -> {(PASTA / 'corpus.jsonl').relative_to(ROOT)}  origem: {origens}")
+    sem_resumo = [r["catalog_id"] for r in registros if not r["resumo"]]
+    print(f"sem ficha: {sum(not r['tem_ficha'] for r in registros)}  sem resumo do danluu: {len(sem_resumo)} {sem_resumo or ''}")
     print(f"{len(limpos)} documentos com alguma remoção:")
     for r in limpos:
         print(f"  {r['catalog_id']}: {r['limpeza']}  ({r['palavras_antes']} -> {r['palavras_depois']} palavras)")

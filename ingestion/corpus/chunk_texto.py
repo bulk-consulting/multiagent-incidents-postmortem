@@ -1,5 +1,6 @@
 """
-Chunks do texto completo (etapa 2 da busca: detalhes dentro dos incidentes achados na etapa 1).
+Chunks do texto completo. Entram nas duas etapas da busca: na etapa 1, junto com o chunk de
+resumo, para achar os incidentes; na etapa 2, para trazer os detalhes e a evidência literal.
 
 Regras:
 1. o texto é dividido nos intertítulos (linhas "# ...", "## ..."); o que vem antes do primeiro
@@ -9,7 +10,8 @@ Regras:
 3. seção acima do limite é dividida entre parágrafos (blocos separados por linha em branco),
    nunca no meio de um; cada parte mantém o título da seção;
 4. parágrafo sozinho acima do limite é dividido entre frases (ou linhas, se não houver frases),
-   com sobreposição de uma frase entre as partes; é o único caso com sobreposição.
+   com sobreposição de uma frase entre as partes; é o único caso com sobreposição. Sobreposição
+   de ~60 tokens entre chunks foi testada e não mudou a busca (ingestion/avaliacao/RESULTADOS.md).
 
 Cada chunk guarda `content` (o texto do corpus, exato), `texto_embedding` (cabeçalho
 empresa — título — seção + content normalizado) e metadados do documento. Os tokens são contados
@@ -18,7 +20,7 @@ sobre o texto_embedding com o tokenizador do multilingual-e5-base (ver chunk_fic
 Uso (a partir da raiz do repositório):
     multiagent_env/bin/python -I ingestion/corpus/chunk_texto.py [--limite 450] [--minimo 100] [--estimado]
 
-Lê:    ingestion/corpus/corpus.jsonl, ingestion/fichas/saida/DAN-*.json (só para o título)
+Lê:    ingestion/corpus/corpus.jsonl
 Grava: ingestion/corpus/chunks_texto.jsonl
 """
 from __future__ import annotations
@@ -31,7 +33,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PASTA = Path(__file__).resolve().parent
-FICHAS = ROOT / "ingestion" / "fichas" / "saida"
 
 _spec = importlib.util.spec_from_file_location("chunk_fichas", PASTA / "chunk_fichas.py")
 _cf = importlib.util.module_from_spec(_spec)
@@ -102,10 +103,10 @@ def partir_paragrafo(p: str, cabeca: str, limite: int, contar) -> list[str]:
     return finais
 
 
-def montar_chunks(doc: dict, ficha: dict, limite: int, minimo: int, contar=estimar_tokens) -> list[dict]:
-    base = f"{doc.get('company') or ''} — {titulo_do_documento(doc, ficha)}".strip(" —")
+def montar_chunks(doc: dict, limite: int, minimo: int, contar=estimar_tokens) -> list[dict]:
+    base = f"{doc.get('company') or ''} — {titulo_do_documento(doc)}".strip(" —")
 
-    titulo_doc = titulo_do_documento(doc, ficha).lower()
+    titulo_doc = titulo_do_documento(doc).lower()
 
     def cab(titulos: list[str]) -> str:
         # o título da seção que repete o título do documento não entra de novo no cabeçalho
@@ -189,8 +190,7 @@ def main() -> None:
     docs = [json.loads(l) for l in (PASTA / "corpus.jsonl").open(encoding="utf-8")]
     todos, por_doc = [], {}
     for doc in docs:
-        ficha = json.loads((FICHAS / f"{doc['catalog_id']}.json").read_text(encoding="utf-8"))
-        cs = montar_chunks(doc, ficha, limite, minimo, contar)
+        cs = montar_chunks(doc, limite, minimo, contar)
         por_doc[doc["catalog_id"]] = len(cs)
         todos += cs
     with (PASTA / "chunks_texto.jsonl").open("w", encoding="utf-8") as f:

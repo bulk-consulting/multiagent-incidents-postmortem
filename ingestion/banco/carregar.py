@@ -2,14 +2,15 @@
 Carrega o corpus do danluu no PostgreSQL + pgvector (container de ingestion/banco/docker-compose.yml).
 
 Lê:
-    ingestion/corpus/corpus.jsonl                 documentos (texto limpo e metadados)
-    ingestion/fichas/saida/DAN-*.json             fichas (entram inteiras em documents.ficha)
-    ingestion/corpus/chunks_{fichas,texto}.jsonl  chunks
-    ingestion/corpus/embeddings/<modelo>/         vetores (.npy) e ids na mesma ordem
-    ingestion/banco/.env                          conexão
+    ingestion/corpus/corpus.jsonl                        documentos (texto limpo, resumo e metadados)
+    ingestion/fichas/saida/DAN-*.json                    fichas, quando houver (opcionais: documents.ficha)
+    ingestion/corpus/chunks_{resumo,texto,fichas}.jsonl  chunks (o de fichas é opcional)
+    ingestion/corpus/embeddings/<modelo>/                vetores (.npy) e ids na mesma ordem
+    ingestion/banco/schema.sql                           aplicado antes da carga (atualiza bancos antigos)
+    ingestion/banco/.env                                 conexão
 
 documents.title recebe o título limpo (sem o nome do site; nas páginas de título genérico, o 1º
-intertítulo útil ou o início do resumo da ficha); documents.page_title guarda o título da página.
+intertítulo útil ou o início do resumo); documents.page_title guarda o título da página.
 
 Substitui tudo do dataset numa transação só (apaga e insere de novo): rodar duas vezes dá o
 mesmo resultado, e se algo falhar nada muda no banco. Antes de gravar, confere se cada vetor
@@ -63,16 +64,21 @@ def main() -> None:
     docs = [json.loads(l) for l in (CORPUS / "corpus.jsonl").open(encoding="utf-8")]
     linhas_docs = []
     for d in docs:
-        ficha = json.loads((FICHAS / f"{d['catalog_id']}.json").read_text(encoding="utf-8"))
-        tri, inc = ficha["triagem"], ficha.get("incidente") or {}
+        caminho = FICHAS / f"{d['catalog_id']}.json"
+        ficha = json.loads(caminho.read_text(encoding="utf-8")) if caminho.exists() else None
+        tri, inc = (ficha or {}).get("triagem") or {}, (ficha or {}).get("incidente") or {}
         linhas_docs.append((
             f"{DATASET}:{d['catalog_id']}", DATASET, d["catalog_id"], d.get("company"),
-            titulo_do_documento(d, ficha), d.get("page_title") or d.get("title"), d.get("url"), d.get("incident_date"), d.get("text_source"), d.get("catalogo"),
+            titulo_do_documento(d, ficha), d.get("page_title") or d.get("title"), d.get("url"),
+            d.get("incident_date"), d.get("text_source"), d.get("catalogo"), d.get("resumo"), d.get("resumo_origem"),
             d.get("problemas_texto") or [], inc.get("categoria_causa"), tri.get("dominio"), tri.get("tipo"),
-            tri.get("seguranca"), ficha.get("confianca"), json.dumps(ficha, ensure_ascii=False), d["text"]))
+            tri.get("seguranca"), (ficha or {}).get("confianca"),
+            json.dumps(ficha, ensure_ascii=False) if ficha else None, d["text"]))
 
     linhas_chunks = []
-    for nome in ("fichas", "texto"):
+    for nome in ("resumo", "texto", "fichas"):
+        if not (CORPUS / f"chunks_{nome}.jsonl").exists():  # fichas são opcionais
+            continue
         chunks = [json.loads(l) for l in (CORPUS / f"chunks_{nome}.jsonl").open(encoding="utf-8")]
         ids = json.loads((emb / f"{nome}_ids.json").read_text(encoding="utf-8"))
         vetores = np.load(emb / f"{nome}.npy").astype(np.float32)
@@ -89,11 +95,12 @@ def main() -> None:
     commit = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"],
                             capture_output=True, text=True).stdout.strip()
     with conectar() as con, con.cursor() as cur:
+        cur.execute((PASTA / "schema.sql").read_text(encoding="utf-8"))  # idempotente
         cur.execute("DELETE FROM documents WHERE dataset = %s", (DATASET,))  # chunks saem em cascata
         cur.executemany("""INSERT INTO documents (doc_id, dataset, source_id, company, title, page_title, url,
-                incident_date, text_source, catalogo, problemas_texto, categoria_causa, dominio, tipo_documento,
-                seguranca, confianca, ficha, texto)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""", linhas_docs)
+                incident_date, text_source, catalogo, resumo, resumo_origem, problemas_texto, categoria_causa,
+                dominio, tipo_documento, seguranca, confianca, ficha, texto)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""", linhas_docs)
         cur.executemany("""INSERT INTO chunks (chunk_id, doc_id, dataset, tipo, assunto, secao, ordem, content,
                 texto_embedding, tokens, trechos, modelo, embedding)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""", linhas_chunks)

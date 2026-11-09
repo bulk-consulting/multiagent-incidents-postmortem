@@ -4,15 +4,17 @@ Pipeline de ingestão da E2: do dado bruto do danluu até o PostgreSQL + pgvecto
 Etapas (cada uma chama os scripts que já existem, na ordem):
     1 inventario   triagem/01_inventario.py        lê os brutos e classifica a qualidade de cada documento
     2 reextracao   reextracao/reextrair.py         refaz o texto dos documentos estragados (HTML salvo)
-    3 fichas       fichas/validar_fichas.py        valida as fichas aceitas (schema e trechos literais)
-    4 corpus       corpus/montar_corpus.py         escolhe o texto de cada documento e limpa
-    5 chunks       corpus/chunk_fichas.py + chunk_texto.py   chunks das fichas e do texto completo
+    3 fichas       fichas/validar_fichas.py        valida as fichas, se houver (opcionais)
+    4 corpus       corpus/montar_corpus.py         escolhe o texto de cada documento, limpa e junta o resumo
+    5 chunks       corpus/chunk_resumo.py + chunk_texto.py (+ chunk_fichas.py, se houver fichas)
     6 embeddings   corpus/gerar_embeddings.py qwen3          vetores com Qwen3-Embedding-0.6B
     7 banco        banco/carregar.py               sobe o container (se preciso) e carrega no pgvector
     8 validacao    banco/validar_ingestao.py       contagens, integridade e perguntas de teste
 
-As fichas NÃO são geradas aqui: foram extraídas por LLM e conferidas no GPT, lote a lote, num
-processo curado (ver ingestion/README.md). A etapa 3 só valida as que estão em fichas/saida/.
+A busca usa o resumo do danluu e o texto completo; as fichas são enriquecimento opcional para os
+agentes. Elas NÃO são geradas aqui: foram extraídas por LLM e conferidas no GPT, lote a lote, num
+processo curado (ver ingestion/README.md). Sem fichas em fichas/saida/, a etapa 3 e os chunks de
+ficha são pulados e o resto do pipeline funciona igual.
 
 Uso (a partir da raiz do repositório):
     multiagent_env/bin/python -I ingestion/pipeline.py                  # tudo
@@ -46,12 +48,13 @@ ETAPAS: list[tuple[str, str, list[list[str]]]] = [
      [PY + [str(ING / "triagem" / "01_inventario.py")]]),
     ("reextracao", "refaz o texto dos documentos estragados a partir do HTML salvo",
      [PY + [str(ING / "reextracao" / "reextrair.py")]]),
-    ("fichas", "valida as fichas aceitas (schema e trechos literais no texto)",
+    ("fichas", "valida as fichas, se houver (opcionais; schema e trechos literais no texto)",
      [PY + [str(ING / "fichas" / "validar_fichas.py")]]),  # arquivos acrescentados em rodar()
-    ("corpus", "escolhe o texto de cada documento e aplica a limpeza",
+    ("corpus", "escolhe o texto de cada documento, aplica a limpeza e junta o resumo do danluu",
      [PY + [str(ING / "corpus" / "montar_corpus.py")]]),
-    ("chunks", "gera os chunks das fichas (etapa 1 da busca) e do texto completo (etapa 2)",
-     [PY + [str(ING / "corpus" / "chunk_fichas.py")], PY + [str(ING / "corpus" / "chunk_texto.py")]]),
+    ("chunks", "gera os chunks de resumo e do texto completo (busca) e das fichas, se houver",
+     [PY + [str(ING / "corpus" / "chunk_resumo.py")], PY + [str(ING / "corpus" / "chunk_texto.py")],
+      PY + [str(ING / "corpus" / "chunk_fichas.py")]]),
     ("embeddings", "gera os vetores dos chunks com Qwen3-Embedding-0.6B",
      [PY + [str(ING / "corpus" / "gerar_embeddings.py"), "qwen3"]]),
     ("banco", "sobe o PostgreSQL + pgvector (se preciso) e carrega documentos, chunks e vetores",
@@ -108,7 +111,11 @@ def rodar(nome: str, descricao: str, comandos: list[list[str]], numero: int, for
             return time.time() - t0
     if nome == "banco":
         garantir_banco()
+    tem_fichas = any((ING / "fichas" / "saida").glob("DAN-*.json"))
     for cmd in comandos:
+        if not tem_fichas and (nome == "fichas" or cmd[-1].endswith("chunk_fichas.py")):
+            print("  sem fichas em fichas/saida/: pulado (as fichas são opcionais)", flush=True)
+            continue
         if nome == "fichas":
             cmd = cmd + sorted(str(p) for p in (ING / "fichas" / "saida").glob("DAN-*.json"))
         r = subprocess.run(cmd, cwd=ROOT, env=AMBIENTE, capture_output=nome == "fichas", text=True)

@@ -18,9 +18,9 @@ Uso (a partir da raiz do repositório), um modelo por vez:
     multiagent_env/bin/python -I ingestion/corpus/gerar_embeddings.py qwen3 --conferir # só diz se os vetores
                                                                                         # atuais batem com os chunks
 
-Lê:    ingestion/corpus/chunks_fichas.jsonl, ingestion/corpus/chunks_texto.jsonl
-Grava: ingestion/corpus/embeddings/<chave>/{fichas,texto}.npy   (float16, uma linha por chunk)
-       ingestion/corpus/embeddings/<chave>/{fichas,texto}_ids.json  (chunk_id na mesma ordem)
+Lê:    ingestion/corpus/chunks_{resumo,texto,fichas}.jsonl  (fichas é opcional: pulado se não existir)
+Grava: ingestion/corpus/embeddings/<chave>/<tipo>.npy        (float16, uma linha por chunk)
+       ingestion/corpus/embeddings/<chave>/<tipo>_ids.json   (chunk_id na mesma ordem)
        ingestion/corpus/embeddings/<chave>/meta.json
 """
 from __future__ import annotations
@@ -37,6 +37,13 @@ import torch
 from sentence_transformers import SentenceTransformer
 
 PASTA = Path(__file__).resolve().parent
+TIPOS = ("resumo", "texto", "fichas")  # arquivos chunks_<tipo>.jsonl; o de fichas é opcional
+
+
+def tipos_presentes() -> list[str]:
+    return [t for t in TIPOS if (PASTA / f"chunks_{t}.jsonl").exists()]
+
+
 MODELOS = {
     "e5": {"nome": "intfloat/multilingual-e5-base", "prefixo_doc": "passage: ", "prefixo_query": "query: ",
            "max_seq": 512},
@@ -68,7 +75,7 @@ def vetores_atualizados(chave: str) -> tuple[bool, str]:
         meta = json.loads((saida / "meta.json").read_text(encoding="utf-8"))
         if meta.get("nome") != MODELOS[chave]["nome"]:
             return False, f"modelo diferente ({meta.get('nome')})"
-        for nome in ("fichas", "texto"):
+        for nome in tipos_presentes():
             ids_chunks = [json.loads(l)["chunk_id"] for l in (PASTA / f"chunks_{nome}.jsonl").open(encoding="utf-8")]
             ids_vet = json.loads((saida / f"{nome}_ids.json").read_text(encoding="utf-8"))
             n_vet = np.load(saida / f"{nome}.npy", mmap_mode="r").shape[0]
@@ -99,7 +106,7 @@ def main() -> None:
     print(f"{chave}: modelo carregado em {dispositivo} ({t_carga:.0f}s)", flush=True)
 
     tempos = {}
-    for nome in ("fichas", "texto"):
+    for nome in tipos_presentes():
         chunks = [json.loads(l) for l in (PASTA / f"chunks_{nome}.jsonl").open(encoding="utf-8")]
         textos = [cfg["prefixo_doc"] + c["texto_embedding"] for c in chunks]
         t1 = time.time()

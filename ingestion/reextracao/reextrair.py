@@ -94,7 +94,8 @@ def descartado(no, limite: Tag) -> bool:
 
 # linhas soltas de navegação que sobram em blogs
 LINHAS_LIXO = {"newer post", "older post", "home", "listen to this article", "## listen to this article",
-               "## thank you", "thank you for contacting us. we will get back to you shortly."}
+               "## thank you", "thank you for contacting us. we will get back to you shortly.",
+               "like", "loading…"}  # botões do WordPress (DAN-084)
 
 
 def texto_de(el: Tag) -> str:
@@ -294,6 +295,15 @@ def manifesto() -> dict[str, dict]:
     return {r["catalog_id"]: r for r in csv.DictReader(arq.open(encoding="utf-8"))}
 
 
+def extracao_original(cid: str) -> dict:
+    """JSON da extração original do danluu; se a coleta original falhou (sem extracted/), o manifesto
+    da coleta em raw/ (tem source_url e company, sem texto)."""
+    for caminho in (DANLUU / "extracted" / f"{cid}.json", DANLUU / "raw" / f"{cid}.json"):
+        if caminho.exists():
+            return json.loads(caminho.read_text(encoding="utf-8"))
+    return {}
+
+
 def reextrair(cid: str, baixado: dict | None = None) -> dict:
     if baixado:
         # bytes: o BeautifulSoup respeita o charset declarado (páginas antigas em latin-1)
@@ -316,7 +326,7 @@ def reextrair(cid: str, baixado: dict | None = None) -> dict:
         ls, metodo = cortar_rodape(linhas(conteiner(sopa))), "bs4-blocos"
     ls = [l for l in dedup(ls) if l.lower() not in LINHAS_LIXO]
     texto = "\n\n".join(ls)
-    antigo = json.loads((DANLUU / "extracted" / f"{cid}.json").read_text(encoding="utf-8"))
+    antigo = extracao_original(cid)
     titulo = sopa.find("title")
     return {
         "catalog_id": cid,
@@ -339,7 +349,7 @@ def ngramas(t: str, n: int = 5) -> set[tuple[str, ...]]:
 
 
 def checar(doc: dict) -> dict:
-    antigo = json.loads((DANLUU / "extracted" / f"{doc['catalog_id']}.json").read_text(encoding="utf-8"))
+    antigo = extracao_original(doc["catalog_id"])
     a, b = ngramas(antigo.get("extracted_text") or ""), ngramas(doc["extracted_text"])
     cobertura = len(a & b) / len(a) if a else 1.0
     novos = len(b - a) / len(b) if b else 0.0

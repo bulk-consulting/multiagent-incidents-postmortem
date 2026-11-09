@@ -1,9 +1,11 @@
--- Esquema da busca da E2 (solução do André). Roda sozinho na primeira subida do container
--- (docker-entrypoint-initdb.d) e pode ser rodado de novo sem erro.
+-- Esquema da busca da E2. Roda sozinho na primeira subida do container
+-- (docker-entrypoint-initdb.d) e de novo a cada carga (carregar.py), sem erro: os ALTER do fim
+-- atualizam um banco criado com a versão anterior.
 --
 -- Busca em duas etapas:
---   etapa 1: chunks com tipo = 'ficha'  -> achar incidentes parecidos (agrupar por doc_id)
+--   etapa 1: chunks com tipo 'resumo' ou 'texto' -> achar incidentes parecidos (agrupar por doc_id)
 --   etapa 2: chunks com tipo = 'texto' dos documentos achados -> detalhes e evidência
+-- Chunks com tipo = 'ficha' são opcionais (enriquecimento para os agentes) e não entram na busca.
 -- Similaridade de cosseno: 1 - (embedding <=> vetor_da_pergunta). Os vetores já são normalizados.
 -- Sem índice vetorial por enquanto: com alguns milhares de chunks a busca exata é rápida.
 
@@ -19,14 +21,16 @@ CREATE TABLE IF NOT EXISTS documents (
     url             text,
     incident_date   text,                          -- texto: pode ser parcial ('2015-07')
     text_source     text,                          -- original | reextraido | reextraido_corpus
-    catalogo        text,                          -- sim | parcial (cobertura da ficha)
+    catalogo        text,                          -- sim | parcial (o texto cobre o incidente do catálogo?)
+    resumo          text,                          -- resumo do incidente (vira o chunk de resumo)
+    resumo_origem   text,                          -- danluu (escrito por pessoas) | gerado (LLM)
     problemas_texto text[] NOT NULL DEFAULT '{}',  -- rodape_marketing, comentarios, pdf_embaralhado...
     categoria_causa text,
     dominio         text,
     tipo_documento  text,
     seguranca       text,
-    confianca       text,                          -- alta | baixa (da ficha)
-    ficha           jsonb,                         -- ficha completa, para o agente mostrar
+    confianca       text,                          -- alta | baixa (da ficha, quando houver)
+    ficha           jsonb,                         -- ficha completa, quando houver (opcional)
     texto           text,                          -- texto completo limpo do corpus
     UNIQUE (dataset, source_id)
 );
@@ -35,7 +39,7 @@ CREATE TABLE IF NOT EXISTS chunks (
     chunk_id        text PRIMARY KEY,              -- '<doc_id>:<tipo>:...', ex. 'danluu:DAN-001:ficha:causa'
     doc_id          text NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
     dataset         text NOT NULL,
-    tipo            text NOT NULL CHECK (tipo IN ('ficha', 'texto')),
+    tipo            text NOT NULL CONSTRAINT chunks_tipo_check CHECK (tipo IN ('resumo', 'texto', 'ficha')),
     assunto         text,                          -- fichas: resumo | causa | mitigacao | prevencao
     secao           text,                          -- texto: título da seção (pode ser vazio)
     ordem           integer,                       -- texto: posição no documento
@@ -59,3 +63,9 @@ CREATE TABLE IF NOT EXISTS cargas (
     chunks      integer NOT NULL,
     origem      text                               -- commit/arquivos de onde veio a carga
 );
+
+-- atualização de um banco criado antes do chunk de resumo (idempotente)
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS resumo text;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS resumo_origem text;
+ALTER TABLE chunks DROP CONSTRAINT IF EXISTS chunks_tipo_check;
+ALTER TABLE chunks ADD CONSTRAINT chunks_tipo_check CHECK (tipo IN ('resumo', 'texto', 'ficha'));

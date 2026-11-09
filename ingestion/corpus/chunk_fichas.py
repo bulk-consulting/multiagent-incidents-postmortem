@@ -1,5 +1,7 @@
 """
-Chunks das fichas (etapa 1 da busca: achar incidentes parecidos).
+Chunks das fichas: enriquecimento opcional para os agentes (causa, mitigação e prevenção já
+separadas, com trechos de evidência). Não entram na busca: a etapa 1 usa o resumo do danluu e o
+texto (ver chunk_resumo.py e ingestion/banco/busca.py). Documento sem ficha não tem estes chunks.
 
 Cada ficha do corpus vira até 4 chunks, um por assunto:
 - resumo:     resumo + detecção + serviços afetados + tecnologias + categoria da causa
@@ -71,8 +73,9 @@ TITULO_GENERICO = re.compile(r"^(incident details|.*status dashboard|service hea
                              r"\d{1,2} \w{3,9},? \d{4}\b.*|\w{3,9} \d{1,2},? \d{4}\b.*)$", re.I)
 
 
-def titulo_do_documento(doc: dict, ficha: dict) -> str:
-    """Título limpo; se for genérico ou vazio, o 1º intertítulo útil do texto; senão o início do resumo."""
+def titulo_do_documento(doc: dict, ficha: dict | None = None) -> str:
+    """Título limpo; se for genérico ou vazio, o 1º intertítulo útil do texto; senão o início do resumo
+    (o do danluu, que está no corpus; a ficha só se o documento não tiver resumo)."""
     t = titulo_limpo(doc.get("title"), doc.get("company"))
     if t and not TITULO_GENERICO.match(t):
         return t
@@ -80,7 +83,7 @@ def titulo_do_documento(doc: dict, ficha: dict) -> str:
         h = h.strip().strip("*_# ").strip()
         if h and not TITULO_GENERICO.match(h) and not h.endswith("?"):
             return h
-    resumo = (ficha.get("incidente") or {}).get("resumo") or doc["catalog_id"]
+    resumo = doc.get("resumo") or ((ficha or {}).get("incidente") or {}).get("resumo") or doc["catalog_id"]
     frase = re.split(r"(?<=[.;])\s", resumo, 1)[0]
     return frase if len(frase) <= 120 else frase[:117].rsplit(" ", 1)[0] + "..."
 
@@ -231,7 +234,10 @@ def main() -> None:
     docs = [json.loads(l) for l in (PASTA / "corpus.jsonl").open(encoding="utf-8")]
     todos = []
     for doc in docs:
-        ficha = json.loads((FICHAS / f"{doc['catalog_id']}.json").read_text(encoding="utf-8"))
+        caminho = FICHAS / f"{doc['catalog_id']}.json"
+        if not caminho.exists():  # documento sem ficha (a ficha é opcional)
+            continue
+        ficha = json.loads(caminho.read_text(encoding="utf-8"))
         if not ficha.get("incidente"):
             continue
         todos += montar_chunks(ficha, doc, limite, contar)

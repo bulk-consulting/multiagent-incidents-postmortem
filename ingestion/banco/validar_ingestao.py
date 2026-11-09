@@ -3,12 +3,14 @@ Validação da ingestão no PostgreSQL + pgvector (entregável 2.5 da E2).
 
 Confere no banco:
 1. contagens por tabela, dataset e tipo de chunk, e a última carga;
-2. integridade: todo documento tem chunks de ficha e de texto; todo vetor tem 1024 dimensões e
-   norma ~1 (vetores normalizados); nenhum chunk sem conteúdo; metadados preenchidos;
+2. integridade: todo documento tem chunk de resumo e chunks de texto; todo vetor tem 1024 dimensões e
+   norma ~1 (vetores normalizados); nenhum chunk sem conteúdo; metadados preenchidos; chunks de
+   ficha (opcionais) com trechos de evidência;
 3. amostra de vetores (as primeiras dimensões de alguns chunks);
 4. perguntas de teste (sintomas em português, da suíte de avaliação) pela busca em duas etapas,
    mostrando se o incidente esperado aparece e o trecho do texto que a etapa 2 devolve;
-5. o resumo da avaliação completa (ingestion/avaliacao/resultados/qwen3.json), se existir.
+5. o resumo da avaliação completa (ingestion/avaliacao/resultados/qwen3.json, índice resumo+texto),
+   se existir.
 
 Imprime no terminal e grava o relatório em ingestion/banco/validacao_ingestao.md.
 Sai com código 1 se alguma checagem de integridade falhar.
@@ -81,9 +83,9 @@ def main() -> None:
         out("## 2. Integridade")
         out()
         checagens = [
-            ("documentos sem chunk de ficha",
+            ("documentos sem chunk de resumo",
              "SELECT count(*) FROM documents d WHERE NOT EXISTS "
-             "(SELECT 1 FROM chunks c WHERE c.doc_id = d.doc_id AND c.tipo = 'ficha')", 0),
+             "(SELECT 1 FROM chunks c WHERE c.doc_id = d.doc_id AND c.tipo = 'resumo')", 0),
             ("documentos sem chunk de texto",
              "SELECT count(*) FROM documents d WHERE NOT EXISTS "
              "(SELECT 1 FROM chunks c WHERE c.doc_id = d.doc_id AND c.tipo = 'texto')", 0),
@@ -94,6 +96,9 @@ def main() -> None:
             ("chunks de causa, mitigação ou prevenção sem trechos de evidência",
              "SELECT count(*) FROM chunks WHERE tipo = 'ficha' AND assunto <> 'resumo' "
              "AND jsonb_array_length(trechos) = 0", 0),
+            ("chunks de resumo diferentes do resumo do documento",
+             "SELECT count(*) FROM chunks c JOIN documents d USING (doc_id) "
+             "WHERE c.tipo = 'resumo' AND c.content IS DISTINCT FROM d.resumo", 0),
             ("documentos sem título, URL ou empresa",
              "SELECT count(*) FROM documents WHERE title IS NULL OR url IS NULL OR company IS NULL", 0),
         ]
@@ -113,8 +118,8 @@ def main() -> None:
         out("|---|---|---|---|---|")
         for cid, tipo, dims, norma, vetor in todos(
                 "SELECT chunk_id, tipo, vector_dims(embedding), vector_norm(embedding), embedding FROM chunks "
-                "WHERE chunk_id IN ('danluu:DAN-189:ficha:resumo', 'danluu:DAN-043:ficha:causa', "
-                "'danluu:DAN-086:texto:000') ORDER BY 1"):
+                "WHERE chunk_id IN ('danluu:DAN-189:resumo', 'danluu:DAN-043:texto:000', "
+                "'danluu:DAN-086:ficha:mitigacao') ORDER BY 1"):
             out(f"| {cid} | {tipo} | {dims} | {norma:.4f} | {', '.join(f'{x:+.4f}' for x in vetor.to_list()[:5])} |")
 
     out()
@@ -134,7 +139,9 @@ def main() -> None:
             marca = " ← esperado" if r["doc_id"].endswith(esperado) else ""
             out(f"{k}. `{r['doc_id']}` ({r['similaridade']:.3f}) {r['company']} — {r['title']}{marca}")
             if k == 1:
-                out(f"   - ficha ({r['assunto']}): {r['ficha_chunk'][:220].replace(chr(10), ' ')}")
+                m = r["melhor_chunk"]
+                out(f"   - resumo: {(r['resumo'] or '')[:220]}")
+                out(f"   - achado pelo chunk de {m['tipo']}" + (f" [{m['secao']}]" if m["secao"] else ""))
                 if r["detalhes"]:
                     d = r["detalhes"][0]
                     out(f"   - texto, etapa 2 [{d['secao'] or 'sem seção'}]: {d['content'][:220].replace(chr(10), ' ')}")
@@ -142,10 +149,11 @@ def main() -> None:
     out(f"Incidente esperado no top-3: {acertos} de {len(PERGUNTAS)} perguntas.")
 
     res = ROOT / "ingestion" / "avaliacao" / "resultados" / "qwen3.json"
-    if res.exists():
-        casos = [l for l in json.loads(res.read_text(encoding="utf-8"))["casos"] if l["esperado"]]
+    casos = [l for l in json.loads(res.read_text(encoding="utf-8"))["casos"]
+             if l["esperado"] and l["suite"] != "mari"] if res.exists() else []
+    if casos and all("resumo+texto" in l for l in casos):
         out()
-        out("## 5. Avaliação completa (índice de fichas, Qwen3)")
+        out("## 5. Avaliação completa (índice resumo+texto, Qwen3)")
         out()
         out("| recorte | perguntas | 1º lugar | top-5 |")
         out("|---|---|---|---|")
@@ -153,8 +161,8 @@ def main() -> None:
                         ("sintoma em português", lambda l: l["variante"] == "sintoma" and l["idioma"] == "pt"),
                         ("sintoma, difíceis", lambda l: l["variante"] == "sintoma" and l["dificuldade"] == "hard")]:
             sel = [l for l in casos if f(l)]
-            h1 = sum(1 for l in sel if l["fichas"]["rank"] == 1) / len(sel)
-            h5 = sum(1 for l in sel if l["fichas"]["rank"] and l["fichas"]["rank"] <= 5) / len(sel)
+            h1 = sum(1 for l in sel if l["resumo+texto"]["rank"] == 1) / len(sel)
+            h5 = sum(1 for l in sel if l["resumo+texto"]["rank"] and l["resumo+texto"]["rank"] <= 5) / len(sel)
             out(f"| {nome} | {len(sel)} | {h1:.0%} | {h5:.0%} |")
         out()
         out("Detalhes em ingestion/avaliacao/RESULTADOS.md.")
