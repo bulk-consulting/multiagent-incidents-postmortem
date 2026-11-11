@@ -1,4 +1,4 @@
-# Validação da ingestão — 2026-11-09 15:22
+# Validação da ingestão — 2026-11-09 16:03
 
 ## 1. Contagens
 
@@ -9,7 +9,7 @@
 | chunks | danluu | resumo | 212 | 88 |
 | chunks | danluu | texto | 2024 | 297 |
 
-Última carga: 212 documentos e 3103 chunks, modelo Qwen/Qwen3-Embedding-0.6B, em 2026-11-09 15:22, commit 073fa50.
+Última carga: 212 documentos e 3103 chunks, modelo Qwen/Qwen3-Embedding-0.6B, em 2026-11-09 16:03, commit 6f2b661.
 
 ## 2. Integridade
 
