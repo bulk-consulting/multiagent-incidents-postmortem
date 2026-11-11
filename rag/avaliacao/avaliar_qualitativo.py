@@ -18,6 +18,7 @@ Notas humanas, de 0 a 2, por pergunta:
 
 Uso (a partir da raiz do repositório, com o pgvector no ar):
     multiagent_env/bin/python -I rag/avaliacao/avaliar_qualitativo.py [--paralelo 3] [--ids q01,q12]
+                                                            [--trechos 4] [--prompt v1|v2]
 
 O NIM gratuito leva uns 2 minutos por chamada; com 3 em paralelo, as 12 perguntas levam ~10 minutos.
 """
@@ -39,10 +40,10 @@ import llm  # noqa: E402
 import prompts  # noqa: E402
 
 
-def rodar(caso: dict, n_docs: int, n_trechos: int) -> dict:
+def rodar(caso: dict, n_docs: int, n_trechos: int, versao: str) -> dict:
     t = time.time()
     try:
-        estado = grafo.perguntar(caso["pergunta"], n_docs, n_trechos)
+        estado = grafo.perguntar(caso["pergunta"], n_docs, n_trechos, prompt_versao=versao)
         erro = None
     except Exception as e:  # registra e segue para as outras perguntas
         estado, erro = {}, f"{type(e).__name__}: {e}\n{traceback.format_exc(limit=3)}"
@@ -110,6 +111,7 @@ def main() -> None:
     ap.add_argument("--ids", help="só estas perguntas, separadas por vírgula (ex.: q01,q12)")
     ap.add_argument("--docs", type=int, default=5)
     ap.add_argument("--trechos", type=int, default=2)
+    ap.add_argument("--prompt", choices=sorted(prompts.SISTEMAS), default=prompts.VERSAO, help="versão do system prompt")
     a = ap.parse_args()
 
     casos = json.loads((PASTA / "perguntas.json").read_text())["perguntas"]
@@ -118,10 +120,10 @@ def main() -> None:
     print(f"carregando o modelo de embedding e rodando {len(casos)} perguntas ({a.paralelo} em paralelo)...", flush=True)
     grafo.busca().vetorizar("aquecimento")  # carrega o modelo uma vez, antes das threads
     with ThreadPoolExecutor(a.paralelo) as ex:
-        res = list(ex.map(lambda c: rodar(c, a.docs, a.trechos), casos))
+        res = list(ex.map(lambda c: rodar(c, a.docs, a.trechos, a.prompt), casos))
 
     quando = datetime.now().strftime("%Y-%m-%d_%H%M")
-    meta = {"quando": quando, "modelo": llm.MODELO, "prompt": prompts.VERSAO, "n_docs": a.docs, "n_trechos": a.trechos}
+    meta = {"quando": quando, "modelo": llm.MODELO, "prompt": a.prompt, "n_docs": a.docs, "n_trechos": a.trechos}
     saida = PASTA / "resultados"
     saida.mkdir(exist_ok=True)
     (saida / f"{quando}.json").write_text(json.dumps({"meta": meta, "resultados": res}, ensure_ascii=False, indent=1))

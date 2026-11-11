@@ -59,6 +59,7 @@ class Estado(TypedDict, total=False):
     pergunta: str
     n_docs: int
     n_trechos: int
+    prompt_versao: str                             # "v1" ou "v2" (padrão: prompts.VERSAO)
     recuperados: list[dict]
     contexto: str
     mensagens: list[dict]
@@ -78,7 +79,8 @@ def recuperar(estado: Estado) -> dict:
 
 def montar_prompt(estado: Estado) -> dict:
     contexto = prompts.montar_contexto(estado["recuperados"])
-    return {"contexto": contexto, "mensagens": prompts.mensagens(estado["pergunta"], contexto), "tentativas": 0}
+    versao = estado.get("prompt_versao", prompts.VERSAO)
+    return {"contexto": contexto, "mensagens": prompts.mensagens(estado["pergunta"], contexto, versao), "tentativas": 0}
 
 
 def gerar(estado: Estado) -> dict:
@@ -147,11 +149,12 @@ def criar_grafo(espera_inicial: float = 15.0):
     return g.compile()
 
 
-def perguntar(pergunta: str, n_docs: int = 5, n_trechos: int = 2, mostrar=None, espera_inicial: float = 15.0) -> dict:
+def perguntar(pergunta: str, n_docs: int = 5, n_trechos: int = 2, mostrar=None, espera_inicial: float = 15.0,
+              prompt_versao: str = prompts.VERSAO) -> dict:
     """Roda o grafo e devolve o estado final. `mostrar(no, delta)` recebe o progresso de cada etapa."""
     grafo = criar_grafo(espera_inicial)
     estado: dict = {}
-    entrada = {"pergunta": pergunta, "n_docs": n_docs, "n_trechos": n_trechos}
+    entrada = {"pergunta": pergunta, "n_docs": n_docs, "n_trechos": n_trechos, "prompt_versao": prompt_versao}
     for parte in grafo.stream(entrada, stream_mode=["updates", "values"], version="v2"):
         if parte["type"] == "updates" and mostrar:
             for no, delta in parte["data"].items():
@@ -220,7 +223,7 @@ def main() -> None:
             print(f"   [{prompts._id_curto(r['doc_id'])}] {r['url']}")
     if a.json:
         saida = {k: estado[k] for k in ("pergunta", "recuperados", "resposta", "citados", "invalidos", "tentativas", "uso", "tempos")}
-        saida["prompt_versao"] = prompts.VERSAO
+        saida["prompt_versao"] = estado.get("prompt_versao", prompts.VERSAO)
         saida["modelo"] = llm.MODELO
         a.json.write_text(json.dumps(saida, ensure_ascii=False, indent=1))
         print(f"\nestado salvo em {a.json}")
