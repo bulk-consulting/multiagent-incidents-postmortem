@@ -60,7 +60,7 @@ O texto confirma que o resultado é coerente com a busca: *"The outage was cause
 
 ## 4. Como saber se os resultados estão certos
 
-Em vez de ler cada resultado, usamos **incidentes conhecidos**: escrevemos, com palavras simples e em português, a descrição de um incidente que sabemos que está na base, e conferimos se ele aparece entre os 5 primeiros resultados.
+Em vez de ler cada resultado, usamos **incidentes conhecidos**: escrevemos, com palavras simples e em inglês (o idioma do corpus), a descrição de um incidente que sabemos que está na base, e conferimos se ele aparece entre os 5 primeiros resultados.
 
 ```bash
 python ./dataset_nela/danluu-ingestion/scripts/validate_rag.py
@@ -70,11 +70,11 @@ O script repete as verificações 1 e 2 e faz 6 buscas de teste:
 
 | Descrição usada na busca | Incidente esperado |
 |---|---|
-| Um administrador cansado apagou o diretório errado e perdemos seis horas de dados | GitLab, 2017 (DAN-164) |
-| Um comando digitado errado removeu servidores demais e derrubou o armazenamento S3 | Amazon S3, 2017 (DAN-104) |
-| Um certificado expirou e os complementos do navegador Firefox pararam de funcionar | Mozilla, 2019 (DAN-090) |
-| Raios atingiram o datacenter e causaram queda de energia nos discos | Google, 2015 (DAN-071) |
-| Um deploy com versões diferentes do código causou prejuízo de 460 milhões de dólares | Knight Capital, 2012 (DAN-084) |
-| O cliente do Steam apagou todos os arquivos do computador do usuário | Valve (DAN-236) |
+| a tired administrator deleted the wrong directory and we lost six hours of data | GitLab, 2017 (DAN-164) |
+| a mistyped command removed too many servers and took down S3 storage | Amazon S3, 2017 (DAN-104) |
+| a certificate expired and Firefox browser add-ons stopped working | Mozilla, 2019 (DAN-090) |
+| lightning strikes hit the datacenter and caused power loss on the disks | Google, 2015 (DAN-071) |
+| a deploy with different versions of the code caused a loss of 460 million dollars | Knight Capital, 2012 (DAN-084) |
+| the Steam client deleted all files on the user's computer | Valve (DAN-236) |
 
-**Resultado: 6 de 6.** Todos os incidentes esperados aparecem entre os 5 primeiros, e as buscas em português encontram documentos escritos em inglês.
+**Resultado: 6 de 6.** Todos os incidentes esperados aparecem entre os 5 primeiros.

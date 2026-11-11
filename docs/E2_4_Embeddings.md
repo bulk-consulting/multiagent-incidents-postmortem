@@ -53,4 +53,4 @@ Leva cerca de 20 minutos em CPU.
 1. Cria as tabelas, se não existirem.
 2. A cada nova execução, as tabelas são esvaziadas e carregadas de novo, sem duplicados.
 3. Gera os embeddings com o modelo `multilingual-e5-base`
-4. Grava os 211 incidentes e os 2.525 chunks.
+4. Grava os 211 incidentes e os 2.519 chunks.

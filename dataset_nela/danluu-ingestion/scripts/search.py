@@ -14,7 +14,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://copilot:copilot@localhost
 MODEL = "intfloat/multilingual-e5-base"
 
 SQL = """
-SELECT c.chunk_id, i.company, i.title, i.source_url, 1 - (c.embedding <=> %s) AS similarity
+SELECT c.chunk_id, i.company, i.title, i.source_url, 1 - (c.embedding <=> %s) AS similarity, c.content
 FROM chunk c JOIN incident i USING (catalog_id)
 ORDER BY c.embedding <=> %s
 LIMIT %s
@@ -35,7 +35,7 @@ def main() -> None:
     model = SentenceTransformer(MODEL)
     with psycopg.connect(DATABASE_URL) as conn:
         register_vector(conn)
-        for position, (chunk_id, company, title, url, similarity) in enumerate(search(conn, model, text), 1):
+        for position, (chunk_id, company, title, url, similarity, _content) in enumerate(search(conn, model, text), 1):
             print(f"{position}. {chunk_id} | {company} | {title}")
             print(f"   similaridade {similarity:.3f} | {url}")
 
