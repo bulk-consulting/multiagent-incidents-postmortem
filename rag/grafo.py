@@ -60,6 +60,7 @@ class Estado(TypedDict, total=False):
     n_docs: int
     n_trechos: int
     prompt_versao: str                             # "v1" ou "v2" (padrão: prompts.VERSAO)
+    formato: str                                   # "texto" ou "paragrafos" (ver prompts.SCHEMAS)
     recuperados: list[dict]
     contexto: str
     mensagens: list[dict]
@@ -90,15 +91,53 @@ def gerar(estado: Estado) -> dict:
         msgs += [{"role": "assistant", "content": estado["resposta"]["resposta"]},
                  {"role": "user", "content": prompts.correcao_citacoes(estado["invalidos"], validos)}]
     try:
-        r = llm.estruturado(msgs, prompts.NOME_FERRAMENTA, prompts.DESCRICAO_FERRAMENTA, prompts.SCHEMA_RESPOSTA)
+        r = llm.estruturado(msgs, prompts.NOME_FERRAMENTA, prompts.DESCRICAO_FERRAMENTA,
+                            prompts.SCHEMAS[estado.get("formato", "texto")])
     except llm.TENTAR_DE_NOVO as e:
         # avisa e devolve a exceção para a RetryPolicy do nó tentar de novo
         print(f"[gerar] falha temporária ({type(e).__name__}: {str(e)[:120]}); o grafo vai tentar de novo", flush=True)
         raise
+    dados = dict(r["dados"])
+    if "paragrafos" in dados:  # formato "paragrafos": junta os itens no campo `resposta` de sempre
+        pars = _lista_paragrafos(dados.pop("paragrafos"))
+        if any(_parece_cortado(p) for p in pars):
+            e = llm.RespostaInvalida("parágrafo com ~1024 caracteres e sem pontuação final (provável corte do NIM)")
+            print(f"[gerar] falha temporária (RespostaInvalida: {e}); o grafo vai tentar de novo", flush=True)
+            raise e
+        dados = {"resposta": "\n\n".join(pars), **dados}
     n = estado.get("tentativas", 0) + 1
-    return {"resposta": r["dados"], "tentativas": n,
+    return {"resposta": dados, "tentativas": n,
             "uso": [{"tentativa": n, "segundos": r["segundos"], **r["uso"]}],
             "tempos": {f"gerar_{n}": r["segundos"]}}
+
+
+def _lista_paragrafos(valor) -> list[str]:
+    """Aceita a lista de parágrafos e também as variações vistas no NIM: a lista vinda como texto
+    em JSON ('["a", "b"]') ou como várias listas, uma por linha ('["a"]\\n["b"]')."""
+    if isinstance(valor, str):
+        try:
+            valor = json.loads(valor)
+        except ValueError:
+            itens = []
+            for linha in valor.splitlines():
+                try:
+                    v = json.loads(linha)
+                    itens += v if isinstance(v, list) else [linha]
+                except ValueError:
+                    itens.append(linha)
+            valor = itens
+    if isinstance(valor, str):
+        valor = [valor]
+    return [str(p).strip() for p in valor if str(p).strip()]
+
+
+CJK = re.compile(r"[぀-ヿ㐀-鿿가-힯]")
+
+
+def _parece_cortado(p: str) -> bool:
+    """O nemotron-3-ultra no NIM corta campos de texto em 1024 caracteres, às vezes com lixo em
+    chinês ou coreano no fim. Parágrafo desse tamanho sem pontuação final é tratado como cortado."""
+    return len(p) >= 1000 and (not p.rstrip().endswith((".", "!", "?", ")", "]", ":", '"', "”")) or bool(CJK.search(p[-20:])))
 
 
 HIFENS = str.maketrans({"‐": "-", "‑": "-", "‒": "-", "–": "-", "—": "-"})
@@ -150,11 +189,12 @@ def criar_grafo(espera_inicial: float = 15.0):
 
 
 def perguntar(pergunta: str, n_docs: int = 5, n_trechos: int = 2, mostrar=None, espera_inicial: float = 15.0,
-              prompt_versao: str = prompts.VERSAO) -> dict:
+              prompt_versao: str = prompts.VERSAO, formato: str = "texto") -> dict:
     """Roda o grafo e devolve o estado final. `mostrar(no, delta)` recebe o progresso de cada etapa."""
     grafo = criar_grafo(espera_inicial)
     estado: dict = {}
-    entrada = {"pergunta": pergunta, "n_docs": n_docs, "n_trechos": n_trechos, "prompt_versao": prompt_versao}
+    entrada = {"pergunta": pergunta, "n_docs": n_docs, "n_trechos": n_trechos, "prompt_versao": prompt_versao,
+               "formato": formato}
     for parte in grafo.stream(entrada, stream_mode=["updates", "values"], version="v2"):
         if parte["type"] == "updates" and mostrar:
             for no, delta in parte["data"].items():

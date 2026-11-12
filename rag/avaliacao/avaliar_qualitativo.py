@@ -18,7 +18,8 @@ Notas humanas, de 0 a 2, por pergunta:
 
 Uso (a partir da raiz do repositório, com o pgvector no ar):
     multiagent_env/bin/python -I rag/avaliacao/avaliar_qualitativo.py [--paralelo 3] [--ids q01,q12]
-                                                            [--trechos 4] [--prompt v1|v2]
+                                                            [--trechos 4] [--prompt v1|v2] [--modelo id] [--espera-max 900]
+                                                            [--formato texto|paragrafos]
 
 O NIM gratuito leva uns 2 minutos por chamada; com 3 em paralelo, as 12 perguntas levam ~10 minutos.
 """
@@ -33,6 +34,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
+import httpx
+
 PASTA = Path(__file__).resolve().parent
 sys.path.insert(0, str(PASTA.parent))
 import grafo  # noqa: E402
@@ -40,10 +43,10 @@ import llm  # noqa: E402
 import prompts  # noqa: E402
 
 
-def rodar(caso: dict, n_docs: int, n_trechos: int, versao: str) -> dict:
+def rodar(caso: dict, n_docs: int, n_trechos: int, versao: str, formato: str = "texto") -> dict:
     t = time.time()
     try:
-        estado = grafo.perguntar(caso["pergunta"], n_docs, n_trechos, prompt_versao=versao)
+        estado = grafo.perguntar(caso["pergunta"], n_docs, n_trechos, prompt_versao=versao, formato=formato)
         erro = None
     except Exception as e:  # registra e segue para as outras perguntas
         estado, erro = {}, f"{type(e).__name__}: {e}\n{traceback.format_exc(limit=3)}"
@@ -74,7 +77,7 @@ def _sim_nao(v) -> str:
 
 def relatorio(res: list[dict], meta: dict) -> str:
     L = [f"# Avaliação qualitativa do RAG — {meta['quando']}", "",
-         f"Modelo: `{meta['modelo']}` · prompt `{meta['prompt']}` · {meta['n_docs']} incidentes × {meta['n_trechos']} trechos no contexto", "",
+         f"Modelo: `{meta['modelo']}` · prompt `{meta['prompt']}` · formato `{meta.get('formato', 'texto')}` · {meta['n_docs']} incidentes × {meta['n_trechos']} trechos no contexto", "",
          "## Resumo das checagens automáticas", "",
          "| id | tipo | esperado | posição na busca | no contexto | cita o esperado | cita ID fora | evidência | tempo |",
          "|---|---|---|---|---|---|---|---|---|"]
@@ -112,7 +115,15 @@ def main() -> None:
     ap.add_argument("--docs", type=int, default=5)
     ap.add_argument("--trechos", type=int, default=2)
     ap.add_argument("--prompt", choices=sorted(prompts.SISTEMAS), default=prompts.VERSAO, help="versão do system prompt")
+    ap.add_argument("--modelo", help="outro modelo do NIM só nesta rodada (padrão: LLM_MODEL do .env)")
+    ap.add_argument("--espera-max", type=float, help="segundos de espera pela resposta de cada chamada (padrão: 300)")
+    ap.add_argument("--formato", choices=sorted(prompts.SCHEMAS), default="texto",
+                    help="resposta em texto único ou em lista de parágrafos (necessário para o nemotron-3-ultra)")
     a = ap.parse_args()
+    if a.modelo:
+        llm.MODELO = a.modelo  # llm._post lê llm.MODELO a cada chamada
+    if a.espera_max:
+        llm.TIMEOUT = httpx.Timeout(15.0, read=a.espera_max)
 
     casos = json.loads((PASTA / "perguntas.json").read_text())["perguntas"]
     if a.ids:
@@ -120,10 +131,10 @@ def main() -> None:
     print(f"carregando o modelo de embedding e rodando {len(casos)} perguntas ({a.paralelo} em paralelo)...", flush=True)
     grafo.busca().vetorizar("aquecimento")  # carrega o modelo uma vez, antes das threads
     with ThreadPoolExecutor(a.paralelo) as ex:
-        res = list(ex.map(lambda c: rodar(c, a.docs, a.trechos, a.prompt), casos))
+        res = list(ex.map(lambda c: rodar(c, a.docs, a.trechos, a.prompt, a.formato), casos))
 
     quando = datetime.now().strftime("%Y-%m-%d_%H%M")
-    meta = {"quando": quando, "modelo": llm.MODELO, "prompt": a.prompt, "n_docs": a.docs, "n_trechos": a.trechos}
+    meta = {"quando": quando, "modelo": llm.MODELO, "prompt": a.prompt, "formato": a.formato, "n_docs": a.docs, "n_trechos": a.trechos}
     saida = PASTA / "resultados"
     saida.mkdir(exist_ok=True)
     (saida / f"{quando}.json").write_text(json.dumps({"meta": meta, "resultados": res}, ensure_ascii=False, indent=1))

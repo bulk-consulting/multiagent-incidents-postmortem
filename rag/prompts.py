@@ -101,6 +101,25 @@ SCHEMA_RESPOSTA = {
     "additionalProperties": False,
 }
 
+# Variante com a resposta em lista de parágrafos (opção --formato paragrafos da avaliação).
+# Motivo: no NIM, o nemotron-3-ultra corta campos de texto da ferramenta em 1024 caracteres e na
+# primeira quebra de linha (13 de 36 respostas cortadas em 2026-11-11). Com um parágrafo por item,
+# cada campo fica curto e sem quebra de linha; o grafo junta os itens em `resposta`.
+SCHEMA_PARAGRAFOS = {
+    **SCHEMA_RESPOSTA,
+    "properties": {
+        "paragrafos": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "A resposta, um parágrafo por item, com os IDs citados entre colchetes. Cada item sem "
+                           "quebras de linha e com no máximo 800 caracteres. Numa lista, use um item por tópico.",
+        },
+        **{k: v for k, v in SCHEMA_RESPOSTA["properties"].items() if k != "resposta"},
+    },
+    "required": ["paragrafos", "incidentes_citados", "evidencia"],
+}
+SCHEMAS = {"texto": SCHEMA_RESPOSTA, "paragrafos": SCHEMA_PARAGRAFOS}
+
 NOME_FERRAMENTA = "registrar_resposta"
 DESCRICAO_FERRAMENTA = "Registra a resposta final à pergunta, com os IDs dos incidentes citados e o nível de evidência."
 

@@ -83,8 +83,12 @@ def conversar(mensagens: list[dict], max_tokens: int = 1024, temperatura: float 
 
 
 def estruturado(mensagens: list[dict], nome: str, descricao: str, schema: dict,
-                max_tokens: int = 2048, temperatura: float = 1.0) -> dict:
+                max_tokens: int = 4096, temperatura: float = 1.0) -> dict:
     """Obriga o modelo a "chamar" a ferramenta `nome` e devolve os argumentos já convertidos de JSON.
+
+    O limite de tokens conta também o raciocínio interno do modelo. Com 2048, o nemotron-3.5-super-vl
+    gastava tudo raciocinando nas perguntas de contexto mais longo e não chegava a chamar a
+    ferramenta (finish_reason=length); com 4096 respondeu (2026-11-11).
 
     Devolve {"dados", "raciocinio", "uso", "segundos"}. Se a resposta não vier no formato
     pedido, levanta RespostaInvalida (o grafo tenta de novo).
