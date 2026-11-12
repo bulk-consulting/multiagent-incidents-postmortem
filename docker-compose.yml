@@ -1,16 +1,18 @@
 # PostgreSQL + pgvector para desenvolvimento local
+# Antes da primeira vez: copiar .env.example para .env e trocar a senha
 # Subir:  docker compose up -d
 # Parar:  docker compose down   (os dados ficam no volume pgdata)
 services:
   postgres:
-    image: pgvector/pgvector:pg17
+    # versão fixa: a mesma do pgvector já instalado no volume (0.8.7)
+    image: pgvector/pgvector:0.8.7-pg17
     container_name: incident-copilot-db
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-copilot}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-copilot}
-      POSTGRES_DB: ${POSTGRES_DB:-incident_copilot}
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB:?defina POSTGRES_DB no .env}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"   # só acessível da própria máquina
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -18,6 +20,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       retries: 10
+    restart: unless-stopped   # volta sozinho depois de reiniciar o Docker ou o computador
 
 volumes:
   pgdata:

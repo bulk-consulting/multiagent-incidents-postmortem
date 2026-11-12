@@ -15,7 +15,7 @@ DATA = Path(__file__).resolve().parent.parent / "data"
 CHUNKS = DATA / "chunks" / "danluu_chunks.jsonl"
 
 # Mesmos valores de chunk.py
-MAX_TOKENS = 400
+MAX_TOKENS = 450
 MODEL_LIMIT = 512
 
 COLORS = ["#dbeafe", "#dcfce7", "#fef9c3", "#fce7f3", "#ede9fe", "#ffedd5", "#ccfbf1"]
@@ -46,10 +46,25 @@ def overlap_length(previous: str, current: str) -> int:
     # O tokenizer.decode pode mudar espaços no fim da janela, então procuramos o
     # maior prefixo de `current` que aparece perto do fim de `previous`
     tail = previous[-1500:]
+    # O chunk que continua uma seção começa repetindo o título dela; o overlap vem depois
+    if current.startswith("#") and "\n\n" in current:
+        title, rest = current.split("\n\n", 1)
+        k = overlap_length(previous, rest)
+        return len(title) + 2 + k if k else 0
     k = 0
     while k < len(current) and current[:k + 1] in tail:
         k += 1
     return k if k >= 20 and len(tail) - (tail.rfind(current[:k]) + k) < 10 else 0
+
+
+def overlap_text(body: str, head: int) -> str:
+    """O trecho repetido do chunk anterior, sem o título da seção repetido no início."""
+    if not head:
+        return ""
+    if body.startswith("#") and "\n\n" in body:
+        title, rest = body.split("\n\n", 1)
+        return rest[:head - len(title) - 2]
+    return body[:head]
 
 
 def mark(text: str) -> str:
@@ -64,7 +79,9 @@ def render_paragraph(paragraph: str, head: int = 0, tail: str = "") -> str:
     if not head and not tail and all(line.startswith("- ") for line in lines):
         items = "".join(f"<li>{html.escape(line[2:])}</li>" for line in lines)
         return f"<ul>{items}</ul>"
-    tail_start = paragraph.rfind(tail) if tail else len(paragraph)
+    tail_start = paragraph.rfind(tail) if tail else -1
+    if tail_start < 0:  # sem overlap com o próximo chunk (ou trecho não encontrado): nada marcado no fim
+        tail, tail_start = "", len(paragraph)
     tail_start = max(tail_start, head)
     text = (mark(paragraph[:head]) if head else "") + html.escape(paragraph[head:tail_start]) \
         + (mark(paragraph[tail_start:]) if tail else "")
@@ -74,20 +91,27 @@ def render_paragraph(paragraph: str, head: int = 0, tail: str = "") -> str:
 
 
 def render_chunk(chunk: dict, color_index: int, head: int, tail: str, part: str) -> str:
-    header, _, body = chunk["text"].partition("\n")
-    body = body.strip()
+    if chunk["chunk_type"] == "summary":  # o summary não tem cabeçalho
+        header, body = "", chunk["text"]
+    else:
+        header, _, body = chunk["text"].partition("\n")
+        body = body.strip()
     tokens = chunk["token_count"]
     color, border = COLORS[color_index % len(COLORS)], BORDERS[color_index % len(BORDERS)]
     if chunk["chunk_type"] == "summary":
         css_class, style, border = "chunk summary", "", "#111827"
-        content = f"<p>{html.escape(body.removeprefix('Summary:').strip())}</p>"
+        content = f"<p>{html.escape(body)}</p>"
         label = "summary do catálogo"
     else:
         css_class, style = "chunk", f'style="background:{color};border-color:{border}"'
         paragraphs = body.split("\n\n")
+        # com o título da seção repetido no início, o overlap começa no parágrafo seguinte
+        first = 1 if head and paragraphs[0].startswith("#") and len(paragraphs) > 1 else 0
+        head_first = head - (len(paragraphs[0]) + 2) if first else head
         rendered = []
         for i, p in enumerate(paragraphs):
-            rendered.append(render_paragraph(p, head if i == 0 else 0, tail if i == len(paragraphs) - 1 else ""))
+            rendered.append(render_paragraph(p, head_first if i == first else 0,
+                                             tail if i == len(paragraphs) - 1 else ""))
         content = "".join(rendered)
         label = part or f"{len(paragraphs)} parágrafo(s)"
     return f"""
@@ -134,7 +158,7 @@ def main() -> None:
         indexes = range(run[0], run[1] + 1) if run else [i]
         parts = []
         for n, j in enumerate(indexes):
-            tail = bodies[j + 1][:heads[j + 1]] if j + 1 < len(chunks) and heads[j + 1] else ""
+            tail = overlap_text(bodies[j + 1], heads[j + 1]) if j + 1 < len(chunks) else ""
             extra = len(bodies[j].split("\n\n")) - 1
             part = f"parte {n + 1} de {len(indexes)} do parágrafo longo" if run else ""
             if part and extra:
