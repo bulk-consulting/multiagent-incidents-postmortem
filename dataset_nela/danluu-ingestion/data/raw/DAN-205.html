@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head><script type="text/javascript" src="https://web-static.archive.org/_static/js/bundle-playback.js?v=3grhEDQT" charset="utf-8"></script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/wombat.js?v=o9P2E1FK" charset="utf-8"></script>
+<script>window.RufflePlayer=window.RufflePlayer||{};window.RufflePlayer.config={"autoplay":"on","unmuteOverlay":"hidden","showSwfDownload":true};</script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/ruffle/ruffle.js"></script>
+<script type="text/javascript">
+    __wm.init("https://web.archive.org/web");
+  __wm.wombat("https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/","20211019062735","https://web.archive.org/","web","https://web-static.archive.org/_static/",
+	      "1634624855");
+</script>
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/banner-styles.css?v=1utQkbB3" />
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/iconochive.css?v=3PDvdIFv" />
+<!-- End Wayback Rewrite JS Include -->
+<meta itemprop="user-account" content="false"><meta itemprop="bot" content="false"><meta itemprop="gdpr" content="false">
+<meta class="swiftype" name="type" data-type="enum" content="company_blog"/>
+<meta name="format-detection" content="telephone=no">
+<script>
+  var pd = pd || {};
+  pd.appVersion = "2cc56917a8a14eb556d92285e96697383637b975";
+</script>
+
+<script src="/web/20211019062735js_/https://www.pagerduty.com/wp-content/themes/citizens-band/js/build/all-pages.min.js?ver=2cc56917a8a14eb556d92285e96697383637b975"></script>
+<script src="https://web.archive.org/web/20211019062735js_/https://cdn.cookielaw.org/consent/a81929ae-2ada-45d6-b686-853c02c2b6c2/OtAutoBlock.js"></script>
+<script src="https://web.archive.org/web/20211019062735js_/https://cdn.cookielaw.org/scripttemplates/otSDKStub.js" data-domain-script="a81929ae-2ada-45d6-b686-853c02c2b6c2"></script>
+
+<title>Outage Post-Mortem – April 13, 2013 | PagerDuty</title>
+<link rel="apple-touch-icon" sizes="180x180" href="/web/20211019062735im_/https://www.pagerduty.com/wp-content/themes/citizens-band/favicon/icons/apple-touch-icon.png?v=bOR7mk7rAO">
+<link rel="icon" type="image/png" sizes="32x32" href="/web/20211019062735im_/https://www.pagerduty.com/wp-content/themes/citizens-band/favicon/icons/favicon-32x32.png?v=bOR7mk7rAO">
+<link rel="icon" type="image/png" sizes="16x16" href="/web/20211019062735im_/https://www.pagerduty.com/wp-content/themes/citizens-band/favicon/icons/favicon-16x16.png?v=bOR7mk7rAO">
+<link rel="manifest" href="/web/20211019062735/https://www.pagerduty.com/wp-content/themes/citizens-band/favicon/icons/site.webmanifest?v=bOR7mk7rAO">
+<link rel="mask-icon" href="/web/20211019062735im_/https://www.pagerduty.com/wp-content/themes/citizens-band/favicon/icons/safari-pinned-tab.svg?v=bOR7mk7rAO" color="#06ac38">
+<link rel="shortcut icon" href="/web/20211019062735im_/https://www.pagerduty.com/wp-content/themes/citizens-band/favicon/icons/favicon.ico?v=bOR7mk7rAO">
+<meta name="msapplication-TileColor" content="#06ac38">
+<meta name="msapplication-TileImage" content="/wp-content/themes/citizens-band/favicon/icons/mstile-144x144.png?v=bOR7mk7rAO">
+<meta name="msapplication-config" content="/wp-content/themes/citizens-band/favicon/icons/browserconfig.xml?v=bOR7mk7rAO">
+<meta name="theme-color" content="#ffffff"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"/>
+
+<meta name="description" content="We spend enormous amount of our time on the reliability of PagerDuty and the infrastructure that hosts it.  Most of this work is invisible, hidden behind"/>
+<link rel="canonical" href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/"/>
+<meta property="og:locale" content="en_US"/>
+<meta property="og:type" content="article"/>
+<meta property="og:title" content="Outage Post-Mortem – April 13, 2013 | PagerDuty"/>
+<meta property="og:description" content="We spend enormous amount of our time on the reliability of PagerDuty and the infrastructure that hosts it.  Most of this work is invisible, hidden behind"/>
+<meta property="og:url" content="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/"/>
+<meta property="og:site_name" content="PagerDuty"/>
+<meta property="article:publisher" content="https://business.facebook.com/PagerDuty/"/>
+<meta property="article:published_time" content="2013-04-24T18:59:34+00:00"/>
+<meta property="og:image" content="https://web.archive.org/web/20211019062735im_/https://www.pagerduty.com/wp-content/uploads/2019/09/Brand_Launch_Blog_Social_share_image.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="628"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:creator" content="@baskarfx"/>
+<meta name="twitter:site" content="@pagerduty"/>
+<meta name="twitter:label1" content="Written by">
+<meta name="twitter:data1" content="Baskar Puvanathasan">
+<meta name="twitter:label2" content="Est. reading time">
+<meta name="twitter:data2" content="3 minutes">
+<script type="application/ld+json" class="yoast-schema-graph">{"@context":"https://web.archive.org/web/20211019062735/https://schema.org","@graph":[{"@type":"WebSite","@id":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/#website","url":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/","name":"PagerDuty","description":"Build It | Ship It | Own It","potentialAction":[{"@type":"SearchAction","target":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/?s={search_term_string}","query-input":"required name=search_term_string"}],"inLanguage":"en-US"},{"@type":"WebPage","@id":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/#webpage","url":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/","name":"Outage Post-Mortem \u2013 April 13, 2013 | PagerDuty","isPartOf":{"@id":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/#website"},"datePublished":"2013-04-24T18:59:34+00:00","dateModified":"2013-04-24T18:59:34+00:00","author":{"@id":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/#/schema/person/3459d022997d8d5b66bace0d3b708a88"},"description":"We spend enormous amount of our time on the reliability of PagerDuty and the infrastructure that hosts it.\u00a0 Most of this work is invisible, hidden behind","breadcrumb":{"@id":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/#breadcrumb"},"inLanguage":"en-US","potentialAction":[{"@type":"ReadAction","target":["https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/"]}]},{"@type":"BreadcrumbList","@id":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"item":{"@type":"WebPage","@id":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/","url":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/","name":"Home"}},{"@type":"ListItem","position":2,"item":{"@type":"WebPage","@id":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/","url":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/","name":"Blog"}},{"@type":"ListItem","position":3,"item":{"@type":"WebPage","@id":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/","url":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/","name":"Outage Post-Mortem \u2013 April 13, 2013"}}]},{"@type":"Person","@id":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/#/schema/person/3459d022997d8d5b66bace0d3b708a88","name":"Baskar Puvanathasan","image":{"@type":"ImageObject","@id":"https://web.archive.org/web/20211019062735/https://www.pagerduty.com/#personlogo","inLanguage":"en-US","url":"https://web.archive.org/web/20211019062735/https://secure.gravatar.com/avatar/8880bde68fec5099a5a45f7aa6d607c1?s=96&d=mm&r=g","contentUrl":"https://web.archive.org/web/20211019062735/https://secure.gravatar.com/avatar/8880bde68fec5099a5a45f7aa6d607c1?s=96&d=mm&r=g","caption":"Baskar Puvanathasan"},"sameAs":["https://web.archive.org/web/20211019062735/https://twitter.com/baskarfx"]}]}</script>
+
+<link rel="dns-prefetch" href="//web.archive.org/web/20211019062735/https://app-abq.marketo.com/"/>
+<link rel="dns-prefetch" href="//web.archive.org/web/20211019062735/https://s.w.org/"/>
+<link rel="alternate" type="application/rss+xml" title="PagerDuty » Outage Post-Mortem – April 13, 2013 Comments Feed" href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/feed/"/>
+<link rel="stylesheet" id="wp-block-library-css" href="https://web.archive.org/web/20211019062735cs_/https://www.pagerduty.com/wp-includes/css/dist/block-library/style.min.css?ver=5.8.1" type="text/css" media="all"/>
+<link rel="stylesheet" id="mpp_gutenberg-css" href="https://web.archive.org/web/20211019062735cs_/https://www.pagerduty.com/wp-content/plugins/metronet-profile-picture/dist/blocks.style.build.css?ver=2.5.0" type="text/css" media="all"/>
+<link rel="stylesheet" id="app2_style-css" href="https://web.archive.org/web/20211019062735cs_/https://www.pagerduty.com/wp-content/themes/citizens-band/css/app2.css?ver=2cc56917a8a14eb556d92285e96697383637b975" type="text/css" media="all"/>
+<link rel="stylesheet" id="app_style-css" href="https://web.archive.org/web/20211019062735cs_/https://www.pagerduty.com/wp-content/themes/citizens-band/css/app.css?ver=2cc56917a8a14eb556d92285e96697383637b975" type="text/css" media="all"/>
+<script type="text/javascript" src="https://web.archive.org/web/20211019062735js_/https://www.pagerduty.com/wp-content/plugins/wp-retina-2x-pro/app/picturefill.min.js?ver=1634600642" id="wr2x-picturefill-js-js"></script>
+<script type="text/javascript" src="https://web.archive.org/web/20211019062735js_/https://www.pagerduty.com/wp-content/themes/citizens-band/js/build/gz-header.min.js?ver=2cc56917a8a14eb556d92285e96697383637b975" id="app_header_script-js"></script>
+<script type="text/javascript" src="//web.archive.org/web/20211019062735js_/https://app-abq.marketo.com/js/forms2/js/forms2.min.js?ver=2cc56917a8a14eb556d92285e96697383637b975" id="marketo_forms2_script-js"></script>
+<link rel="https://api.w.org/" href="https://www.pagerduty.com/wp-json/"/><link rel="alternate" type="application/json" href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/wp-json/wp/v2/posts/9522"/><link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://www.pagerduty.com/xmlrpc.php?rsd"/>
+<link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://www.pagerduty.com/wp-includes/wlwmanifest.xml"/>
+<link rel="shortlink" href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/?p=9522"/>
+<link rel="alternate" type="application/json+oembed" href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fwww.pagerduty.com%2Fblog%2Foutage-post-mortem-april-13-2013%2F"/>
+<link rel="alternate" type="text/xml+oembed" href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fwww.pagerduty.com%2Fblog%2Foutage-post-mortem-april-13-2013%2F&amp;format=xml"/>
+<script async src="/web/20211019062735js_/https://www.pagerduty.com/cdn-cgi/bm/cv/669835187/api.js"></script></head>
+<body class="post-template-default single single-post postid-9522 single-format-standard">
+<nav class="sticky top-0 z-modal w-full bg-white dark:bg-gray-dark shadow">
+<div id="butter-bar" class="z-modal  relative hidden" data-butter-bar-is-visible="true">
+<div class="butter-bar hidden md:flex text-white items-center relative z-modal overflow-hidden bg-blue-light">
+<div class="flex justify-center items-center mx-auto container px-gut">
+<div class="js-copy md:block mr-gut lg:mr-3gut py-gut/2 text-black">
+New PagerDuty Application for Salesforce Service Cloud.
+</div>
+<a class="js-cta text-red text-right flex pr-2gut" data-track-event="cta-clicked" data-track-props="butterbar-salesforce-integration" href="/web/20211019062735/https://www.pagerduty.com/integrations/salesforce/">
+→ <div class="text-left ml-gut/2 uppercase">Learn More</div>
+</a>
+</div>
+<a id="btn-close-butter-bar" href="#" class="js-close -ml-3gut w-3gut text-center text-black cursor-pointer">✕</a>
+</div>
+</div>
+<div id="nav-container" style="max-width:1536px" class=" mx-auto hidden md:block " aria-label="PagerDuty Main Menu">
+<div id="super-nav-wrapper">
+<ul id="super-navigation" class="flex my-0 mx-auto list-none w-full h-2gut items-center justify-end" role="menubar">
+<li class="flex overflow-hidden h-full items-center border-black dark:border-white mr-gut/2" role="menuitem">
+<button title="Search PagerDuty" id="btn-search-toggle" class="h-full px-8 flex items-center hover:text-green dark:text-white dark:hover:text-white">
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewbox="0 0 32 32"><defs><style>.aefc9069-6fc6-4da8-817e-6c978615eb14{fill:none;stroke:currentColor;stroke-miterlimit:10;stroke-width:3px;}</style></defs><g id="aff9c6f3-7e60-4e45-8e65-85d3f3378456" data-name="Layer 2"><g id="a5b88465-eee8-43d0-b38e-58d8c399cce6" data-name="Layer 1"><circle class="aefc9069-6fc6-4da8-817e-6c978615eb14" cx="14" cy="14" r="12"/><line class="aefc9069-6fc6-4da8-817e-6c978615eb14" x1="22" y1="22" x2="31" y2="31"/></g></g></svg>
+</button>
+<form id="nav-search-form" method="get" action="/web/20211019062735/https://www.pagerduty.com/search/" class="transition-all duration-150 w-0 opacity-0 flex items-center ml-auto pr-4 text-black dark:text-white">
+<label class="sr-only" for="nav-search-textfield">Search</label>
+<input class="bg-none w-full px-4" id="nav-search-textfield" tabindex="-1" name="q"/>
+</form>
+</li>
+<li class="h-full" role="menuitem">
+<a class="h-full px-gut flex items-center text-black hover:text-green dark:text-white dark:hover:text-white" data-track-event="cta-clicked" data-track-props="main-nav-contact-us" href="/web/20211019062735/https://www.pagerduty.com/contact-us/">
+<div class="pointer-events-none">Contact Us</div>
+</a>
+</li>
+<li class="h-full" role="menuitem">
+<a class="h-full px-gut flex items-center text-black hover:text-green dark:text-white dark:hover:text-white" data-track-event="cta-clicked" data-track-props="main-nav-log-in" href="https://web.archive.org/web/20211019062735/https://app.pagerduty.com/">
+<div class="pointer-events-none">Log in</div>
+</a>
+</li>
+</ul>
+</div>
+<div id="navigation" class="flex items-center w-full ">
+<ul class="my-0 list-none h-5gut flex flex-row items-center w-full min-w-10gut max-w-11gut md:max-w-14gut lg:max-w-15gut">
+<li class="dark:text-white px-gut">
+<a href="/web/20211019062735/https://www.pagerduty.com/" class="text-black dark:text-white  hover:text-black block">
+<svg fill="currentColor" width="100%" height="100%" x="0" y="0" viewbox="0 0 974.8 200" style="enable-background:new 0 0 974.8 200">
+<title>PagerDuty Logo</title>
+<g>
+<rect class="icn-pd nav-hider-disabled" y="115.7" width="23.1" height="42"/>
+<path class="icn-pd nav-hider-disabled" d="M87,7.7C74.6,1.1,66,0,45.7,0H0v95.6h45.5c18.1,0,31.6-1.1,43.5-9c13-8.6,19.7-22.9,19.7-39.4C108.7,29.3,100.4,15,87,7.7                        z M50.8,75.6H23.1V20.5l26.1-0.2C73,20,84.9,28.4,84.9,47.4C84.9,67.8,70.2,75.6,50.8,75.6z">
+</path>
+<g class="nav-hider visible">
+<path d="M950.5,41.9l-22,62.4c-4,11.2-6,17.6-9.7,28.4h-0.4c-2.9-9.3-5.6-16.8-9.3-27.8l-21.3-63.1h-25.6l44.3,115.8                      c-1,2.5-2,5.1-3.1,7.8c-3.7,9-12.5,14.9-22.2,14.9h-11V200h11.3c18.3,0,34.8-11.2,41.6-28.2c14.1-35.3,38.1-95.4,51.8-129.9                      L950.5,41.9z"/>
+<path d="M336.2,135.4c0,41.9-19.2,64.6-58,64.6c-28.9,0-46.3-15.2-52.5-38.1h23.4c4,10.6,12.4,20.1,29.5,20.1                      c26.5,0,35.9-16.5,35.9-47.9c-0.2,0-0.2-0.2-0.4-0.2c-5.7,9.9-18.5,18.7-38.8,18.7c-32.6,0-53.3-23.6-53.3-56.7                      c0-34.4,22.5-57.5,53.6-57.5c20.1,0,32.2,8.6,38.8,18.1c-0.2-2.4-0.2-4.8-0.2-7.3v-7.3h22V135.4z M246.2,95.7                      c0,22.5,12.6,38.6,34.2,38.6c19.4,0,34.4-13.7,34.4-39.2c0-22.7-13.2-37.9-34.4-37.9S246.2,72.3,246.2,95.7L246.2,95.7z">
+</path>
+<path d="M372.7,105.6c0.9,20.3,13.9,36.4,36.4,36.4c15.9,0,23.6-7.5,29.5-17.4h22.3c-6.6,20.9-24.9,35.9-52.7,35.9                      c-35.7,0-58-24-58-60.2s23.1-61.7,58-61.7c37.7,0,55.1,28.7,55.1,59.8v7.3L372.7,105.6z M440.1,88c-2-18.3-13.5-31.3-32.4-31.3                      c-18.1,0-32,11.9-34.2,31.3H440.1z"/>
+<path d="M499,41.9v14.8c3.7-10.8,15-17.7,28-17.7c1.9,0,3.8,0.1,5.7,0.4v20.3c-2.6-0.5-5.1-0.7-7.7-0.7c-21,0-24.9,15.4-24.9,38.6                      v60h-22.3v-95c0-7.3,0-13.7-0.2-20.7L499,41.9z"/>
+<path d="M761.7,141.1c-6,9.9-17.2,19.4-36.8,19.4c-26.9,0-40.1-16.5-40.1-46.5V41.9H707v63.7c0,22.7,7.5,36.4,25.6,36.4                      c23.8,0,28-21.6,28-47V41.9h22.3v98.3c0,6,0,11.7,0.2,17.4h-21.4V141.1z"/>
+<path d="M833,41.9h21.6v17.2H833v69.5c0,11,5.5,14.3,14.1,14.3c1.8,0,3.7-0.2,5.5-0.4V159c-2.8,0.5-5.7,0.8-8.6,0.9                      c-20.5,0-33.5-6.8-33.5-30V59.1h-17.5V41.9h17.4V10.6H833V41.9z"/>
+<path d="M546.3,0h38.6c57.8,0.4,85.6,28.6,85.8,79.2c0.2,43.1-22.1,78-82,78.5h-42.4V0z M569.7,138h13.5c41.9,0,63.8-16,63.8-58.9                      c-0.1-37.7-21.8-59.3-61.6-59.3c-7.7,0-15.7,0.2-15.7,0.2V138z"/>
+<path d="M189.7,157.7c-0.7-4.6-0.7-7.5-1.1-15.9c-8.8,12.6-20.5,18.1-39,18.1c-24.3,0-41.9-11.9-41.9-33.5                      c0-24.9,23.8-33.1,54.7-37.3c7.7-1.1,16.3-2,23.8-2.6c0-22.9-12.7-29.8-26-29.8s-23,9.4-23,21.5h-21.6c0-23.5,18.5-39.2,45-39.2                      s47.1,11,47.1,53.4v22.5c0,18.8,0.9,32.4,2.9,43H189.7z M131.7,126.1c0,10.8,8.8,17.6,22.9,17.6c20.7,0,31.8-12.6,31.8-35.1                      c-0.1-2.1,0-4.1,0.2-6.2C148.9,106.3,131.7,110,131.7,126.1L131.7,126.1z"/>
+</g>
+</g>
+</svg>
+</a>
+</li>
+</ul>
+<ul id="main-nav" class="flex flex-grow flex-row items-center justify-end list-none m-0 w-full h-5gut" role="menubar" aria-hidden="false">
+<li class="group h-full relative" role="menuitem" aria-haspopup="true">
+<a data-track-event="nav-clicked" data-track-props="platform" class="h-full px-gut/2 lg:px-gut inline-block text-black hover:text-green dark:text-white flex flex-1 items-center" href="/web/20211019062735/https://www.pagerduty.com/platform/">
+<div class="flex items-center lg:px-gut/2">
+<span>Products</span>
+<span class="w-2gut lg:w-2gut mt-2 ml-0 lg:px-8 ">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="14" viewbox="0 0 50 50"><path d="M5.2 15.3l19.6 19.3 19.5-19.3" stroke="currentColor" stroke-width="3" fill="none"/></svg>
+</span>
+</div>
+</a>
+<style>
+/* Hack because tailwind nested group-hover does not work.  */
+.dd-link:hover .dd-link-icon  {
+  transform: scale(1.5);
+}
+.dd-link-icon {
+  transition: transform 200ms ease-in-out;
+}
+</style>
+<div class="dropper w-42gut absolute z-index-menu hidden group-hover:block transform -translate-x-6gut">
+<div class="bg-white dark:bg-gray-dark shadow-2xl mt-gut dropper-max-height">
+<div class="w-gut h-gut bg-orange absolute transform rotate-45 -mt-gut/2 left-0 ml-9gut"></div>
+<div class="flex">
+<div class="w-14gut text-white px-2gut pt-3gut pb-2gut bg-orange block ">
+<h3 class="text-xl mb-gut">Operations Cloud
+</h3>
+<p>The world’s most scalable and extensible products for digital operations management
+</p>
+<a data-track-event="nav-clicked" data-track-props="platform_platform" href="/web/20211019062735/https://www.pagerduty.com/platform/" class="flex items-center mt-gut text-white hover:text-white"><span class="flex-shrink mr-4"><svg height="14" width="22" version="1.1" x="0px" y="0px" viewbox="0 0 17.7 13.2" style="enable-background:new 0 0 17.7 13.2;fill:currentColor;" xml:space="preserve"><polygon points="17.7,6.5 17.3,6.2 11.6,0.2 9.9,0.2 15.4,5.9 0.2,5.9 0.2,7.1 15.5,7.1 9.9,12.9 11.5,12.9 17.3,6.9 17.7,6.6 17.6,6.6 "/></svg></span>Explore products</a>
+</div>
+<div class="flex-grow ">
+<ul class="list-none mt-3gut mb-2gut" role="menu" aria-hidden="true">
+<li class="mb-gut pl-2gut" role="menuitem" tabindex="-1">
+<a data-track-event="nav-clicked" data-track-props="platform_on-call-management" href="/web/20211019062735/https://www.pagerduty.com/platform/on-call-management/" class="flex flex-row items-start dd-link text-green dark:text-white ">
+<div class="mr-gut text-black dark:text-white w-2gut pt-4 dd-link-icon">
+<svg class="mx-auto" width="32" height="32" stroke="currentColor" stroke-linecap="round" stroke-width="1.5" fill="none" viewbox="0 0 25.62 34.44">
+<path d="M12.89 9.73l1.59-6.29-2.64-1.07-1.83 7.26 2.88.1z"/>
+<path d="M8.72 18.35l-2.2-6a1.72 1.72 0 0 1 .7-2.3l2.14-8.32a4.72 4.72 0 0 0-5.9 2.15C1.28 7.22-.38 9.46 1.34 14.2l2.2 6 2.3 6.31c1.8 4.95 4.53 5.66 8.39 6.92a4.56 4.56 0 0 0 5.9-2.15l-7.07-5.26a1.79 1.79 0 0 1-2-1.4l-2.3-6.31" stroke-width="1.25"/>
+<path d="M17.45 22.29l5.35 4.02-1.32 2.59-6.16-4.64 2.13-1.97z"/>
+<path d="M15.78 11.33a5.42 5.42 0 0 0 2-7.42"/>
+<path d="M17.14 13.68c4.21-2.42 5.79-7.53 3.54-11.41"/>
+<path d="M18.77 16.49c5.79-3.32 7.92-10.43 4.76-15.87"/>
+</svg>
+</div>
+<div class="feat-link-copy">
+<h4 class="m-0 text-md text-green dark:text-white">On-Call Management</h4>
+<div class="text-gray-dark dark:text-white text-sm ">
+Flexible schedules, escalations, &amp; alerting
+</div>
+</div>
+</a>
+</li>
+<li class="mb-gut pl-2gut" role="menuitem" tabindex="-1">
+<a data-track-event="nav-clicked" data-track-props="platform_modern-incident-response" href="/web/20211019062735/https://www.pagerduty.com/platform/modern-incident-response/" class="flex flex-row items-start dd-link text-green dark:text-white ">
+<div class="mr-gut text-black dark:text-white w-2gut pt-4 dd-link-icon">
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" stroke="currentColor" stroke-linecap="round" stroke-width="1.5" fill="none" viewbox="0 0 26.5 31.39"><path d="M22.29 30.1a11.72 11.72 0 003.46-8.45c0-5.44-4.59-7.94-7.88-11s-2.94-8.93-2.94-8.93-4.6 4-6.13 8.34c-2.1 6-1.14 9.46-1.14 9.46a8.61 8.61 0 01-2.37-2.82 12.74 12.74 0 01-1-4.83S1 16.82.78 20.32s.56 9.78 6.77 9.78 7.21-7.84 7.16-9.4a25.56 25.56 0 00-.71-4.1s4.64 2.72 4.86 6.43-2.72 7.61-2.72 7.61"/></svg>
+</div>
+<div class="feat-link-copy">
+<h4 class="m-0 text-md text-green dark:text-white">Incident Response</h4>
+<div class="text-gray-dark dark:text-white text-sm ">
+Automated, best practice incident response
+</div>
+</div>
+</a>
+</li>
+<li class="mb-gut pl-2gut" role="menuitem" tabindex="-1">
+<a data-track-event="nav-clicked" data-track-props="platform_runbook-automation" href="/web/20211019062735/https://www.pagerduty.com/use-cases/automation/" class="flex flex-row items-start dd-link text-green dark:text-white ">
+<div class="mr-gut text-black dark:text-white w-2gut pt-4 dd-link-icon">
+<svg xmlns="http://www.w3.org/2000/svg" class="m-auto" viewbox="0 0 50 50" width="32" height="32" stroke="currentColor" stroke-width="3" fill="none">
+<path d="M29.6,8.6c1.3,0.4,2.5,0.9,3.7,1.5l5-3.7c0.4-0.2,0.8-0.2,1.1,0.1l3.9,4c0.3,0.2,0.4,0.6,0.2,0.9  c0,0.1-0.1,0.1-0.1,0.1l-3.5,5.1c0.7,1.1,1.2,2.4,1.5,3.7l6,1c0.4,0,0.7,0.3,0.7,0.7c0,0,0,0,0,0v5.6c0,0.4-0.3,0.7-0.7,0.7  c0,0,0,0-0.1,0l-6,1.2c-0.4,1.3-0.9,2.5-1.5,3.7l3.7,5c0.1,0.4,0.1,0.8-0.1,1.1l-4,3.8c-0.2,0.3-0.6,0.4-0.9,0.2  c0,0-0.1-0.1-0.1-0.1l-5.1-3.4c-1.2,0.6-2.4,1.1-3.7,1.5l-1.1,6c0,0.4-0.3,0.7-0.7,0.7c0,0,0,0-0.1,0h-5.6c-0.4,0-0.7-0.3-0.7-0.7  c0,0,0,0,0-0.1l-1-6c-1.3-0.4-2.6-0.9-3.8-1.5l-5,3.5c-0.2,0.3-0.6,0.3-0.9,0c0,0-0.1-0.1-0.1-0.1l-4-3.9c-0.3-0.3-0.3-0.7-0.1-1.1  l3.7-5c-0.6-1.2-1.1-2.4-1.5-3.7l-6-1.1c-0.4,0-0.7-0.3-0.7-0.7c0,0,0,0,0,0v-5.6c0-0.4,0.3-0.7,0.7-0.7c0,0,0,0,0.1,0l6-1  c0.4-1.3,0.9-2.6,1.5-3.8l-3.5-5c-0.3-0.2-0.3-0.6,0-0.9c0,0,0.1-0.1,0.1-0.1l3.9-4c0.3-0.3,0.7-0.3,1.1-0.1l5,3.7  c1.2-0.6,2.4-1.1,3.7-1.5l1-6c0-0.4,0.3-0.7,0.7-0.7h5.6c0.4,0,0.7,0.3,0.7,0.7c0,0,0,0,0,0.1L29.6,8.6z M24.9,16.3  c-4.8,0-8.7,3.9-8.7,8.7s3.9,8.7,8.7,8.7s8.7-3.9,8.7-8.7l0,0C33.6,20.2,29.8,16.3,24.9,16.3C25,16.3,25,16.3,24.9,16.3z"/>
+</svg>
+</div>
+<div class="feat-link-copy">
+<h4 class="m-0 text-md text-green dark:text-white">Runbook Automation</h4>
+<div class="text-gray-dark dark:text-white text-sm ">
+Reduce toll and focus on work that matters
+</div>
+</div>
+</a>
+</li>
+<li class="mb-gut pl-2gut" role="menuitem" tabindex="-1">
+<a data-track-event="nav-clicked" data-track-props="platform_event-intelligence-and-automation" href="/web/20211019062735/https://www.pagerduty.com/platform/event-intelligence-and-automation/" class="flex flex-row items-start dd-link text-green dark:text-white ">
+<div class="mr-gut text-black dark:text-white w-2gut pt-4 dd-link-icon">
+<svg class="mx-auto" width="32" height="32" stroke="currentColor" stroke-linecap="round" stroke-width="1.5" fill="none" viewbox="0 0 26.5 30.25">
+<path d="M7.37,20.42a1.52,1.52,0,1,1,1.47-1.51A1.49,1.49,0,0,1,7.37,20.42Z"/><path d="M4.79,12.1a1.52,1.52,0,1,1,1.47-1.51A1.49,1.49,0,0,1,4.79,12.1Z"/>
+<path d="M19.87,23.45a1.52,1.52,0,1,1,1.47-1.52A1.5,1.5,0,0,1,19.87,23.45Z"/><path d="M20.6,15.12a1.51,1.51,0,1,1,1.47-1.51A1.49,1.49,0,0,1,20.6,15.12Z"/>
+<path d="M17.66,9.83a1.52,1.52,0,1,1,1.47-1.51A1.49,1.49,0,0,1,17.66,9.83Z"/>
+<path d="M24.79,14.88A4.34,4.34,0,0,1,24.06,21a4.28,4.28,0,0,1-3.95,5.6h-.23A4.16,4.16,0,0,1,16,29.5a4,4,0,0,1-2.35-.75,2.48,2.48,0,0,1-.36-.28V2A4.11,4.11,0,0,1,16.14.75a4.18,4.18,0,0,1,4,3.28,7.31,7.31,0,0,1,5.57,7.16A7.51,7.51,0,0,1,24.79,14.88Z"/>
+<path d="M1.71,14.88A4.34,4.34,0,0,0,2.44,21a4.28,4.28,0,0,0,4,5.6h.23a4.16,4.16,0,0,0,3.92,2.87,4,4,0,0,0,2.35-.75,2.48,2.48,0,0,0,.36-.28V2A4.11,4.11,0,0,0,10.36.75,4.18,4.18,0,0,0,6.32,4,7.31,7.31,0,0,0,.75,11.19,7.51,7.51,0,0,0,1.71,14.88Z"/>
+<polyline points="5.9 10.59 9.38 10.59 9.38 13.61 12.86 13.61 19.13 13.61"/>
+<polyline points="18.4 21.93 15.69 21.93 15.69 18.91 12.98 18.91 8.84 18.91"/>
+<path d="M16.19,8.32H13.25"/>
+</svg>
+</div>
+<div class="feat-link-copy">
+<h4 class="m-0 text-md text-green dark:text-white">Intelligent Event Management</h4>
+<div class="text-gray-dark dark:text-white text-sm ">
+Powerful context &amp; noise reduction at scale
+</div>
+</div>
+</a>
+</li>
+<li class="mb-gut pl-2gut" role="menuitem" tabindex="-1">
+<a data-track-event="nav-clicked" data-track-props="platform_analytics" href="/web/20211019062735/https://www.pagerduty.com/platform/analytics/" class="flex flex-row items-start dd-link text-green dark:text-white ">
+<div class="mr-gut text-black dark:text-white w-2gut pt-4 dd-link-icon">
+<svg stroke="currentColor" stroke-linecap="round" stroke-width="1.5" fill="none" viewbox="0 0 29.49 26.5" width="32" height="32">
+<polygon points="6.59 16.04 2.97 16.04 2.97 25.75 6.59 25.75 6.59 16.04"/>
+<polygon points="13.28 5.85 9.67 5.85 9.67 25.75 13.28 25.75 13.28 5.85"/>
+<polygon points="19.98 10.95 16.36 10.95 16.36 25.75 19.98 25.75 19.98 10.95"/>
+<polygon points="26.67 0.75 23.06 0.75 23.06 25.75 26.67 25.75 26.67 0.75"/>
+<path d="M28.74,25.75H.75"/>
+</svg>
+</div>
+<div class="feat-link-copy">
+<h4 class="m-0 text-md text-green dark:text-white">Operational Analytics</h4>
+<div class="text-gray-dark dark:text-white text-sm ">
+Improve with modern, prescriptive insights
+</div>
+</div>
+</a>
+</li>
+</ul>
+<ul class="list-none bg-gray-dark dark:bg-black bg-opacity-25 m-0">
+<li>
+<a data-track-event="nav-clicked" data-track-props="platform_whats-new" class="block p-2gut" href="/web/20211019062735/https://www.pagerduty.com/whats-new/">
+<span class="text-orange  dark:font-bold">Check out what&#039;s new</span><br>
+<span class="text-gray-dark dark:text-white text-sm">The latest features we&#039;ve been working on</span>
+</a>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</li>
+<li class="group h-full relative" role="menuitem" aria-haspopup="true">
+<a data-track-event="nav-clicked" class="h-full px-gut/2 lg:px-gut inline-block text-black hover:text-green dark:text-white flex flex-1 items-center" href="">
+<div class="flex items-center lg:px-gut/2">
+<span>Solutions</span>
+<span class="w-2gut lg:w-2gut mt-2 ml-0 lg:px-8 ">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="14" viewbox="0 0 50 50"><path d="M5.2 15.3l19.6 19.3 19.5-19.3" stroke="currentColor" stroke-width="3" fill="none"/></svg>
+</span>
+</div>
+</a>
+<style>
+	/* Hack because tailwind nested group-hover does not work.  */
+	.dd-link:hover .dd-link-icon {
+		transform: scale(1.5);
+	}
+	.dd-link-icon {
+		transition: transform 200ms ease-in-out;
+	}
+</style>
+<div class="dropper absolute z-index-menu hidden group-hover:block transform   -translate-x-6gut lg:-translate-x-5gut ">
+<div class="bg-white dark:bg-gray-dark shadow-2xl mt-gut dropper-max-height overflow-x-hidden">
+<div class="w-gut h-gut bg-blue-dark absolute transform rotate-45 -mt-gut/2   left-0 ml-9gut "></div>
+<div class="w-full flex">
+<div class="w-14gut px-2gut pt-3gut pb-2gut bg-blue-dark text-white block">
+<h3 class="text-xl mb-gut">Solutions
+</h3>
+<p>Digital operations solutions to connect your digital business.
+</p>
+</div>
+<div class="flex flex-row flex-grow">
+<div class="w-1/2">
+<ul class="list-none overflow-y-auto mx-0 my-3gut relative" role="menu" aria-hidden="true">
+<li class="uppercase w-full mb-2gut px-3gut dark:text-white">
+BY USE CASE
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="solutions_devops" href="/web/20211019062735/https://www.pagerduty.com/use-cases/developers/">
+<div class="mr-gut w-2gut text-black dark:text-white dd-link-icon">
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" stroke="currentColor" stroke-width="3" fill="none" viewbox="0 0 50 50"><path d="M36.51 12.49L48 23.98 36.51 35.47"/><path d="M13.49 12.49L2 23.98l11.49 11.49M18.59 34.92l13.59-20.59"/></svg>
+</div>
+<div>
+<h6 class="m-0 dark:font-bold">Devops</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="solutions_aiops" href="/web/20211019062735/https://www.pagerduty.com/use-cases/aiops/">
+<div class="mr-gut w-2gut text-black dark:text-white dd-link-icon">
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewbox="0 0 25 24"><g stroke="currentColor" stroke-width="1.5" fill="none" fill-rule="evenodd"><path d="M12.435 6.186a2.595 2.595 0 01-2.592-2.593A2.595 2.595 0 0112.435 1a2.596 2.596 0 012.593 2.593 2.596 2.596 0 01-2.593 2.593zM12.435 14.225a2.595 2.595 0 01-2.592-2.593 2.595 2.595 0 012.592-2.593 2.596 2.596 0 012.593 2.593 2.596 2.596 0 01-2.593 2.593zM4.093 14.225A2.596 2.596 0 011.5 11.632 2.596 2.596 0 014.093 9.04a2.596 2.596 0 012.593 2.593 2.596 2.596 0 01-2.593 2.593zM20.778 22.265a2.595 2.595 0 01-2.592-2.593 2.595 2.595 0 012.592-2.593 2.596 2.596 0 012.593 2.593 2.596 2.596 0 01-2.593 2.593zM12.435 22.265a2.595 2.595 0 01-2.592-2.593 2.595 2.595 0 012.592-2.593 2.596 2.596 0 012.593 2.593 2.596 2.596 0 01-2.593 2.593zM4.093 22.265A2.596 2.596 0 011.5 19.672a2.596 2.596 0 012.593-2.593 2.596 2.596 0 012.593 2.593 2.596 2.596 0 01-2.593 2.593zM12.436 6.186v2.853M9.843 11.632H6.686M4.093 14.225v2.854M12.5 14.225v2.854M6.686 19.672h3.157M15.028 19.672h3.158"/></g></svg>
+</div>
+<div>
+<h6 class="m-0 dark:font-bold">AIOps</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="solutions_customer-service-support" href="/web/20211019062735/https://www.pagerduty.com/use-cases/customer-service-support/">
+<div class="mr-gut w-2gut text-black dark:text-white dd-link-icon">
+<svg xmlns="http://www.w3.org/2000/svg" stroke="currentColor" width="32" height="32" style="fill:none;stroke-miterlimit:10;stroke-width:3px" viewbox="0 0 50 50">
+<path d="M13 39.5V21.9a11.4 11.4 0 0111.5-11.4h1.2A11.4 11.4 0 0137 21.9v17.6"/>
+<path d="M8.4 27.2h4.7v11.3H8.4zM37.1 27.2h4.7v11.3h-4.7z"/>
+<path d="M44.1 29a3.9 3.9 0 110 7.8M5.9 36.8a3.9 3.9 0 010-7.7"/>
+</svg>
+</div>
+<div>
+<h6 class="m-0 dark:font-bold">Customer Service Ops</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="solutions_security-ops" href="/web/20211019062735/https://www.pagerduty.com/use-cases/security-ops/">
+<div class="mr-gut w-2gut text-black dark:text-white dd-link-icon">
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" stroke="currentColor" style="fill:none;stroke-miterlimit:10;stroke-width:3px;" viewbox="0 0 50 50">
+<path d="M31.8 19.8V9.2a6.8 6.8 0 10-13.6 0v10.6M11.1 19.8h27.8v27.8H11.1z"/>
+<circle cx="25" cy="30.7" r="1.3"/>
+<path d="M25 30.7v8.8"/>
+</svg>
+</div>
+<div>
+<h6 class="m-0 dark:font-bold">Security Incident Response</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="solutions_crisis-management" href="/web/20211019062735/https://www.pagerduty.com/use-cases/crisis-management/">
+<div class="mr-gut w-2gut text-black dark:text-white dd-link-icon">
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" stroke="currentColor" stroke-width="3" fill="none" viewbox="0 0 50 50"><defs><style>.cls-1{stroke-miterlimit:10;}</style></defs><title>Icons</title><polygon class="cls-1" points="24.19 29.06 12.97 29.06 29.09 6.5 25.86 21 37.02 21 20.97 43.5 24.19 29.06"/></svg>
+</div>
+<div>
+<h6 class="m-0 dark:font-bold">Critical Event Management</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="solutions_service-ownership" href="/web/20211019062735/https://www.pagerduty.com/use-cases/service-ownership/">
+<div class="mr-gut w-2gut text-black dark:text-white dd-link-icon">
+<svg xmlns="http://www.w3.org/2000/svg" x="0" y="0" viewbox="0 0 54.1 54.5" xml:space="preserve" width="32" height="32">
+<path fill="none" stroke="currentColor" stroke-width="2.9356" stroke-miterlimit="10" d="M44 49.2c-2.9 0-5.2-2.3-5.2-5.2 0-2.9 2.3-5.2 5.2-5.2 2.9 0 5.2 2.3 5.2 5.2 0 2.9-2.3 5.2-5.2 5.2z"/>
+<path fill="none" stroke="currentColor" stroke-width="2.9356" stroke-miterlimit="10" d="M39 5.5h10v10H39z"/>
+<path fill="none" stroke="currentColor" stroke-width="2.9356" stroke-miterlimit="10" d="M44 23.3l2.6 4.6 2.7 4.5H38.8l2.6-4.5z"/>
+<path fill="none" stroke="currentColor" stroke-width="2.9356" stroke-miterlimit="10" d="M10.1 32.6c-2.9 0-5.2-2.3-5.2-5.2s2.3-5.2 5.2-5.2 5.2 2.3 5.2 5.2-2.4 5.2-5.2 5.2z"/>
+<path fill="none" stroke="currentColor" stroke-width="2.9356" stroke-miterlimit="10" d="M10.1 6.8l2.6 4.5 2.6 4.6H4.8l2.7-4.6z"/>
+<path transform="rotate(-180 10.08 44.13)" fill="none" stroke="currentColor" stroke-width="2.9356" stroke-miterlimit="10" d="M5.1 39.1h10v10h-10z"/>
+<path fill="none" stroke="currentColor" stroke-width="2.9356" stroke-miterlimit="10" d="M27.1 15.7c-2.9 0-5.2-2.3-5.2-5.2s2.3-5.2 5.2-5.2 5.2 2.3 5.2 5.2-2.4 5.2-5.2 5.2z"/>
+<path fill="none" stroke="currentColor" stroke-width="2.9356" stroke-miterlimit="10" d="M27.1 40.2l2.6 4.5 2.6 4.5H21.8l2.6-4.5z"/>
+<path transform="rotate(-180 27.053 27.272)" fill="none" stroke="currentColor" stroke-width="2.9356" stroke-miterlimit="10" d="M22.1 22.3h10v10h-10z"/>
+</svg>
+</div>
+<div>
+<h6 class="m-0 dark:font-bold">Service Ownership</h6>
+</div>
+</a>
+</li>
+</ul>
+</div>
+<div class="w-1/2">
+<ul class="list-none overflow-y-auto mx-0 my-3gut relative" role="menu" aria-hidden="true">
+<li class="uppercase w-full mb-2gut px-3gut dark:text-white">
+BY INDUSTRY
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="solutions_retail" href="/web/20211019062735/https://www.pagerduty.com/industries/retail/">
+<div class="mr-gut w-2gut text-black dark:text-white dd-link-icon">
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" stroke="currentColor" style="fill:none;stroke-miterlimit:10;stroke-width:3px;" viewbox="0 0 50 50">
+<path d="M.5 7.8h6.3L13 35.5h36.5"/>
+<path d="M7.8 12.6h37.9L43 29l-31.5-.3M9.9 21.6h34.3M19.6 12.6l2.9 16.2M34.6 12.6l-2.9 16.2"/>
+<circle cx="19.6" cy="39" r="3.2"/>
+<circle cx="41" cy="39" r="3.2"/>
+</svg>
+</div>
+<div>
+<h6 class="m-0 dark:font-bold">Retail</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="solutions_financial-services" href="/web/20211019062735/https://www.pagerduty.com/industries/financial-services/">
+<div class="mr-gut w-2gut text-black dark:text-white dd-link-icon">
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" stroke="currentColor" style="fill:none;stroke-miterlimit:10;stroke-width:3px;" viewbox="0 0 50 50">
+<path d="M33.1 13.7c-1.3-3.8-4.4-5.9-8.8-5.9-5.2 0-8.7 3-8.7 7.5 0 5.8 5.4 7.4 8.7 8.5l2.4.7c6.5 2.2 8.7 4.2 8.7 8.4 0 4.8-3.4 8.2-8.7 9l-2.1.1c-4.9 0-8.5-2.5-10-6.8"/>
+<path class="cls-2" d="M24.9 6.6V1M24.9 49v-6.7"/>
+</svg>
+</div>
+<div>
+<h6 class="m-0 dark:font-bold">Financial Services</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="solutions_healthcare" href="/web/20211019062735/https://www.pagerduty.com/industries/healthcare/">
+<div class="mr-gut w-2gut text-black dark:text-white dd-link-icon">
+<svg stroke="currentColor" width="32" height="32" viewbox="0 0 29 25">
+<g stroke-width="1.5" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round">
+<path d="M20.515 1c-4.155 0-6.203 4.096-6.203 4.096S12.264 1 8.109 1C4.732 1 2.06 3.825 2.024 7.196c-.07 6.997 5.55 11.973 11.712 16.155.348.236.804.236 1.152 0 6.16-4.182 11.782-9.158 11.712-16.155C26.565 3.825 23.892 1 20.515 1z"/>
+<path d="M1 12.264h7.168L11.24 6.12l3.072 10.24 3.072-6.144 2.048 4.096h8.192"/>
+</g>
+</svg>
+</div>
+<div>
+<h6 class="m-0 dark:font-bold">Healthcare</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="solutions_government-and-education" href="/web/20211019062735/https://www.pagerduty.com/industries/government-and-education/">
+ <div class="mr-gut w-2gut text-black dark:text-white dd-link-icon">
+<svg width="32" height="32" viewbox="0 0 29 21">
+<g stroke="currentColor" stroke-width="1.5" fill="none" fill-rule="evenodd">
+<path d="M23 9v6.369L14.5 20 6 15.369V9"/>
+<path stroke-linecap="square" d="M14.5 13L2 7l12.5-6L27 7zM3.5 8v11"/>
+</g>
+</svg>
+</div>
+<div>
+<h6 class="m-0 dark:font-bold">Gov&#039;t &amp; Education</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="solutions_non-profit" href="/web/20211019062735/https://www.pagerduty.com/industries/non-profit/">
+<div class="mr-gut w-2gut text-black dark:text-white dd-link-icon">
+<svg width="32" height="32" viewbox="0 0 25 23">
+<path d="M18.305 1C14.417 1 12.5 4.818 12.5 4.818S10.583 1 6.695 1c-3.16 0-5.662 2.633-5.694 5.776-.066 6.522 5.194 11.16 10.96 15.059.325.22.753.22 1.078 0 5.765-3.898 11.026-8.537 10.96-15.06C23.967 3.634 21.465 1 18.305 1z" stroke="currentColor" stroke-width="1.5" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</div>
+<div>
+<h6 class="m-0 dark:font-bold">Nonprofit</h6>
+</div>
+</a>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+</li>
+<li class="group h-full relative" role="menuitem">
+<a data-track-event="nav-clicked" data-track-props="customers" class="h-full px-gut/2 lg:px-gut inline-block text-black hover:text-green dark:text-white flex flex-1 items-center" href="/web/20211019062735/https://www.pagerduty.com/customers/">
+<div class="flex items-center lg:px-gut/2">
+<span>Customers</span>
+</div>
+</a>
+</li>
+<li class="group h-full relative" role="menuitem">
+<a data-track-event="nav-clicked" data-track-props="pricing" class="h-full px-gut/2 lg:px-gut inline-block text-black hover:text-green dark:text-white flex flex-1 items-center" href="/web/20211019062735/https://www.pagerduty.com/pricing/">
+<div class="flex items-center lg:px-gut/2">
+<span>Pricing</span>
+</div>
+</a>
+</li>
+<li class="group h-full relative" role="menuitem">
+<a data-track-event="nav-clicked" data-track-props="integrations" class="h-full px-gut/2 lg:px-gut inline-block text-black hover:text-green dark:text-white flex flex-1 items-center" href="/web/20211019062735/https://www.pagerduty.com/integrations/">
+<div class="flex items-center lg:px-gut/2">
+<span>Integrations</span>
+</div>
+</a>
+</li>
+<li class="group h-full relative" role="menuitem" aria-haspopup="true">
+<a data-track-event="nav-clicked" class="h-full px-gut/2 lg:px-gut inline-block text-black hover:text-green dark:text-white flex flex-1 items-center" href="/web/20211019062735/https://www.pagerduty.com/resources/">
+<div class="flex items-center lg:px-gut/2">
+<span>Resources</span>
+<span class="w-2gut lg:w-2gut mt-2 ml-0 lg:px-8 ">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="14" viewbox="0 0 50 50"><path d="M5.2 15.3l19.6 19.3 19.5-19.3" stroke="currentColor" stroke-width="3" fill="none"/></svg>
+</span>
+</div>
+</a>
+<style>
+	/* Hack because tailwind nested group-hover does not work.  */
+	.dd-link:hover .dd-link-icon {
+		transform: scale(1.5);
+	}
+	.dd-link-icon {
+		transition: transform 200ms ease-in-out;
+	}
+</style>
+<div class="dropper absolute z-index-menu hidden group-hover:block transform   translate-x-8gut lg:translate-x-6gut right-0 ">
+<div class="bg-white dark:bg-gray-dark shadow-2xl mt-gut dropper-max-height overflow-x-hidden">
+<div class="w-gut h-gut bg-white dark:bg-gray-dark absolute transform rotate-45 -mt-gut/2   right-0 mr-11gut "></div>
+<div class="w-full flex">
+<div class="w-14gut px-2gut pt-3gut pb-2gut bg-green text-white block">
+<h3 class="text-xl mb-gut">Resources
+</h3>
+<p>Digital operations solutions to connect your digital business.
+</p>
+</div>
+<div class="flex flex-row flex-grow">
+<div class="w-1/2">
+<ul class="list-none overflow-y-auto mx-0 my-3gut relative" role="menu" aria-hidden="true">
+<li class="uppercase w-full mb-2gut px-3gut dark:text-white">
+EXPLORE
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="resources_resources-library" href="/web/20211019062735/https://www.pagerduty.com/resources-all/">
+<div>
+<h6 class="m-0 dark:font-bold">Resources Library</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="resources_community" target="_blank" href="https://web.archive.org/web/20211019062735/https://community.pagerduty.com/">
+<div>
+<h6 class="m-0 dark:font-bold">Community</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="resources_ops-guides" href="/web/20211019062735/https://www.pagerduty.com/ops-guides/">
+<div>
+<h6 class="m-0 dark:font-bold">Ops Guides</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="resources_developer" target="_blank" href="https://web.archive.org/web/20211019062735/https://developer.pagerduty.com/">
+<div>
+<h6 class="m-0 dark:font-bold">Developer Platform</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="resources_demo" href="/web/20211019062735/https://www.pagerduty.com/demo/">
+<div>
+<h6 class="m-0 dark:font-bold">Demo</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="resources_blog" href="/web/20211019062735/https://www.pagerduty.com/blog/">
+<div>
+<h6 class="m-0 dark:font-bold">Blog</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="resources_events" href="/web/20211019062735/https://www.pagerduty.com/events/">
+<div>
+<h6 class="m-0 dark:font-bold">Events</h6>
+</div>
+</a>
+</li>
+</ul>
+</div>
+<div class="w-1/2">
+<ul class="list-none overflow-y-auto mx-0 my-3gut relative" role="menu" aria-hidden="true">
+<li class="uppercase w-full mb-2gut px-3gut dark:text-white">
+SUPPORT
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="resources_support-docs" target="_blank" href="https://web.archive.org/web/20211019062735/https://support.pagerduty.com/">
+<div>
+<h6 class="m-0 dark:font-bold">Support Docs</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="resources_services" href="/web/20211019062735/https://www.pagerduty.com/services/">
+<div>
+<h6 class="m-0 dark:font-bold">Services</h6>
+</div>
+</a>
+</li>
+<li class="w-full mb-gut px-3gut min-w-16gut" role="menuitem" tabindex="-1">
+<a class="flex flex-row items-center dd-link text-green dark:text-white" data-track-event="nav-clicked" data-track-props="resources_university" href="/web/20211019062735/https://www.pagerduty.com/university/">
+<div>
+<h6 class="m-0 dark:font-bold">PagerDuty University</h6>
+</div>
+</a>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+</li>
+</ul>
+<ul class="flex-none  items-center list-none mr-gut h-5gut my-0">
+<li class="h-full flex items-center">
+<a data-track-event="nav-clicked" data-track-props="main-nav-green-try-now" class="inline-block px-2gut py-gut transition-colors transition-opacity duration-150 ease-out text-center uppercase border text-white border-green bg-green hover:text-white hover:border-green-dark hover:bg-green-dark focus:text-white focus:bg-green-dark focus:border-green-dark mb-0 px-2gut text-center uppercase" href="/web/20211019062735/https://www.pagerduty.com/sign-up/">
+Get Started
+</a>
+</li>
+</ul>
+</div>
+</div>
+</nav>
+<nav class="sticky top-0 z-modal w-full bg-white dark:bg-gray-dark shadow">
+<ul class="flex md:hidden list-none m-0 items-center h-3gut">
+<li class="flex-grow px-gut">
+<a href="/web/20211019062735/https://www.pagerduty.com/" class="text-black dark:text-white block w-10gut md:w-9gut lg:w-12gut ">
+<svg fill="currentColor" width="100%" height="40" x="0" y="0" viewbox="0 0 974.8 200" style="enable-background:new 0 0 974.8 200">
+<title>PagerDuty Logo</title>
+<g>
+<rect class="icn-pd nav-hider-disabled" y="115.7" width="23.1" height="42"/>
+<path class="icn-pd nav-hider-disabled" d="M87,7.7C74.6,1.1,66,0,45.7,0H0v95.6h45.5c18.1,0,31.6-1.1,43.5-9c13-8.6,19.7-22.9,19.7-39.4C108.7,29.3,100.4,15,87,7.7                        z M50.8,75.6H23.1V20.5l26.1-0.2C73,20,84.9,28.4,84.9,47.4C84.9,67.8,70.2,75.6,50.8,75.6z">
+</path>
+<g class="nav-hider visible">
+<path d="M950.5,41.9l-22,62.4c-4,11.2-6,17.6-9.7,28.4h-0.4c-2.9-9.3-5.6-16.8-9.3-27.8l-21.3-63.1h-25.6l44.3,115.8                      c-1,2.5-2,5.1-3.1,7.8c-3.7,9-12.5,14.9-22.2,14.9h-11V200h11.3c18.3,0,34.8-11.2,41.6-28.2c14.1-35.3,38.1-95.4,51.8-129.9                      L950.5,41.9z"/>
+<path d="M336.2,135.4c0,41.9-19.2,64.6-58,64.6c-28.9,0-46.3-15.2-52.5-38.1h23.4c4,10.6,12.4,20.1,29.5,20.1                      c26.5,0,35.9-16.5,35.9-47.9c-0.2,0-0.2-0.2-0.4-0.2c-5.7,9.9-18.5,18.7-38.8,18.7c-32.6,0-53.3-23.6-53.3-56.7                      c0-34.4,22.5-57.5,53.6-57.5c20.1,0,32.2,8.6,38.8,18.1c-0.2-2.4-0.2-4.8-0.2-7.3v-7.3h22V135.4z M246.2,95.7                      c0,22.5,12.6,38.6,34.2,38.6c19.4,0,34.4-13.7,34.4-39.2c0-22.7-13.2-37.9-34.4-37.9S246.2,72.3,246.2,95.7L246.2,95.7z">
+</path>
+<path d="M372.7,105.6c0.9,20.3,13.9,36.4,36.4,36.4c15.9,0,23.6-7.5,29.5-17.4h22.3c-6.6,20.9-24.9,35.9-52.7,35.9                      c-35.7,0-58-24-58-60.2s23.1-61.7,58-61.7c37.7,0,55.1,28.7,55.1,59.8v7.3L372.7,105.6z M440.1,88c-2-18.3-13.5-31.3-32.4-31.3                      c-18.1,0-32,11.9-34.2,31.3H440.1z"/>
+<path d="M499,41.9v14.8c3.7-10.8,15-17.7,28-17.7c1.9,0,3.8,0.1,5.7,0.4v20.3c-2.6-0.5-5.1-0.7-7.7-0.7c-21,0-24.9,15.4-24.9,38.6                      v60h-22.3v-95c0-7.3,0-13.7-0.2-20.7L499,41.9z"/>
+<path d="M761.7,141.1c-6,9.9-17.2,19.4-36.8,19.4c-26.9,0-40.1-16.5-40.1-46.5V41.9H707v63.7c0,22.7,7.5,36.4,25.6,36.4                      c23.8,0,28-21.6,28-47V41.9h22.3v98.3c0,6,0,11.7,0.2,17.4h-21.4V141.1z"/>
+<path d="M833,41.9h21.6v17.2H833v69.5c0,11,5.5,14.3,14.1,14.3c1.8,0,3.7-0.2,5.5-0.4V159c-2.8,0.5-5.7,0.8-8.6,0.9                      c-20.5,0-33.5-6.8-33.5-30V59.1h-17.5V41.9h17.4V10.6H833V41.9z"/>
+<path d="M546.3,0h38.6c57.8,0.4,85.6,28.6,85.8,79.2c0.2,43.1-22.1,78-82,78.5h-42.4V0z M569.7,138h13.5c41.9,0,63.8-16,63.8-58.9                      c-0.1-37.7-21.8-59.3-61.6-59.3c-7.7,0-15.7,0.2-15.7,0.2V138z"/>
+<path d="M189.7,157.7c-0.7-4.6-0.7-7.5-1.1-15.9c-8.8,12.6-20.5,18.1-39,18.1c-24.3,0-41.9-11.9-41.9-33.5                      c0-24.9,23.8-33.1,54.7-37.3c7.7-1.1,16.3-2,23.8-2.6c0-22.9-12.7-29.8-26-29.8s-23,9.4-23,21.5h-21.6c0-23.5,18.5-39.2,45-39.2                      s47.1,11,47.1,53.4v22.5c0,18.8,0.9,32.4,2.9,43H189.7z M131.7,126.1c0,10.8,8.8,17.6,22.9,17.6c20.7,0,31.8-12.6,31.8-35.1                      c-0.1-2.1,0-4.1,0.2-6.2C148.9,106.3,131.7,110,131.7,126.1L131.7,126.1z"/>
+</g>
+</g>
+</svg>
+</a>
+</li>
+<li id="nav-hamburger" class="w-3gut mx-gut/2 text-black dark:text-white">
+<button id="btn-nav-hamburger" class="mblnav-hamburger" aria-label="Main Menu">
+<svg class="pointer-events-none" width="48" height="48" viewbox="0 0 100 100">
+<path class="line line1" d="M 20,29.000046 H 80.000231 C 80.000231,29.000046 94.498839,28.817352 94.532987,66.711331 94.543142,77.980673 90.966081,81.670246 85.259173,81.668997 79.552261,81.667751 75.000211,74.999942 75.000211,74.999942 L 25.000021,25.000058"/>
+<path class="line line2" d="M 20,50 H 80"/>
+<path class="line line3" d="M 20,70.999954 H 80.000231 C 80.000231,70.999954 94.498839,71.182648 94.532987,33.288669 94.543142,22.019327 90.966081,18.329754 85.259173,18.331003 79.552261,18.332249 75.000211,25.000058 75.000211,25.000058 L 25.000021,74.999942"/>
+</svg>
+</button>
+</li>
+</ul>
+<ul id="mbl-nav" class="m-0 z-menu w-full fixed bg-white dark:bg-gray-dark h-screen pb-4gut overflow-y-scroll hidden">
+<li class="border-b-1 border-black border-opacity-25">
+<details>
+<summary class="list-none">
+<div class="flex items-center justify-end">
+<a data-track-event="nav-clicked" data-track-props="platform" class="p-gut block flex-grow text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/platform/">Products</a>
+ <div class="px-gut py-gut icon h-full dark:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewbox="0 0 50 50"><path d="M15.1 44.5l19.3-19.6L15.1 5.4" fill="none" stroke="currentColor" stroke-width="3"/></svg>
+</div>
+</div>
+</summary>
+<ul class="list-none mb-gut ml-gut border-l-1 border-black border-opacity-25 dark:border-opacity-100 ">
+<li>
+<a data-track-event="nav-clicked" data-track-props="platform_on-call-management" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/platform/on-call-management/">On-Call Management</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="platform_modern-incident-response" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/platform/modern-incident-response/">Incident Response</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="platform_runbook-automation" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/use-cases/automation/">Runbook Automation</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="platform_event-intelligence-and-automation" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/platform/event-intelligence-and-automation/">Intelligent Event Management</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="platform_analytics" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/platform/analytics/">Operational Analytics</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="platform_whats-new" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/whats-new/">Check out what&#039;s new</a>
+</li>
+</ul>
+</details>
+</li>
+<li class="border-b-1 border-black border-opacity-25">
+<details>
+<summary class="list-none">
+<div class="flex items-center justify-end">
+<a data-track-event="nav-clicked" class="p-gut block flex-grow text-black hover:text-green dark:text-white" href="">Solutions</a>
+<div class="px-gut py-gut icon h-full dark:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewbox="0 0 50 50"><path d="M15.1 44.5l19.3-19.6L15.1 5.4" fill="none" stroke="currentColor" stroke-width="3"/></svg>
+</div>
+</div>
+</summary>
+<ul class="list-none mb-gut ml-gut border-l-1 border-black border-opacity-25 dark:border-opacity-100 ">
+<li>
+<a data-track-event="nav-clicked" data-track-props="solutions_devops" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/use-cases/developers/">Devops</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="solutions_aiops" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/use-cases/aiops/">AIOps</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="solutions_customer-service-support" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/use-cases/customer-service-support/">Customer Service Ops</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="solutions_security-ops" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/use-cases/security-ops/">Security Incident Response</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="solutions_crisis-management" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/use-cases/crisis-management/">Critical Event Management</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="solutions_service-ownership" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/use-cases/service-ownership/">Service Ownership</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="solutions_retail" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/industries/retail/">Retail</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="solutions_financial-services" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/industries/financial-services/">Financial Services</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="solutions_healthcare" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/industries/healthcare/">Healthcare</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="solutions_government-and-education" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/industries/government-and-education/">Gov&#039;t &amp; Education</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="solutions_non-profit" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/industries/non-profit/">Nonprofit</a>
+</li>
+</ul>
+</details>
+</li>
+<li class="border-b-1 border-black border-opacity-25">
+<a data-track-event="nav-clicked" data-track-props="customers" class="p-gut block text-black dark:text-white hover:text-green" href="/web/20211019062735/https://www.pagerduty.com/customers/">Customers</a>
+</li>
+<li class="border-b-1 border-black border-opacity-25">
+<a data-track-event="nav-clicked" data-track-props="pricing" class="p-gut block text-black dark:text-white hover:text-green" href="/web/20211019062735/https://www.pagerduty.com/pricing/">Pricing</a>
+</li>
+<li class="border-b-1 border-black border-opacity-25">
+<a data-track-event="nav-clicked" data-track-props="integrations" class="p-gut block text-black dark:text-white hover:text-green" href="/web/20211019062735/https://www.pagerduty.com/integrations/">Integrations</a>
+</li>
+<li class="border-b-1 border-black border-opacity-25">
+<details>
+<summary class="list-none">
+<div class="flex items-center justify-end">
+<a data-track-event="nav-clicked" class="p-gut block flex-grow text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/resources/">Resources</a>
+<div class="px-gut py-gut icon h-full dark:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewbox="0 0 50 50"><path d="M15.1 44.5l19.3-19.6L15.1 5.4" fill="none" stroke="currentColor" stroke-width="3"/></svg>
+</div>
+</div>
+</summary>
+<ul class="list-none mb-gut ml-gut border-l-1 border-black border-opacity-25 dark:border-opacity-100 ">
+<li>
+<a data-track-event="nav-clicked" data-track-props="resources_resources-library" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/resources-all/">Resources Library</a>
+</li>
+ <li>
+<a data-track-event="nav-clicked" data-track-props="resources_community" class="p-gut block text-black hover:text-green dark:text-white" href="https://web.archive.org/web/20211019062735/https://community.pagerduty.com/">Community</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="resources_ops-guides" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/ops-guides/">Ops Guides</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="resources_developer" class="p-gut block text-black hover:text-green dark:text-white" href="https://web.archive.org/web/20211019062735/https://developer.pagerduty.com/">Developer Platform</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="resources_demo" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/demo/">Demo</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="resources_blog" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/blog/">Blog</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="resources_events" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/events/">Events</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="resources_support-docs" class="p-gut block text-black hover:text-green dark:text-white" href="https://web.archive.org/web/20211019062735/https://support.pagerduty.com/">Support Docs</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="resources_services" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/services/">Services</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="resources_university" class="p-gut block text-black hover:text-green dark:text-white" href="/web/20211019062735/https://www.pagerduty.com/university/">PagerDuty University</a>
+</li>
+</ul>
+</details>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="mobile-nav-contact-us" class="p-gut block border-b-1 border-black border-opacity-25 text-black dark:text-white hover:text-green" href="/web/20211019062735/https://www.pagerduty.com/contact-us/">Contact Us</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="mobile-nav-green-try-now" class="p-gut block border-b-1 border-black border-opacity-25 text-black dark:text-white hover:text-green" href="/web/20211019062735/https://www.pagerduty.com/sign-up/">Get Started</a>
+</li>
+<li>
+<a data-track-event="nav-clicked" data-track-props="mobile-nav-log-in" class="p-gut block border-b-1 border-black border-opacity-25 text-black dark:text-white hover:text-green" href="https://web.archive.org/web/20211019062735/https://app.pagerduty.com/">Log in</a>
+</li>
+</ul>
+</nav>
+<script async src="/web/20211019062735js_/https://www.pagerduty.com/wp-content/themes/citizens-band/js/build/navigation-2.0.min.js?ver=2cc56917a8a14eb556d92285e96697383637b975"></script>
+<section class="site-stretch">
+<div class="bkgd-yellow">
+<section>
+<div class="row pd-nav-padding pd-green sect-padding">
+<div class="small-12 columns">
+<h2 class="text-4xl">PagerDuty Blog</h2>
+</div>
+</div>
+<div class="bkgd-xlt-gray sect-padding-small">
+<div class="row">
+<div class="small-12 columns">
+<ul class="eng-blog-nav">
+<li><a href="/web/20211019062735/https://www.pagerduty.com/blog/" class=" btn-nav uppercase">All Blogs</a></li>
+<li><a href="/web/20211019062735/https://www.pagerduty.com/eng/" class=" btn-nav uppercase">Engineering</a></li>
+<div class="block text-sm md:text-base md:inline-block">
+ <li><a href="/web/20211019062735/https://www.pagerduty.com/blog/category/product/" class="btn-nav uppercase">Product</a></li>
+<li><a href="/web/20211019062735/https://www.pagerduty.com/blog/category/integrations/" class="btn-nav uppercase">Integrations</a></li>
+<li><a href="/web/20211019062735/https://www.pagerduty.com/blog/category/insights/" class="btn-nav uppercase">Best Practices</a></li>
+<li><a href="/web/20211019062735/https://www.pagerduty.com/blog/category/announcements/" class="btn-nav uppercase">Announcements</a></li>
+</div>
+</ul>
+</div>
+</div>
+</div>
+</section>
+</div>
+
+<section id="primary">
+<div class="row">
+<div id="blog-content-wrapper" class="small-12 medium-8 columns eng-blog-content padding-0">
+<div class="bkgd-white single-post-guts">
+<ul class="breadcrumbs">
+<li>
+<a href="/web/20211019062735/https://www.pagerduty.com/">
+Home
+</a>
+</li>
+<li>
+<a href="/web/20211019062735/https://www.pagerduty.com/blog">
+Blog
+</a>
+</li>
+<li>
+<a href="/web/20211019062735/https://www.pagerduty.com/blog/category/reliability" class="post-cat-link gz-med-gray">
+Reliability </a>
+</li>
+<li class="pd-drk-gray">
+Outage Post-Mortem – April 13, 2013 </li>
+</ul>
+<h1 class="text-3xl">
+Outage Post-Mortem – April 13, 2013 </h1>
+<div class="post-author-info">
+by <a href="/web/20211019062735/https://www.pagerduty.com/blog/author/baskar-puvanathasan"><span class="pd-drk-gray">Baskar Puvanathasan</span></a><br><span class="uppercase"><small>April 24, 2013</small></span><br> </div>
+<p>We spend enormous amount of our time on the reliability of PagerDuty and the infrastructure that hosts it.  Most of this work is invisible, hidden behind the API and the user interface our customers interact with. However, when they fail, they become very noticeable as delays in notifications and 500s on our API endpoints.  That’s what happened on Saturday, April 13, at around 8:00am Pacific Time. PagerDuty suffered an outage triggered by degradation in a <a href="https://web.archive.org/web/20211019062735/http://en.wikipedia.org/wiki/Peering">peering point</a> used by two AWS regions.</p>
+<p>We are writing this post to let our customers know what had happened, what we have learned and what we’ll do to fix all the issues uncovered by this outage.</p>
+<h2>Background</h2>
+<p>PagerDuty’s infrastructure is hosted in three different datacenters (two in AWS and another in Linode).  For the past year, we’ve been rearchitecting our software with the goal of it being able to survive the outage of an entire datacenter (including it being partitioned from the network), but something not specifically built into our design was the ability to survive the failure of two datacenters at once. However unlikely, that is what happened on Saturday morning. Since we consider an AWS region as a datacenter, and having both of them fail at the same time, we weren’t able to remain available with only our last remaining datacenter.</p>
+<p>We picked our three datacenters to have no dependency amongst them, and made sure that they are physically separated. However, we have since learned that two of the datacenters shared a common peering point. This peering point experienced an outage that resulted in both of our datacenters going offline.</p>
+<h2>The Outage</h2>
+<p><strong>Note:</strong> All times referenced below are in Pacific Time.</p>
+<ul>
+<li>At 7:57am, according to AWS, connectivity issue begins due to a peering point degrading in Northern California</li>
+<li>At 8:11am, PagerDuty on-call engineer is paged about an issue with the one of the nodes in our notification dispatch system</li>
+<li>At 8:13am, an attempt is made to bring back the failed node but with no success</li>
+<li>At 8:18am, our monitoring system detects multiple-provider failure for notifications (caused by connectivity issue). At this time, most of the notifications are still going through, but with increased latencies and error rates</li>
+<li>At 8:31, a Sev-2 was declared and more engineers were paged to help out</li>
+<li>At 8:35am, PagerDuty completely loses its ability to dispatch notification, as it couldn’t establish quorum due to high network latency. Sev-1 is declared</li>
+<li>At 8:53am, PagerDuty notification dispatch system was able to reach quorum and started to process all queued notifications</li>
+<li>At 9:23am, according to AWS, connectivity issue at the Northern California peering point ends</li>
+</ul>
+<p>During the post-mortem analysis, our engineers also determined that a misconfiguration on our coordinator service prevented us from recovering quickly.  In all, PagerDuty wasn’t able to dispatch notifications for 18 minutes between 8:35am and 8:53am; however, during this time, our events API was still able to accept events.</p>
+<h2>What we’re going to do</h2>
+<p>As always with major outages, we learn something new about deficiencies in our software.  These are some of our plans to rectify the discovered issues.</p>
+<h3>Short term</h3>
+<ol>
+<li>During our analysis, we found that we didn’t have adequate logging to debug issues within some of our systems.  We have now added more logging and started to aggregate them into a single source for better searchability.</li>
+<li>During the outage, most of the failed coordinator processes were restarted manually.  We are going to add a process watcher to restart such processes automatically.</li>
+<li>We also found that we didn’t have good visibility into the inter-host connectivity. We’ll be building a dashboard that shows this.</li>
+</ol>
+<h3>Long term</h3>
+<ol>
+<li>We also found that not all of our engineering staff are up to date with Cassandra and ZooKeeper.  We’ll be investing time to train our staff on both of these technologies.</li>
+<li>Investigate moving off one of the AWS regions.  We’ll need to do our homework when picking a new hosting provider and the datacenter to avoid single point of failure.</li>
+</ol>
+<section class="post-single-tags sect-padding-top">
+<div class="row">
+<div class="small-12 columns">
+<a class="blog-single-tag pd-tag" href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/tag/reliability/" rel="nofollow">reliability </a>
+</div>
+</div>
+</section>
+<section class="get-social">
+<style>
+.social-icon {
+  color: #25c151;
+  font-size: 22px;
+  
+  text-align: center;
+  border-radius:50%;
+  width: 40px;
+  height: 40px;
+  margin: 10px 5px;
+  transition: all .3s ease;
+}
+.social-icon:hover {
+  color: #24a047;
+  font-size: 22px;
+  text-align: center;
+  border-radius:50%;
+  width: 40px;
+  height: 40px;
+}
+</style>
+<a class="gz-btn-fb-share" href="https://web.archive.org/web/20211019062735/http://www.facebook.com/share.php?u=https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/&amp;title=Outage+Post-Mortem+%E2%80%93+April+13%2C+2013+https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/&amp;app_id=280023502328575" onclick="javascript:window.open(this.href,'', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=600,width=600');return false;">
+<i class="social-icon fa fa-facebook"></i>
+</a>
+<a class="gz-btn-li-share" href="https://web.archive.org/web/20211019062735/http://www.linkedin.com/shareArticle?url=https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/&amp;title=Outage+Post-Mortem+%E2%80%93+April+13%2C+2013&amp;source=https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/" onclick="javascript:window.open(this.href,'', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=600,width=800');return false;">
+<i class="social-icon fa fa-linkedin"></i>
+</a>
+<a class="gz-btn-twitter-share" href="https://web.archive.org/web/20211019062735/https://twitter.com/intent/tweet?text=Outage+Post-Mortem+%E2%80%93+April+13%2C+2013+%7C+...&amp;url=https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/">
+<i class="social-icon fa fa-twitter"></i>
+</a>
+</section>
+</div>
+<section class="sect-padding-bottom related-posts bkgd-white padding-15 margin-top-30">
+<div class="row">
+<div class="small-12 columns pad-top-30">
+<h4>You may also love these...</h4>
+</div>
+<div class="small-12 medium-6 columns">
+<div class="more-posts">
+<div class="square-image pos-relative">
+<a href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/sla-customer-commitment/">
+<div class="related-post-img" style="background-image:url(https://web.archive.org/web/20211019062735im_/https://www.pagerduty.com/wp-content/uploads/2020/04/nasa-Q1p7bh3SHj8-unsplash-1-1.jpg);"></div>
+<div class="arrow-right pd-green"></div>
+</a>
+</div>
+<div class="more-post-content">
+<div class="eng-blog-cat">
+<a class="eng-post" href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/category/product/" rel="category tag">Product</a>, <a class="eng-post" href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/category/reliability/" rel="category tag">Reliability</a> </div>
+<h5 class="eng-post-title">
+<a href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/sla-customer-commitment/">
+PagerDuty: We Are Always On </a>
+</h5>
+</div>
+</div>
+</div>
+<div class="small-12 medium-6 columns">
+<div class="more-posts">
+<div class="square-image pos-relative">
+<a href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/real-time-ops-saving-lives/">
+<div class="related-post-img" style="background-image:url(https://web.archive.org/web/20211019062735im_/https://www.pagerduty.com/wp-content/uploads/2018/10/dom_violence_hero_blog.jpg);"></div>
+<div class="arrow-right pd-green"></div>
+</a>
+</div>
+<div class="more-post-content">
+<div class="eng-blog-cat">
+<a class="eng-post" href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/category/community/" rel="category tag">Community</a>, <a class="eng-post" href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/category/human-ops/" rel="category tag">HumanOps</a>, <a class="eng-post" href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/category/reliability/" rel="category tag">Reliability</a>, <a class="eng-post" href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/category/use-cases-solutions/" rel="category tag">Use Cases &amp; Solutions</a> </div>
+<h5 class="eng-post-title">
+<a href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/real-time-ops-saving-lives/">
+Using Real-Time Operations to Save Lives </a>
+</h5>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<div class="small-12 medium-3 columns">
+<div class="bkgd-white sidebar-wrapper">
+<aside>
+
+<div id="widgetized-area">
+<div id="custom_html-3" class="widget_text widget widget_custom_html"><div class="textwidget custom-html-widget"><a href="/web/20211019062735/https://www.pagerduty.com/sign-up?type=blog" class="button gz-green">Start free trial</a>
+<a href="/web/20211019062735/https://www.pagerduty.com/weekly-demo?type=blog" class="button gz-green-outline">Request a demo</a></div></div>
+<div class="small-12 columns">
+<div class="widget-spacer">
+</div>
+</div>
+<div id="pd_category_list_widget-4" class="widget pd_category_list_widget"><h4></h4>
+<div class="row">
+<div class="small-12 columns">
+<select class="pd-category-select-widget">
+<option value="no-link">All Categories</option>
+<option value="https://www.pagerduty.com/blog/category/agile/">Agile</option><option value="https://www.pagerduty.com/blog/category/aiops/">AIOps</option><option value="https://www.pagerduty.com/blog/category/alerting/">Alerting</option><option value="https://www.pagerduty.com/blog/category/americas/">Americas</option><option value="https://www.pagerduty.com/blog/category/analyst-reports/">Analyst Reports</option><option value="https://www.pagerduty.com/blog/category/announcements/">Announcements</option><option value="https://www.pagerduty.com/blog/category/automation/">Automation</option><option value="https://www.pagerduty.com/blog/category/insights/">Best Practices &amp; Insights</option><option value="https://www.pagerduty.com/blog/category/chatops/">ChatOps</option><option value="https://www.pagerduty.com/blog/category/continuous-integration-delivery/">CI/CD</option><option value="https://www.pagerduty.com/blog/category/cloud-migration/">Cloud Migration</option><option value="https://www.pagerduty.com/blog/category/collaboration/">Collaboration</option><option value="https://www.pagerduty.com/blog/category/community/">Community</option><option value="https://www.pagerduty.com/blog/category/company/">Company</option><option value="https://www.pagerduty.com/blog/category/conference/">Conference</option><option value="https://www.pagerduty.com/blog/category/crisis-management/">Crisis Management</option><option value="https://www.pagerduty.com/blog/category/culture/">Culture</option><option value="https://www.pagerduty.com/blog/category/customer-service/">Customer Service</option><option value="https://www.pagerduty.com/blog/category/customer-stories/">Customer Spotlight</option><option value="https://www.pagerduty.com/blog/category/customer-support/">Customer Support</option><option value="https://www.pagerduty.com/blog/category/customers/">Customers</option><option value="https://www.pagerduty.com/blog/category/devops/">DevOps</option><option value="https://www.pagerduty.com/blog/category/digital-operations/">Digital Operations</option><option value="https://www.pagerduty.com/blog/category/digital-transformation/">Digital Transformation</option><option value="https://www.pagerduty.com/blog/category/distributed-systems/">Distributed Systems</option><option value="https://www.pagerduty.com/blog/category/downtime/">Downtime</option><option value="https://www.pagerduty.com/blog/category/emea/">EMEA</option><option value="https://www.pagerduty.com/blog/category/engineering/">Engineering</option><option value="https://www.pagerduty.com/blog/category/event-management/">Event Management</option><option value="https://www.pagerduty.com/blog/category/events/">Events</option><option value="https://www.pagerduty.com/blog/category/events-community/">Events &amp; Community</option><option value="https://www.pagerduty.com/blog/category/features/">Features</option><option value="https://www.pagerduty.com/blog/category/financial-services/">Financial Services</option><option value="https://www.pagerduty.com/blog/category/customer-service/full-case-ownership/">Full Case Ownership</option><option value="https://www.pagerduty.com/blog/category/full-service-ownership/">Full Service Ownership</option><option value="https://www.pagerduty.com/blog/category/government/">Government</option><option value="https://www.pagerduty.com/blog/category/human-ops/">HumanOps</option><option value="https://www.pagerduty.com/blog/category/hybridops/">HybridOps</option><option value="https://www.pagerduty.com/blog/category/ideas/">Ideas</option><option value="https://www.pagerduty.com/blog/category/incident-management-response/">Incident Management &amp; Response</option><option value="https://www.pagerduty.com/blog/category/incident-management/">Incident Management Best Practices</option><option value="https://www.pagerduty.com/blog/category/industry/">Industry</option><option value="https://www.pagerduty.com/blog/category/innovation/">Innovation</option><option value="https://www.pagerduty.com/blog/category/integrations/">Integrations</option><option value="https://www.pagerduty.com/blog/category/it-operations/">ITOps</option><option value="https://www.pagerduty.com/blog/category/itops/">ITOps &amp; Modern Ops</option><option value="https://www.pagerduty.com/blog/category/mobile/">Mobile</option><option value="https://www.pagerduty.com/blog/category/modern-incident-response/">Modern Incident Response</option><option value="https://www.pagerduty.com/blog/category/monitoring/">Monitoring</option><option value="https://www.pagerduty.com/blog/category/news/">News</option><option value="https://www.pagerduty.com/blog/category/news-announcements/">News &amp; Announcements</option><option value="https://www.pagerduty.com/blog/category/on-call-life/">On-Call Life</option><option value="https://www.pagerduty.com/blog/category/operations-health/">Operations Health</option><option value="https://www.pagerduty.com/blog/category/operations/">Operations Performance</option><option value="https://www.pagerduty.com/blog/category/pagerduty-brand/">PagerDuty Brand</option><option value="https://www.pagerduty.com/blog/category/pagerduty-life/">PagerDuty Life</option><option value="https://www.pagerduty.com/blog/category/pagerduty-university/">PagerDuty University</option><option value="https://www.pagerduty.com/blog/category/partnerships/">Partnerships</option><option value="https://www.pagerduty.com/blog/category/pd-org/">PD.org</option><option value="https://www.pagerduty.com/blog/category/product/">Product</option><option value="https://www.pagerduty.com/blog/category/reliability/">Reliability</option><option value="https://www.pagerduty.com/blog/category/response-orchestration/">Response Orchestration</option><option value="https://www.pagerduty.com/blog/category/retail/">Retail</option><option value="https://www.pagerduty.com/blog/category/secops/">SecOps</option><option value="https://www.pagerduty.com/blog/category/security/">Security</option><option value="https://www.pagerduty.com/blog/category/social-impact/">Social Impact</option><option value="https://www.pagerduty.com/blog/category/summit/">Summit</option><option value="https://www.pagerduty.com/blog/category/technical-talk/">Tech Talk</option><option value="https://www.pagerduty.com/blog/category/technology/">Technology</option><option value="https://www.pagerduty.com/blog/category/thoughts/">Thoughts</option><option value="https://www.pagerduty.com/blog/category/trends/">Trends</option><option value="https://www.pagerduty.com/blog/category/uncategorized/">Uncategorized</option><option value="https://www.pagerduty.com/blog/category/use-cases-solutions/">Use Cases &amp; Solutions</option><option value="https://www.pagerduty.com/blog/category/webinar/">Webinar</option> </select>
+</div>
+</div>
+</div>
+<div class="small-12 columns">
+<div class="widget-spacer">
+</div>
+</div>
+<div id="pd_integration_guides-6" class="widget pd_integration_guides"> <div style="padding-bottom: px;">
+<div class="widget-title">
+<h4>Popular Integrations</h4> </div>
+<a href="/web/20211019062735/https://www.pagerduty.com/docs/guides/datadog-integration-guide/" class="pd-widget-int-guide">
+<p class="widget-category">Application Performance Management (APM)</p>
+<div class="flex items-center">
+<img alt="" width="70px" src="https://web.archive.org/web/20211019062735im_/https://www.pagerduty.com/wp-content/uploads/2019/01/datadog.svg"/>
+<p class="int-widget-title">Datadog</p>
+</div>
+</a>
+<a href="https://web.archive.org/web/20211019062735/https://docs.newrelic.com/docs/alerts-applied-intelligence/applied-intelligence/incident-intelligence/get-started-incident-intelligence/#configure-source-pagerduty" class="pd-widget-int-guide">
+<p class="widget-category">Application Performance Management (APM)</p>
+<div class="flex items-center">
+<img alt="" width="70px" src="https://web.archive.org/web/20211019062735im_/https://www.pagerduty.com/wp-content/uploads/2016/01/new-relic-icon.jpeg"/>
+<p class="int-widget-title">New Relic</p>
+</div>
+</a>
+<a href="/web/20211019062735/https://www.pagerduty.com/docs/guides/pingdom-integration-guide/" class="pd-widget-int-guide">
+<p class="widget-category">Infrastructure Monitoring</p>
+<div class="flex items-center">
+<img alt="" width="70px" src="https://web.archive.org/web/20211019062735im_/https://www.pagerduty.com/wp-content/uploads/2016/01/pingdom-logo.png"/>
+<p class="int-widget-title">Pingdom</p>
+</div>
+</a>
+<a href="/web/20211019062735/https://www.pagerduty.com/docs/guides/pivotal-cloud-foundry-integration-guide" class="pd-widget-int-guide">
+<p class="widget-category">Infrastructure Monitoring</p>
+<div class="flex items-center">
+<img alt="" width="70px" src="https://web.archive.org/web/20211019062735im_/https://www.pagerduty.com/wp-content/uploads/2017/04/pivotal-icon.png"/>
+<p class="int-widget-title">Pivotal Platform</p>
+</div>
+</a>
+<a href="https://web.archive.org/web/20211019062735/https://support.pagerduty.com/v1/docs/jira-cloud" class="pd-widget-int-guide">
+<p class="widget-category">Developer Tools</p>
+<div class="flex items-center">
+<img alt="" width="70px" src="https://web.archive.org/web/20211019062735im_/https://www.pagerduty.com/wp-content/uploads/2018/01/Jira-Software-logo.png"/>
+<p class="int-widget-title">Atlassian Jira (Cloud)</p>
+</div>
+</a>
+</div>
+</div> </div>
+
+</aside>
+</div>
+</div>
+</div>
+</section>
+
+</section>
+<footer id="Footer" class="container mx-auto mt-2gut" data-swiftype-index="false">
+<div class="-ml-gut px-gut flex flex-wrap justify-between md:flex-nowrap">
+<ul id="Footer-platform" class="m-0 mb-2gut ml-gut min-w-11gut list-none"><li id="nav-menu-item-54575" class="footer_menu_item footer_menu_item_level-0 footer_menu_has-sub"><a class="footer_menu_no-link"><span class="item_outer">Platform</span></a>
+<ul class="footer_menu_group footer_menu_group_level-1">
+<li id="nav-menu-item-54576" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/platform/" class="footer_menu_link"><span class="item_outer">PagerDuty Overview</span></a></li>
+<li id="nav-menu-item-56897" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/platform/on-call-management/" class="footer_menu_link"><span class="item_outer">On-Call Management and Notifications</span></a></li>
+<li id="nav-menu-item-54584" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/platform/modern-incident-response/" class="footer_menu_link"><span class="item_outer">Modern Incident Response</span></a></li>
+<li id="nav-menu-item-68202" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/use-cases/automation/" class="footer_menu_link"><span class="item_outer">Runbook Automation</span></a></li>
+<li id="nav-menu-item-54581" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/platform/event-intelligence-and-automation/" class="footer_menu_link"><span class="item_outer">Event Management</span></a></li>
+<li id="nav-menu-item-54579" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/platform/analytics/" class="footer_menu_link"><span class="item_outer">Operational Analytics</span></a></li>
+<li id="nav-menu-item-58037" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/platform/on-call-management/live-call-routing/" class="footer_menu_link"><span class="item_outer">Live Call Routing</span></a></li>
+<li id="nav-menu-item-54582" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/platform/enterprise-class/" class="footer_menu_link"><span class="item_outer">Enterprise-Class Platform</span></a></li>
+<li id="nav-menu-item-54585" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/platform/on-call-management/mobile/" class="footer_menu_link"><span class="item_outer">Mobile Incident Management</span></a></li>
+<li id="nav-menu-item-54586" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/digital-operations-management/" class="footer_menu_link"><span class="item_outer">Digital Operations Management</span></a></li>
+<li id="nav-menu-item-54583" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/customers/" class="footer_menu_link"><span class="item_outer">Customer Stories</span></a></li>
+<li id="nav-menu-item-64253" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/use-cases/" class="footer_menu_link"><span class="item_outer">Use Cases</span></a></li>
+<li id="nav-menu-item-66699" class="footer_menu_item footer_menu_item_level-1"><a target="_blank" rel=" noreferrer noopener" href="https://web.archive.org/web/20211019062735/https://www.rundeck.com/" class="footer_menu_link"><span class="item_outer">Rundeck</span></a></li>
+</ul>
+</li>
+</ul><ul id="Footer-solutions" class="m-0 mb-2gut ml-gut min-w-11gut list-none"><li id="nav-menu-item-64060" class="footer_menu_item footer_menu_item_level-0 footer_menu_has-sub"><a class="footer_menu_no-link"><span class="item_outer">Solutions</span></a>
+<ul class="footer_menu_group footer_menu_group_level-1">
+<li id="nav-menu-item-64061" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/use-cases/developers/" class="footer_menu_link"><span class="item_outer">DevOps</span></a></li>
+<li id="nav-menu-item-64063" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/use-cases/aiops/" class="footer_menu_link"><span class="item_outer">AIOps</span></a></li>
+<li id="nav-menu-item-64065" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/use-cases/customer-service-support/" class="footer_menu_link"><span class="item_outer">Customer Service</span></a></li>
+<li id="nav-menu-item-64066" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/use-cases/security-ops/" class="footer_menu_link"><span class="item_outer">Security Incident Response</span></a></li>
+<li id="nav-menu-item-65765" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/use-cases/crisis-management" class="footer_menu_link"><span class="item_outer">Critical Event Management</span></a></li>
+<li id="nav-menu-item-64067" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/industries/retail/" class="footer_menu_link"><span class="item_outer">Retail</span></a></li>
+<li id="nav-menu-item-64068" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/industries/financial-services/" class="footer_menu_link"><span class="item_outer">Financial Services</span></a></li>
+<li id="nav-menu-item-64069" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/industries/healthcare/" class="footer_menu_link"><span class="item_outer">Healthcare</span></a></li>
+<li id="nav-menu-item-64070" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/industries/government-and-education/" class="footer_menu_link"><span class="item_outer">State &#038; Local Government</span></a></li>
+<li id="nav-menu-item-64071" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/industries/non-profit/" class="footer_menu_link"><span class="item_outer">Non-profit</span></a></li>
+<li id="nav-menu-item-68203" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/use-cases/" class="footer_menu_link"><span class="item_outer">All Use Cases</span></a></li>
+</ul>
+</li>
+</ul><ul id="Footer-resources" class="m-0 mb-2gut ml-gut min-w-11gut list-none"><li id="nav-menu-item-54570" class="footer_menu_item footer_menu_item_level-0 footer_menu_has-sub"><a class="footer_menu_no-link"><span class="item_outer">Resources</span></a>
+<ul class="footer_menu_group footer_menu_group_level-1">
+<li id="nav-menu-item-54571" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/resources/" class="footer_menu_link"><span class="item_outer">Resources Library</span></a></li>
+<li id="nav-menu-item-36891" class="footer_menu_item footer_menu_item_level-1"><a href="https://web.archive.org/web/20211019062735/https://community.pagerduty.com/" class="footer_menu_link"><span class="item_outer">Community Forum</span></a></li>
+<li id="nav-menu-item-54573" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/ops-guides/" class="footer_menu_link"><span class="item_outer">Ops Guides</span></a></li>
+<li id="nav-menu-item-36888" class="footer_menu_item footer_menu_item_level-1"><a href="https://web.archive.org/web/20211019062735/https://developer.pagerduty.com/" class="footer_menu_link"><span class="item_outer">Developer Platform</span></a></li>
+<li id="nav-menu-item-54569" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/integrations/" class="footer_menu_link"><span class="item_outer">Integrations Guides</span></a></li>
+<li id="nav-menu-item-54572" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/university/" class="footer_menu_link"><span class="item_outer">PagerDuty University</span></a></li>
+<li id="nav-menu-item-36892" class="footer_menu_item footer_menu_item_level-1"><a href="https://web.archive.org/web/20211019062735/https://support.pagerduty.com/" class="footer_menu_link"><span class="item_outer">Support Docs</span></a></li>
+<li id="nav-menu-item-54574" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/blog/" class="footer_menu_link"><span class="item_outer">Blog</span></a></li>
+<li id="nav-menu-item-56895" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/weekly-demo" class="footer_menu_link"><span class="item_outer">Demo</span></a></li>
+</ul>
+</li>
+</ul><ul id="Footer-company" class="m-0 mb-2gut ml-gut min-w-11gut list-none"><li id="nav-menu-item-54558" class="footer_menu_item footer_menu_item_level-0 footer_menu_has-sub"><a class="footer_menu_no-link"><span class="item_outer">Company</span></a>
+<ul class="footer_menu_group footer_menu_group_level-1">
+<li id="nav-menu-item-55924" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/company/" class="footer_menu_link"><span class="item_outer">About PagerDuty</span></a></li>
+<li id="nav-menu-item-55925" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/contact-us/#locations" class="footer_menu_link"><span class="item_outer">Locations</span></a></li>
+<li id="nav-menu-item-54555" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/leadership/" class="footer_menu_link"><span class="item_outer">Leadership</span></a></li>
+<li id="nav-menu-item-54363" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/newsroom/" class="footer_menu_link"><span class="item_outer">Newsroom</span></a></li>
+<li id="nav-menu-item-52867" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/events/" class="footer_menu_link"><span class="item_outer">Events</span></a></li>
+<li id="nav-menu-item-54556" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/foundation/" class="footer_menu_link"><span class="item_outer">PagerDuty.org</span></a></li>
+<li id="nav-menu-item-53634" class="footer_menu_item footer_menu_item_level-1"><a href="https://web.archive.org/web/20211019062735/https://investor.pagerduty.com/" class="footer_menu_link"><span class="item_outer">Investor Relations</span></a></li>
+<li id="nav-menu-item-54557" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/careers/" class="footer_menu_link"><span class="item_outer">Careers</span></a></li>
+</ul>
+</li>
+</ul><ul id="Footer-support" class="m-0 mb-2gut ml-gut min-w-11gut list-none"><li id="nav-menu-item-38777" class="footer_menu_item footer_menu_item_level-0 footer_menu_has-sub"><a class="footer_menu_no-link"><span class="item_outer">Support</span></a>
+<ul class="footer_menu_group footer_menu_group_level-1">
+<li id="nav-menu-item-38787" class="footer_menu_item footer_menu_item_level-1"><a target="_blank" rel=" noreferrer noopener" href="https://web.archive.org/web/20211019062735/https://status.pagerduty.com/" class="footer_menu_link"><span class="item_outer">System Status</span></a></li>
+<li id="nav-menu-item-54559" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/support/" class="footer_menu_link"><span class="item_outer">Help &#038; Support</span></a></li>
+<li id="nav-menu-item-54561" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/partner-with-pagerduty/" class="footer_menu_link"><span class="item_outer">Become a Partner</span></a></li>
+<li id="nav-menu-item-54562" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/contact-us/" class="footer_menu_link"><span class="item_outer">Contact Us</span></a></li>
+<li id="nav-menu-item-54565" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/legal/" class="footer_menu_link"><span class="item_outer">Legal</span></a></li>
+<li id="nav-menu-item-68204" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/services/" class="footer_menu_link"><span class="item_outer">Services</span></a></li>
+<li id="nav-menu-item-54560" class="footer_menu_item footer_menu_item_level-1"><a href="/web/20211019062735/https://www.pagerduty.com/faq/" class="footer_menu_link"><span class="item_outer">FAQs</span></a></li>
+<li id="nav-menu-item-71698" class="footer_menu_item footer_menu_item_level-1"><a href="https://web.archive.org/web/20211019062735/https://www.pagerduty.com/accessibility-statement/" class="footer_menu_link"><span class="item_outer">Accessibility</span></a></li>
+</ul>
+</li>
+</ul> </div>
+
+<div class="footer_extra" data-swiftype-index="false">
+<label id="footer-lang-select" class="footer_lang-selector">
+<span>&#127760;</span>
+<select>
+<option selected="" disabled="">Switch language</option>
+<option value="de">Deutsche</option>
+<option value="fr">Française</option>
+<option value="ja">日本語</option>
+</select>
+</label>
+<div class="footer_social-links">
+<a href="https://web.archive.org/web/20211019062735/https://www.facebook.com/PagerDuty/" target="_blank" rel="noopener noreferrer">
+<i class="fa fa-facebook"></i> <span>Facebook</span>
+</a>
+<a href="https://web.archive.org/web/20211019062735/https://twitter.com/pagerduty" target="_blank" rel="noopener noreferrer">
+<i class="fa fa-twitter"></i> <span>Twitter</span>
+</a>
+<a href="https://web.archive.org/web/20211019062735/https://www.instagram.com/pagerduty/" target="_blank" rel="noopener noreferrer">
+<i class="fa fa-instagram"></i> <span>Instagram</span>
+</a>
+<a href="https://web.archive.org/web/20211019062735/https://www.linkedin.com/company/pagerduty" target="_blank" rel="noopener noreferrer">
+<i class="fa fa-linkedin"></i> <span>LinkedIn</span>
+</a>
+</div>
+<div class="footer_copyright">© 2021 PagerDuty, Inc. All rights reserved.</div>
+</div>
+<div class="footer_terms pb-2gut">
+<a href="/web/20211019062735/https://www.pagerduty.com/privacy-policy/">Privacy Policy</a>
+&ensp;|&ensp;
+<a href="/web/20211019062735/https://www.pagerduty.com/website-terms-of-use/">Website Terms of Use</a>
+&ensp;|&ensp;
+<a href="/web/20211019062735/https://www.pagerduty.com/privacy-policy/#ccpa">California Privacy Notice</a>
+&ensp;|&ensp;
+<a href="/web/20211019062735/https://www.pagerduty.com/assets/uk-modern-slavery-act-statement.pdf">Modern Slavery Act</a>
+&ensp;|&ensp;
+
+<a class="ot-sdk-show-settings">Cookie Settings</a>
+
+</div>
+</footer>
+<script type="text/javascript" id="app_footer_script-js-extra">
+/* <![CDATA[ */
+var ajax_params = {"ajax_url":"https:\/\/web.archive.org\/web\/20211019062735\/https:\/\/www.pagerduty.com\/wp-admin\/admin-ajax.php"};
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://web.archive.org/web/20211019062735js_/https://www.pagerduty.com/wp-content/themes/citizens-band/js/build/gz-footer.min.js?ver=2cc56917a8a14eb556d92285e96697383637b975" id="app_footer_script-js"></script>
+<script type="text/javascript" src="https://web.archive.org/web/20211019062735js_/https://www.pagerduty.com/wp-content/themes/citizens-band/js/vendor/google-prettify/run_prettify.js?skin=desert&amp;ver=2cc56917a8a14eb556d92285e96697383637b975" id="google_prettify_script-js"></script>
+<script type="text/javascript" src="https://web.archive.org/web/20211019062735js_/https://www.pagerduty.com/wp-includes/js/wp-embed.min.js?ver=5.8.1" id="wp-embed-js"></script>
+<script>
+window.pd.adBlock = true;
+</script>
+<script src="/web/20211019062735js_/https://www.pagerduty.com/wp-content/themes/citizens-band/js/cond/adframe.js"></script>
+<div id="QAZWSX" class="banner_ad ad-banner ad-bar ad-bg ad-block ad-body"></div>
+<script>
+(function () {
+  var csd = getComputedStyle(document.getElementById('QAZWSX')).display;
+  var yn = (window.pd.adBlock || csd === 'none') ? 'yes' : 'no';
+  pd.trackEvent('ad blocker', {props: {detected: yn}});
+})()
+</script>
+<script type="text/javascript">(function(){window['__CF$cv$params']={r:'6a07f0ff6f245a22',m:'C7eceGBdTYUVmcdauJj8w4tPTaaNHaZwnWW4jiRv8B4-1634624855-0-ATDudvIcNs1UuCIK95y2SKc2qHByGs5ZsFMg1SvbjSAaYzVG5CtQIrrz64x5PjKuisx8vmt34S63/nbjV0nHU7GIYERlz5FSFAaKh3OYGiuPuXOv2d6ZzfsB+aYsLfzF4R8kmeFbvDD7jC/B5GFMAaVjy0u0HqEMAf1WUSTkezlZ',s:[0xc60c80b313,0x271dd8e049],}})();</script><script defer src="https://web.archive.org/web/20211019062735js_/https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon="{&quot;rayId&quot;:&quot;6a07f0ff6f245a22&quot;,&quot;token&quot;:&quot;9bf62fc1860d4f05bb12e17f2aee9d3e&quot;,&quot;version&quot;:&quot;2021.9.0&quot;,&quot;si&quot;:100}"></script>
+</body>
+</html>
+<!--
+     FILE ARCHIVED ON 06:27:35 Oct 19, 2021 AND RETRIEVED FROM THE
+     INTERNET ARCHIVE ON 22:15:57 Oct 27, 2026.
+     JAVASCRIPT APPENDED BY WAYBACK MACHINE, COPYRIGHT INTERNET ARCHIVE.
+
+     ALL OTHER CONTENT MAY ALSO BE PROTECTED BY COPYRIGHT (17 U.S.C.
+     SECTION 108(a)(3)).
+-->
+<!--
+playback timings (ms):
+  captures_list: 0.404
+  exclusion.robots: 0.048
+  exclusion.robots.policy: 0.04
+  esindex: 0.007
+  cdx.remote: 7.19
+  LoadShardBlock: 190.358 (3)
+  PetaboxLoader3.datanode: 70.946 (4)
+  PetaboxLoader3.resolve: 129.804 (2)
+  load_resource: 119.645
+-->

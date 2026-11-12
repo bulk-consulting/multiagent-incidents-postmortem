@@ -1,0 +1,77 @@
+        <!DOCTYPE HTML>
+        <html>
+            <head>
+                <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+                <link rel="stylesheet" type="text/css" href="/style.css"/>
+                <title>npm Blog Archive: 2014-01-28 Outage Postmortem</title>
+                <meta name="description" content="npm Blog (Archive); updates from the npm team are now published on the GitHub Blog and the GitHub Changelog"/>
+                <meta name="og:title" content="npm Blog Archive: 2014-01-28 Outage Postmortem"/>
+                <meta name="og:description" content="npm Blog (Archive); updates from the npm team are now published on the GitHub Blog and the GitHub Changelog"/>
+                <meta name="og:image" content="https://user-images.githubusercontent.com/29712634/81721690-e2fb5d80-9445-11ea-8602-4b2294c964f3.png"/>
+                <link rel="icon" href="/favicon-32x32.png" type="image/png"/>
+                <link rel="apple-touch-icon" sizes="48x48" href="/icons/icon-48x48.png"/>
+                <link rel="apple-touch-icon" sizes="72x72" href="/icons/icon-72x72.png"/>
+                <link rel="apple-touch-icon" sizes="96x96" href="/icons/icon-96x96.png"/>
+                <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144x144.png"/>
+                <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png"/>
+                <link rel="apple-touch-icon" sizes="256x256" href="/icons/icon-256x256.png"/>
+                <link rel="apple-touch-icon" sizes="384x384" href="/icons/icon-384x384.png"/>
+                <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512x512.png"/>
+            </head>
+            <body>
+                <div id="rainbar"></div>
+                <header>
+                    <div id="logo_and_title">
+                        <a href="/" class="logo"><svg height="32" width="32" viewBox="0 0 700 700" fill="currentColor"><polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon><polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150 "></polygon></svg></a>
+                        <a href="/" class="title">npm Blog (Archive)</a>
+                    </div>
+                    <div id="links">
+                        <a href="https://npmjs.com/">npmjs.com</a>
+                        <a href="https://status.npmjs.com/">Status</a>
+                        <a href="https://npmjs.com/support/">Support</a>
+                    </div>
+                </header>
+
+                <main>
+                    <div id="retired">
+                        <p>
+                            The npm blog has been discontinued.
+                        </p>
+
+                        <p>
+                            Updates from the npm team are now published on the
+                            <a href="https://github.blog/">GitHub Blog</a> and
+                            the <a href="https://github.blog/changelog/">GitHub
+                            Changelog</a>.
+                        </p>
+                    </div>
+                
+                
+                                    <h1>2014-01-28 Outage Postmortem</h1>
+                    <p>While making a change to simplify the Varnish VCL config on Fastly, we added a bug that caused <em>all</em> requests to go to Manta, including those that should have gone to CouchDB.</p>
+
+<p>Since Manta doesn&rsquo;t know how to handle requests like <code>/pkgname</code>, these all returned <code>403 Forbidden</code> responses.</p>
+
+<p>Because Fastly is configured to not cache error codes, this proliferation of 403 responses led to a thundering herd which took a bit of time to get under control.</p>
+
+<p>With the help of the Fastly support team, we have identified the root cause and it is now well understood.  The issue is that we were setting the <code>req.backend</code> in a <code>vcl_fetch</code> function, and then calling <code>restart</code> to re-parse the rules.  However, calling <code>restart</code> will reset the <code>req.backend</code> to the first backed in the list, which in this case happened to be Manta, rather than the load balanced CouchDB servers.</p>
+
+<p>Future changes to our Fastly VCL config will take this into account, and always explicitly set the <code>req.backend</code> in the <code>vcl_recv</code> function, even after a <code>restart</code>.</p>
+
+<p>Also, we are setting up a separate Varnish instance to stage changes like this, so that we can avoid being surprised by errors in our VCL configuration.</p>
+                
+                
+                
+                
+                
+                
+                                <div id="footer">
+                <span id="timestamp"> January 29th, 2014 8:26am </span>
+                <span id="author">@izs</span>
+                                </div>
+                </main>
+            </body>
+        </html>
+
+        

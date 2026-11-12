@@ -1,0 +1,48 @@
+{
+  "catalog_id": "DAN-099",
+  "category": "Database",
+  "company": "GitHub",
+  "completeness": {
+    "impact": true,
+    "mitigation_recovery": true,
+    "prevention": false,
+    "root_cause": false,
+    "summary_context": true,
+    "symptoms": true,
+    "timeline": false
+  },
+  "content_hash": "2316fca35ff8c4d8ae4bd231cfbd837bf2da108eadc6a11f78791923c1e834d2",
+  "content_type": "text/html",
+  "domain": "github.blog",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "In November, we experienced one incident resulting in significant impact and degraded state of availability for core GitHub services, including GitHub Actions, API Requests, Codespaces, Git Operations, Issues, GitHub Packages, GitHub Pages, Pull Requests, and Webhooks.\n\nWe encountered a novel failure mode when processing a schema migration on a large MySQL table. Schema migrations are a common task at GitHub and often take weeks to complete. The final step in a migration is to perform a rename to move the updated table into the correct place. During the final step of this migration a significant portion of our MySQL read replicas entered a semaphore deadlock. Our MySQL clusters consist of a primary node for write traffic, multiple read replicas for production traffic, and several replicas that serve internal read traffic for backup and analytics purposes. The read replicas that hit the deadlock entered a crash-recovery state causing an increased load on healthy read replicas. Due to the cascading nature of this scenario, there were not enough active read replicas to handle production requests which impacted the availability of core GitHub services.\n\nDuring the incident mitigation, in an effort to increase capacity, we promoted all available internal replicas that were in a healthy state into the production path; however, the shift was not sufficient for full recovery. We also observed that read replicas serving production traffic would temporarily recover from their crash-recovery state only to crash again due to load. Based on this crash-recovery loop, we chose to prioritize data integrity over site availability by proactively removing production traffic from broken replicas until they were able to successfully process the table rename. Once the replicas recovered, we were able to move them back into production and restore enough capacity to return to normal operations.\n\nThroughout the incident, write operations remained healthy and we have verified there was no data corruption.\n\nTo address this class of failure and reduce time to recover in the future, we continue to prioritize our functional partitioning efforts. Partitioning the cluster adds resiliency given migrations can then be run in canary mode on a single shard—reducing the potential impact of this failure mode. Additionally, we are actively updating internal procedures to increase the amount each cluster is over-provisioned.\n\nAs next steps, we’re continuing to investigate the specific failure scenario, and have paused schema migrations until we know more on safeguarding against this issue. As we continue to test our migration tooling, we are classifying opportunities to improve it during such scenarios.\n\nWe will continue to keep you updated on the progress and investments we’re making to ensure the reliability of our services. To learn more about what we’re working on, check out the GitHub engineering blog.\n\n## Tags:\n\n## Written by\n\n## Related posts\n\nAI, agents, voice, and physical controls are shifting software development from operating tools to expressing intent—and helping developers stay focused on building.",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:11:02.822917+00:00",
+  "final_url": "https://github.blog/news-insights/company-news/github-availability-report-november-2021/",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-099.html",
+  "redirect_history": [
+    {
+      "destination_url": "https://github.blog/engineering/github-availability-report-november-2021/",
+      "result": "followed",
+      "source_url": "https://github.blog/2021-12-01-github-availability-report-november-2021/",
+      "type": "http"
+    },
+    {
+      "destination_url": "https://github.blog/news-insights/company-news/github-availability-report-november-2021/",
+      "result": "followed",
+      "source_url": "https://github.blog/engineering/github-availability-report-november-2021/",
+      "type": "http"
+    }
+  ],
+  "redirects": [
+    "https://github.blog/engineering/github-availability-report-november-2021/",
+    "https://github.blog/news-insights/company-news/github-availability-report-november-2021/"
+  ],
+  "review_reason": [],
+  "source_url": "https://github.blog/2021-12-01-github-availability-report-november-2021/",
+  "status": "extracted",
+  "title": "GitHub Availability Report: November 2021 - The GitHub Blog",
+  "word_count": 479
+}

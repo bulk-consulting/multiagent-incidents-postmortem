@@ -1,0 +1,32 @@
+{
+  "catalog_id": "DAN-095",
+  "category": "Database",
+  "company": "GitHub",
+  "completeness": {
+    "impact": true,
+    "mitigation_recovery": true,
+    "prevention": true,
+    "root_cause": true,
+    "summary_context": true,
+    "symptoms": true,
+    "timeline": false
+  },
+  "content_hash": "299b178acdd0e3f86a8dcb28590fc189ef15b2e2a96f248774ab421834a83a54",
+  "content_type": "text/html",
+  "domain": "github.blog",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "In May, we experienced two incidents resulting in significant impact and degraded state of availability for API requests, GitHub Pages, GitHub Actions and the GitHub Packages service, specifically the GitHub Packages Container registry service.\n\nThis incident was caused by failures in an underlying MySQL database, which caused some operations to time out for the GitHub Container registry service. During this incident, some customers viewing packages in the UI or interacting with the registry through “docker push” and “docker pull” may have experienced failures as the engineering team investigated the incident. After performing a failover to one of our database replicas, the affected systems were properly restored.\n\nOur internal engineering team is now prioritizing work that will help ensure reduced impact to customers should such underlying outages happen again. This work includes creating internal documentation, dashboards, and enhanced alerts to quickly triage the cause of operation failures. We will also continue to actively maintain and increase replicas in different regions and availability zones that serve as a line of defense against unexpected region outages.\n\nThis incident was caused when a foreign key for scoped tokens exceeded max INT32, which resulted in high failure rates for GitHub Actions and GitHub Pages. It also prevented some access to operations against the GitHub API and low-level git commands, such as “push” and “pull”, using scoped tokens. We mitigated this with a long-running schema migration to change the foreign key to INT64.\n\nOnce the foreign key migration was successful, the internal engineering teams then worked to slowly remove token records stored in our cache layer that were considered invalid. After these cached records were removed, newly created API tokens were able to generate new records and API calls resumed working as expected.\n\nAlerting and linting are already in place to help prevent integer overflows in the database. Unfortunately, these mechanisms were not sufficient in this case due to it being a foreign key that predated our linting. In response, we are manually auditing all our INT32 columns and investigating further improvements to our automation to help prevent these types of issues moving forward.\n\nGiven the nature of this overflow, only a single GitHub Action used on a single repository received unauthorized access grants for a short period of time. We revoked these grants and confirmed that no unauthorized access was gained through the use of this Action in this repository.\n\nOur internal engineering teams are actively working on reducing the impact and likelihood of this class of issue happening in the future. This work includes tooling to prevent database inconsistencies and improved alerting to allow faster remediation.\n\nFrom our open source release of the GitHub Artifact Exporter to our adoption of OpenTelemetry SDKs, you can learn more about what we are working on to improve our internal development tooling and infrastructure in the GitHub Engineering Blog.\n\n## Tags:\n\n## Written by\n\n## Related posts\n\nAI, agents, voice, and physical controls are shifting software development from operating tools to expressing intent—and helping developers stay focused on building.",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:10:46.750143+00:00",
+  "final_url": "https://github.blog/news-insights/company-news/github-availability-report-may-2021/",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-095.html",
+  "redirect_history": [],
+  "redirects": [],
+  "review_reason": [],
+  "source_url": "https://github.blog/news-insights/company-news/github-availability-report-may-2021/",
+  "status": "extracted",
+  "title": "GitHub Availability Report: May 2021 - The GitHub Blog",
+  "word_count": 501
+}

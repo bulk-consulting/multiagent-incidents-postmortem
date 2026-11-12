@@ -1,0 +1,110 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+	<head><script type="text/javascript" src="https://web-static.archive.org/_static/js/bundle-playback.js?v=3grhEDQT" charset="utf-8"></script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/wombat.js?v=o9P2E1FK" charset="utf-8"></script>
+<script>window.RufflePlayer=window.RufflePlayer||{};window.RufflePlayer.config={"autoplay":"on","unmuteOverlay":"hidden","showSwfDownload":true};</script>
+<script type="text/javascript" src="https://web-static.archive.org/_static/js/ruffle/ruffle.js"></script>
+<script type="text/javascript">
+    __wm.init("https://web.archive.org/web");
+  __wm.wombat("https://status.aws.amazon.com/s3-20080720.html","20220403060108","https://web.archive.org/","web","https://web-static.archive.org/_static/",
+	      "1648965668");
+</script>
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/banner-styles.css?v=1utQkbB3" />
+<link rel="stylesheet" type="text/css" href="https://web-static.archive.org/_static/css/iconochive.css?v=3PDvdIFv" />
+<!-- End Wayback Rewrite JS Include -->
+
+		<title>AWS Service Health Dashboard - Amazon S3 Availability Event: July 20, 2008</title>
+		<link rel="stylesheet" type="text/css" href="/web/20220403060108cs_/https://status.aws.amazon.com/style/style.css">
+		<link rel="shortcut icon" href="/web/20220403060108im_/https://status.aws.amazon.com/favicon.ico"/>
+		<link rel="icon" type="image/ico" href="/web/20220403060108im_/https://status.aws.amazon.com/favicon.ico"/>
+		<style type="text/css">
+			.eventDetails {
+				background: #f0f0f0 url(/web/20220403060108im_/https://status.aws.amazon.com/images/letter-background-fade.png) repeat-x top;
+				border: 1px solid #dadada;
+				clear: both;
+				color: black;
+				margin: 2em 0px;
+				-moz-border-radius: 5px;
+				-webkit-border-radius: 5px;
+				padding: 1.5em 4em;
+			}
+		</style>
+    </head>
+<body style="text-align: center" class="pad8">
+
+<div style="text-align: left" class="container">
+
+<div class="logo">
+<img src="/web/20220403060108im_/https://status.aws.amazon.com/images/logo.gif"/>
+</div>
+
+<hr style="border: 0; background-color: #eeeeee; border-top: 3px solid #117711; height: 16px;"/>
+
+<div style="margin: 8px 0 0 0"><a href="https://web.archive.org/web/20220403060108/http://aws.amazon.com/">Amazon Web Services</a> &nbsp;&raquo;&nbsp; <a href="/web/20220403060108/https://status.aws.amazon.com/">Service Health Dashboard</a> &nbsp;&raquo;&nbsp;  Amazon S3 Availability Event: July 20, 2008</div>
+
+<div class="eventDetails">
+
+<h3 style="font-size: 13.5pt;">Amazon S3 Availability Event: July 20, 2008</h3>
+
+<p>We wanted to provide some additional detail about the problem we experienced on Sunday, July 20th.</p>
+
+<p>At 8:40am PDT, error rates in all Amazon S3 datacenters began to quickly climb and our alarms went off. By 8:50am PDT, error rates were significantly elevated and very few requests were completing successfully. By 8:55am PDT, we had multiple engineers engaged and investigating the issue. Our alarms pointed at problems processing customer requests in multiple places within the system and across multiple data centers. While we began investigating several possible causes, we tried to restore system health by taking several actions to reduce system load. We reduced system load in several stages, but it had no impact on restoring system health.</p>
+
+<p>At 9:41am PDT, we determined that servers within Amazon S3 were having problems communicating with each other.  As background information, Amazon S3 uses a gossip protocol to quickly spread server state information throughout the system. This allows Amazon S3 to quickly route around failed or unreachable servers, among other things. When one server connects to another as part of processing a customer's request, it starts by gossiping about the system state. Only after gossip is completed will the server send along the information related to the customer request.  On Sunday, we saw a large number of servers that were spending almost all of their time gossiping and a disproportionate amount of servers that had failed while gossiping. With a large number of servers gossiping and failing while gossiping, Amazon S3 wasn't able to successfully process many customer requests.</p>
+
+<p>At 10:32am PDT, after exploring several options, we determined that we needed to shut down all communication between Amazon S3 servers, shut down all components used for request processing, clear the system's state, and then reactivate the request processing components.  By 11:05am PDT, all server-to-server communication was stopped, request processing components shut down, and the system's state cleared.  By 2:20pm PDT, we'd restored internal communication between all Amazon S3 servers and began reactivating request processing components concurrently in both the US and EU.</p>
+
+<p>At 2:57pm PDT, Amazon S3's EU location began successfully completing customer requests.  The EU location came back online before the US because there are fewer servers in the EU. By 3:10pm PDT, request rates and error rates in the EU had returned to normal. At 4:02pm PDT, Amazon S3's US location began successfully completing customer requests, and request rates and error rates had returned to normal by 4:58pm PDT.</p>
+
+<p>We've now determined that message corruption was the cause of the server-to-server communication problems.  More specifically, we found that there were a handful of messages on Sunday morning that had a single bit corrupted such that the message was still intelligible, but the system state information was incorrect. We use MD5 checksums throughout the system, for example, to prevent, detect, and recover from corruption that can occur during receipt, storage, and retrieval of customers' objects. However, we didn't have the same protection in place to detect whether this particular internal state information had been corrupted. As a result, when the corruption occurred, we didn't detect it and it spread throughout the system causing the symptoms described above. We hadn't encountered server-to-server communication issues of this scale before and, as a result, it took some time during the event to diagnose and recover from it.</p>
+
+<p>During our post-mortem analysis we've spent quite a bit of time evaluating what happened, how quickly we were able to respond and recover, and what we could do to prevent other unusual circumstances like this from having system-wide impacts. Here are the actions that we're taking: (a) we've deployed several changes to Amazon S3 that significantly reduce the amount of time required to completely restore system-wide state and restart customer request processing; (b) we've deployed a change to how Amazon S3 gossips about failed servers that reduces the amount of gossip and helps prevent the behavior we experienced on Sunday; (c) we've added additional monitoring and alarming of gossip rates and failures; and, (d) we're adding checksums to proactively detect corruption of system state messages so we can log any such messages and then reject them.</p>
+
+<p>Finally, we want you to know that we are passionate about providing the best storage service at the best price so that you can spend more time thinking about your business rather than having to focus on building scalable, reliable infrastructure. Though we're proud of our operational performance in operating Amazon S3 for almost 2.5 years, we know that any downtime is unacceptable and we won't be satisfied until performance is statistically indistinguishable from perfect.</p>
+
+<p>Sincerely,</p>
+
+<p>The Amazon S3 Team</p>
+
+
+</div>
+
+<br/>
+
+<hr style="width: 95%; border: 0; height: 1px; background-color: #eeeeee;"/>
+
+<div style="text-align: center">
+<a href="https://web.archive.org/web/20220403060108/http://www.amazon.com/exec/obidos/subst/misc/policy/conditions-of-use.html">Conditions of Use</a>
+|
+<a href="https://web.archive.org/web/20220403060108/http://www.amazon.com/exec/obidos/tg/browse/-/468496">Privacy Notice</a>
+&nbsp;&nbsp;&nbsp;
+&copy; 2006-2008 Amazon Web Services LLC or its affiliates. All rights reserved.
+</div>
+
+</div><!-- end container -->
+
+</body>
+</html>
+
+<!-- Generated on: Jul 21, 2008 -->
+<!--
+     FILE ARCHIVED ON 06:01:08 Apr 03, 2022 AND RETRIEVED FROM THE
+     INTERNET ARCHIVE ON 22:11:16 Oct 27, 2026.
+     JAVASCRIPT APPENDED BY WAYBACK MACHINE, COPYRIGHT INTERNET ARCHIVE.
+
+     ALL OTHER CONTENT MAY ALSO BE PROTECTED BY COPYRIGHT (17 U.S.C.
+     SECTION 108(a)(3)).
+-->
+<!--
+playback timings (ms):
+  captures_list: 0.452
+  exclusion.robots: 0.058
+  exclusion.robots.policy: 0.049
+  esindex: 0.006
+  cdx.remote: 7.361
+  LoadShardBlock: 81.474 (3)
+  PetaboxLoader3.datanode: 118.99 (5)
+  PetaboxLoader3.resolve: 465.992 (2)
+  load_resource: 532.607
+  loaddict: 40.682
+-->

@@ -1,0 +1,35 @@
+{
+  "catalog_id": "DAN-089",
+  "category": "Time",
+  "company": "Linux",
+  "completeness": {
+    "impact": true,
+    "mitigation_recovery": false,
+    "prevention": false,
+    "root_cause": false,
+    "summary_context": false,
+    "symptoms": false,
+    "timeline": true
+  },
+  "content_hash": "f104a462484df6e436f65052de8bd899dcaced45a5d7839ebc31c90511b77bd2",
+  "content_type": "text/html",
+  "domain": "web.archive.org",
+  "editorial_approved": false,
+  "error": null,
+  "extracted_text": "| Messages in this thread |  | On 07/01/2012 11:29 AM, John Stultz wrote: > TODOs: > \\* Chase down the futex/hrtimer interaction to see if this could > be triggered in any other way. Ok, got a little more detailed diagnosis of what is going on figured out: \\* Leap second occurs, CLOCK\\_REALTIME is set back one second. \\* As clock\\_was\\_set() is not called, the hrtimer base.offset value for CLOCK\\_REALTIME is not updated, thus its sense of wall time is one second ahead of the timekeeping core's. \\* At interrupt time (T), the hrtimer code expires all CLOCK\\_REALTIME based timers set for T+1s and before, causing early expirations for timers between T and T+1s since the hrtimer code's sense of time is one second ahead. \\* This causes all TIMER\\_ABSTIME CLOCK\\_REALTIME timers to expire one second early. \\* More problematically, all sub-second TIMER\\_ABSTIME CLOCK\\_REALTIME timers will return immediately. If any such timer calls are done in a loop (as commonly done with futex\\_wait or other timeouts), this will cause load spikes in those applications. \\* This state persists until clock\\_was\\_set() is called (most easily done via settimeofday()) I've used the attached test case to demonstrate triggering a leap-second and its effect on CLOCK\\_REALTIME hrtimers. The test sets a leapsecond to trigger in 10 seconds, then in a loop sleeps for half a second via clock\\_nanosleep, printing out the current time, and the delta from the target wakeup time for 30 seconds. When the leap second triggers, on affected machines you'll see the output streams quickly, with negative diff values, as clock\\_nanosleep is immediately returning. To build: gcc leaptest-timer.c -o leaptest-timer -lrt I've reproduced this behaviour in kernel versions: v3.5-rc4 v2.6.37 v2.6.32.59 (And quite likely all in-between). I haven't been able to build or boot anything earlier with the distro on my current test boxes, but I'm working to get older distro installed so I can do further testing. Likely has potentially been around since:746976a301ac9c9aa10d7d42454f8d6cdad8ff2b in v2.6.22, as Ben Blum and Jan Ceuleers already noted. With my fix to call clock\\_was\\_set when we apply a leapsecond, I no longer see the issue. thanks -john /\\* Leap second timer test \\* by: john stultz (johnstul@us.ibm.com) \\* (C) Copyright IBM 2012 \\* Licensed under the GPL \\*/ #include \\<stdio.h> #include \\<time.h> #include \\<sys/time.h> #include \\<sys/timex.h> #define CALLS\\_PER\\_LOOP 64 #define NSEC\\_PER\\_SEC 1000000000ULL struct timespec timespec\\_add(struct timespec ts, unsigned long long ns) { ts.tv\\_nsec += ns; while(ts.tv\\_nsec >= NSEC\\_PER\\_SEC) { ts.tv\\_nsec -= NSEC\\_PER\\_SEC; ts.tv\\_sec++; } return ts; } struct timespec timespec\\_diff(struct timespec a, struct timespec b) { long long ns; int neg = 0; ns = a.tv\\_sec \\*NSEC\\_PER\\_SEC + a.tv\\_nsec; ns -= b.tv\\_sec \\*NSEC\\_PER\\_SEC + b.tv\\_nsec; if (ns \\< 0) { neg = 1; ns = -ns; } a.tv\\_sec = ns/NSEC\\_PER\\_SEC; a.tv\\_nsec = ns%NSEC\\_PER\\_SEC; if (neg) { a.tv\\_sec = -a.tv\\_sec; a.tv\\_nsec = -a.tv\\_nsec; } return a; } int main(void) { struct timeval tv; struct timex tx; int i, inconsistent; long now, then; struct timespec ts; int clock\\_type = CLOCK\\_REALTIME; int flag = TIMER\\_ABSTIME; long long sleeptime = NSEC\\_PER\\_SEC/2; /\\* clear TIME\\_WAIT \\*/ tx.modes = ADJ\\_STATUS; tx.status = 0; adjtimex(&tx); sleep(2); /\\* Get the current time \\*/ gettimeofday(&tv, NULL); /\\* Calculate the next leap second \\*/ tv.tv\\_sec += 86400 - tv.tv\\_sec % 86400; /\\* Set the time to be 10 seconds from that time \\*/ tv.tv\\_sec -= 10; settimeofday(&tv, NULL); /\\* Set the leap second insert flag \\*/ tx.modes = ADJ\\_STATUS; tx.status = STA\\_INS; adjtimex(&tx); clock\\_gettime(clock\\_type, &ts); now = then = ts.tv\\_sec; while(now - then \\< 30){ struct timespec target, diff, rem; rem.tv\\_sec = 0; rem.tv\\_nsec = 0; if (flag == TIMER\\_ABSTIME) target = timespec\\_add(ts, sleeptime); else target = timespec\\_add(rem, sleeptime); clock\\_nanosleep(clock\\_type, flag, &target, &rem); clock\\_gettime(clock\\_type, &ts); diff = timespec\\_diff(ts, target); printf(\"now: %ld:%ld diff: %ld:%ld rem: %ld:%ld\\n\", ts.tv\\_sec, ts.tv\\_nsec, diff.tv\\_sec, diff.tv\\_nsec, rem.tv\\_sec, rem.tv\\_nsec); now = ts.tv\\_sec; } /\\* clear TIME\\_WAIT \\*/ tx.modes = ADJ\\_STATUS; tx.status = 0; adjtimex(&tx); return 0; } |  |\n|  |  | Last update: 2012-07-02 00:41    \\[W:0.137 / U:0.836 seconds\\] ©2003-2020 Jasper Spaans\\|hosted at Digital Ocean and TransIP\\|Read the blog\\|Advertise on this site |  |\n\n| Date | Sun, 01 Jul 2012 15:05:08 -0700 |\n| From | John Stultz \\<> |\n| Subject | Re: \\[PATCH 0/2\\]\\[RFC\\] Potential fix for leapsecond caused futex issue (v2) |",
+  "extraction_method": "trafilatura",
+  "fetched_at": "2026-10-27T22:10:34.168720+00:00",
+  "final_url": "https://web.archive.org/web/20220320100036/https://lkml.org/lkml/2012/7/1/203",
+  "http_status": 200,
+  "raw_path": "data/raw/DAN-089.html",
+  "redirect_history": [],
+  "redirects": [],
+  "review_reason": [
+    "content_may_not_match_catalog_reference",
+    "insufficient_postmortem_signals"
+  ],
+  "source_url": "https://web.archive.org/web/20220320100036/https://lkml.org/lkml/2012/7/1/203",
+  "status": "needs_review",
+  "title": "LKML: John Stultz: Re: [PATCH 0/2][RFC] Potential fix for leapsecond caused futex issue (v2)",
+  "word_count": 706
+}
