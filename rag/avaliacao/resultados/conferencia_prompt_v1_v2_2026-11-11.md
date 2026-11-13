@@ -107,6 +107,19 @@ A regra 7 da v2 (frases corretas e naturais) não teve efeito visível. Parece u
 - **q01:** a v1c citou também o DAN-186 (Instapaper, limite de sistema de arquivos), uma analogia fraca.
 - **q09:** a v1b listou DAN-124, DAN-142 e DAN-157 só para dizer que não se aplicam.
 
+## Limitações da avaliação
+
+As 12 perguntas e os `esperado` ficaram como estavam, para os resultados continuarem comparáveis. Os pontos abaixo devem ser considerados ao ler as tabelas.
+
+- **Perguntas que entregam a resposta.** Na q03 (certificado do Firefox) e na q05 (US$ 460 milhões), a pergunta praticamente identifica o incidente. O acerto ali não mostra diagnóstico a partir de sintomas.
+- **Outros incidentes pertinentes.**
+  - Na q09, o DAN-152 (conta npm de um mantenedor do ESLint invadida) também responde à pergunta, embora o mecanismo seja outro: o DAN-122 é de pacotes falsos no JCenter. As 6 rodadas citaram os dois.
+  - Na q11, o DAN-049 (crates.io, certificados recriados no deploy) também envolve certificados. Nenhuma rodada o citou.
+- **A checagem automática conta acerto se aparecer qualquer um dos esperados ou aceitos.** Na q11, que espera dois incidentes, é preciso conferir os dois; nas 6 rodadas, a resposta citou DAN-090 e DAN-086.
+- **Só os 5 primeiros incidentes vão para o prompt.** Na q10, o DAN-017 fica em 8º na busca, então o modelo não recebe a evidência. A resposta certa ali é "insuficiente".
+- **Citação válida não é citação que sustenta o texto.** O nó `verificar_citacoes` só confere se o ID citado está entre os recuperados. Se o texto do incidente sustenta a afirmação, só a leitura manual verifica.
+- **Fontes com hipóteses.** O DAN-236 (Steam) é uma thread de issue: a causa (`rm -rf "$STEAMROOT/"*` com a variável vazia) aparece junto com especulação dos participantes.
+
 ## Próximos passos sugeridos
 
 1. **Manter a v2 como padrão.** Já é o padrão em `prompts.py`.

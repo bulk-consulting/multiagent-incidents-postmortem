@@ -10,6 +10,7 @@ Uso (a partir da raiz do repositório):
     multiagent_env/bin/python -I rag/ver_fluxo.py --simulado              # sem banco nem NIM, em segundos
     multiagent_env/bin/python -I rag/ver_fluxo.py --simulado --citacao-errada   # mostra o laço de correção
     multiagent_env/bin/python -I rag/ver_fluxo.py --simulado --falha-nim        # mostra a RetryPolicy
+    multiagent_env/bin/python -I rag/ver_fluxo.py "texto da pergunta" --mostrar-prompt   # também imprime o prompt
 """
 from __future__ import annotations
 
@@ -42,7 +43,7 @@ def resumir(chave: str, valor) -> str:
     return texto if len(texto) <= 90 else texto[:90] + "…"
 
 
-def ver(pergunta: str, espera_inicial: float) -> None:
+def ver(pergunta: str, espera_inicial: float, mostrar_prompt: bool = False) -> None:
     g = grafo.criar_grafo(espera_inicial)
     entrada = {"pergunta": pergunta, "n_docs": 5, "n_trechos": 2}
     print(f"{LINHA}\nENTRADA do grafo.stream(): {entrada}\n{LINHA}")
@@ -68,6 +69,11 @@ def ver(pergunta: str, espera_inicial: float) -> None:
                 for k, v in delta.items():
                     obs = "  ← reducer: soma à lista" if k == "uso" else "  ← reducer: junta ao dict" if k == "tempos" else ""
                     print(f"     {k} = {resumir(k, v)}{obs}")
+                if mostrar_prompt and no == "montar_prompt":
+                    print(f"\n{'=' * 30} PROMPT ENVIADO AO LLM {'=' * 30}")
+                    for m in delta["mensagens"]:
+                        print(f"--- {m['role']} ---\n{m['content']}\n")
+                    print("=" * 83)
                 anterior = no
 
         elif tipo == "values":                              # estado completo depois do passo
@@ -81,6 +87,10 @@ def ver(pergunta: str, espera_inicial: float) -> None:
 
     print(f"\n{LINHA}\nFIM. Resposta final:\n{estado['resposta']['resposta']}")
     print(f"\nevidência: {estado['resposta']['evidencia']}   citados: {estado['citados']}")
+    fontes = [(prompts._id_curto(r["doc_id"]), r.get("url")) for r in estado["recuperados"]]
+    fontes = [(i, u) for i, u in fontes if i in estado["citados"]]
+    if fontes:
+        print("fontes:\n" + "\n".join(f"   [{i}] {u}" for i, u in fontes))
     print(f"uso (somado pelo reducer): {estado['uso']}\ntempos (juntado pelo reducer): {estado['tempos']}\n{LINHA}")
 
 
@@ -124,6 +134,8 @@ def main() -> None:
     ap.add_argument("--simulado", action="store_true", help="sem banco nem NIM")
     ap.add_argument("--citacao-errada", action="store_true", help="(simulado) 1ª resposta cita um ID inexistente")
     ap.add_argument("--falha-nim", action="store_true", help="(simulado) 1ª chamada ao LLM devolve 502")
+    ap.add_argument("--mostrar-prompt", action="store_true",
+                    help="imprime o prompt montado (system + contexto) quando montar_prompt termina")
     a = ap.parse_args()
     pergunta = " ".join(a.pergunta) or "Uma regex derrubou a CPU dos servidores. Já aconteceu?"
     if a.simulado:
@@ -131,7 +143,7 @@ def main() -> None:
         print("MODO SIMULADO: busca e LLM falsos; o grafo e o LangGraph são os de verdade.")
     elif not a.pergunta:
         ap.error("informe a pergunta ou use --simulado")
-    ver(pergunta, espera_inicial=2.0 if a.simulado else 15.0)
+    ver(pergunta, espera_inicial=2.0 if a.simulado else 15.0, mostrar_prompt=a.mostrar_prompt)
 
 
 if __name__ == "__main__":
