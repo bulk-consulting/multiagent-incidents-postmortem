@@ -139,24 +139,7 @@ Mostrar: o estado mudando nó a nó, a resposta com [DAN-145] e a evidência "fo
 
 **5. Avaliação (3.5):** a tabela da seção 5 e um exemplo de invenção da v1 que a v2 eliminou.
 
-## 7. Perguntas prováveis
-
-**Por que LangGraph e não algo mais simples?** Ver a seção 2: aresta condicional limitada, novas
-tentativas no nó do LLM e a mesma estrutura dos agentes da próxima etapa.
-
-**Como vocês sabem que a resposta não é inventada?** Duas camadas: o prompt proíbe sair do contexto, e o
-`verificar_citacoes` confere os IDs em código. O que o código não confere é se o texto do incidente
-sustenta cada frase; por isso as 72 respostas foram lidas à mão.
-
-**Por que `temperature=1.0`?** É o valor recomendado para o GPT-OSS. Testar uma temperatura menor, ou o
-modelo de 120B, é o próximo passo contra as leituras erradas.
-
-**E se o incidente certo não estiver entre os 5 primeiros?** O modelo não o vê. Foi o caso da q10: a
-resposta certa foi "insuficiente", e o modelo acertou nas 6 rodadas, sem inventar.
-
-**Quanto demora uma pergunta?** A busca leva menos de 1 s; a chamada ao NIM gratuito, ~2 minutos (fila).
-
-## 8. Limitações
+## 7. Limitações
 
 - **Latência** do NIM gratuito: ~2 minutos por chamada.
 - **Só os 5 primeiros incidentes vão para o prompt.** Se o certo vier abaixo, o modelo não o vê.
@@ -164,37 +147,3 @@ resposta certa foi "insuficiente", e o modelo acertou nas 6 rodadas, sem inventa
 - **Amostra pequena:** 12 perguntas, 36 respostas por versão do prompt. A diferença 4 × 2 é tendência,
   não prova. Em 2 perguntas (q03 e q05), o texto da pergunta quase identifica o incidente.
 - **Português do modelo:** erros de concordância e palavras estranhas aparecem nos dois prompts.
-
-## 9. Depois da entrega: RAG sobre a ingestão da main
-
-As seções 5 e 6 descrevem o que foi testado e apresentado, sobre o banco da ingestão anterior do André
-(tabelas `documents`/`chunks`, branch `e2-fichas-andre`). Na main, o RAG busca na ingestão da Mari
-(tabelas `incident`/`chunk`, `db/schema.sql`), com a mesma busca em duas etapas (`rag/busca.py`).
-
-Mais 3 rodadas com a v2 (5 incidentes × 4 trechos), conferidas da mesma forma, em
-`rag/avaliacao/resultados/conferencia_banco_mari_2026-11-12.md`:
-
-| | Banco anterior, v2 (3 rodadas) | Ingestão da main (3 rodadas) |
-|---|---|---|
-| invenções | 2 | 1 |
-| leituras erradas | 6 | 4 |
-| q10 respondida com o incidente certo | 0 de 3 (fora dos 5) | 3 de 3 (em 1º) |
-| q12 marcada "insuficiente" | 3 de 3 | 3 de 3 |
-
-A diferença em invenções e leituras erradas é pequena e muda de pergunta a cada rodada. O ganho que se
-repete é o da busca: a q10 deixou de ser um caso de busca que falha.
-
-## 10. Experimento para a etapa dos agentes
-
-`rag/experimentos/teste_ferramenta_auto.py` testa se o GPT-OSS-20B consegue agir como agente: com
-`tool_choice="auto"`, ele escolhe sozinho entre `buscar_incidentes` e `registrar_resposta` (laço no
-LangGraph, via `ChatNVIDIA`). Duas rodadas de 4 perguntas, feitas sobre o banco anterior
-(`rag/experimentos/resultados/`):
-
-- buscou por conta própria em todas, com termos em inglês, e citou o incidente esperado nas 3 que tinham um;
-- na q10, buscou de novo com outros termos e achou o DAN-017, que a busca única não trazia;
-- às vezes o nome da ferramenta vem com o canal do formato harmony vazado
-  (`registrar_resposta<|channel|>commentary`): 5 de 16 chamadas na 1ª rodada. Com `--corrigir-nomes`,
-  isso não custa mais uma chamada;
-- uma vez o modelo terminou em texto, sem registrar a resposta. Para os agentes: escolha livre para buscar
-  e `tool_choice` forçado no registro final.
