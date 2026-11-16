@@ -131,24 +131,6 @@ def depois_de_verificar(estado: Estado) -> Literal["gerar", "__end__"]:
         return "gerar"
     return END
 
-
-def criar_grafo(espera_inicial: float = 15.0):
-    """`espera_inicial`: segundos antes da 2ª tentativa de chamar o LLM (depois dobra: 15, 30, 60)."""
-    g = StateGraph(Estado)
-    g.add_node("recuperar", recuperar, retry_policy=RetryPolicy(max_attempts=2, retry_on=psycopg.OperationalError))
-    g.add_node("montar_prompt", montar_prompt)
-    # O NIM gratuito às vezes devolve 502 ("Upstream request failed") ou demora demais; até 4 tentativas.
-    g.add_node("gerar", gerar, retry_policy=RetryPolicy(max_attempts=4, initial_interval=espera_inicial,
-                                                        backoff_factor=2.0, jitter=True, retry_on=llm.TENTAR_DE_NOVO))
-    g.add_node("verificar_citacoes", verificar_citacoes)
-    g.add_edge(START, "recuperar")
-    g.add_edge("recuperar", "montar_prompt")
-    g.add_edge("montar_prompt", "gerar")
-    g.add_edge("gerar", "verificar_citacoes")
-    g.add_conditional_edges("verificar_citacoes", depois_de_verificar, {"gerar": "gerar", END: END})
-    return g.compile()
-
-
 def perguntar(pergunta: str, n_docs: int = 5, n_trechos: int = 2, mostrar=None, espera_inicial: float = 15.0,
               prompt_versao: str = prompts.VERSAO) -> dict:
     """Roda o grafo e devolve o estado final. `mostrar(no, delta)` recebe o progresso de cada etapa."""
@@ -182,6 +164,25 @@ def _progresso(no: str, delta: dict) -> None:
         else:
             print(f"[verificar_citacoes] ok: {delta['citados']}")
 
+def criar_grafo(espera_inicial: float = 15.0):
+    """`espera_inicial`: segundos antes da 2ª tentativa de chamar o LLM (depois dobra: 15, 30, 60)."""
+    g = StateGraph(Estado)
+    
+    # Cria os nós do grafo
+    g.add_node("recuperar", recuperar, retry_policy=RetryPolicy(max_attempts=2, retry_on=psycopg.OperationalError))
+    g.add_node("montar_prompt", montar_prompt)
+    # O NIM gratuito às vezes devolve 502 ("Upstream request failed") ou demora demais; até 4 tentativas.
+    g.add_node("gerar", gerar, retry_policy=RetryPolicy(max_attempts=4, initial_interval=espera_inicial,
+                                                        backoff_factor=2.0, jitter=True, retry_on=llm.TENTAR_DE_NOVO))
+    g.add_node("verificar_citacoes", verificar_citacoes)
+    
+    # Crias os arestas do grafo
+    g.add_edge(START, "recuperar")
+    g.add_edge("recuperar", "montar_prompt")
+    g.add_edge("montar_prompt", "gerar")
+    g.add_edge("gerar", "verificar_citacoes")
+    g.add_conditional_edges("verificar_citacoes", depois_de_verificar, {"gerar": "gerar", END: END})
+    return g.compile()
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

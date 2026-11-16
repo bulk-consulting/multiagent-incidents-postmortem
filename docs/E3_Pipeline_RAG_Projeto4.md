@@ -27,6 +27,8 @@ START → recuperar → montar_prompt → gerar → verificar_citacoes → END
                                       └── cita ID fora do contexto (no máximo 1 nova tentativa)
 ```
 
+![Fluxo do RAG com LangGraph](fluxo_rag_langgraph.png)
+
 | Nó | O que faz | LLM? |
 |---|---|---|
 | `recuperar` | busca em duas etapas da E2 (Qwen3-Embedding + pgvector) | não |
