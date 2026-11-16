@@ -1,6 +1,6 @@
 # E2.3 — Estratégia de Chunking
 
-O script `dataset_nela/danluu-ingestion/scripts/chunk.py` divide os 212 post-mortems de `data/processed/danluu_clean.jsonl` em chunks e grava o resultado em `data/chunks/danluu_chunks.jsonl`: **2.494 chunks** (212 de summary e 2.282 de texto).
+O script `datasets/danluu-ingestion/scripts/chunk.py` divide os 212 post-mortems de `data/processed/danluu_clean.jsonl` em chunks e grava o resultado em `data/chunks/danluu_chunks.jsonl`: **2.494 chunks** (212 de summary e 2.282 de texto).
 
 ## Como funciona
 
@@ -35,16 +35,16 @@ Company: Cloudflare | Title: Cloudflare outage on November 18, 2025 | Cloudflare
 
 Os tokens são contados com o tokenizer do `multilingual-e5-base`. O Qwen3 tem outro tokenizer; a contagem do e5 serve como aproximação do tamanho.
 
-Exemplo: incidente DAN-004 — [chunks_DAN-004.html](../dataset_nela/danluu-ingestion/data/exports/chunks_DAN-004.html)
+Exemplo: incidente DAN-004 — [chunks_DAN-004.html](../datasets/danluu-ingestion/data/exports/chunks_DAN-004.html)
 
 ## Como executar
 
 ```bash
-python ./dataset_nela/danluu-ingestion/scripts/chunk.py
+python ./datasets/danluu-ingestion/scripts/chunk.py
 ```
 
 Para gerar a visualização de um documento (grava em `data/exports/`):
 
 ```bash
-python ./dataset_nela/danluu-ingestion/scripts/visualize_chunks.py DAN-004
+python ./datasets/danluu-ingestion/scripts/visualize_chunks.py DAN-004
 ```

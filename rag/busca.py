@@ -7,7 +7,7 @@ Etapa 1: compara a pergunta com todos os chunks (summary e text) e ranqueia os i
 Etapa 2: nesses incidentes, compara a pergunta só com os chunks text e devolve os n_trechos mais
          parecidos de cada um (detalhes e evidência literal para o prompt).
 
-A pergunta vira vetor com o mesmo modelo e a mesma instrução do dataset_nela/danluu-ingestion/scripts/
+A pergunta vira vetor com o mesmo modelo e a mesma instrução do datasets/danluu-ingestion/scripts/
 search.py (Qwen3-Embedding-0.6B). A busca de uma etapa daquele script devolve chunks soltos, que
 podem ser todos do mesmo incidente; o prompt do RAG precisa de incidentes distintos.
 

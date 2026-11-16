@@ -1,6 +1,6 @@
 # E2.4 — Geração e Armazenamento de Embeddings
 
-O script `dataset_nela/danluu-ingestion/scripts/embed.py` gera um embedding para cada chunk de `data/chunks/danluu_chunks.jsonl`, guarda os vetores em `data/embeddings/qwen3/` e grava os incidentes e os chunks no PostgreSQL + pgvector.
+O script `datasets/danluu-ingestion/scripts/embed.py` gera um embedding para cada chunk de `data/chunks/danluu_chunks.jsonl`, guarda os vetores em `data/embeddings/qwen3/` e grava os incidentes e os chunks no PostgreSQL + pgvector.
 
 ## Modelo: Qwen3-Embedding-0.6B
 
@@ -72,13 +72,13 @@ A data fica vazia: a danluu não tem um campo de data. Às vezes ela aparece no 
 Com o banco ativo (ver `E2_1_Ambiente_Desenvolvimento.md`):
 
 ```bash
-python ./dataset_nela/danluu-ingestion/scripts/embed.py
+python ./datasets/danluu-ingestion/scripts/embed.py
 ```
 
 Para testar sem esperar horas, gerar no máximo um vetor novo (os chunks sem vetor ficam fora do banco):
 
 ```bash
-python ./dataset_nela/danluu-ingestion/scripts/embed.py --limit 1
+python ./datasets/danluu-ingestion/scripts/embed.py --limit 1
 ```
 
 ## Como funciona

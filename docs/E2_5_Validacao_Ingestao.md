@@ -5,7 +5,7 @@ Comandos executados no Git Bash a partir da raiz do projeto, com o ambiente virt
 ## 1. Validação do banco
 
 ```bash
-python ./dataset_nela/danluu-ingestion/scripts/validate_rag.py
+python ./datasets/danluu-ingestion/scripts/validate_rag.py
 ```
 
 O script faz quatro verificações:
@@ -59,7 +59,7 @@ A checagem de vetores repetidos achou, na primeira carga, 6 pares de chunks idê
 O script `search.py` recebe uma descrição em texto livre e mostra os 5 chunks mais parecidos:
 
 ```bash
-python ./dataset_nela/danluu-ingestion/scripts/search.py "o banco de dados foi apagado por engano"
+python ./datasets/danluu-ingestion/scripts/search.py "o banco de dados foi apagado por engano"
 ```
 
 Para ver o texto de um chunk retornado:
@@ -70,7 +70,7 @@ docker exec incident-copilot-db psql -U copilot -d incident_copilot -c "SELECT c
 
 ## 3. Medição da busca
 
-As 6 buscas de teste mostram que a busca funciona, mas são poucas para medir uma mudança. Para isso há um conjunto de 295 perguntas em `dataset_nela/danluu-ingestion/evaluation/questions.json`, em português e inglês, cada uma com o incidente que deveria aparecer:
+As 6 buscas de teste mostram que a busca funciona, mas são poucas para medir uma mudança. Para isso há um conjunto de 295 perguntas em `datasets/danluu-ingestion/evaluation/questions.json`, em português e inglês, cada uma com o incidente que deveria aparecer:
 
 - **sintoma:** descreve só o que se vê durante o incidente ("os clientes recebem erro 502"), sem a causa;
 - **causa:** descreve o que aconteceu;
@@ -78,7 +78,7 @@ As 6 buscas de teste mostram que a busca funciona, mas são poucas para medir um
 - 5 perguntas não têm incidente parecido no corpus.
 
 ```bash
-python ./dataset_nela/danluu-ingestion/scripts/evaluate.py
+python ./datasets/danluu-ingestion/scripts/evaluate.py
 ```
 
 O script ordena os incidentes pela maior similaridade entre a pergunta e os seus chunks e anota a posição do incidente esperado. Ele lê os vetores de `data/embeddings/qwen3/` (não usa o banco) e grava a posição de cada pergunta em `evaluation/results.json`.

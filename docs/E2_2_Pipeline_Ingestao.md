@@ -1,6 +1,6 @@
 # E2.2 — Pipeline de Ingestão (danluu)
 
-Scripts que transformam a lista de post-mortems da danluu em um arquivo de texto limpo, pronto para o RAG. Os comandos são executados no Git Bash a partir da raiz do projeto, com o ambiente virtual ativo (ver `E2_1_Ambiente_Desenvolvimento.md`). Os dados ficam em `dataset_nela/danluu-ingestion/data/`.
+Scripts que transformam a lista de post-mortems da danluu em um arquivo de texto limpo, pronto para o RAG. Os comandos são executados no Git Bash a partir da raiz do projeto, com o ambiente virtual ativo (ver `E2_1_Ambiente_Desenvolvimento.md`). Os dados ficam em `datasets/danluu-ingestion/data/`.
 
 ## Fluxo
 
@@ -24,7 +24,7 @@ flowchart LR
 ## 0. Dependências (só na primeira vez)
 
 ```bash
-pip install -r ./dataset_nela/danluu-ingestion/requirements.txt
+pip install -r ./datasets/danluu-ingestion/requirements.txt
 ```
 
 ## 1. Catálogo
@@ -32,7 +32,7 @@ pip install -r ./dataset_nela/danluu-ingestion/requirements.txt
 Gera o arquivo CSV com os links dos post-mortems a partir do `README.md` do repositório [danluu/post-mortems](https://github.com/danluu/post-mortems).
 
 ```bash
-python ./dataset_nela/danluu-ingestion/scripts/build_catalog.py
+python ./datasets/danluu-ingestion/scripts/build_catalog.py
 ```
 
 ## 2. Coleta
@@ -40,7 +40,7 @@ python ./dataset_nela/danluu-ingestion/scripts/build_catalog.py
 Baixa as páginas (HTML e PDF) de cada link e grava na pasta `data/raw/`.
 
 ```bash
-python ./dataset_nela/danluu-ingestion/scripts/collect.py
+python ./datasets/danluu-ingestion/scripts/collect.py
 ```
 
 ## 3. Extração
@@ -48,7 +48,7 @@ python ./dataset_nela/danluu-ingestion/scripts/collect.py
 Extrai o texto das páginas e grava um JSON por post-mortem na pasta `data/extracted/`.
 
 ```bash
-python ./dataset_nela/danluu-ingestion/scripts/extract.py
+python ./datasets/danluu-ingestion/scripts/extract.py
 ```
 
 ## 4. Limpeza
@@ -56,7 +56,7 @@ python ./dataset_nela/danluu-ingestion/scripts/extract.py
 Junta tudo em um único arquivo, `data/processed/danluu_clean.jsonl` (212 documentos).
 
 ```bash
-python ./dataset_nela/danluu-ingestion/scripts/clean.py
+python ./datasets/danluu-ingestion/scripts/clean.py
 ```
 
 Só saem trechos inteiros (nenhuma frase é alterada):
