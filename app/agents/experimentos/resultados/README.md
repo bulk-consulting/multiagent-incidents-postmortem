@@ -19,7 +19,12 @@ Perguntas:
 | `2026-11-17_1222` | v2 + nova tentativa em chamada malformada | q01 e q07 | as duas aprofundadas |
 | `2026-11-17_1320_perguntas_dificeis` | v2 | 20 difíceis | 4º–5º: 8/8; 6º ou abaixo: 2/12 (as 2 por consulta nova) |
 | `2026-11-17_1432_perguntas_dificeis` | v3: 10 candidatos, o LLM lê só título e resumo; conserto de JSON sem fechar | 12 difíceis (6º ou abaixo) | 6º–10º: 6/6; além do 10º: 0/6 |
-| `2026-11-17_1522` | v3 (versão atual) | 12 da E3 | certo aprofundado em 11/11; q12 (fora do corpus) procurou e encerrou sem aprofundar; 0 malformadas |
+| `2026-11-17_1522` | v3 | 12 da E3 | certo aprofundado em 11/11; q12 (fora do corpus) procurou e encerrou sem aprofundar; 0 malformadas |
+| `2026-11-17_1719_perguntas_dificeis` | v3 + A (`match` strong/partial/weak) + B (`alternative_query` executada em código) | 6 difíceis (além do 10º) | B achou o certo em 1/6 (q-242); A marcou incidentes errados como `strong` nas 6 |
+| `2026-11-17_1741` | v3 + A + B, 3 em paralelo | 12 da E3 | certo aprofundado em 11/11, todos `strong`; B trouxe 2 incidentes por pergunta, quase sempre ruído |
+| `conferencia_causa_correcao_2026-11-17.md` | v3 + A + B → v4 | 20 incidentes certos aprofundados | leitura dos trechos inteiros: correção completa em 11/20; com a consulta fixa separada em causa + correção (v4), 17/20 |
+| `2026-11-17_1759` | v4: sem `match` e sem `alternative_query` (ganho pequeno demais), com `why`; consultas fixas de causa e de correção | q01, q07, q10 | 3/3 aprofundados, chamadas válidas |
+| `2026-11-17_1831` + `2026-11-17_1840_perguntas_dificeis` | **v4 (versão atual), teste completo**, trechos do certo salvos inteiros | 12 da E3 + 20 difíceis | certo aprofundado: 11/11, 8/8 (4º–5º), 6/6 (6º–10º), 0/6 (além do 10º); causa 24/27 e correção 23/27 completas (ver conferência) |
 
 Cuidados ao ler: cada versão rodou uma vez, e o modelo varia entre rodadas (temperatura 1,0). As
 diferenças de 1 ou 2 perguntas são tendência, não prova.

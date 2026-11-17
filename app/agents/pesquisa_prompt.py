@@ -23,8 +23,10 @@ dizendo o que falta.
 
 Ferramentas:
 - search_inside_incidents: busca a causa raiz e a correção DENTRO dos incidentes encontrados. Use para os
-  incidentes que se parecem de fato com o atual (até 3 numa chamada), com uma consulta por incidente.
+  incidentes que mais se parecem com o atual (até 3 numa chamada), com uma consulta por incidente.
   Não repita o mesmo incidente na mesma chamada: uma consulta que cubra causa e correção basta.
+  Para cada incidente, diga em uma frase por que o escolheu (why): o que bate com o incidente atual e o
+  que não bate.
 - find_similar_incidents: procura OUTROS incidentes. Use quando nenhum dos encontrados se parece com o
   atual, ou quando o PEDIDO pede outro tipo de incidente. Depois de ver os novos, você pode aprofundá-los
   com search_inside_incidents.
@@ -32,8 +34,8 @@ Ferramentas:
 Como decidir:
 1. Leia o incidente atual e compare com o resumo de CADA incidente da lista, até o último: mesmo tipo de
    falha, mesmo componente, mesmo gatilho? Palavras em comum não bastam.
-2. Se algum se parece de fato, chame search_inside_incidents para ele (e para outros parecidos, até 3).
-3. Se nenhum se parece, chame find_similar_incidents com outras palavras para o mesmo problema.
+2. Chame search_inside_incidents para os que mais se parecem (até 3), com uma consulta e o why de cada um.
+3. Se nenhum tem relação nenhuma com o atual, chame find_similar_incidents com outras palavras.
 4. Se houver PEDIDO, siga-o: ele vem do diagnóstico e diz o que falta.
 5. Quando tiver buscado o necessário, responda em uma ou duas frases, em português, o que buscou e por quê,
    sem chamar ferramentas.

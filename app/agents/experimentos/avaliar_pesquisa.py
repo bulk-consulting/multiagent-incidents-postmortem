@@ -8,6 +8,7 @@ para cada uma, o que precisa ser conferido:
 
 Uso (a partir da raiz do repositório, com o banco no ar):
     multiagent_env/bin/python -I app/agents/experimentos/avaliar_pesquisa.py [--perguntas q01,q10] [--sem-llm]
+        [--paralelo 3]
 Saída: app/agents/experimentos/resultados/pesquisa_<data>.json e .md
 """
 from __future__ import annotations
@@ -16,6 +17,7 @@ import argparse
 import json
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -40,10 +42,17 @@ def avaliar(p: dict, sem_llm: bool) -> dict:
                     "fonte_consulta": d.get("fonte_consulta", "llm"),
                     "inicio": d["content"][:300].replace("\n", " ")} for d in ts]
                for i, ts in est.get("aprofundados", {}).items()}
+    # trechos inteiros do incidente certo (para conferir à mão se trazem causa e correção)
+    trechos_esperado = {r["doc_id"]: [{"fonte": d.get("fonte_consulta") or d.get("origem"), "secao": d.get("secao", ""),
+                                        "titulo_de_correcao": pesquisa.pf._eh_correcao(d), "texto": d["content"]}
+                                       for d in r["detalhes"]]
+                        for r in est.get("achados", []) if r["doc_id"] in esperados}
     return {
         "id": p["id"], "tipo": p["tipo"], "esperado": sorted(esperados),
+        "trechos_do_esperado": trechos_esperado,
         "posicao_busca_inicial": p.get("posicao_busca_inicial"),
         "esperado_em_novos": sorted(esperados & {r["doc_id"] for r in est.get("novos", [])}),
+
         "busca_inicial": iniciais, "achados": achados,
         "esperado_na_busca_inicial": sorted(esperados & set(iniciais)),
         "esperado_nos_achados": sorted(esperados & set(achados)),
@@ -54,7 +63,7 @@ def avaliar(p: dict, sem_llm: bool) -> dict:
         "buscas": est.get("buscas", []),
         "chamadas_llm": [{"segundos": c.get("segundos"), "tokens": (c.get("uso") or {}).get("total_tokens"),
                           "ferramentas": [t["nome"] for t in c.get("tool_calls", [])],
-                          "nomes_corrigidos": c.get("nomes_corrigidos", 0), "json_consertados": c.get("json_consertados", 0), "malformadas": len(c.get("invalidas", [])), "detalhe_malformadas": c.get("invalidas", []),
+                          "nomes_corrigidos": c.get("nomes_corrigidos", 0), "json_consertados": c.get("json_consertados", 0), "campos_completados": c.get("campos_completados", 0), "malformadas": len(c.get("invalidas", [])), "detalhe_malformadas": c.get("invalidas", []),
                           "texto": (c.get("texto") or "")[:300]} for c in est.get("chamadas_llm", [])],
         "segundos": round(time.time() - t),
     }
@@ -93,7 +102,8 @@ def md(resultados: list[dict], sem_llm: bool) -> str:
         L += [f"## {r['id']} (esperado: {', '.join(r['esperado']) or 'nenhum'})", "",
               f"- busca inicial: {', '.join(r['busca_inicial'])}",
               f"- justificativa: {p['justificativa']}"]
-        L += [f"- aprofundar {a['id']}: `{a['consulta']}`" for a in p["aprofundar"]]
+        L += [f"- aprofundar {a['id']}: `{a['consulta']}`" + (f" — {a['why']}" if a.get("why") else "")
+              for a in p["aprofundar"]]
         L += [f"- nova consulta: `{b['consulta']}` → {', '.join(b['ids'])}" for b in r.get("buscas", [])
               if b["etapa"] == "nova_consulta"]
         if r["novos"]:
@@ -114,16 +124,29 @@ def main() -> None:
     ap.add_argument("--sem-llm", action="store_true")
     ap.add_argument("--arquivo", type=Path, default=ROOT / "rag/avaliacao/perguntas.json",
                     help="JSON com {'perguntas': [...]} (padrão: as 12 da E3; ex.: perguntas_dificeis.json)")
+    ap.add_argument("--paralelo", type=int, default=1, help="quantas perguntas ao mesmo tempo (padrão: 1)")
     a = ap.parse_args()
     todas = json.loads(a.arquivo.read_text())["perguntas"]
     alvo = set(a.perguntas.split(",")) if a.perguntas else None
     perguntas = [p for p in todas if not alvo or p["id"] in alvo]
-    resultados = []
-    for p in perguntas:
-        print(f"[{datetime.now():%H:%M:%S}] {p['id']}...", flush=True)
+    # Carrega o modelo de embedding e o cliente do LLM antes das threads (evita carregar duas vezes ao mesmo tempo).
+    pesquisa.busca.vetorizar("aquecimento")
+    if not a.sem_llm:
+        pesquisa.llm_com_ferramentas()
+
+    def uma(p: dict) -> dict:
+        print(f"[{datetime.now():%H:%M:%S}] {p['id']} começou", flush=True)
         r = avaliar(p, a.sem_llm)
-        resultados.append(r)
-        print(f"   {r.get('erro') or ('achados: ' + ', '.join(r['achados']) + '; esperado nos achados: ' + (', '.join(r['esperado_nos_achados']) or '—'))} ({r['segundos']}s)", flush=True)
+        print(f"[{datetime.now():%H:%M:%S}] {p['id']}: " + (r.get("erro") or ("achados: " + ", ".join(r["achados"])
+              + "; esperado nos achados: " + (", ".join(r["esperado_nos_achados"]) or "—"))) + f" ({r['segundos']}s)", flush=True)
+        return r
+
+    # As perguntas são independentes e o tempo é quase todo espera na fila do NIM: rodar N ao mesmo tempo
+    # divide o tempo total por ~N. pool.map devolve na ordem das perguntas.
+    t0 = time.time()
+    with ThreadPoolExecutor(max_workers=max(1, a.paralelo)) as pool:
+        resultados = list(pool.map(uma, perguntas))
+    print(f"total: {time.time() - t0:.0f}s com {a.paralelo} em paralelo", flush=True)
     sufixo = "" if a.arquivo.name == "perguntas.json" else "_" + a.arquivo.stem
     saida = AQUI / "resultados" / f"pesquisa_{datetime.now():%Y-%m-%d_%H%M}{sufixo}{'_semllm' if a.sem_llm else ''}"
     saida.parent.mkdir(exist_ok=True)

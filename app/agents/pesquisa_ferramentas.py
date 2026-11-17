@@ -14,6 +14,7 @@ Cada ferramenta devolve duas coisas (response_format="content_and_artifact"):
 """
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -34,14 +35,63 @@ N_TRECHOS = 2              # trechos por consulta dentro de um incidente
 N_DOCS = 5                 # incidentes por consulta em find_similar_incidents
 MIN_CHARS_TRECHO = 200     # trechos menores que isso quase sempre são só um título ("Further details here.")
 CHARS_TRECHO_PARA_LLM = 700
-# consulta fixa somada à do LLM em todo search_inside_incidents: se a do LLM sair genérica,
-# esta ainda traz os trechos de causa e correção (teste de 2026-11-16: ajudou em 5 de 11 perguntas)
-CONSULTA_CAUSA = "what was the root cause and how was the problem fixed"
+# Consultas fixas somadas à do LLM em todo aprofundamento (o LLM às vezes escreve uma consulta genérica).
+# Eram uma só ("what was the root cause and how was the problem fixed"); a conferência de 2026-11-17
+# mostrou que ela puxava a narrativa e a causa, e a seção de correção ficava entre o 4º e o 12º lugar.
+CONSULTA_CAUSA = "what was the root cause of the failure"
+CONSULTA_CORRECAO = "how the problem was corrected, remediation, action items, prevention, next steps"
+N_CAUSA = 1                # trechos da consulta fixa de causa (a do LLM costuma cobrir a causa)
+N_CORRECAO = 2             # trechos de correção
+# títulos de seção (ou rótulos em maiúsculas) que indicam correção ou prevenção: esses trechos têm preferência
+TITULO_CORRECAO = re.compile(r"fix|correct|remediat|prevent|action item|next step|lesson|moving forward|going forward"
+                             r"|improv|follow[- ]?up|what we.{0,10}(doing|changing)|resolution|resolved|mitigat"
+                             r"|changes|recover", re.I)
+ROTULO_CORRECAO = re.compile(r"\b(REMEDIATION|PREVENTION|RESOLUTION|ACTION ITEMS|NEXT STEPS|CORRECTIVE)\b")
 
 
 class BuscaNoIncidente(BaseModel):
     incident_id: str = Field(description="ID de um incidente já encontrado, ex.: DAN-017")
     query: str = Field(description="consulta curta em inglês, em palavras-chave, sobre a causa e a correção desse incidente")
+    why: str = Field(description="uma frase curta, em português, dizendo por que escolheu este incidente: "
+                                 "o que bate com o incidente atual e o que não bate")
+
+
+def _eh_correcao(d: dict) -> bool:
+    return bool(TITULO_CORRECAO.search(d.get("secao") or "")) or bool(ROTULO_CORRECAO.search(d["content"]))
+
+
+def trechos_do_incidente(i: str, consulta_llm: str | None, textos: set[str]) -> tuple[list[dict], list[dict]]:
+    """Os trechos de um incidente para o Diagnóstico: até 2 pela consulta do LLM, 1 pela consulta fixa de causa
+    e 2 de correção. Para a correção, os trechos cujo título de seção indica correção ("How was the problem
+    corrected", "Remediation", "Action Items"…) vêm antes dos demais. `textos` evita repetir trechos.
+    Devolve (trechos, registro das buscas)."""
+    trechos, registro = [], []
+
+    def aceitar(d: dict, consulta: str, fonte: str) -> bool:
+        # os chunks da ingestão se sobrepõem: dois trechos podem começar igual (o mesmo bloco duas vezes)
+        inicio = "inicio:" + d["content"][:300]
+        if d["content"] in textos or inicio in textos or len(d["content"]) < MIN_CHARS_TRECHO:
+            return False
+        textos.update({d["content"], inicio})
+        d.update({"origem": "aprofundamento", "consulta": consulta, "fonte_consulta": fonte})
+        trechos.append(d)
+        return True
+
+    for consulta, fonte, n in ((consulta_llm, "llm", N_TRECHOS), (CONSULTA_CAUSA, "causa", N_CAUSA)):
+        if not consulta:
+            continue
+        k = 0
+        for d in busca.buscar_no_incidente(i, consulta, n + 3):
+            if k < n and aceitar(d, consulta, fonte):
+                k += 1
+        registro.append({"etapa": "search_inside_incidents", "consulta": consulta, "filtro": {"incidente": i}, "ids": [i]})
+    todos = busca.buscar_no_incidente(i, CONSULTA_CORRECAO, 40)  # o incidente inteiro, ordenado pela consulta
+    k = 0
+    for d in sorted(todos, key=lambda d: not _eh_correcao(d)):  # sorted é estável: mantém a ordem de similaridade
+        if k < N_CORRECAO and aceitar(d, CONSULTA_CORRECAO, "correcao"):
+            k += 1
+    registro.append({"etapa": "search_inside_incidents", "consulta": CONSULTA_CORRECAO, "filtro": {"incidente": i}, "ids": [i]})
+    return trechos, registro
 
 
 def _ids_conhecidos(estado: dict) -> set[str]:
@@ -57,38 +107,29 @@ def _ids_conhecidos(estado: dict) -> set[str]:
 def search_inside_incidents(searches: list[BuscaNoIncidente],
                             state: Annotated[dict, InjectedState]) -> tuple[str, dict]:
     """Busca, DENTRO de incidentes já encontrados, os trechos que explicam a causa raiz e a correção.
-    Use para os incidentes que se parecem de fato com o incidente atual (até 3 numa chamada)."""
+    Use para os incidentes que se parecem de fato com o incidente atual (até 3 numa chamada), dizendo
+    para cada um por que o escolheu (why)."""
     conhecidos = _ids_conhecidos(state)
     resultados, registro, linhas, avisos = {}, [], [], []
+    justificativas: dict[str, str] = {}
     textos_por_id: dict[str, set] = {}  # o LLM às vezes pede 2 buscas no mesmo incidente: não repetir trechos
     for s in searches[:MAX_INCIDENTES_POR_CHAMADA]:
         i = _id_curto(s.incident_id.strip().upper())
         if i not in conhecidos:
             avisos.append(f"{i} não está entre os incidentes encontrados; ignorado.")
             continue
-        trechos, textos = resultados.setdefault(i, []), textos_por_id.setdefault(i, set())
-        n_antes = len(trechos)
-        for consulta, fonte in ((s.query.strip(), "llm"), (CONSULTA_CAUSA, "fixa")):
-            if not consulta:
-                continue
-            for d in busca.buscar_no_incidente(i, consulta, N_TRECHOS + 1):
-                if d["content"] in textos or len(d["content"]) < MIN_CHARS_TRECHO:
-                    continue
-                textos.add(d["content"])
-                d.update({"origem": "aprofundamento", "consulta": consulta, "fonte_consulta": fonte})
-                trechos.append(d)
-                if sum(t["consulta"] == consulta for t in trechos[n_antes:]) >= N_TRECHOS:
-                    break
-            registro.append({"etapa": "search_inside_incidents", "consulta": consulta,
-                             "filtro": {"incidente": i}, "ids": [i]})
+        justificativas[i] = s.why.strip()
+        novos, reg = trechos_do_incidente(i, s.query.strip(), textos_por_id.setdefault(i, set()))
+        resultados.setdefault(i, []).extend(novos)
+        registro += reg
         linhas.append(f"### [{i}] consulta: {s.query.strip()}")
-        linhas += [f"Trecho ({d['secao'] or 'sem seção'}): {d['content'][:CHARS_TRECHO_PARA_LLM]}" for d in trechos[n_antes:]]
+        linhas += [f"Trecho ({d['secao'] or 'sem seção'}): {d['content'][:CHARS_TRECHO_PARA_LLM]}" for d in novos]
     if len(searches) > MAX_INCIDENTES_POR_CHAMADA:
         avisos.append(f"Só os {MAX_INCIDENTES_POR_CHAMADA} primeiros incidentes foram buscados.")
     texto = "\n\n".join(linhas) or "Nenhum trecho encontrado."
     if avisos:
         texto += "\n\nAvisos: " + " ".join(avisos)
-    return texto, {"resultados": resultados, "buscas": registro, "avisos": avisos}
+    return texto, {"resultados": resultados, "justificativas": justificativas, "buscas": registro, "avisos": avisos}
 
 
 @tool(response_format="content_and_artifact")

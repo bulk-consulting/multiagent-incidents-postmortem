@@ -53,7 +53,7 @@ N_DOCS = 10                # candidatos da busca inicial (o LLM vê título e re
 MAX_ACHADOS = 8            # incidentes na saída: os aprofundados primeiro, depois os mais parecidos
 MIN_CHARS_RESUMO = 100     # resumo mais curto que isso vai acompanhado do início do trecho mais parecido
 N_TRECHOS_SIMILAR = 2      # trechos parecidos com a descrição, por incidente
-MAX_TRECHOS = 6            # teto de trechos por incidente nos achados
+MAX_TRECHOS = 7            # teto de trechos por incidente nos achados (até 5 do aprofundamento + 2 da busca inicial)
 MAX_CHAMADAS_LLM = 2       # por execução do agente
 
 
@@ -214,18 +214,40 @@ def montar_lista_resumos(candidatos: list[dict]) -> str:
         resumo = (r.get("resumo") or "").strip()
         linhas = [f"### {k}. [{r['doc_id']}] {r['company']} — {r['title']}", f"Resumo: {resumo or '(sem resumo)'}"]
         if len(resumo) < MIN_CHARS_RESUMO:
-            m = r.get("melhor_chunk") or (r.get("detalhes") or [{}])[0]
+            m = r.get("melhor_chunk") or {}
+            if m.get("tipo") == "resumo" or not m.get("content"):  # o melhor trecho era o próprio resumo
+                m = (r.get("detalhes") or [{}])[0]
             if m.get("content"):
                 linhas.append(f"Trecho mais parecido: {m['content'][:300]}")
         blocos.append("\n".join(linhas))
     return "\n\n".join(blocos) if blocos else "(nenhum incidente encontrado)"
 
 
+def completar_argumentos(msg: AIMessage) -> int:
+    """Se o modelo esquecer o campo why de search_inside_incidents, preenche com
+    um valor neutro para a ferramenta rodar mesmo assim, em vez de falhar na validação. Devolve quantos campos
+    foram preenchidos (fica registrado: é sinal de que o modelo não seguiu o formato)."""
+    n = 0
+    for c in msg.tool_calls:
+        if c["name"] != "search_inside_incidents":
+            continue
+        for item in c["args"].get("searches") or []:
+            if isinstance(item, dict) and not isinstance(item.get("why"), str):
+                item["why"], n = "", n + 1
+    if n:
+        brutos = {b.get("id"): b for b in msg.additional_kwargs.get("tool_calls", [])}
+        for c in msg.tool_calls:
+            if c["id"] in brutos:
+                brutos[c["id"]].setdefault("function", {})["arguments"] = json.dumps(c["args"])
+    return n
+
+
 def _chamada_fixa(estado: EstadoPesquisa) -> AIMessage:
-    """Modo --sem-llm: aprofunda os 3 primeiros candidatos com a consulta fixa de causa e correção."""
-    buscas = [{"incident_id": r["doc_id"], "query": pf.CONSULTA_CAUSA}
+    """Modo --sem-llm: aprofunda os 3 primeiros candidatos só com as consultas fixas de causa e de correção."""
+    buscas = [{"incident_id": r["doc_id"], "query": "", "why": ""}
               for r in estado.get("candidatos", [])[:pf.MAX_INCIDENTES_POR_CHAMADA]]
-    return AIMessage("", tool_calls=[{"name": "search_inside_incidents", "args": {"searches": buscas},
+    return AIMessage("", tool_calls=[{"name": "search_inside_incidents",
+                                      "args": {"searches": buscas},
                                       "id": "sem-llm-1", "type": "tool_call"}])
 
 
@@ -275,6 +297,7 @@ def _chamar_llm(historico: list) -> tuple[AIMessage, dict]:
     info["json_consertados"] = consertar_malformadas(msg)
     if info["json_consertados"]:  # registra também as chamadas que passaram a valer depois do conserto
         info["tool_calls"] += [{"nome": c["name"], "args": c["args"]} for c in msg.tool_calls[-info["json_consertados"]:]]
+    info["campos_completados"] = completar_argumentos(msg)
     return msg, info
 
 
@@ -309,13 +332,14 @@ def depois_das_ferramentas(estado: EstadoPesquisa) -> Literal["agente", "montar_
 # ---------------------------------------------------------------- saída (código)
 
 def montar_achados(estado: EstadoPesquisa) -> dict:
-    aprofundados, novos, buscas, avisos = {}, [], [], []
+    aprofundados, novos, justificativas, buscas, avisos = {}, [], {}, [], []
     plano = {"aprofundar": [], "novas_consultas": [], "descartar": [], "justificativa": "", "avisos": avisos}
     for m in estado.get("messages", []):
         if isinstance(m, AIMessage):
             for c in m.tool_calls:
                 if c["name"] == "search_inside_incidents":
-                    plano["aprofundar"] += [{"id": _id_curto(str(s.get("incident_id", ""))), "consulta": s.get("query", "")}
+                    plano["aprofundar"] += [{"id": _id_curto(str(s.get("incident_id", ""))), "consulta": s.get("query", ""),
+                                             "why": s.get("why")}
                                             for s in c["args"].get("searches", []) if isinstance(s, dict)]
                 elif c["name"] == "find_similar_incidents":
                     plano["novas_consultas"] += list(c["args"].get("queries", []))
@@ -330,18 +354,23 @@ def montar_achados(estado: EstadoPesquisa) -> dict:
             for i, trechos in art.get("resultados", {}).items():
                 aprofundados.setdefault(i, []).extend(trechos)
             novos += art.get("incidentes", [])
+            justificativas.update(art.get("justificativas", {}))
             buscas += art.get("buscas", [])
             avisos += art.get("avisos", [])
-    achados = []
+    achados, ja = [], set()
     for r in [*estado.get("candidatos", []), *novos]:
+        if r["doc_id"] in ja:
+            continue
+        ja.add(r["doc_id"])
         detalhes = list(r.get("detalhes", []))
         textos = {d["content"] for d in detalhes}
         extra = [d for d in aprofundados.get(r["doc_id"], []) if d["content"] not in textos]
-        achados.append({**r, "aprofundado": r["doc_id"] in aprofundados,
+        aprofundado = r["doc_id"] in aprofundados or bool(r.get("aprofundado"))  # refinamento: mantém o anterior
+        achados.append({**r, "aprofundado": aprofundado, "why": justificativas.get(r["doc_id"], r.get("why")),
                         "detalhes": (extra + detalhes)[:MAX_TRECHOS]})  # aprofundamento primeiro
     achados.sort(key=lambda r: not r["aprofundado"])  # aprofundados primeiro, mantendo a ordem de similaridade
     achados = achados[:MAX_ACHADOS]  # os que sobram ficam em ids_vistos (não voltam numa busca nova)
-    vistos = sorted(set(estado.get("ids_vistos", [])) | {r["doc_id"] for r in [*estado.get("candidatos", []), *novos]})
+    vistos = sorted(set(estado.get("ids_vistos", [])) | ja)
     return {"achados": achados, "aprofundados": aprofundados, "novos": novos, "plano": plano,
             "ids_vistos": vistos, "buscas": buscas}
 
@@ -385,8 +414,10 @@ def _mostrar(no: str, delta: dict) -> None:
     elif no == "montar_achados":
         for r in delta["achados"]:
             n_ap = sum(d.get("origem") == "aprofundamento" for d in r["detalhes"])
-            print(f"   {r['doc_id']} {r['similaridade']:.3f} {r['company']} — {r['title'][:55]}  "
+            print(f"   {r['doc_id']} {r['similaridade']:.3f} {r['company']} — {r['title'][:50]}  "
                   f"{'APROFUNDADO ' if r['aprofundado'] else ''}trechos: {len(r['detalhes'])} ({n_ap} de aprofundamento)")
+            if r.get("why"):
+                print(f"      por quê: {r['why'][:150]}")
         for a in delta["plano"]["avisos"]:
             print(f"   aviso: {a}")
 
