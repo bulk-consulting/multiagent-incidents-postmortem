@@ -83,7 +83,9 @@ def conversar(mensagens: list[dict], max_tokens: int = 1024, temperatura: float 
 
 
 def estruturado(mensagens: list[dict], nome: str, descricao: str, schema: dict,
-                max_tokens: int = 2048, temperatura: float = 1.0) -> dict:
+                max_tokens: int = 8192, temperatura: float = 1.0) -> dict:
+    # 8192: o nemotron-3.5-super-vl raciocina antes de responder; com 2048, 6 de 12 respostas da E3 pararam
+    # por limite de tokens (finish_reason=length) antes de chamar a ferramenta (teste de 2026-11-18).
     """Obriga o modelo a "chamar" a ferramenta `nome` e devolve os argumentos já convertidos de JSON.
 
     Devolve {"dados", "raciocinio", "uso", "segundos"}. Se a resposta não vier no formato
