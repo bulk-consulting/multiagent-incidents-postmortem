@@ -126,6 +126,7 @@ def main() -> None:
                     help="JSON com {'perguntas': [...]} (padrão: as 12 da E3; ex.: perguntas_dificeis.json)")
     ap.add_argument("--paralelo", type=int, default=1, help="quantas perguntas ao mesmo tempo (padrão: 1)")
     ap.add_argument("--modelo", help="modelo do NIM só nesta rodada (padrão: LLM_MODEL do .env)")
+    ap.add_argument("--agentico", action="store_true", help="experimento: o LLM faz a 1ª busca (pesquisa.ativar_modo_agentico)")
     ap.add_argument("--candidatos", type=int, help="candidatos da busca inicial que o LLM lê (padrão: pesquisa.N_DOCS)")
     a = ap.parse_args()
     todas = json.loads(a.arquivo.read_text())["perguntas"]
@@ -136,6 +137,8 @@ def main() -> None:
         pesquisa.MODELO_FORCADO = a.modelo
     if a.candidatos:
         pesquisa.N_DOCS = a.candidatos
+    if a.agentico:
+        pesquisa.ativar_modo_agentico()
         pesquisa.busca.vetorizar("aquecimento")
     if not a.sem_llm:
         pesquisa.llm_com_ferramentas()
@@ -158,6 +161,8 @@ def main() -> None:
         sufixo += "_" + a.modelo.split("/")[-1].replace(".", "-")  # sem ponto: with_suffix cortaria o nome
     if a.candidatos:
         sufixo += f"_{a.candidatos}cand"
+    if a.agentico:
+        sufixo += "_agentico"
     saida = AQUI / "resultados" / f"pesquisa_{datetime.now():%Y-%m-%d_%H%M}{sufixo}{'_semllm' if a.sem_llm else ''}"
     saida.parent.mkdir(exist_ok=True)
     saida.with_suffix(".json").write_text(json.dumps(resultados, ensure_ascii=False, indent=1))
