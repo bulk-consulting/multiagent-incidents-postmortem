@@ -5,7 +5,8 @@ O painel da conta em build.nvidia.com mostra "Your API Rate Limit: Up to 40 rpm"
 2026-11-18, recebemos 429 (Too Many Requests) a ~10–15 chamadas por minuto, quando o modelo estava muito
 usado. Por isso, duas proteções, válidas para todas as chamadas do processo (todas as threads):
 
-    1. ritmo: no máximo LLM_RPM chamadas em qualquer janela de 60 s (padrão 20; configurável no .env).
+    1. ritmo: no máximo LLM_RPM chamadas em qualquer janela de 60 s (padrão 10; configurável no .env). Com 20,
+       ainda houve muitos 429 em 2026-11-18 à tarde.
        Se a próxima chamada passaria do limite, ela espera a vez.
     2. espera longa em 429: 30 s, 60 s, 120 s, 120 s, 120 s (com um pouco de aleatoriedade), até 6
        tentativas. O limite do NIM é por minuto; esperar 15 s, como antes, não bastava.
@@ -25,7 +26,7 @@ from pathlib import Path
 from dotenv import dotenv_values
 
 _env = dotenv_values(Path(__file__).resolve().parents[1] / ".env")
-LLM_RPM = int(_env.get("LLM_RPM") or 20)
+LLM_RPM = int(_env.get("LLM_RPM") or 10)
 ESPERAS_429 = (30, 60, 120, 120, 120)  # segundos entre as tentativas depois de um 429
 
 _trava = threading.Lock()
