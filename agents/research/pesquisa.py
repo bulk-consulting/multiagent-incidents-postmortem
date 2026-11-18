@@ -346,6 +346,14 @@ def ativar_modo_agentico() -> None:
     pf.N_DOCS = N_DOCS_FIND_AGENTICO
 
 
+def ativar_modo_hibrido() -> None:
+    """Modo agêntico + rede de segurança: a 1ª busca do LLM inclui também a descrição original (feita em
+    código); os 10 incidentes dela entram sempre e as consultas do LLM acrescentam até 5 novos."""
+    ativar_modo_agentico()
+    pf.INCLUIR_DESCRICAO_NA_1A_BUSCA = True
+    pp.SISTEMA_AGENTICO = pp.SISTEMA_AGENTICO + pp.AVISO_HIBRIDO
+
+
 def rota_entrada(estado: EstadoPesquisa) -> Literal["busca_inicial", "agente"]:
     return "agente" if estado.get("candidatos") or MODO_AGENTICO else "busca_inicial"
 
@@ -502,11 +510,14 @@ def main() -> None:
     ap.add_argument("--json", type=Path, help="salva o estado final")
     ap.add_argument("--modelo", help="modelo do NIM só nesta execução (padrão: LLM_MODEL do .env)")
     ap.add_argument("--agentico", action="store_true", help="experimento: o LLM faz a 1ª busca (sem busca inicial em código)")
+    ap.add_argument("--hibrido", action="store_true", help="experimento: modo agêntico + a descrição original na 1ª busca")
     a = ap.parse_args()
     if a.modelo:
         global MODELO_FORCADO
         MODELO_FORCADO = a.modelo
-    if a.agentico:
+    if a.hibrido:
+        ativar_modo_hibrido()
+    elif a.agentico:
         ativar_modo_agentico()
     anteriores = json.loads(a.anteriores.read_text()) if a.anteriores else None
     t = time.time()

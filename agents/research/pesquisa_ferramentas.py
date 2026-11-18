@@ -33,6 +33,8 @@ MAX_INCIDENTES_POR_CHAMADA = 3
 MAX_CONSULTAS_POR_CHAMADA = 2
 N_TRECHOS = 2              # trechos por consulta dentro de um incidente
 N_DOCS = 5                 # incidentes por consulta em find_similar_incidents
+INCLUIR_DESCRICAO_NA_1A_BUSCA = False  # modo híbrido (experimento): ver find_similar_incidents
+EXTRAS_LLM = 5             # no modo híbrido, incidentes novos das consultas do LLM somados aos da descrição
 MIN_CHARS_TRECHO = 200     # trechos menores que isso quase sempre são só um título ("Further details here.")
 CHARS_TRECHO_PARA_LLM = 700
 # Consultas fixas somadas à do LLM em todo aprofundamento (o LLM às vezes escreve uma consulta genérica).
@@ -139,6 +141,18 @@ def find_similar_incidents(queries: list[str], state: Annotated[dict, InjectedSt
     ou quando o pedido do diagnóstico pede outro tipo de incidente."""
     excluir = sorted(_ids_conhecidos(state))
     por_id, registro = {}, []
+    garantidos: list[dict] = []
+    primeira = not any(isinstance(m, ToolMessage) and m.name == "find_similar_incidents" for m in state.get("messages", []))
+    if INCLUIR_DESCRICAO_NA_1A_BUSCA and primeira and state.get("descricao"):
+        # Modo híbrido: a 1ª busca do LLM inclui também a descrição original (feita em código). Os
+        # N_DOCS incidentes dela entram sempre; as consultas do LLM acrescentam até EXTRAS_LLM novos.
+        garantidos = busca.buscar(state["descricao"], N_DOCS, N_TRECHOS, excluir=excluir)
+        for r in garantidos:
+            r["doc_id"] = _id_curto(r["doc_id"])
+            for d in r.get("detalhes", []):
+                d.update({"origem": "similar", "consulta": state["descricao"]})
+        registro.append({"etapa": "find_similar_incidents (descrição)", "consulta": state["descricao"],
+                         "filtro": {"excluir": excluir}, "ids": [r["doc_id"] for r in garantidos]})
     for consulta in [q.strip() for q in queries if q.strip()][:MAX_CONSULTAS_POR_CHAMADA]:
         res = busca.buscar(consulta, N_DOCS, N_TRECHOS, excluir=excluir)
         for r in res:
@@ -149,7 +163,12 @@ def find_similar_incidents(queries: list[str], state: Annotated[dict, InjectedSt
                 por_id[r["doc_id"]] = r
         registro.append({"etapa": "find_similar_incidents", "consulta": consulta,
                          "filtro": {"excluir": excluir}, "ids": [r["doc_id"] for r in res]})
-    incidentes = sorted(por_id.values(), key=lambda r: -r["similaridade"])[:N_DOCS]
+    if garantidos:
+        ids_g = {r["doc_id"] for r in garantidos}
+        extras = [r for r in sorted(por_id.values(), key=lambda r: -r["similaridade"]) if r["doc_id"] not in ids_g]
+        incidentes = garantidos + extras[:EXTRAS_LLM]
+    else:
+        incidentes = sorted(por_id.values(), key=lambda r: -r["similaridade"])[:N_DOCS]
     linhas = [f"### [{r['doc_id']}] {r['company']} — {r['title']}\nResumo: {r.get('resumo') or '(sem resumo)'}"
               for r in incidentes]
     texto = ("\n\n".join(linhas) + "\n\nPara ver causa e correção de algum deles, use search_inside_incidents."
