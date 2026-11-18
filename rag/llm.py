@@ -23,8 +23,13 @@ import json
 import time
 from pathlib import Path
 
+import sys
+
 import httpx
 from dotenv import dotenv_values
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import limite_llm  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 _env = dotenv_values(ROOT / ".env")
@@ -54,6 +59,11 @@ TENTAR_DE_NOVO = (httpx.TimeoutException, httpx.TransportError, ErroTemporarioLL
 
 
 def _post(corpo: dict) -> dict:
+    """Uma chamada ao NIM, dentro do ritmo de limite_llm (LLM_RPM por minuto e espera longa em 429)."""
+    return limite_llm.chamar(lambda: _post_uma_vez(corpo), aviso="rag")
+
+
+def _post_uma_vez(corpo: dict) -> dict:
     chave = _env.get("NVIDIA_API_KEY")
     if not chave:
         raise ErroLLM(f"NVIDIA_API_KEY não encontrada em {ROOT / '.env'}")
