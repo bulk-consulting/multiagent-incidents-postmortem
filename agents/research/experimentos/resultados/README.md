@@ -1,6 +1,6 @@
 # Resultados dos testes do Agente Pesquisa RAG
 
-Gerados por `app/agents/experimentos/avaliar_pesquisa.py`, no banco da ingestão da main. Cada rodada tem
+Gerados por `agents/research/experimentos/avaliar_pesquisa.py`, no banco da ingestão da main. Cada rodada tem
 um `.md` (tabela + decisões do LLM + trechos trazidos) e um `.json` (dados completos).
 
 Perguntas:

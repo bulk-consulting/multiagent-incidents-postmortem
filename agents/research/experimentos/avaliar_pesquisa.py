@@ -1,15 +1,15 @@
 """
 Roda o Agente Pesquisa RAG nas 12 perguntas da E3 (rag/avaliacao/perguntas.json), ou noutro arquivo
-(--arquivo app/agents/experimentos/perguntas_dificeis.json), e registra,
+(--arquivo agents/research/experimentos/perguntas_dificeis.json), e registra,
 para cada uma, o que precisa ser conferido:
     - o incidente esperado está na busca inicial? e nos achados?
     - o LLM aprofundou o esperado? descartou o esperado?
     - os trechos de aprofundamento (seção + início do texto, para conferir à mão se são causa/correção)
 
 Uso (a partir da raiz do repositório, com o banco no ar):
-    multiagent_env/bin/python -I app/agents/experimentos/avaliar_pesquisa.py [--perguntas q01,q10] [--sem-llm]
+    multiagent_env/bin/python -I agents/research/experimentos/avaliar_pesquisa.py [--perguntas q01,q10] [--sem-llm]
         [--paralelo 3]
-Saída: app/agents/experimentos/resultados/pesquisa_<data>.json e .md
+Saída: agents/research/experimentos/resultados/pesquisa_<data>.json e .md
 """
 from __future__ import annotations
 

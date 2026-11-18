@@ -19,10 +19,10 @@ O agente não avalia se a evidência basta: isso é do Agente Diagnóstico. O co
 loop de refinamento fica no roteamento do grafo principal.
 
 Uso (a partir da raiz do repositório, com o banco no ar):
-    multiagent_env/bin/python -I app/agents/pesquisa.py "descrição do incidente" [--sintoma "..."]...
+    multiagent_env/bin/python -I agents/research/pesquisa.py "descrição do incidente" [--sintoma "..."]...
         [--sem-llm] [--json saida.json]
     # refinamento: parte dos achados de uma rodada anterior e de um pedido do Diagnóstico
-    multiagent_env/bin/python -I app/agents/pesquisa.py "descrição" --anteriores saida.json --pedido "..."
+    multiagent_env/bin/python -I agents/research/pesquisa.py "descrição" --anteriores saida.json --pedido "..."
 """
 from __future__ import annotations
 
