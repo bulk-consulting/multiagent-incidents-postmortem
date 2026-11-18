@@ -41,7 +41,18 @@ SELECT DISTINCT ON (c.catalog_id) c.catalog_id, i.company, i.title, i.source_url
 FROM chunk c
 JOIN incident i USING (catalog_id)
 LEFT JOIN chunk s ON s.catalog_id = c.catalog_id AND s.chunk_type = 'summary'
+WHERE NOT (c.catalog_id = ANY(%(excluir)s))
 ORDER BY c.catalog_id, c.embedding <=> %(q)s
+"""
+
+# Trechos text de um incidente só, do mais ao menos parecido com a consulta (usado pelo Agente
+# Pesquisa RAG para buscar causa e correção dentro de um incidente já encontrado).
+NO_INCIDENTE = """
+SELECT content, 1 - (embedding <=> %(q)s) AS similaridade
+FROM chunk
+WHERE chunk_type = 'text' AND catalog_id = %(doc)s
+ORDER BY embedding <=> %(q)s
+LIMIT %(n)s
 """
 
 ETAPA2 = """
@@ -80,12 +91,13 @@ def _secao_e_texto(content: str) -> tuple[str, str]:
     return secao, texto
 
 
-def buscar(pergunta: str, n_docs: int = 5, n_trechos: int = 2) -> list[dict]:
+def buscar(pergunta: str, n_docs: int = 5, n_trechos: int = 2, excluir: list[str] | None = None) -> list[dict]:
+    """Busca em duas etapas. `excluir`: IDs de incidentes que não devem voltar (ex.: já vistos)."""
     q = vetorizar(pergunta)
     with psycopg.connect(os.environ["DATABASE_URL"]) as con:
         register_vector(con)
         with con.cursor() as cur:
-            cur.execute(ETAPA1, {"q": q})
+            cur.execute(ETAPA1, {"q": q, "excluir": list(excluir or [])})
             etapa1 = sorted(cur.fetchall(), key=lambda r: -r[7])[:n_docs]
             docs = [r[0] for r in etapa1]
             cur.execute(ETAPA2, {"q": q, "docs": docs, "n": n_trechos})
@@ -99,6 +111,21 @@ def buscar(pergunta: str, n_docs: int = 5, n_trechos: int = 2) -> list[dict]:
         saida.append({"doc_id": cid, "company": company, "title": title, "url": url, "resumo": resumo,
                       "melhor_chunk": {"tipo": "resumo" if tipo == "summary" else "texto", "secao": secao, "content": texto},
                       "similaridade": float(sim), "detalhes": detalhes.get(cid, [])})
+    return saida
+
+
+def buscar_no_incidente(doc_id: str, consulta: str, n: int = 2) -> list[dict]:
+    """Os n trechos do incidente doc_id mais parecidos com a consulta (mesmo formato de 'detalhes')."""
+    q = vetorizar(consulta)
+    with psycopg.connect(os.environ["DATABASE_URL"]) as con:
+        register_vector(con)
+        with con.cursor() as cur:
+            cur.execute(NO_INCIDENTE, {"q": q, "doc": doc_id, "n": n})
+            linhas = cur.fetchall()
+    saida = []
+    for content, sim in linhas:
+        secao, texto = _secao_e_texto(content)
+        saida.append({"secao": secao, "content": texto, "similaridade": float(sim)})
     return saida
 
 
