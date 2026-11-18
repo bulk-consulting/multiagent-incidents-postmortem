@@ -88,6 +88,12 @@ Decisão em código (fora do agente)
 ```
 
 A **Messages history** é a memória de uma execução: a lista de mensagens enviada ao modelo a cada chamada.
+![Fluxo interno do Agente Triagem](fluxo_agente_triagem.svg)
+
+Como ler o desenho: a linha tracejada roxa marca o que está **dentro do agente**; a linha tracejada dentro da
+Messages history separa o que é preenchido **no início** do que é adicionado **durante a execução**. Roxo é o
+LLM, cinza é código Python e verde é a função da ferramenta. A decisão final e as três saídas ficam fora do agente.
+
 O laço roda no máximo **5 vezes** (`MAX_TURNS`); se não houver resposta válida, levanta erro.
 
 ## 5. Critérios de decisão
