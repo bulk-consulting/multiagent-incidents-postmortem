@@ -28,3 +28,20 @@ Perguntas:
 
 Cuidados ao ler: cada versão rodou uma vez, e o modelo varia entre rodadas (temperatura 1,0). As
 diferenças de 1 ou 2 perguntas são tendência, não prova.
+
+## Troca de modelo (2026-11-18: o `openai/gpt-oss-20b` saiu do NIM)
+
+Branch `e5-troca-modelo`, opção `--modelo` (o `.env` não muda). Mesmo agente, só o modelo trocado.
+
+| Rodada | Modelo | Perguntas | Resultado principal |
+|---|---|---|---|
+| `2026-11-18_1200` + `1202_perguntas_dificeis` e `1221` + `1222_perguntas_dificeis` | nemotron-3.5-super-vl-120b-a12b, 2 rodadas | 12 da E3 + 20 difíceis | igual ao GPT-OSS nas duas: 11/11, 8/8, 6/6, 0/6; 0 problemas de chamada; ~12 s por pergunta |
+| `2026-11-18_1208` + `1210_perguntas_dificeis` e `1221` + `1223_perguntas_dificeis` | nemotron-3.5-lightning-30b-a3b, 2 rodadas | 12 da E3 + 20 difíceis | 10/11 e 11/11 na E3 (1 vez respondeu ao analista em vez de buscar); 8/8, 6/6, 0/6; respostas vazias ocasionais |
+| `2026-11-18_1206` | mistral-large-4-1t-a52b | 12 da E3 | 11/11, ~10 vezes mais lento (as difíceis foram canceladas) |
+| `2026-11-18_1157` + `1158_perguntas_dificeis` | nemotron-3.5-super-vl, antes das correções | 12 + 20 | 2 respostas vazias → limite de tokens 4096 e nova tentativa em resposta vazia |
+| `2026-11-18_1314` e `2026-11-18_1334` | nemotron-3.5-super-vl, 2 rodadas | **137 de sintoma da suíte da E2** (`perguntas_sintoma_e2.json`) | até o 10º lugar: 130/131 e 131/131; além do 10º: 0/6 nas duas; a única falha (q-006, rodada 1) foi a lista de argumentos mandada como texto, agora convertida em código |
+| `2026-11-18_1405_perguntas_sintoma_e2_..._20cand` | nemotron-3.5-super-vl, **20 candidatos** (`--candidatos 20`) | 137 de sintoma | 135/137: resolveu as 4 com o certo entre o 11º e o 20º, sem perder nenhuma das 131 até o 10º. O padrão continua em 10 (decisão do André: poucos casos se beneficiam) |
+| `2026-11-18_1424_perguntas_e2_completa_...` | nemotron-3.5-super-vl, 10 candidatos | **suíte inteira da E2: 295** (`perguntas_e2_completa.json`) | certo aprofundado em 284/284 até o 10º lugar (sintoma 131/131, causa 137/137, geral 16/16); 0/6 além do 10º; das 5 fora do corpus, 3 procuraram outros incidentes e encerraram sem aprofundar e 2 aprofundaram incidentes parecidos, com o `why` dizendo o que não bate; 298 chamadas, 0 problemas; 13 min 26 s |
+
+Uma rodada de 295 com 4 em paralelo falhou inteira no embedding (`float != BFloat16`, várias threads na GPU ao mesmo
+tempo). Corrigido com uma trava em `rag/busca.py` (`vetorizar`); a rodada que falhou foi apagada.

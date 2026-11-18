@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import threading
 from pathlib import Path
 
 import numpy as np
@@ -70,9 +71,17 @@ ORDER BY catalog_id, similaridade DESC
 CABECALHO = re.compile(r"\ACompany: [^\n]*\n+")
 
 _modelo = None
+# Uma vetorização por vez: com várias threads (avaliar_pesquisa.py --paralelo) chamando o modelo na GPU ao mesmo
+# tempo, o encode às vezes falha com "expected mat1 and mat2 to have the same dtype" (float x BFloat16).
+_trava = threading.Lock()
 
 
 def vetorizar(pergunta: str) -> np.ndarray:
+    with _trava:
+        return _vetorizar(pergunta)
+
+
+def _vetorizar(pergunta: str) -> np.ndarray:
     global _modelo
     if _modelo is None:
         import torch
