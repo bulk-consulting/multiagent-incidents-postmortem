@@ -45,6 +45,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "rag"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import busca  # noqa: E402
+import limite_llm  # noqa: E402
 import pesquisa_ferramentas as pf  # noqa: E402
 import pesquisa_prompt as pp  # noqa: E402
 from prompts import _id_curto  # noqa: E402
@@ -312,7 +313,7 @@ def agente(estado: EstadoPesquisa) -> dict:
 def _chamar_llm(historico: list) -> tuple[AIMessage, dict]:
     t = time.time()
     try:
-        msg = llm_com_ferramentas().invoke(historico)
+        msg = limite_llm.chamar(lambda: llm_com_ferramentas().invoke(historico), aviso="agente")
     except Exception as e:
         print(f"[agente] falha ({type(e).__name__}: {str(e)[:120]}); o grafo vai tentar de novo", flush=True)
         raise
