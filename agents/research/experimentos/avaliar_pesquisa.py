@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -127,6 +128,7 @@ def main() -> None:
     ap.add_argument("--paralelo", type=int, default=1, help="quantas perguntas ao mesmo tempo (padrão: 1)")
     ap.add_argument("--modelo", help="modelo do NIM só nesta rodada (padrão: LLM_MODEL do .env)")
     ap.add_argument("--agentico", action="store_true", help="experimento: o LLM faz a 1ª busca (pesquisa.ativar_modo_agentico)")
+    ap.add_argument("--sem-raciocinio", action="store_true", help="enable_thinking=False no LLM (menos tokens)")
     ap.add_argument("--hibrido", action="store_true", help="experimento: modo agêntico + a descrição original na 1ª busca")
     ap.add_argument("--candidatos", type=int, help="candidatos da busca inicial que o LLM lê (padrão: pesquisa.N_DOCS)")
     a = ap.parse_args()
@@ -138,40 +140,60 @@ def main() -> None:
         pesquisa.MODELO_FORCADO = a.modelo
     if a.candidatos:
         pesquisa.N_DOCS = a.candidatos
+    if a.sem_raciocinio:
+        pesquisa.RACIOCINIO = False
     if a.hibrido:
         pesquisa.ativar_modo_hibrido()
     elif a.agentico:
         pesquisa.ativar_modo_agentico()
-        pesquisa.busca.vetorizar("aquecimento")
+    pesquisa.busca.vetorizar("aquecimento")
     if not a.sem_llm:
         pesquisa.llm_com_ferramentas()
 
-    def uma(p: dict) -> dict:
-        print(f"[{datetime.now():%H:%M:%S}] {p['id']} começou", flush=True)
-        r = avaliar(p, a.sem_llm)
-        print(f"[{datetime.now():%H:%M:%S}] {p['id']}: " + (r.get("erro") or ("achados: " + ", ".join(r["achados"])
-              + "; esperado nos achados: " + (", ".join(r["esperado_nos_achados"]) or "—"))) + f" ({r['segundos']}s)", flush=True)
-        return r
-
-    # As perguntas são independentes e o tempo é quase todo espera na fila do NIM: rodar N ao mesmo tempo
-    # divide o tempo total por ~N. pool.map devolve na ordem das perguntas.
-    t0 = time.time()
-    with ThreadPoolExecutor(max_workers=max(1, a.paralelo)) as pool:
-        resultados = list(pool.map(uma, perguntas))
-    print(f"total: {time.time() - t0:.0f}s com {a.paralelo} em paralelo", flush=True)
     sufixo = "" if a.arquivo.name == "perguntas.json" else "_" + a.arquivo.stem
     if a.modelo:
         sufixo += "_" + a.modelo.split("/")[-1].replace(".", "-")  # sem ponto: with_suffix cortaria o nome
     if a.candidatos:
         sufixo += f"_{a.candidatos}cand"
+    if a.sem_raciocinio:
+        sufixo += "_sem-raciocinio"
     if a.hibrido:
         sufixo += "_hibrido"
     elif a.agentico:
         sufixo += "_agentico"
     saida = AQUI / "resultados" / f"pesquisa_{datetime.now():%Y-%m-%d_%H%M}{sufixo}{'_semllm' if a.sem_llm else ''}"
     saida.parent.mkdir(exist_ok=True)
+    parcial = saida.with_name(saida.name + "_parcial.json")
+
+    # Progresso visível e salvamento parcial: depois de cada pergunta, uma linha "progresso:" com quantas
+    # terminaram, o tempo e a estimativa do que falta; o que já terminou vai para *_parcial.json (se a rodada
+    # for interrompida, nada do que rodou se perde).
+    t0 = time.time()
+    feitos: dict[str, dict] = {}
+    trava = threading.Lock()
+
+    def uma(p: dict) -> dict:
+        r = avaliar(p, a.sem_llm)
+        with trava:
+            feitos[p["id"]] = r
+            n, total = len(feitos), len(perguntas)
+            dec = time.time() - t0
+            resta = dec / n * (total - n)
+            erros = sum("erro" in x for x in feitos.values())
+            print(f"progresso: {n}/{total} perguntas ({erros} com erro) · {dec / 60:.1f} min · faltam ~{resta / 60:.0f} min"
+                  f" · {p['id']}: " + (r.get("erro", "")[:60] or ("certo aprofundado" if r.get("esperado_aprofundado")
+                                                                    else ("—" if not r.get("esperado") else "certo NÃO aprofundado"))),
+                  flush=True)
+            parcial.write_text(json.dumps([feitos[q["id"]] for q in perguntas if q["id"] in feitos], ensure_ascii=False))
+        return r
+
+    # As perguntas são independentes; pool.map devolve na ordem das perguntas.
+    with ThreadPoolExecutor(max_workers=max(1, a.paralelo)) as pool:
+        resultados = list(pool.map(uma, perguntas))
+    print(f"total: {time.time() - t0:.0f}s com {a.paralelo} em paralelo", flush=True)
     saida.with_suffix(".json").write_text(json.dumps(resultados, ensure_ascii=False, indent=1))
     saida.with_suffix(".md").write_text(md(resultados, a.sem_llm))
+    parcial.unlink(missing_ok=True)
     print(f"salvo em {saida}.md / .json")
 
 

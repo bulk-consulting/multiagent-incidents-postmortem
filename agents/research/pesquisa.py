@@ -123,6 +123,7 @@ def busca_inicial(estado: EstadoPesquisa) -> dict:
 # ---------------------------------------------------------------- agente (LLM com ferramentas)
 
 _llm = None
+RACIOCINIO = True  # False: enable_thinking=False (o modelo responde sem raciocínio interno; menos tokens)
 MODELO_FORCADO: str | None = None  # testes: troca o modelo do .env só nesta execução (avaliar_pesquisa.py --modelo)
 
 
@@ -313,7 +314,8 @@ def agente(estado: EstadoPesquisa) -> dict:
 def _chamar_llm(historico: list) -> tuple[AIMessage, dict]:
     t = time.time()
     try:
-        msg = limite_llm.chamar(lambda: llm_com_ferramentas().invoke(historico), aviso="agente")
+        extra = {} if RACIOCINIO else {"chat_template_kwargs": {"enable_thinking": False}}
+        msg = limite_llm.chamar(lambda: llm_com_ferramentas().invoke(historico, **extra), aviso="agente")
     except Exception as e:
         print(f"[agente] falha ({type(e).__name__}: {str(e)[:120]}); o grafo vai tentar de novo", flush=True)
         raise

@@ -1,0 +1,2820 @@
+[
+ {
+  "id": "q-207",
+  "tipo": "sintoma_e2",
+  "esperado": [
+   "DAN-085"
+  ],
+  "trechos_do_esperado": {
+   "DAN-085": [
+    {
+     "fonte": "llm",
+     "secao": "Subversion SHA1 Collision Problem Statement — Prevention and Remediation Options",
+     "titulo_de_correcao": true,
+     "texto": "# Subversion SHA1 Collision Problem Statement — Prevention and Remediation Options\n\nYou probably saw the news last week that researchers at Google had found a scenario where they were able to break the SHA1 algorithm by creating two PDF files with differing content that produced the same hash. If you are following this story then you may have also seen that the Webkit Subversion repository had problems after a user committed these example files to their repository so that they could be used in test cases for SHA1 collisions.\n\nThis post will try to explain the problem this caused and what prevention and remediation options are available if you run into it. The quick summary if you do not want to read this entire post is that the problem is really not that bad. If you run into it there are solutions to resolve it and you are not going to run into it in normal usage. There will also likely be some future updates to Subversion that avoid it entirely so if you regularly update your server and client when new releases come out you are probably safe not doing anything and just waiting for an update to happen."
+    },
+    {
+     "fonte": "llm",
+     "secao": "Final note",
+     "titulo_de_correcao": false,
+     "texto": "## Final note\n\nThese interpretations of the problem and its severity are obviously my own. I have tried to explain the problem, how to prevent it, and how to resolve it, as accurately as possible as well as make it clear where I am giving my opinion. If you have followup questions or are interested in how this will be fixed in future versions of Subversion, my preference would be to have those conversations in the mailing lists of the Subversion community at Apache. Those mailing lists are the canonical source of information on this problem and any approaches to resolving it. All discussion about this problem should happen there."
+    },
+    {
+     "fonte": "causa",
+     "secao": "Problem Statement",
+     "titulo_de_correcao": false,
+     "texto": "## Problem Statement\n\nThe problem that happens is caused by a feature that was added in Subversion 1.6 called “Representation Sharing”. When Subversion stores the data for a commit, eventually bytes for each file are being written to disk. In the case of a newly added file this is essentially the content of the file, but a representation can also be the binary delta that is being stored when it is an update to an existing file. In any case, before the data is written to disk, Subversion calculates the SHA1 of the bytes and then consults a small SQLite database to see if it has stored these bytes before. If it has, then instead of storing the bytes again, it just stores a pointer to the data it already has stored. The idea here obviously being to save disk space. Think of a repository that has the same Java JAR file stored 100 times in different projects. This feature causes it to only store a single copy of that file which saves a decent amount of disk space. Unfortunately, in this scenario where two “different” files have the same SHA1, the incorrect behavior that happens is that the first file is stored to disk but the second file is effectively lost as the only thing stored for that file is a pointer to the first file."
+    },
+    {
+     "fonte": "correcao",
+     "secao": "Remediation Options",
+     "titulo_de_correcao": true,
+     "texto": "## Remediation Options\n\nAnother option is the one the Webkit repository used and that is to create a Subversion permission rule (authz) that blocks access to the file(s). This will work with tools like svnsync and git-svn as the server will not even try sending them the bad file. You could use this option to permanently fix the problem by adding the authz rule and then using svnsync to transfer the entire history to a new repository. The repository can be active while all this happens and you can then just do a quick cutover to the new repository at a convenient time. So even if it takes weeks to sync and schedule the cutover this gives you both a short term and long term solution to the problem. As a side note — if you ever replace a repository with a new version using the same name and you serve the repository via Apache, make sure you restart Apache after you do this. Subversion has file caches in memory that will give you weird errors if you do not do this."
+    },
+    {
+     "fonte": "correcao",
+     "secao": "Remediation Options",
+     "titulo_de_correcao": true,
+     "texto": "## Remediation Options\n\nSo these first two options talk about how to PREVENT the problem. Now lets talk about what to do once you get the problem. To do that, lets first talk about the scope of the problem. The only impact is that you cannot checkout/update the problematic file. So if you have a repository with lots of projects in one repository, only the project or folders with these files has any impact.\n\nOne solution is just to delete the second file. This will resolve this problem for normal SVN client usage, but it will not work for tools like svnsync or git-svn which try to replay every transaction in the repository. A normal SVN checkout/update is only requesting the HEAD revision. If you delete the files they no longer exist in the HEAD revision so this will work fine. But tools like svnsync fetch every revision one at a time and replay them. This will run into an error on the revision where the file was committed and not be able to proceed.\n\nA second solution would be to remove the revision. To do that you have to use svnadmin dump to dump your repository up to the revision that introduced the problem. Then load this dump file to a new repository. This can be hard to do if you have a really big repository where it will create too much downtime. Also, if you have been doing more commits after the problematic revision then it is a bit more difficult to dump and load all of the subsequent revisions."
+    },
+    {
+     "fonte": "similar",
+     "secao": "Wrapping Up",
+     "titulo_de_correcao": false,
+     "texto": "## Wrapping Up\n\nFinally, there is still another problem scenario to be aware of and that is on the SVN client. Suppose you decide to turn off representation sharing in the repository. When this happens, users can commit files with duplicate hashes and they will be stored correctly in the repository. However, the SVN client since the 1.7 release has had a working copy format that stores the pristine copy of each file using its SHA1 identifier. When a user checks out these files, their working copy will only store a single copy of the file. So you will have two identical files in your working copy and will not get back the files you expected. If you are trying to run tests using these files, they obviously will not work or test what you are expecting. It is possible there will be a future release of Subversion that will provide options to handle this, but today it would not work if you tried to have a single working copy with two files that have the same SHA1. You will not see any errors, but you will not have the files you expected to have. This scenario was known when the feature was designed and at the time it was decided that it would only impact security researchers, such as the ones in this scenario, and that it was not going to be the priority to try and solve it for them. If the intent for the user is security research then there is a simple solution to this problem. Store your research files in a zip file and version the zip file. Have your test cases extract the files from the zip file when running the tests and the problem is solved."
+    },
+    {
+     "fonte": "similar",
+     "secao": "Problem Statement",
+     "titulo_de_correcao": false,
+     "texto": "## Problem Statement\n\nFirst off let’s describe the problem and what the expected behavior would be if there were no problems. The problem happens when two files that have differing content but the same SHA1 content hash are committed to a repository. They do not have to be committed in the same transaction. In the case of Webkit, a developer committed the two example files that Google produced but there are now websites that will generate other examples. However, it is important to note that the files generated by all of these sites share a common byte sequence with the original files so it is easy to detect them and prevent the commit with a hook script, which I will discuss later. Back to the problem, the expected behavior is that these two files could be added to a repository like any other files, and you could get them back out later. Bytes in, bytes out just like any other file you version and that is certainly what the Webkit team was expecting here. The problem that happens is caused by a feature that was added in Subversion 1.6 called “Representation Sharing”. When Subversion stores the data for a commit, eventually bytes for each file are being written to disk."
+    }
+   ]
+  },
+  "posicao_busca_inicial": 1,
+  "esperado_em_novos": [
+   "DAN-085"
+  ],
+  "busca_inicial": [],
+  "achados": [
+   "DAN-085",
+   "DAN-164",
+   "DAN-050",
+   "DAN-157",
+   "DAN-055",
+   "DAN-173",
+   "DAN-097",
+   "DAN-129"
+  ],
+  "esperado_na_busca_inicial": [],
+  "esperado_nos_achados": [
+   "DAN-085"
+  ],
+  "esperado_aprofundado": [
+   "DAN-085"
+  ],
+  "esperado_descartado": [],
+  "plano": {
+   "aprofundar": [
+    {
+     "id": "DAN-085",
+     "consulta": "root cause SHA1 collision test files consistency check failure fix remediation Subversion repository",
+     "why": "O incidente bate com o atual: repositório de código indisponível, checkout falha na consistência, ocorrido logo após commit com arquivos de teste. O componente (repositório VCS) e o gatilho (commit com test files) coincidem."
+    }
+   ],
+   "novas_consultas": [
+    "repository checkout consistency check fails after commit test files",
+    "code repository unavailable consistency check failed commit test files"
+   ],
+   "descartar": [],
+   "justificativa": "",
+   "avisos": []
+  },
+  "trechos_aprofundamento": {
+   "DAN-085": [
+    {
+     "secao": "Subversion SHA1 Collision Problem Statement — Prevention and Remediation Options",
+     "similaridade": 0.754,
+     "fonte_consulta": "llm",
+     "inicio": "# Subversion SHA1 Collision Problem Statement — Prevention and Remediation Options  You probably saw the news last week that researchers at Google had found a scenario where they were able to break the SHA1 algorithm by creating two PDF files with differing content that produced the same hash. If yo"
+    },
+    {
+     "secao": "Final note",
+     "similaridade": 0.749,
+     "fonte_consulta": "llm",
+     "inicio": "## Final note  These interpretations of the problem and its severity are obviously my own. I have tried to explain the problem, how to prevent it, and how to resolve it, as accurately as possible as well as make it clear where I am giving my opinion. If you have followup questions or are interested "
+    },
+    {
+     "secao": "Problem Statement",
+     "similaridade": 0.287,
+     "fonte_consulta": "causa",
+     "inicio": "## Problem Statement  The problem that happens is caused by a feature that was added in Subversion 1.6 called “Representation Sharing”. When Subversion stores the data for a commit, eventually bytes for each file are being written to disk. In the case of a newly added file this is essentially the co"
+    },
+    {
+     "secao": "Remediation Options",
+     "similaridade": 0.38,
+     "fonte_consulta": "correcao",
+     "inicio": "## Remediation Options  Another option is the one the Webkit repository used and that is to create a Subversion permission rule (authz) that blocks access to the file(s). This will work with tools like svnsync and git-svn as the server will not even try sending them the bad file. You could use this "
+    },
+    {
+     "secao": "Remediation Options",
+     "similaridade": 0.366,
+     "fonte_consulta": "correcao",
+     "inicio": "## Remediation Options  So these first two options talk about how to PREVENT the problem. Now lets talk about what to do once you get the problem. To do that, lets first talk about the scope of the problem. The only impact is that you cannot checkout/update the problematic file. So if you have a rep"
+    }
+   ]
+  },
+  "novos": [
+   "DAN-085",
+   "DAN-164",
+   "DAN-050",
+   "DAN-157",
+   "DAN-055",
+   "DAN-173",
+   "DAN-097",
+   "DAN-129",
+   "DAN-078",
+   "DAN-130",
+   "DAN-190",
+   "DAN-029",
+   "DAN-142",
+   "DAN-049"
+  ],
+  "buscas": [
+   {
+    "etapa": "find_similar_incidents (descrição)",
+    "consulta": "The code repository is unavailable and every checkout fails the consistency check, right after a commit with test files.",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-085",
+     "DAN-164",
+     "DAN-050",
+     "DAN-157",
+     "DAN-055",
+     "DAN-173",
+     "DAN-097",
+     "DAN-129",
+     "DAN-078",
+     "DAN-130"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "repository checkout consistency check fails after commit test files",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-085",
+     "DAN-050",
+     "DAN-164",
+     "DAN-173",
+     "DAN-055",
+     "DAN-190",
+     "DAN-157",
+     "DAN-097",
+     "DAN-142",
+     "DAN-049"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "code repository unavailable consistency check failed commit test files",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-085",
+     "DAN-164",
+     "DAN-050",
+     "DAN-190",
+     "DAN-157",
+     "DAN-173",
+     "DAN-129",
+     "DAN-055",
+     "DAN-097",
+     "DAN-029"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "root cause SHA1 collision test files consistency check failure fix remediation Subversion repository",
+    "filtro": {
+     "incidente": "DAN-085"
+    },
+    "ids": [
+     "DAN-085"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-085"
+    },
+    "ids": [
+     "DAN-085"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-085"
+    },
+    "ids": [
+     "DAN-085"
+    ]
+   }
+  ],
+  "chamadas_llm": [
+   {
+    "segundos": 3.8,
+    "tokens": 1351,
+    "ferramentas": [
+     "find_similar_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   },
+   {
+    "segundos": 7.5,
+    "tokens": 3039,
+    "ferramentas": [
+     "search_inside_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": "Encontrei um incidente muito parecido: **DAN-085** (WebKit Subversion repository) descreve exatamente um repositório indisponível com checkout falhando na consistência logo após um commit com arquivos de teste. Vou buscar a causa raiz e a correção dentro dele.\n"
+   }
+  ],
+  "segundos": 12
+ },
+ {
+  "id": "q-208",
+  "tipo": "sintoma_e2",
+  "esperado": [
+   "DAN-086"
+  ],
+  "trechos_do_esperado": {
+   "DAN-086": [
+    {
+     "fonte": "causa",
+     "secao": "Prevention",
+     "titulo_de_correcao": true,
+     "texto": "### Prevention\n\n- **Testing.** The root cause of the initial outage was a software bug due to the incorrect manipulation of date/time values.  We are taking steps that improve our testing to detect time-related bugs.  We are also enhancing our code analysis tools to detect this and similar classes of coding issues, and we have already reviewed our code base.\n- **Fault Isolation.** The Fabric Controller moved nodes to a Human Investigate (HI) state when their operations failed due to the Guest Agent (GA) bug.  It incorrectly assumed the hardware, not the GA, was faulty.  We are taking steps to distinguish these faults and isolate them before they can propagate further into the system.\n- **Graceful Degradation.** We took the step of turning off service management to protect customers’ already running services during this incident, but this also prevented any ongoing management of their services.  We are taking steps to have finer granularity controls to allow disabling different aspects of the service while keeping others up and visible."
+    },
+    {
+     "fonte": "correcao",
+     "secao": "Improving the Service",
+     "titulo_de_correcao": true,
+     "texto": "## Improving the Service\n\nAfter an incident occurs, we take the time to analyze the incident and ways we can improve our engineering, operations and communications. To learn as much as we can, we do the root cause analysis but also follow this up with an analysis of all aspects of the incident. The three truths of cloud computing are: hardware fails, software has bugs and people make mistakes. Our job is to mitigate all of these unpredictable issues to provide a robust service for our customers. By understanding and addressing these issues we will continue to improve the service we offer to our customers.\n\nThe analysis is organized into four major areas, looking at each part of the incident lifecycle as well as the engineering process that preceded it:\n\n- **Prevention** – how the system can avoid, isolate, and/or recover from failures\n- **Detection** – how to rapidly surface failures and prioritize recovery\n- **Response** – how to support our customers during an incident\n- **Recovery** – how to reduce the recovery time and impact on our customers"
+    },
+    {
+     "fonte": "correcao",
+     "secao": "Recovery",
+     "titulo_de_correcao": true,
+     "texto": "### Recovery\n\n- **Internal tooling.**  We developed and modified some of our internal tooling to address this incident.  We will continue to invest in our tools to help speed recovery and make recovery from intermediate states more predictable.\n- **Dependency priorities.** We are also examining our processes to make sure dependencies are factored into recovery to ensure that all Windows Azure infrastructure services, such as ACS and Windows Azure Service Bus, are recovered first to reduce the impact on customers.\n- **Visibility.** We are looking at how we can provide better visibility into recovery steps and provide customers with visibility into the intermediate progress being made."
+    },
+    {
+     "fonte": "similar",
+     "secao": "The Leap Day Bug in Action",
+     "titulo_de_correcao": false,
+     "texto": "## The Leap Day Bug in Action\n\nThe leap day bug immediately triggered at 4:00PM PST, February 28<sup>th</sup> (00:00 UST February 29<sup>th</sup>) when GAs in new VMs tried to generate certificates. Storage clusters were not affected because they don’t run with a GA, but normal application deployment, scale-out and service healing would have resulted in new VM creation. At the same time many clusters were also in the midst of the rollout of a new version of the FC, HA and GA. That ensured that the bug would be hit immediately in those clusters and the server HI threshold hit precisely 75 minutes (3 times 25 minute timeout) later at 5:15PM PST. The bug worked its way more slowly through clusters that were not being updated, but the critical alarms on the updating clusters automatically stopped the updates and alerted operations staff to the problem. They in turn notified on-call FC developers, who researched the cause and at 6:38PM PST our developers identified the bug.\n\nBy this time some applications had single VMs offline and some also had multiple VMs offline, but most applications with multiple VMs maintained availability, albeit with some reduced capacity. To prevent customers from inadvertently causing further impact to their running applications, unsuccessfully scaling-out their applications, and fruitlessly trying to deploy new applications, we disabled service management functionality in all clusters worldwide at 6:55PM PST. This is the first time we’ve ever taken this step. Service management allows customers to deploy, update, stop and scale their applications but isn’t necessary for the continued operation of already deployed applications. However stopping service management prevents customers from modifying or updating their currently deployed applications."
+    },
+    {
+     "fonte": "similar",
+     "secao": "The Leap Day Bug",
+     "titulo_de_correcao": false,
+     "texto": "## The Leap Day Bug\n\nWhen the GA creates the transfer certificate, it gives it a one year validity range. It uses midnight UST of the current day as the *valid-from* date and one year from that date as the *valid-to* date. The leap day bug is that the GA calculated the *valid-to* date by simply taking the current date and adding one to its year. That meant that any GA that tried to create a transfer certificate on leap day set a *valid-to* date of February 29, 2013, an invalid date that caused the certificate creation to fail.\n\nAs mentioned, transfer certificate creation is the first step of the GA initialization and is required before it will connect to the HA. When a GA fails to create its certificates, it terminates. The HA has a 25-minute timeout for hearing from the GA. When a GA doesn’t connect within that timeout, the HA reinitializes the VM’s OS and restarts it.\n\nIf a clean VM (one in which no customer code has executed) times out its GA connection three times in a row, the HA decides that a hardware problem must be the cause since the GA would otherwise have reported an error. The HA then reports to the FC that the server is faulty and the FC moves it to a state called Human Investigate (HI). As part of its standard autonomic failure recovery operations for a server in the HI state, the FC will service heal any VMs that were assigned to the failed server by reincarnating them to other servers. In a case like this, when the VMs are moved to available servers the leap day bug will reproduce during GA initialization, resulting in a cascade of servers that move to HI."
+    }
+   ]
+  },
+  "posicao_busca_inicial": 1,
+  "esperado_em_novos": [
+   "DAN-086"
+  ],
+  "busca_inicial": [],
+  "achados": [
+   "DAN-086",
+   "DAN-015",
+   "DAN-090",
+   "DAN-191",
+   "DAN-154",
+   "DAN-221",
+   "DAN-103",
+   "DAN-210"
+  ],
+  "esperado_na_busca_inicial": [],
+  "esperado_nos_achados": [
+   "DAN-086"
+  ],
+  "esperado_aprofundado": [
+   "DAN-086"
+  ],
+  "esperado_descartado": [],
+  "plano": {
+   "aprofundar": [
+    {
+     "id": "DAN-086",
+     "consulta": "root cause certificate expiration February 29 fix leap year date computation",
+     "why": "Este incidente é de 29 de fevereiro, envolve certificados rejeitados por data de expiração inválida e causou interrupção global da plataforma, batendo exatamente com o sintoma e a data do incidente atual."
+    }
+   ],
+   "novas_consultas": [
+    "certificates rejected new instance creation fails leap year February 29",
+    "certificate validation failure instance provisioning platform wide midnight"
+   ],
+   "descartar": [],
+   "justificativa": "",
+   "avisos": []
+  },
+  "trechos_aprofundamento": {
+   "DAN-086": [
+    {
+     "secao": "The Leap Day Bug",
+     "similaridade": 0.635,
+     "fonte_consulta": "llm",
+     "inicio": "## The Leap Day Bug  When the GA creates the transfer certificate, it gives it a one year validity range. It uses midnight UST of the current day as the *valid-from* date and one year from that date as the *valid-to* date. The leap day bug is that the GA calculated the *valid-to* date by simply taki"
+    },
+    {
+     "secao": "The Leap Day Bug in Action",
+     "similaridade": 0.546,
+     "fonte_consulta": "llm",
+     "inicio": "## The Leap Day Bug in Action  The leap day bug immediately triggered at 4:00PM PST, February 28<sup>th</sup> (00:00 UST February 29<sup>th</sup>) when GAs in new VMs tried to generate certificates. Storage clusters were not affected because they don’t run with a GA, but normal application deploymen"
+    },
+    {
+     "secao": "Prevention",
+     "similaridade": 0.484,
+     "fonte_consulta": "causa",
+     "inicio": "### Prevention  - **Testing.** The root cause of the initial outage was a software bug due to the incorrect manipulation of date/time values.  We are taking steps that improve our testing to detect time-related bugs.  We are also enhancing our code analysis tools to detect this and similar classes o"
+    },
+    {
+     "secao": "Improving the Service",
+     "similaridade": 0.519,
+     "fonte_consulta": "correcao",
+     "inicio": "## Improving the Service  After an incident occurs, we take the time to analyze the incident and ways we can improve our engineering, operations and communications. To learn as much as we can, we do the root cause analysis but also follow this up with an analysis of all aspects of the incident. The "
+    },
+    {
+     "secao": "Recovery",
+     "similaridade": 0.429,
+     "fonte_consulta": "correcao",
+     "inicio": "### Recovery  - **Internal tooling.**  We developed and modified some of our internal tooling to address this incident.  We will continue to invest in our tools to help speed recovery and make recovery from intermediate states more predictable. - **Dependency priorities.** We are also examining our "
+    }
+   ]
+  },
+  "novos": [
+   "DAN-086",
+   "DAN-015",
+   "DAN-090",
+   "DAN-191",
+   "DAN-154",
+   "DAN-221",
+   "DAN-103",
+   "DAN-210",
+   "DAN-142",
+   "DAN-016",
+   "DAN-218",
+   "DAN-049",
+   "DAN-066",
+   "DAN-189",
+   "DAN-026"
+  ],
+  "buscas": [
+   {
+    "etapa": "find_similar_incidents (descrição)",
+    "consulta": "Hoje, 29 de fevereiro, desde a meia-noite os certificados estão sendo rejeitados e a criação de novas instâncias falha em toda a plataforma.",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-086",
+     "DAN-015",
+     "DAN-090",
+     "DAN-191",
+     "DAN-154",
+     "DAN-221",
+     "DAN-103",
+     "DAN-210",
+     "DAN-142",
+     "DAN-016"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "certificates rejected new instance creation fails leap year February 29",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-086",
+     "DAN-087",
+     "DAN-090",
+     "DAN-015",
+     "DAN-103",
+     "DAN-088",
+     "DAN-142",
+     "DAN-029",
+     "DAN-154",
+     "DAN-083"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "certificate validation failure instance provisioning platform wide midnight",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-086",
+     "DAN-218",
+     "DAN-090",
+     "DAN-049",
+     "DAN-066",
+     "DAN-189",
+     "DAN-154",
+     "DAN-026",
+     "DAN-015",
+     "DAN-010"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "root cause certificate expiration February 29 fix leap year date computation",
+    "filtro": {
+     "incidente": "DAN-086"
+    },
+    "ids": [
+     "DAN-086"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-086"
+    },
+    "ids": [
+     "DAN-086"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-086"
+    },
+    "ids": [
+     "DAN-086"
+    ]
+   }
+  ],
+  "chamadas_llm": [
+   {
+    "segundos": 3.0,
+    "tokens": 1474,
+    "ferramentas": [
+     "find_similar_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   },
+   {
+    "segundos": 6.3,
+    "tokens": 3348,
+    "ferramentas": [
+     "search_inside_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   }
+  ],
+  "segundos": 10
+ },
+ {
+  "id": "q-209",
+  "tipo": "sintoma_e2",
+  "esperado": [
+   "DAN-086"
+  ],
+  "trechos_do_esperado": {
+   "DAN-086": [
+    {
+     "fonte": "causa",
+     "secao": "Prevention",
+     "titulo_de_correcao": true,
+     "texto": "### Prevention\n\n- **Testing.** The root cause of the initial outage was a software bug due to the incorrect manipulation of date/time values.  We are taking steps that improve our testing to detect time-related bugs.  We are also enhancing our code analysis tools to detect this and similar classes of coding issues, and we have already reviewed our code base.\n- **Fault Isolation.** The Fabric Controller moved nodes to a Human Investigate (HI) state when their operations failed due to the Guest Agent (GA) bug.  It incorrectly assumed the hardware, not the GA, was faulty.  We are taking steps to distinguish these faults and isolate them before they can propagate further into the system.\n- **Graceful Degradation.** We took the step of turning off service management to protect customers’ already running services during this incident, but this also prevented any ongoing management of their services.  We are taking steps to have finer granularity controls to allow disabling different aspects of the service while keeping others up and visible."
+    },
+    {
+     "fonte": "correcao",
+     "secao": "Improving the Service",
+     "titulo_de_correcao": true,
+     "texto": "## Improving the Service\n\nAfter an incident occurs, we take the time to analyze the incident and ways we can improve our engineering, operations and communications. To learn as much as we can, we do the root cause analysis but also follow this up with an analysis of all aspects of the incident. The three truths of cloud computing are: hardware fails, software has bugs and people make mistakes. Our job is to mitigate all of these unpredictable issues to provide a robust service for our customers. By understanding and addressing these issues we will continue to improve the service we offer to our customers.\n\nThe analysis is organized into four major areas, looking at each part of the incident lifecycle as well as the engineering process that preceded it:\n\n- **Prevention** – how the system can avoid, isolate, and/or recover from failures\n- **Detection** – how to rapidly surface failures and prioritize recovery\n- **Response** – how to support our customers during an incident\n- **Recovery** – how to reduce the recovery time and impact on our customers"
+    },
+    {
+     "fonte": "correcao",
+     "secao": "Recovery",
+     "titulo_de_correcao": true,
+     "texto": "### Recovery\n\n- **Internal tooling.**  We developed and modified some of our internal tooling to address this incident.  We will continue to invest in our tools to help speed recovery and make recovery from intermediate states more predictable.\n- **Dependency priorities.** We are also examining our processes to make sure dependencies are factored into recovery to ensure that all Windows Azure infrastructure services, such as ACS and Windows Azure Service Bus, are recovered first to reduce the impact on customers.\n- **Visibility.** We are looking at how we can provide better visibility into recovery steps and provide customers with visibility into the intermediate progress being made."
+    },
+    {
+     "fonte": "similar",
+     "secao": "The Leap Day Bug in Action",
+     "titulo_de_correcao": false,
+     "texto": "## The Leap Day Bug in Action\n\nThe leap day bug immediately triggered at 4:00PM PST, February 28<sup>th</sup> (00:00 UST February 29<sup>th</sup>) when GAs in new VMs tried to generate certificates. Storage clusters were not affected because they don’t run with a GA, but normal application deployment, scale-out and service healing would have resulted in new VM creation. At the same time many clusters were also in the midst of the rollout of a new version of the FC, HA and GA. That ensured that the bug would be hit immediately in those clusters and the server HI threshold hit precisely 75 minutes (3 times 25 minute timeout) later at 5:15PM PST. The bug worked its way more slowly through clusters that were not being updated, but the critical alarms on the updating clusters automatically stopped the updates and alerted operations staff to the problem. They in turn notified on-call FC developers, who researched the cause and at 6:38PM PST our developers identified the bug.\n\nBy this time some applications had single VMs offline and some also had multiple VMs offline, but most applications with multiple VMs maintained availability, albeit with some reduced capacity. To prevent customers from inadvertently causing further impact to their running applications, unsuccessfully scaling-out their applications, and fruitlessly trying to deploy new applications, we disabled service management functionality in all clusters worldwide at 6:55PM PST. This is the first time we’ve ever taken this step. Service management allows customers to deploy, update, stop and scale their applications but isn’t necessary for the continued operation of already deployed applications. However stopping service management prevents customers from modifying or updating their currently deployed applications."
+    },
+    {
+     "fonte": "similar",
+     "secao": "The Leap Day Bug",
+     "titulo_de_correcao": false,
+     "texto": "## The Leap Day Bug\n\nWhen the GA creates the transfer certificate, it gives it a one year validity range. It uses midnight UST of the current day as the *valid-from* date and one year from that date as the *valid-to* date. The leap day bug is that the GA calculated the *valid-to* date by simply taking the current date and adding one to its year. That meant that any GA that tried to create a transfer certificate on leap day set a *valid-to* date of February 29, 2013, an invalid date that caused the certificate creation to fail.\n\nAs mentioned, transfer certificate creation is the first step of the GA initialization and is required before it will connect to the HA. When a GA fails to create its certificates, it terminates. The HA has a 25-minute timeout for hearing from the GA. When a GA doesn’t connect within that timeout, the HA reinitializes the VM’s OS and restarts it.\n\nIf a clean VM (one in which no customer code has executed) times out its GA connection three times in a row, the HA decides that a hardware problem must be the cause since the GA would otherwise have reported an error. The HA then reports to the FC that the server is faulty and the FC moves it to a state called Human Investigate (HI). As part of its standard autonomic failure recovery operations for a server in the HI state, the FC will service heal any VMs that were assigned to the failed server by reincarnating them to other servers. In a case like this, when the VMs are moved to available servers the leap day bug will reproduce during GA initialization, resulting in a cascade of servers that move to HI."
+    }
+   ]
+  },
+  "posicao_busca_inicial": 1,
+  "esperado_em_novos": [
+   "DAN-086"
+  ],
+  "busca_inicial": [],
+  "achados": [
+   "DAN-086",
+   "DAN-129",
+   "DAN-210",
+   "DAN-103",
+   "DAN-029",
+   "DAN-154",
+   "DAN-049",
+   "DAN-090"
+  ],
+  "esperado_na_busca_inicial": [],
+  "esperado_nos_achados": [
+   "DAN-086"
+  ],
+  "esperado_aprofundado": [
+   "DAN-086"
+  ],
+  "esperado_descartado": [],
+  "plano": {
+   "aprofundar": [
+    {
+     "id": "DAN-086",
+     "consulta": "root cause certificate expiration February 29 2013 fix workaround",
+     "why": "Bate exatamente: falha em 29 de fevereiro, certificados rejeitados por data de expiração inválida (29/02/2013 não existe), criação de instâncias falhando e impacto em toda a plataforma. Difere apenas pelo ano (2012 vs atual) e pelo provedor (Azure)."
+    }
+   ],
+   "novas_consultas": [
+    "certificate rejection leap year February 29 instance creation failing platform wide",
+    "certificate expired leap year date validation new instance creation failing"
+   ],
+   "descartar": [],
+   "justificativa": "",
+   "avisos": []
+  },
+  "trechos_aprofundamento": {
+   "DAN-086": [
+    {
+     "secao": "The Leap Day Bug",
+     "similaridade": 0.547,
+     "fonte_consulta": "llm",
+     "inicio": "## The Leap Day Bug  When the GA creates the transfer certificate, it gives it a one year validity range. It uses midnight UST of the current day as the *valid-from* date and one year from that date as the *valid-to* date. The leap day bug is that the GA calculated the *valid-to* date by simply taki"
+    },
+    {
+     "secao": "The Leap Day Bug in Action",
+     "similaridade": 0.511,
+     "fonte_consulta": "llm",
+     "inicio": "## The Leap Day Bug in Action  The leap day bug immediately triggered at 4:00PM PST, February 28<sup>th</sup> (00:00 UST February 29<sup>th</sup>) when GAs in new VMs tried to generate certificates. Storage clusters were not affected because they don’t run with a GA, but normal application deploymen"
+    },
+    {
+     "secao": "Prevention",
+     "similaridade": 0.484,
+     "fonte_consulta": "causa",
+     "inicio": "### Prevention  - **Testing.** The root cause of the initial outage was a software bug due to the incorrect manipulation of date/time values.  We are taking steps that improve our testing to detect time-related bugs.  We are also enhancing our code analysis tools to detect this and similar classes o"
+    },
+    {
+     "secao": "Improving the Service",
+     "similaridade": 0.519,
+     "fonte_consulta": "correcao",
+     "inicio": "## Improving the Service  After an incident occurs, we take the time to analyze the incident and ways we can improve our engineering, operations and communications. To learn as much as we can, we do the root cause analysis but also follow this up with an analysis of all aspects of the incident. The "
+    },
+    {
+     "secao": "Recovery",
+     "similaridade": 0.429,
+     "fonte_consulta": "correcao",
+     "inicio": "### Recovery  - **Internal tooling.**  We developed and modified some of our internal tooling to address this incident.  We will continue to invest in our tools to help speed recovery and make recovery from intermediate states more predictable. - **Dependency priorities.** We are also examining our "
+    }
+   ]
+  },
+  "novos": [
+   "DAN-086",
+   "DAN-129",
+   "DAN-210",
+   "DAN-103",
+   "DAN-029",
+   "DAN-154",
+   "DAN-049",
+   "DAN-090",
+   "DAN-189",
+   "DAN-015",
+   "DAN-087",
+   "DAN-142",
+   "DAN-083",
+   "DAN-219",
+   "DAN-058"
+  ],
+  "buscas": [
+   {
+    "etapa": "find_similar_incidents (descrição)",
+    "consulta": "Today, February 29, since midnight certificates are being rejected and new instance creation is failing across the whole platform.",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-086",
+     "DAN-129",
+     "DAN-210",
+     "DAN-103",
+     "DAN-029",
+     "DAN-154",
+     "DAN-049",
+     "DAN-090",
+     "DAN-189",
+     "DAN-015"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "certificate rejection leap year February 29 instance creation failing platform wide",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-086",
+     "DAN-090",
+     "DAN-015",
+     "DAN-154",
+     "DAN-087",
+     "DAN-142",
+     "DAN-083",
+     "DAN-029",
+     "DAN-103",
+     "DAN-219"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "certificate expired leap year date validation new instance creation failing",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-086",
+     "DAN-090",
+     "DAN-015",
+     "DAN-087",
+     "DAN-058",
+     "DAN-010",
+     "DAN-083",
+     "DAN-195",
+     "DAN-053",
+     "DAN-016"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "root cause certificate expiration February 29 2013 fix workaround",
+    "filtro": {
+     "incidente": "DAN-086"
+    },
+    "ids": [
+     "DAN-086"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-086"
+    },
+    "ids": [
+     "DAN-086"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-086"
+    },
+    "ids": [
+     "DAN-086"
+    ]
+   }
+  ],
+  "chamadas_llm": [
+   {
+    "segundos": 101.6,
+    "tokens": 1401,
+    "ferramentas": [
+     "find_similar_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   },
+   {
+    "segundos": 6.8,
+    "tokens": 3250,
+    "ferramentas": [
+     "search_inside_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   }
+  ],
+  "segundos": 109
+ },
+ {
+  "id": "q-210",
+  "tipo": "sintoma_e2",
+  "esperado": [
+   "DAN-088"
+  ],
+  "trechos_do_esperado": {
+   "DAN-088": [
+    {
+     "fonte": "llm",
+     "secao": "",
+     "titulo_de_correcao": false,
+     "texto": "I'm looking at the source for the RHEL 4 kernel 2.6.9-67.0.7.EL (which I had crash on a system), and the scheduler is enough different that I am not finding the path to the deadlock right off. In any case, the quick-n-dirty fix would be to not try to printk while holding xtime\\_lock (I think the NTP code is the only thing that does). However, it would be nice to still get the leap second notification, so some other fix would be better I guess. -- Chris Adams \\<cmadams@hiwaay.net> Systems and Network Administrator - HiWAAY Internet Services I don't speak for anybody but myself - that's enough trouble. |  |\n|  |  | Last update: 2009-01-03 01:35    \\[W:0.149 / U:2.868 seconds\\] ©2003-2020 Jasper Spaans\\|hosted at Digital Ocean and TransIP\\|Read the blog\\|Advertise on this site |  |\n\n| Date | Fri, 2 Jan 2009 18:21:14 -0600 |\n| From | Chris Adams \\<> |\n| Subject | Re: Bug: Status/Summary of slashdot leap-second crash on new years 2008-2009 |"
+    },
+    {
+     "fonte": "causa",
+     "secao": "",
+     "titulo_de_correcao": false,
+     "texto": "sync=0, key=0x0) at kernel/sched.c:4387 #10 0xffffffff8102b97b in \\_\\_wake\\_up (q=0xffffffff813d3180, mode=1, nr\\_exclusive=1, key=0x0) at kernel/sched.c:4406 #11 0xffffffff8103692f in wake\\_up\\_klogd () at kernel/printk.c:1005 #12 0xffffffff81036abb in release\\_console\\_sem () at kernel/printk.c:1051 #13 0xffffffff81036fd1 in vprintk (fmt=\\<value optimized out>,"
+    },
+    {
+     "fonte": "correcao",
+     "secao": "",
+     "titulo_de_correcao": false,
+     "texto": "p=0xffff81003b8ac418, wakeup=-994836480) at kernel/sched.c:1550 #5 0xffffffff81029a39 in activate\\_task (rq=0xffff810009013880, p=0xffff81003b8ac418, wakeup=20045) at kernel/sched.c:1614 #6 0xffffffff8102be38 in try\\_to\\_wake\\_up (p=0xffff81003fb02d40, state=\\<value optimized out>, sync=0) at kernel/sched.c:2173 #7 0xffffffff8102be9c in default\\_wake\\_function (curr=\\<value optimized out>, mode=998949912, sync=20045, key=0x4c4b40000) at kernel/sched.c:4366 #8 0xffffffff810492ed in autoremove\\_wake\\_function (wait=0xffffffff8158bb30, mode=998949912, sync=20045, key=0x4c4b40000) at kernel/wait.c:132 #9 0xffffffff810296a2 in \\_\\_wake\\_up\\_common (q=0xffffffff813d3180, mode=1, nr\\_exclusive=1, sync=0, key=0x0) at kernel/sched.c:4387 #10 0xffffffff8102b97b in \\_\\_wake\\_up (q=0xffffffff813d3180, mode=1,"
+    },
+    {
+     "fonte": "similar",
+     "secao": "",
+     "titulo_de_correcao": false,
+     "texto": "q\\_exit () at kernel/softirq.c:310 #22 0xffffffff8101b0fe in smp\\_apic\\_timer\\_interrupt (regs=\\<value optimized out>) at arch/x86/kernel/apic\\_64.c:514 #23 0xffffffff8100cf52 in apic\\_timer\\_interrupt () at include/asm/current\\_64.h:10 #24 0xffff81003b9d5a90 in?? () #25 0x0000000000000000 in ?? () Basically (to my untrained eye), the leap second code is called from the timer interrupt handler, which holds xtime\\_lock. The leap second code does a printk to notify about the leap second. The printk code tries to wake up klogd (I assume to prioritize kernel messages), and (under some conditions), the scheduler attempts to get the current time, which tries to get xtime\\_lock => deadlock. I can only reproduce this if the system is busy. If the system is otherwise idle at the timer interrupt, I guess the scheduler doesn't try to get the time. I can run a \"find / \\| xargs cat > /dev/nul\" in one window and then trigger the leap second in another, and the system dies most of the time. I'm looking at the source for the RHEL 4 kernel 2.6.9-67.0.7.EL (which I had crash on a system), and the scheduler is enough different that I am not finding the path to the deadlock right off."
+    },
+    {
+     "fonte": "similar",
+     "secao": "",
+     "titulo_de_correcao": false,
+     "texto": "args=\\<value optimized out>) at kernel/printk.c:789 #14 0xffffffff81037081 in printk ( fmt=0xffffffff8158bb30 \"yj$\\201????\\2008\\001\\t\") at kernel/printk.c:613 #15 0xffffffff8104ec16 in ntp\\_leap\\_second (timer=\\<value optimized out>) at kernel/time/ntp.c:143 #16 0xffffffff8104b7a6 in run\\_hrtimer\\_pending (cpu\\_base=0xffff81000900f740) at kernel/hrtimer.c:1204 #17 0xffffffff8104b86a in run\\_hrtimer\\_softirq (h=\\<value optimized out>) at kernel/hrtimer.c:1355 #18 0xffffffff8103b31f in \\_\\_do\\_softirq () at kernel/softirq.c:234 #19 0xffffffff8100d52c in call\\_softirq () at include/asm/current\\_64.h:10 #20 0xffffffff8100ed5e in do\\_softirq () at arch/x86/kernel/irq\\_64.c:262 #21 0xffffffff8103b280 in ir"
+    }
+   ]
+  },
+  "posicao_busca_inicial": 1,
+  "esperado_em_novos": [
+   "DAN-088"
+  ],
+  "busca_inicial": [],
+  "achados": [
+   "DAN-088",
+   "DAN-089",
+   "DAN-103",
+   "DAN-129",
+   "DAN-066",
+   "DAN-209",
+   "DAN-189",
+   "DAN-116"
+  ],
+  "esperado_na_busca_inicial": [],
+  "esperado_nos_achados": [
+   "DAN-088"
+  ],
+  "esperado_aprofundado": [
+   "DAN-088"
+  ],
+  "esperado_descartado": [],
+  "plano": {
+   "aprofundar": [
+    {
+     "id": "DAN-088",
+     "consulta": "leap second deadlock xtime_lock printk klogd fix",
+     "why": "Mesmo gatilho (leap second) e mesmo componente (Linux kernel); sintoma de servidores travando por deadlock é muito parecido com o incidente atual."
+    },
+    {
+     "id": "DAN-089",
+     "consulta": "leap second futex hrtimer base.offset fix patch",
+     "why": "Mesmo gatilho (leap second 2012) e sintoma de alta carga/serviços caindo em muitos sistemas; componente é o Linux kernel, batendo com o incidente atual."
+    }
+   ],
+   "novas_consultas": [
+    "leap second Linux servers hung frozen unresponsive",
+    "leap second kernel NTP ntpd crash hang"
+   ],
+   "descartar": [],
+   "justificativa": "",
+   "avisos": []
+  },
+  "trechos_aprofundamento": {
+   "DAN-088": [
+    {
+     "secao": "",
+     "similaridade": 0.798,
+     "fonte_consulta": "llm",
+     "inicio": "q\\_exit () at kernel/softirq.c:310 #22 0xffffffff8101b0fe in smp\\_apic\\_timer\\_interrupt (regs=\\<value optimized out>) at arch/x86/kernel/apic\\_64.c:514 #23 0xffffffff8100cf52 in apic\\_timer\\_interrupt () at include/asm/current\\_64.h:10 #24 0xffff81003b9d5a90 in?? () #25 0x0000000000000000 in ?? () "
+    },
+    {
+     "secao": "",
+     "similaridade": 0.766,
+     "fonte_consulta": "llm",
+     "inicio": "I'm looking at the source for the RHEL 4 kernel 2.6.9-67.0.7.EL (which I had crash on a system), and the scheduler is enough different that I am not finding the path to the deadlock right off. In any case, the quick-n-dirty fix would be to not try to printk while holding xtime\\_lock (I think the NTP"
+    },
+    {
+     "secao": "",
+     "similaridade": 0.329,
+     "fonte_consulta": "causa",
+     "inicio": "sync=0, key=0x0) at kernel/sched.c:4387 #10 0xffffffff8102b97b in \\_\\_wake\\_up (q=0xffffffff813d3180, mode=1, nr\\_exclusive=1, key=0x0) at kernel/sched.c:4406 #11 0xffffffff8103692f in wake\\_up\\_klogd () at kernel/printk.c:1005 #12 0xffffffff81036abb in release\\_console\\_sem () at kernel/printk.c:10"
+    },
+    {
+     "secao": "",
+     "similaridade": 0.299,
+     "fonte_consulta": "correcao",
+     "inicio": "p=0xffff81003b8ac418, wakeup=-994836480) at kernel/sched.c:1550 #5 0xffffffff81029a39 in activate\\_task (rq=0xffff810009013880, p=0xffff81003b8ac418, wakeup=20045) at kernel/sched.c:1614 #6 0xffffffff8102be38 in try\\_to\\_wake\\_up (p=0xffff81003fb02d40, state=\\<value optimized out>, sync=0) at kernel"
+    },
+    {
+     "secao": "",
+     "similaridade": 0.269,
+     "fonte_consulta": "correcao",
+     "inicio": "args=\\<value optimized out>) at kernel/printk.c:789 #14 0xffffffff81037081 in printk ( fmt=0xffffffff8158bb30 \"yj$\\201????\\2008\\001\\t\") at kernel/printk.c:613 #15 0xffffffff8104ec16 in ntp\\_leap\\_second (timer=\\<value optimized out>) at kernel/time/ntp.c:143 #16 0xffffffff8104b7a6 in run\\_hrtimer\\_p"
+    }
+   ],
+   "DAN-089": [
+    {
+     "secao": "",
+     "similaridade": 0.761,
+     "fonte_consulta": "llm",
+     "inicio": "| Messages in this thread |  | On 07/01/2012 11:29 AM, John Stultz wrote: > TODOs: > \\* Chase down the futex/hrtimer interaction to see if this could > be triggered in any other way. Ok, got a little more detailed diagnosis of what is going on figured out: \\* Leap second occurs, CLOCK\\_REALTIME is s"
+    },
+    {
+     "secao": "",
+     "similaridade": 0.721,
+     "fonte_consulta": "llm",
+     "inicio": "/\\* Set the leap second insert flag \\*/ tx.modes = ADJ\\_STATUS; tx.status = STA\\_INS; adjtimex(&tx); clock\\_gettime(clock\\_type, &ts); now = then = ts.tv\\_sec; while(now - then \\< 30){ struct timespec target, diff, rem; rem.tv\\_sec = 0; rem.tv\\_nsec = 0; if (flag == TIMER\\_ABSTIME) target = timespec"
+    },
+    {
+     "secao": "",
+     "similaridade": 0.239,
+     "fonte_consulta": "causa",
+     "inicio": "The test sets a leapsecond to trigger in 10 seconds, then in a loop sleeps for half a second via clock\\_nanosleep, printing out the current time, and the delta from the target wakeup time for 30 seconds. When the leap second triggers, on affected machines you'll see the output streams quickly, with "
+    },
+    {
+     "secao": "",
+     "similaridade": 0.261,
+     "fonte_consulta": "correcao",
+     "inicio": "With my fix to call clock\\_was\\_set when we apply a leapsecond, I no longer see the issue. thanks -john /\\* Leap second timer test \\* by: john stultz (johnstul@us.ibm.com) \\* (C) Copyright IBM 2012 \\* Licensed under the GPL \\*/ #include \\<stdio.h> #include \\<time.h> #include \\<sys/time.h> #include \\"
+    },
+    {
+     "secao": "",
+     "similaridade": 0.225,
+     "fonte_consulta": "correcao",
+     "inicio": "if (ns \\< 0) { neg = 1; ns = -ns; } a.tv\\_sec = ns/NSEC\\_PER\\_SEC; a.tv\\_nsec = ns%NSEC\\_PER\\_SEC; if (neg) { a.tv\\_sec = -a.tv\\_sec; a.tv\\_nsec = -a.tv\\_nsec; } return a; } int main(void) { struct timeval tv; struct timex tx; int i, inconsistent; long now, then; struct timespec ts; int clock\\_type "
+    }
+   ]
+  },
+  "novos": [
+   "DAN-088",
+   "DAN-103",
+   "DAN-129",
+   "DAN-066",
+   "DAN-209",
+   "DAN-089",
+   "DAN-189",
+   "DAN-116",
+   "DAN-087",
+   "DAN-064",
+   "DAN-073",
+   "DAN-151",
+   "DAN-230",
+   "DAN-026",
+   "DAN-126"
+  ],
+  "buscas": [
+   {
+    "etapa": "find_similar_incidents (descrição)",
+    "consulta": "Na virada do leap second, vários servidores Linux travaram ao mesmo tempo e pararam de responder.",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-088",
+     "DAN-103",
+     "DAN-129",
+     "DAN-066",
+     "DAN-209",
+     "DAN-089",
+     "DAN-189",
+     "DAN-116",
+     "DAN-087",
+     "DAN-064"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "leap second Linux servers hung frozen unresponsive",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-088",
+     "DAN-089",
+     "DAN-129",
+     "DAN-103",
+     "DAN-116",
+     "DAN-087",
+     "DAN-073",
+     "DAN-151",
+     "DAN-066",
+     "DAN-189"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "leap second kernel NTP ntpd crash hang",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-088",
+     "DAN-089",
+     "DAN-087",
+     "DAN-230",
+     "DAN-116",
+     "DAN-103",
+     "DAN-026",
+     "DAN-129",
+     "DAN-126",
+     "DAN-173"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "leap second deadlock xtime_lock printk klogd fix",
+    "filtro": {
+     "incidente": "DAN-088"
+    },
+    "ids": [
+     "DAN-088"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-088"
+    },
+    "ids": [
+     "DAN-088"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-088"
+    },
+    "ids": [
+     "DAN-088"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "leap second futex hrtimer base.offset fix patch",
+    "filtro": {
+     "incidente": "DAN-089"
+    },
+    "ids": [
+     "DAN-089"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-089"
+    },
+    "ids": [
+     "DAN-089"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-089"
+    },
+    "ids": [
+     "DAN-089"
+    ]
+   }
+  ],
+  "chamadas_llm": [
+   {
+    "segundos": 4.6,
+    "tokens": 1324,
+    "ferramentas": [
+     "find_similar_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   },
+   {
+    "segundos": 8.5,
+    "tokens": 3636,
+    "ferramentas": [
+     "search_inside_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   }
+  ],
+  "segundos": 14
+ },
+ {
+  "id": "q-211",
+  "tipo": "sintoma_e2",
+  "esperado": [
+   "DAN-088"
+  ],
+  "trechos_do_esperado": {
+   "DAN-088": [
+    {
+     "fonte": "causa",
+     "secao": "",
+     "titulo_de_correcao": false,
+     "texto": "I'm looking at the source for the RHEL 4 kernel 2.6.9-67.0.7.EL (which I had crash on a system), and the scheduler is enough different that I am not finding the path to the deadlock right off. In any case, the quick-n-dirty fix would be to not try to printk while holding xtime\\_lock (I think the NTP code is the only thing that does). However, it would be nice to still get the leap second notification, so some other fix would be better I guess. -- Chris Adams \\<cmadams@hiwaay.net> Systems and Network Administrator - HiWAAY Internet Services I don't speak for anybody but myself - that's enough trouble. |  |\n|  |  | Last update: 2009-01-03 01:35    \\[W:0.149 / U:2.868 seconds\\] ©2003-2020 Jasper Spaans\\|hosted at Digital Ocean and TransIP\\|Read the blog\\|Advertise on this site |  |\n\n| Date | Fri, 2 Jan 2009 18:21:14 -0600 |\n| From | Chris Adams \\<> |\n| Subject | Re: Bug: Status/Summary of slashdot leap-second crash on new years 2008-2009 |"
+    },
+    {
+     "fonte": "correcao",
+     "secao": "",
+     "titulo_de_correcao": false,
+     "texto": "p=0xffff81003b8ac418, wakeup=-994836480) at kernel/sched.c:1550 #5 0xffffffff81029a39 in activate\\_task (rq=0xffff810009013880, p=0xffff81003b8ac418, wakeup=20045) at kernel/sched.c:1614 #6 0xffffffff8102be38 in try\\_to\\_wake\\_up (p=0xffff81003fb02d40, state=\\<value optimized out>, sync=0) at kernel/sched.c:2173 #7 0xffffffff8102be9c in default\\_wake\\_function (curr=\\<value optimized out>, mode=998949912, sync=20045, key=0x4c4b40000) at kernel/sched.c:4366 #8 0xffffffff810492ed in autoremove\\_wake\\_function (wait=0xffffffff8158bb30, mode=998949912, sync=20045, key=0x4c4b40000) at kernel/wait.c:132 #9 0xffffffff810296a2 in \\_\\_wake\\_up\\_common (q=0xffffffff813d3180, mode=1, nr\\_exclusive=1, sync=0, key=0x0) at kernel/sched.c:4387 #10 0xffffffff8102b97b in \\_\\_wake\\_up (q=0xffffffff813d3180, mode=1,"
+    },
+    {
+     "fonte": "correcao",
+     "secao": "",
+     "titulo_de_correcao": false,
+     "texto": "args=\\<value optimized out>) at kernel/printk.c:789 #14 0xffffffff81037081 in printk ( fmt=0xffffffff8158bb30 \"yj$\\201????\\2008\\001\\t\") at kernel/printk.c:613 #15 0xffffffff8104ec16 in ntp\\_leap\\_second (timer=\\<value optimized out>) at kernel/time/ntp.c:143 #16 0xffffffff8104b7a6 in run\\_hrtimer\\_pending (cpu\\_base=0xffff81000900f740) at kernel/hrtimer.c:1204 #17 0xffffffff8104b86a in run\\_hrtimer\\_softirq (h=\\<value optimized out>) at kernel/hrtimer.c:1355 #18 0xffffffff8103b31f in \\_\\_do\\_softirq () at kernel/softirq.c:234 #19 0xffffffff8100d52c in call\\_softirq () at include/asm/current\\_64.h:10 #20 0xffffffff8100ed5e in do\\_softirq () at arch/x86/kernel/irq\\_64.c:262 #21 0xffffffff8103b280 in ir"
+    },
+    {
+     "fonte": "similar",
+     "secao": "",
+     "titulo_de_correcao": false,
+     "texto": "q\\_exit () at kernel/softirq.c:310 #22 0xffffffff8101b0fe in smp\\_apic\\_timer\\_interrupt (regs=\\<value optimized out>) at arch/x86/kernel/apic\\_64.c:514 #23 0xffffffff8100cf52 in apic\\_timer\\_interrupt () at include/asm/current\\_64.h:10 #24 0xffff81003b9d5a90 in?? () #25 0x0000000000000000 in ?? () Basically (to my untrained eye), the leap second code is called from the timer interrupt handler, which holds xtime\\_lock. The leap second code does a printk to notify about the leap second. The printk code tries to wake up klogd (I assume to prioritize kernel messages), and (under some conditions), the scheduler attempts to get the current time, which tries to get xtime\\_lock => deadlock. I can only reproduce this if the system is busy. If the system is otherwise idle at the timer interrupt, I guess the scheduler doesn't try to get the time. I can run a \"find / \\| xargs cat > /dev/nul\" in one window and then trigger the leap second in another, and the system dies most of the time. I'm looking at the source for the RHEL 4 kernel 2.6.9-67.0.7.EL (which I had crash on a system), and the scheduler is enough different that I am not finding the path to the deadlock right off."
+    },
+    {
+     "fonte": "similar",
+     "secao": "",
+     "titulo_de_correcao": false,
+     "texto": "sync=0, key=0x0) at kernel/sched.c:4387 #10 0xffffffff8102b97b in \\_\\_wake\\_up (q=0xffffffff813d3180, mode=1, nr\\_exclusive=1, key=0x0) at kernel/sched.c:4406 #11 0xffffffff8103692f in wake\\_up\\_klogd () at kernel/printk.c:1005 #12 0xffffffff81036abb in release\\_console\\_sem () at kernel/printk.c:1051 #13 0xffffffff81036fd1 in vprintk (fmt=\\<value optimized out>,"
+    }
+   ]
+  },
+  "posicao_busca_inicial": 1,
+  "esperado_em_novos": [
+   "DAN-088"
+  ],
+  "busca_inicial": [],
+  "achados": [
+   "DAN-088",
+   "DAN-089",
+   "DAN-103",
+   "DAN-129",
+   "DAN-073",
+   "DAN-026",
+   "DAN-116",
+   "DAN-205"
+  ],
+  "esperado_na_busca_inicial": [],
+  "esperado_nos_achados": [
+   "DAN-088"
+  ],
+  "esperado_aprofundado": [
+   "DAN-088"
+  ],
+  "esperado_descartado": [],
+  "plano": {
+   "aprofundar": [
+    {
+     "id": "DAN-088",
+     "consulta": "leap second xtime_lock deadlock printk klogd fix",
+     "why": "Incidente atual envolve leap second travando servidores Linux; DAN-088 descreve deadlock por xtime_lock durante leap second, muito similar."
+    },
+    {
+     "id": "DAN-089",
+     "consulta": "leap second CLOCK_REALTIME hrtimer futex spinwait patch fix",
+     "why": "DAN-089 também trata de leap second no Linux causando pane em serviços, com causa raiz em CLOCK_REALTIME e hrtimer."
+    }
+   ],
+   "novas_consultas": [
+    "leap second Linux servers hung stopped responding",
+    "leap second NTP kernel hang Linux production incident"
+   ],
+   "descartar": [],
+   "justificativa": "",
+   "avisos": []
+  },
+  "trechos_aprofundamento": {
+   "DAN-088": [
+    {
+     "secao": "",
+     "similaridade": 0.792,
+     "fonte_consulta": "llm",
+     "inicio": "q\\_exit () at kernel/softirq.c:310 #22 0xffffffff8101b0fe in smp\\_apic\\_timer\\_interrupt (regs=\\<value optimized out>) at arch/x86/kernel/apic\\_64.c:514 #23 0xffffffff8100cf52 in apic\\_timer\\_interrupt () at include/asm/current\\_64.h:10 #24 0xffff81003b9d5a90 in?? () #25 0x0000000000000000 in ?? () "
+    },
+    {
+     "secao": "",
+     "similaridade": 0.761,
+     "fonte_consulta": "llm",
+     "inicio": "sync=0, key=0x0) at kernel/sched.c:4387 #10 0xffffffff8102b97b in \\_\\_wake\\_up (q=0xffffffff813d3180, mode=1, nr\\_exclusive=1, key=0x0) at kernel/sched.c:4406 #11 0xffffffff8103692f in wake\\_up\\_klogd () at kernel/printk.c:1005 #12 0xffffffff81036abb in release\\_console\\_sem () at kernel/printk.c:10"
+    },
+    {
+     "secao": "",
+     "similaridade": 0.328,
+     "fonte_consulta": "causa",
+     "inicio": "I'm looking at the source for the RHEL 4 kernel 2.6.9-67.0.7.EL (which I had crash on a system), and the scheduler is enough different that I am not finding the path to the deadlock right off. In any case, the quick-n-dirty fix would be to not try to printk while holding xtime\\_lock (I think the NTP"
+    },
+    {
+     "secao": "",
+     "similaridade": 0.299,
+     "fonte_consulta": "correcao",
+     "inicio": "p=0xffff81003b8ac418, wakeup=-994836480) at kernel/sched.c:1550 #5 0xffffffff81029a39 in activate\\_task (rq=0xffff810009013880, p=0xffff81003b8ac418, wakeup=20045) at kernel/sched.c:1614 #6 0xffffffff8102be38 in try\\_to\\_wake\\_up (p=0xffff81003fb02d40, state=\\<value optimized out>, sync=0) at kernel"
+    },
+    {
+     "secao": "",
+     "similaridade": 0.269,
+     "fonte_consulta": "correcao",
+     "inicio": "args=\\<value optimized out>) at kernel/printk.c:789 #14 0xffffffff81037081 in printk ( fmt=0xffffffff8158bb30 \"yj$\\201????\\2008\\001\\t\") at kernel/printk.c:613 #15 0xffffffff8104ec16 in ntp\\_leap\\_second (timer=\\<value optimized out>) at kernel/time/ntp.c:143 #16 0xffffffff8104b7a6 in run\\_hrtimer\\_p"
+    }
+   ],
+   "DAN-089": [
+    {
+     "secao": "",
+     "similaridade": 0.809,
+     "fonte_consulta": "llm",
+     "inicio": "| Messages in this thread |  | On 07/01/2012 11:29 AM, John Stultz wrote: > TODOs: > \\* Chase down the futex/hrtimer interaction to see if this could > be triggered in any other way. Ok, got a little more detailed diagnosis of what is going on figured out: \\* Leap second occurs, CLOCK\\_REALTIME is s"
+    },
+    {
+     "secao": "",
+     "similaridade": 0.782,
+     "fonte_consulta": "llm",
+     "inicio": "/\\* Set the leap second insert flag \\*/ tx.modes = ADJ\\_STATUS; tx.status = STA\\_INS; adjtimex(&tx); clock\\_gettime(clock\\_type, &ts); now = then = ts.tv\\_sec; while(now - then \\< 30){ struct timespec target, diff, rem; rem.tv\\_sec = 0; rem.tv\\_nsec = 0; if (flag == TIMER\\_ABSTIME) target = timespec"
+    },
+    {
+     "secao": "",
+     "similaridade": 0.239,
+     "fonte_consulta": "causa",
+     "inicio": "The test sets a leapsecond to trigger in 10 seconds, then in a loop sleeps for half a second via clock\\_nanosleep, printing out the current time, and the delta from the target wakeup time for 30 seconds. When the leap second triggers, on affected machines you'll see the output streams quickly, with "
+    },
+    {
+     "secao": "",
+     "similaridade": 0.261,
+     "fonte_consulta": "correcao",
+     "inicio": "With my fix to call clock\\_was\\_set when we apply a leapsecond, I no longer see the issue. thanks -john /\\* Leap second timer test \\* by: john stultz (johnstul@us.ibm.com) \\* (C) Copyright IBM 2012 \\* Licensed under the GPL \\*/ #include \\<stdio.h> #include \\<time.h> #include \\<sys/time.h> #include \\"
+    },
+    {
+     "secao": "",
+     "similaridade": 0.225,
+     "fonte_consulta": "correcao",
+     "inicio": "if (ns \\< 0) { neg = 1; ns = -ns; } a.tv\\_sec = ns/NSEC\\_PER\\_SEC; a.tv\\_nsec = ns%NSEC\\_PER\\_SEC; if (neg) { a.tv\\_sec = -a.tv\\_sec; a.tv\\_nsec = -a.tv\\_nsec; } return a; } int main(void) { struct timeval tv; struct timex tx; int i, inconsistent; long now, then; struct timespec ts; int clock\\_type "
+    }
+   ]
+  },
+  "novos": [
+   "DAN-088",
+   "DAN-103",
+   "DAN-129",
+   "DAN-073",
+   "DAN-026",
+   "DAN-116",
+   "DAN-205",
+   "DAN-209",
+   "DAN-064",
+   "DAN-066",
+   "DAN-089",
+   "DAN-087",
+   "DAN-230",
+   "DAN-189",
+   "DAN-173"
+  ],
+  "buscas": [
+   {
+    "etapa": "find_similar_incidents (descrição)",
+    "consulta": "At the leap second, many Linux servers hung at the same time and stopped responding.",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-088",
+     "DAN-103",
+     "DAN-129",
+     "DAN-073",
+     "DAN-026",
+     "DAN-116",
+     "DAN-205",
+     "DAN-209",
+     "DAN-064",
+     "DAN-066"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "leap second Linux servers hung stopped responding",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-088",
+     "DAN-089",
+     "DAN-103",
+     "DAN-087",
+     "DAN-129",
+     "DAN-073",
+     "DAN-116",
+     "DAN-209",
+     "DAN-066",
+     "DAN-026"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "leap second NTP kernel hang Linux production incident",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-088",
+     "DAN-089",
+     "DAN-087",
+     "DAN-116",
+     "DAN-103",
+     "DAN-230",
+     "DAN-189",
+     "DAN-173",
+     "DAN-209",
+     "DAN-129"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "leap second xtime_lock deadlock printk klogd fix",
+    "filtro": {
+     "incidente": "DAN-088"
+    },
+    "ids": [
+     "DAN-088"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-088"
+    },
+    "ids": [
+     "DAN-088"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-088"
+    },
+    "ids": [
+     "DAN-088"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "leap second CLOCK_REALTIME hrtimer futex spinwait patch fix",
+    "filtro": {
+     "incidente": "DAN-089"
+    },
+    "ids": [
+     "DAN-089"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-089"
+    },
+    "ids": [
+     "DAN-089"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-089"
+    },
+    "ids": [
+     "DAN-089"
+    ]
+   }
+  ],
+  "chamadas_llm": [
+   {
+    "segundos": 2.0,
+    "tokens": 1324,
+    "ferramentas": [
+     "find_similar_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   },
+   {
+    "segundos": 107.0,
+    "tokens": 3717,
+    "ferramentas": [
+     "search_inside_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   }
+  ],
+  "segundos": 110
+ },
+ {
+  "id": "q-212",
+  "tipo": "sintoma_e2",
+  "esperado": [
+   "DAN-092"
+  ],
+  "trechos_do_esperado": {
+   "DAN-092": [
+    {
+     "fonte": "llm",
+     "secao": "Future Prevention and Process Improvement",
+     "titulo_de_correcao": true,
+     "texto": "## Future Prevention and Process Improvement\n\nThe blue/green database deployment procedures have been updated to run an analysis procedure after every major version change. The team has also tested running the analyze command while a database is under pressure to determine it has no further degrading effects on the database performance. This will be noted for future remediation.\n\nBefore any additional migrations are run, the team will add additional automated tests and manual checkpoints throughout the process to identify and resolve issues before the blue/green cutover."
+    },
+    {
+     "fonte": "correcao",
+     "secao": "Summary",
+     "titulo_de_correcao": false,
+     "texto": "## Summary\n\nOn April 3, 2025, from 22:08 UTC to 23:45 UTC, CircleCI customers experienced increased latency and some failures with starting and canceling workflows and jobs. During this time customers may have experienced delays and difficulty viewing workflows in the UI. We appreciate your patience and understanding as we worked to resolve this incident.\n\nThe original status page can be found here."
+    },
+    {
+     "fonte": "similar",
+     "secao": "What Happened",
+     "titulo_de_correcao": false,
+     "texto": "## What Happened\n\n(all times UTC)\n\nAt approximately 22:00 on April 4, we initiated an upgrade to the service responsible for workflows. We expected a short delay (\\< 90 seconds) during the database upgrade where calls to the database from the workflows service would get sent to a queue and retried over a 10 minute period. We expected to see the queues grow slightly during and immediately after the upgrade. At 22:08, when the blue/green deployment was complete, we verified queries being served. At 22:17, we identified increased latency in the workflows service, as well as some errors from jobs being dropped due to exhausting their 10 minute retries.\n\nAt 22:29 additional engineers were engaged, and at 22:30 the team restarted the workflows pods to ensure they were all connecting to the correct database. At 22:35 a public incident was declared. At 22:41, it was observed that all queries on the new database were hitting disk, which indicated that the database statistics tables had not updated. The team immediately upsized the database and disabled any non business critical operations on the database. At 23:00, the workflows service was scaled down to a single pod to give the database capacity to recover while the statistics table was rebuilt.\n\nAt 23:10, the team observed the workflows queue backing up due to the reduction in pods as expected but also did not see an improvement in database performance. At 23:19, the team decided to re-enable writes on the old database and reinstate its primary status to restore service to customers sooner. This work completed at 23:29. The team continued to monitor the workflows queue. At 23:45 it was determined that the workflow queue was back to normal operating levels, and no further errors were observed."
+    },
+    {
+     "fonte": "similar",
+     "secao": "What Happened",
+     "titulo_de_correcao": false,
+     "texto": "## What Happened\n\nPost-incident, the team continued to investigate. The root cause was determined to be that the analyze operation to rebuild the database’s statistics table, which is used for indexes, had been executed too early in the operation and was made stale by a second major version upgrade within the same deployment."
+    }
+   ]
+  },
+  "posicao_busca_inicial": 1,
+  "esperado_em_novos": [
+   "DAN-092"
+  ],
+  "busca_inicial": [],
+  "achados": [
+   "DAN-092",
+   "DAN-103",
+   "DAN-133",
+   "DAN-134",
+   "DAN-080",
+   "DAN-209",
+   "DAN-195",
+   "DAN-101"
+  ],
+  "esperado_na_busca_inicial": [],
+  "esperado_nos_achados": [
+   "DAN-092"
+  ],
+  "esperado_aprofundado": [
+   "DAN-092"
+  ],
+  "esperado_descartado": [],
+  "plano": {
+   "aprofundar": [
+    {
+     "id": "DAN-092",
+     "consulta": "root cause stale statistics indexes disk reads fix ANALYZE re-promote old database",
+     "why": "É o único que bate em todos os pontos: cutover do banco de workflows, queries lendo tudo do disco, latência alta e jobs descartados depois do retry; a causa (estatísticas/índices obsoletos após upgrade major) e a correção (re-promover o banco antigo) são exatamente o que o diagnóstico precisa."
+    }
+   ],
+   "novas_consultas": [
+    "workflows database cutover latency spike queries reading disk jobs dropped",
+    "database migration high latency disk reads cold cache jobs discarded"
+   ],
+   "descartar": [],
+   "justificativa": "",
+   "avisos": []
+  },
+  "trechos_aprofundamento": {
+   "DAN-092": [
+    {
+     "secao": "What Happened",
+     "similaridade": 0.693,
+     "fonte_consulta": "llm",
+     "inicio": "## What Happened  Post-incident, the team continued to investigate. The root cause was determined to be that the analyze operation to rebuild the database’s statistics table, which is used for indexes, had been executed too early in the operation and was made stale by a second major version upgrade "
+    },
+    {
+     "secao": "Future Prevention and Process Improvement",
+     "similaridade": 0.534,
+     "fonte_consulta": "llm",
+     "inicio": "## Future Prevention and Process Improvement  The blue/green database deployment procedures have been updated to run an analysis procedure after every major version change. The team has also tested running the analyze command while a database is under pressure to determine it has no further degradin"
+    },
+    {
+     "secao": "What Happened",
+     "similaridade": 0.429,
+     "fonte_consulta": "causa",
+     "inicio": "## What Happened  (all times UTC)  At approximately 22:00 on April 4, we initiated an upgrade to the service responsible for workflows. We expected a short delay (\\< 90 seconds) during the database upgrade where calls to the database from the workflows service would get sent to a queue and retried o"
+    },
+    {
+     "secao": "Summary",
+     "similaridade": 0.402,
+     "fonte_consulta": "correcao",
+     "inicio": "## Summary  On April 3, 2025, from 22:08 UTC to 23:45 UTC, CircleCI customers experienced increased latency and some failures with starting and canceling workflows and jobs. During this time customers may have experienced delays and difficulty viewing workflows in the UI. We appreciate your patience"
+    }
+   ]
+  },
+  "novos": [
+   "DAN-092",
+   "DAN-103",
+   "DAN-133",
+   "DAN-134",
+   "DAN-080",
+   "DAN-209",
+   "DAN-195",
+   "DAN-101",
+   "DAN-148",
+   "DAN-035",
+   "DAN-164",
+   "DAN-219",
+   "DAN-094",
+   "DAN-156",
+   "DAN-091"
+  ],
+  "buscas": [
+   {
+    "etapa": "find_similar_incidents (descrição)",
+    "consulta": "Depois do cutover para o banco de workflows atualizado, a latência disparou, as consultas estão lendo tudo do disco e jobs estão sendo descartados.",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-092",
+     "DAN-103",
+     "DAN-133",
+     "DAN-134",
+     "DAN-080",
+     "DAN-209",
+     "DAN-195",
+     "DAN-101",
+     "DAN-148",
+     "DAN-035"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "workflows database cutover latency spike queries reading disk jobs dropped",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-092",
+     "DAN-134",
+     "DAN-080",
+     "DAN-133",
+     "DAN-164",
+     "DAN-195",
+     "DAN-148",
+     "DAN-101",
+     "DAN-094",
+     "DAN-209"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "database migration high latency disk reads cold cache jobs discarded",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-080",
+     "DAN-164",
+     "DAN-195",
+     "DAN-133",
+     "DAN-134",
+     "DAN-219",
+     "DAN-156",
+     "DAN-091",
+     "DAN-092",
+     "DAN-181"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "root cause stale statistics indexes disk reads fix ANALYZE re-promote old database",
+    "filtro": {
+     "incidente": "DAN-092"
+    },
+    "ids": [
+     "DAN-092"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-092"
+    },
+    "ids": [
+     "DAN-092"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-092"
+    },
+    "ids": [
+     "DAN-092"
+    ]
+   }
+  ],
+  "chamadas_llm": [
+   {
+    "segundos": 2.7,
+    "tokens": 1402,
+    "ferramentas": [
+     "find_similar_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   },
+   {
+    "segundos": 7.0,
+    "tokens": 3484,
+    "ferramentas": [
+     "search_inside_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   }
+  ],
+  "segundos": 10
+ },
+ {
+  "id": "q-213",
+  "tipo": "sintoma_e2",
+  "esperado": [
+   "DAN-092"
+  ],
+  "trechos_do_esperado": {
+   "DAN-092": [
+    {
+     "fonte": "causa",
+     "secao": "Summary",
+     "titulo_de_correcao": false,
+     "texto": "## Summary\n\nOn April 3, 2025, from 22:08 UTC to 23:45 UTC, CircleCI customers experienced increased latency and some failures with starting and canceling workflows and jobs. During this time customers may have experienced delays and difficulty viewing workflows in the UI. We appreciate your patience and understanding as we worked to resolve this incident.\n\nThe original status page can be found here."
+    },
+    {
+     "fonte": "correcao",
+     "secao": "Future Prevention and Process Improvement",
+     "titulo_de_correcao": true,
+     "texto": "## Future Prevention and Process Improvement\n\nThe blue/green database deployment procedures have been updated to run an analysis procedure after every major version change. The team has also tested running the analyze command while a database is under pressure to determine it has no further degrading effects on the database performance. This will be noted for future remediation.\n\nBefore any additional migrations are run, the team will add additional automated tests and manual checkpoints throughout the process to identify and resolve issues before the blue/green cutover."
+    },
+    {
+     "fonte": "similar",
+     "secao": "What Happened",
+     "titulo_de_correcao": false,
+     "texto": "## What Happened\n\n(all times UTC)\n\nAt approximately 22:00 on April 4, we initiated an upgrade to the service responsible for workflows. We expected a short delay (\\< 90 seconds) during the database upgrade where calls to the database from the workflows service would get sent to a queue and retried over a 10 minute period. We expected to see the queues grow slightly during and immediately after the upgrade. At 22:08, when the blue/green deployment was complete, we verified queries being served. At 22:17, we identified increased latency in the workflows service, as well as some errors from jobs being dropped due to exhausting their 10 minute retries.\n\nAt 22:29 additional engineers were engaged, and at 22:30 the team restarted the workflows pods to ensure they were all connecting to the correct database. At 22:35 a public incident was declared. At 22:41, it was observed that all queries on the new database were hitting disk, which indicated that the database statistics tables had not updated. The team immediately upsized the database and disabled any non business critical operations on the database. At 23:00, the workflows service was scaled down to a single pod to give the database capacity to recover while the statistics table was rebuilt.\n\nAt 23:10, the team observed the workflows queue backing up due to the reduction in pods as expected but also did not see an improvement in database performance. At 23:19, the team decided to re-enable writes on the old database and reinstate its primary status to restore service to customers sooner. This work completed at 23:29. The team continued to monitor the workflows queue. At 23:45 it was determined that the workflow queue was back to normal operating levels, and no further errors were observed."
+    },
+    {
+     "fonte": "similar",
+     "secao": "What Happened",
+     "titulo_de_correcao": false,
+     "texto": "## What Happened\n\nPost-incident, the team continued to investigate. The root cause was determined to be that the analyze operation to rebuild the database’s statistics table, which is used for indexes, had been executed too early in the operation and was made stale by a second major version upgrade within the same deployment."
+    }
+   ]
+  },
+  "posicao_busca_inicial": 1,
+  "esperado_em_novos": [
+   "DAN-092"
+  ],
+  "busca_inicial": [],
+  "achados": [
+   "DAN-092",
+   "DAN-133",
+   "DAN-164",
+   "DAN-134",
+   "DAN-080",
+   "DAN-148",
+   "DAN-101",
+   "DAN-078"
+  ],
+  "esperado_na_busca_inicial": [],
+  "esperado_nos_achados": [
+   "DAN-092"
+  ],
+  "esperado_aprofundado": [
+   "DAN-092"
+  ],
+  "esperado_descartado": [],
+  "plano": {
+   "aprofundar": [
+    {
+     "id": "DAN-092",
+     "consulta": "root cause fix ANALYZE statistics stale planner indexes disk reads after database upgrade cutover",
+     "why": "Bate em quase tudo: cutover de banco de workflows, queries lendo do disco, latência alta e jobs sendo dropped após upgrade. Difere apenas no detalhe de ser blue/green e estatísticas estarem desatualizadas."
+    }
+   ],
+   "novas_consultas": [
+    "workflows database cutover latency spike disk reads jobs dropped",
+    "database migration upgrade query reading everything from disk missing index latency"
+   ],
+   "descartar": [],
+   "justificativa": "",
+   "avisos": []
+  },
+  "trechos_aprofundamento": {
+   "DAN-092": [
+    {
+     "secao": "What Happened",
+     "similaridade": 0.708,
+     "fonte_consulta": "llm",
+     "inicio": "## What Happened  Post-incident, the team continued to investigate. The root cause was determined to be that the analyze operation to rebuild the database’s statistics table, which is used for indexes, had been executed too early in the operation and was made stale by a second major version upgrade "
+    },
+    {
+     "secao": "What Happened",
+     "similaridade": 0.575,
+     "fonte_consulta": "llm",
+     "inicio": "## What Happened  (all times UTC)  At approximately 22:00 on April 4, we initiated an upgrade to the service responsible for workflows. We expected a short delay (\\< 90 seconds) during the database upgrade where calls to the database from the workflows service would get sent to a queue and retried o"
+    },
+    {
+     "secao": "Summary",
+     "similaridade": 0.393,
+     "fonte_consulta": "causa",
+     "inicio": "## Summary  On April 3, 2025, from 22:08 UTC to 23:45 UTC, CircleCI customers experienced increased latency and some failures with starting and canceling workflows and jobs. During this time customers may have experienced delays and difficulty viewing workflows in the UI. We appreciate your patience"
+    },
+    {
+     "secao": "Future Prevention and Process Improvement",
+     "similaridade": 0.483,
+     "fonte_consulta": "correcao",
+     "inicio": "## Future Prevention and Process Improvement  The blue/green database deployment procedures have been updated to run an analysis procedure after every major version change. The team has also tested running the analyze command while a database is under pressure to determine it has no further degradin"
+    }
+   ]
+  },
+  "novos": [
+   "DAN-092",
+   "DAN-133",
+   "DAN-164",
+   "DAN-134",
+   "DAN-080",
+   "DAN-148",
+   "DAN-101",
+   "DAN-078",
+   "DAN-130",
+   "DAN-096",
+   "DAN-186",
+   "DAN-209",
+   "DAN-190",
+   "DAN-195",
+   "DAN-091"
+  ],
+  "buscas": [
+   {
+    "etapa": "find_similar_incidents (descrição)",
+    "consulta": "After the cutover to the upgraded workflows database, latency spiked, queries are reading everything from disk and jobs are being dropped.",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-092",
+     "DAN-133",
+     "DAN-164",
+     "DAN-134",
+     "DAN-080",
+     "DAN-148",
+     "DAN-101",
+     "DAN-078",
+     "DAN-130",
+     "DAN-096"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "workflows database cutover latency spike disk reads jobs dropped",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-092",
+     "DAN-134",
+     "DAN-133",
+     "DAN-164",
+     "DAN-080",
+     "DAN-195",
+     "DAN-148",
+     "DAN-209",
+     "DAN-091",
+     "DAN-078"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "database migration upgrade query reading everything from disk missing index latency",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-080",
+     "DAN-092",
+     "DAN-164",
+     "DAN-133",
+     "DAN-186",
+     "DAN-209",
+     "DAN-190",
+     "DAN-078",
+     "DAN-195",
+     "DAN-101"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "root cause fix ANALYZE statistics stale planner indexes disk reads after database upgrade cutover",
+    "filtro": {
+     "incidente": "DAN-092"
+    },
+    "ids": [
+     "DAN-092"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-092"
+    },
+    "ids": [
+     "DAN-092"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-092"
+    },
+    "ids": [
+     "DAN-092"
+    ]
+   }
+  ],
+  "chamadas_llm": [
+   {
+    "segundos": 4.5,
+    "tokens": 1428,
+    "ferramentas": [
+     "find_similar_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   },
+   {
+    "segundos": 8.9,
+    "tokens": 3596,
+    "ferramentas": [
+     "search_inside_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   }
+  ],
+  "segundos": 14
+ },
+ {
+  "id": "q-214",
+  "tipo": "sintoma_e2",
+  "esperado": [
+   "DAN-093"
+  ],
+  "trechos_do_esperado": {
+   "DAN-093": [
+    {
+     "fonte": "llm",
+     "secao": "Tuesday, September 11th",
+     "titulo_de_correcao": false,
+     "texto": "## Tuesday, September 11th\n\nThe following morning, our operations team was notified by a developer of incorrect query results returning from the node providing the ‘standby’ role. I investigated the situation and determined that when the cluster was placed into maintenance-mode the day before, actions that should have caused the node elected to serve the ‘standby’ role to change its replication master and start replicating were prevented from occurring. I determined that the best course of action was to disable maintenance-mode to allow Pacemaker and the Persona Replication Manager to rectify the situation.\n\nUpon attempting to disable maintenance-mode, a Pacemaker segfault occurred that resulted in a cluster state partition. After this update, two nodes (I’ll call them ‘a’ and ‘b’) rejected most messages from the third node (‘c’), while the third node rejected most messages from the other two. Despite having configured the cluster to require a majority of machines to agree on the state of the cluster before taking action, two simultaneous master election decisions were attempted without proper coordination. In the first cluster, master election was interrupted by messages from the second cluster and MySQL was stopped.\n\nIn the second, single-node cluster, node ‘c’ was elected at 8:19 AM, and any subsequent messages from the other two-node cluster were discarded. As luck would have it, the ‘c’ node was the node that our operations team previously determined to be out of date. We detected this fact and powered off this out-of-date node at 8:26 AM to end the partition and prevent further data drift, taking down all production database access and thus all access to github.com."
+    },
+    {
+     "fonte": "causa",
+     "secao": "Tuesday, September 11th",
+     "titulo_de_correcao": false,
+     "texto": "## Tuesday, September 11th\n\nIn summary, three primary events contributed to the downtime of the past few days. First, several failovers of the ‘active’ database role happened when they shouldn’t have. Second, a cluster partition occurred that resulted in incorrect actions being performed by our cluster management software. Finally, the failovers triggered by these first two events impacted performance and availability more than they should have."
+    },
+    {
+     "fonte": "correcao",
+     "secao": "In ops I trust",
+     "titulo_de_correcao": false,
+     "texto": "## In ops I trust\n\nThe automated failover of our main production database could be described as the root cause of both of these downtime events. In each situation in which that occurred, if any member of our operations team had been asked if the failover should have been performed, the answer would have been a resounding no. There are many situations in which automated failover is an excellent strategy for ensuring the availability of a service. After careful consideration, we’ve determined that ensuring the availability of our primary production database is not one of these situations. To this end, we’ve made changes to our Pacemaker configuration to ensure failover of the ‘active’ database role will only occur when initiated by a member of our operations team.\n\nWe’re also investigating solutions to ensure that these failovers don’t impact performance when they must be performed, either in an emergency situation or as a part of scheduled maintenance. There are various facilities for warming the InnoDB buffer pool of slave databases that we’re investigating and testing for this purpose.\n\nFinally, our operations team is performing a full audit of our Pacemaker and Heartbeat stack focusing on the code path that triggered the segfault on Tuesday. We’re also performing a strenuous round of hardware testing on the server on which the segfault occurred out of an abundance of caution."
+    },
+    {
+     "fonte": "similar",
+     "secao": "Monday, September 10th",
+     "titulo_de_correcao": false,
+     "texto": "## Monday, September 10th\n\nThe events that led up to Monday’s downtime began with a rather innocuous database migration. We use a two-pass migration system to allow for zero-downtime MySQL schema migration. This has been a relatively recent addition, but we’ve used it a handful of times without any issue.\n\nMonday’s migration caused higher load on the database than our operations team has previously seen during these sorts of migrations. So high, in fact, that they caused Percona Replication Manager’s health checks to fail on the master. In response to the failed master health check, Percona Replication manager moved the ‘active’ role and the master database to another server in the cluster and stopped MySQL on the node it perceived as failed.\n\nAt the time of this failover, the new database selected for the ‘active’ role had a cold InnoDB buffer pool and performed rather poorly. The system load generated by the site’s query load on a cold cache soon caused Percona Replication Manager’s health checks to fail again, and the ‘active’ role failed back to the server it was on originally.\n\nAt this point, I decided to disable all health checks by enabling Pacemaker’s maintenance-mode; an operating mode in which no health checks or automatic failover actions are performed. Performance on the site slowly recovered as the buffer pool slowly reached normal levels."
+    },
+    {
+     "fonte": "similar",
+     "secao": "Tuesday, September 11th",
+     "titulo_de_correcao": false,
+     "texto": "## Tuesday, September 11th\n\nAs a result of this data drift, inconsistencies between MySQL and other data stores in our infrastructure were possible. We use Redis to query dashboard event stream entries and repository routes from automatically generated MySQL ids. In situations where the id MySQL generated for a record is used to query data in Redis, the cross-data-store foreign key relationships became out of sync for records created during this window.\n\nConsequentially, some events created during this window appeared on the wrong users’ dashboards. Also, some repositories created during this window were incorrectly routed. We’ve removed all of the leaked events, and performed an audit of all repositories incorrectly routed during this window. 16 of these repositories were private, and for seven minutes from 8:19 AM to 8:26 AM PDT on Tuesday, Sept 11th, were accessible to people outside of the repository’s list of collaborators or team members. We’ve contacted all of the owners of these repositories directly. If you haven’t received a message from us, your repository was not affected.\n\nAfter confirming that the out-of-date database node was properly terminated, our operations team began to recover the state of the cluster on the ‘a’ and ‘b’ nodes. The original attempt to disable maintenance-mode was not reflected in the cluster state at this time, and subsequent attempts to make changes to the cluster state were unsuccessful. After tactical evaluation, we team determined that a Pacemaker restart was necessary to obtain a clean state.\n\nAt this point, all Pacemaker and Heartbeat processes were stopped on both nodes, then started on the ‘a’ node. MySQL was successfully started on the ‘a’ node and assumed the ‘active’ role. Performance on the site slowly recovered as the buffer pool slowly reached normal levels."
+    }
+   ]
+  },
+  "posicao_busca_inicial": 3,
+  "esperado_em_novos": [
+   "DAN-093"
+  ],
+  "busca_inicial": [],
+  "achados": [
+   "DAN-093",
+   "DAN-078",
+   "DAN-048",
+   "DAN-094",
+   "DAN-003",
+   "DAN-190",
+   "DAN-164",
+   "DAN-096"
+  ],
+  "esperado_na_busca_inicial": [],
+  "esperado_nos_achados": [
+   "DAN-093"
+  ],
+  "esperado_aprofundado": [
+   "DAN-093"
+  ],
+  "esperado_descartado": [],
+  "plano": {
+   "aprofundar": [
+    {
+     "id": "DAN-093",
+     "consulta": "schema migration failover stale node data drift wrong owners root cause fix",
+     "why": "O incidente envolve migração de schema que causou failover do MySQL e dados roteados para proprietários errados, semelhante a usuários vendo registros de outras contas."
+    },
+    {
+     "id": "DAN-078",
+     "consulta": "MySQL master failover maintenance network partition data integrity root cause fix",
+     "why": "Envolve failover do MySQL durante manutenção com problemas de integridade de dados, embora o gatilho seja partição de rede e não migração de schema."
+    }
+   ],
+   "novas_consultas": [
+    "MySQL schema migration unexpected failover users seeing other accounts records",
+    "database failover data isolation breach schema change multi-tenancy"
+   ],
+   "descartar": [],
+   "justificativa": "",
+   "avisos": []
+  },
+  "trechos_aprofundamento": {
+   "DAN-093": [
+    {
+     "secao": "Monday, September 10th",
+     "similaridade": 0.628,
+     "fonte_consulta": "llm",
+     "inicio": "## Monday, September 10th  The events that led up to Monday’s downtime began with a rather innocuous database migration. We use a two-pass migration system to allow for zero-downtime MySQL schema migration. This has been a relatively recent addition, but we’ve used it a handful of times without any "
+    },
+    {
+     "secao": "Tuesday, September 11th",
+     "similaridade": 0.61,
+     "fonte_consulta": "llm",
+     "inicio": "## Tuesday, September 11th  The following morning, our operations team was notified by a developer of incorrect query results returning from the node providing the ‘standby’ role. I investigated the situation and determined that when the cluster was placed into maintenance-mode the day before, actio"
+    },
+    {
+     "secao": "Tuesday, September 11th",
+     "similaridade": 0.473,
+     "fonte_consulta": "causa",
+     "inicio": "## Tuesday, September 11th  In summary, three primary events contributed to the downtime of the past few days. First, several failovers of the ‘active’ database role happened when they shouldn’t have. Second, a cluster partition occurred that resulted in incorrect actions being performed by our clus"
+    },
+    {
+     "secao": "Tuesday, September 11th",
+     "similaridade": 0.392,
+     "fonte_consulta": "correcao",
+     "inicio": "## Tuesday, September 11th  As a result of this data drift, inconsistencies between MySQL and other data stores in our infrastructure were possible. We use Redis to query dashboard event stream entries and repository routes from automatically generated MySQL ids. In situations where the id MySQL gen"
+    },
+    {
+     "secao": "In ops I trust",
+     "similaridade": 0.336,
+     "fonte_consulta": "correcao",
+     "inicio": "## In ops I trust  The automated failover of our main production database could be described as the root cause of both of these downtime events. In each situation in which that occurred, if any member of our operations team had been asked if the failover should have been performed, the answer would "
+    }
+   ],
+   "DAN-078": [
+    {
+     "secao": "Incident timeline",
+     "similaridade": 0.686,
+     "fonte_consulta": "llm",
+     "inicio": "## Incident timeline  ## 2018 October 21 22:52 UTC  During the network partition described above, Orchestrator, which had been active in our primary data center, began a process of leadership deselection, according to Raft consensus. The US West Coast data center and US East Coast public cloud Orche"
+    },
+    {
+     "secao": "2018 October 22 00:05 UTC",
+     "similaridade": 0.639,
+     "fonte_consulta": "llm",
+     "inicio": "## 2018 October 22 00:05 UTC  Engineers involved in the incident response team began developing a plan to resolve data inconsistencies and implement our failover procedures for MySQL. Our plan was to restore from backups, synchronize the replicas in both sites, fall back to a stable serving topology"
+    },
+    {
+     "secao": "2018 October 22 16:24 UTC",
+     "similaridade": 0.471,
+     "fonte_consulta": "causa",
+     "inicio": "## 2018 October 22 16:24 UTC  Once the replicas were in sync, we conducted a failover to the original topology, addressing the immediate latency/availability concerns. As part of a conscious decision to prioritize data integrity over a shorter incident window, we kept the service status red while we"
+    },
+    {
+     "secao": "Next steps",
+     "similaridade": 0.448,
+     "fonte_consulta": "correcao",
+     "inicio": "## Next steps  ## Resolving data inconsistencies  During our recovery, we captured the MySQL binary logs containing the writes we took in our primary site that were not replicated to our West Coast site from each affected cluster. The total number of writes that were not replicated to the West Coast"
+    },
+    {
+     "secao": "Organizational initiatives",
+     "similaridade": 0.538,
+     "fonte_consulta": "correcao",
+     "inicio": "## Organizational initiatives  This incident has led to a shift in our mindset around site reliability. We have learned that tighter operational controls or improved response times are insufficient safeguards for site reliability within a system of services as complicated as ours. To bolster those e"
+    }
+   ]
+  },
+  "novos": [
+   "DAN-048",
+   "DAN-078",
+   "DAN-093",
+   "DAN-094",
+   "DAN-003",
+   "DAN-190",
+   "DAN-164",
+   "DAN-096",
+   "DAN-186",
+   "DAN-058",
+   "DAN-056",
+   "DAN-066",
+   "DAN-194",
+   "DAN-043",
+   "DAN-146"
+  ],
+  "buscas": [
+   {
+    "etapa": "find_similar_incidents (descrição)",
+    "consulta": "Uma migração de schema provocou um failover inesperado do MySQL e, desde então, alguns usuários estão vendo registros de outras contas.",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-048",
+     "DAN-078",
+     "DAN-093",
+     "DAN-094",
+     "DAN-003",
+     "DAN-190",
+     "DAN-164",
+     "DAN-096",
+     "DAN-186",
+     "DAN-058"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "MySQL schema migration unexpected failover users seeing other accounts records",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-048",
+     "DAN-093",
+     "DAN-056",
+     "DAN-003",
+     "DAN-078",
+     "DAN-186",
+     "DAN-164",
+     "DAN-094",
+     "DAN-190",
+     "DAN-194"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "database failover data isolation breach schema change multi-tenancy",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-058",
+     "DAN-066",
+     "DAN-048",
+     "DAN-003",
+     "DAN-096",
+     "DAN-043",
+     "DAN-146",
+     "DAN-080",
+     "DAN-091",
+     "DAN-056"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "schema migration failover stale node data drift wrong owners root cause fix",
+    "filtro": {
+     "incidente": "DAN-093"
+    },
+    "ids": [
+     "DAN-093"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-093"
+    },
+    "ids": [
+     "DAN-093"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-093"
+    },
+    "ids": [
+     "DAN-093"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "MySQL master failover maintenance network partition data integrity root cause fix",
+    "filtro": {
+     "incidente": "DAN-078"
+    },
+    "ids": [
+     "DAN-078"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-078"
+    },
+    "ids": [
+     "DAN-078"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-078"
+    },
+    "ids": [
+     "DAN-078"
+    ]
+   }
+  ],
+  "chamadas_llm": [
+   {
+    "segundos": 31.9,
+    "tokens": 1510,
+    "ferramentas": [
+     "find_similar_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   },
+   {
+    "segundos": 41.9,
+    "tokens": 3611,
+    "ferramentas": [
+     "search_inside_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   }
+  ],
+  "segundos": 75
+ },
+ {
+  "id": "q-215",
+  "tipo": "sintoma_e2",
+  "esperado": [
+   "DAN-093"
+  ],
+  "trechos_do_esperado": {
+   "DAN-093": [
+    {
+     "fonte": "llm",
+     "secao": "Tuesday, September 11th",
+     "titulo_de_correcao": false,
+     "texto": "## Tuesday, September 11th\n\nThe following morning, our operations team was notified by a developer of incorrect query results returning from the node providing the ‘standby’ role. I investigated the situation and determined that when the cluster was placed into maintenance-mode the day before, actions that should have caused the node elected to serve the ‘standby’ role to change its replication master and start replicating were prevented from occurring. I determined that the best course of action was to disable maintenance-mode to allow Pacemaker and the Persona Replication Manager to rectify the situation.\n\nUpon attempting to disable maintenance-mode, a Pacemaker segfault occurred that resulted in a cluster state partition. After this update, two nodes (I’ll call them ‘a’ and ‘b’) rejected most messages from the third node (‘c’), while the third node rejected most messages from the other two. Despite having configured the cluster to require a majority of machines to agree on the state of the cluster before taking action, two simultaneous master election decisions were attempted without proper coordination. In the first cluster, master election was interrupted by messages from the second cluster and MySQL was stopped.\n\nIn the second, single-node cluster, node ‘c’ was elected at 8:19 AM, and any subsequent messages from the other two-node cluster were discarded. As luck would have it, the ‘c’ node was the node that our operations team previously determined to be out of date. We detected this fact and powered off this out-of-date node at 8:26 AM to end the partition and prevent further data drift, taking down all production database access and thus all access to github.com."
+    },
+    {
+     "fonte": "causa",
+     "secao": "Tuesday, September 11th",
+     "titulo_de_correcao": false,
+     "texto": "## Tuesday, September 11th\n\nIn summary, three primary events contributed to the downtime of the past few days. First, several failovers of the ‘active’ database role happened when they shouldn’t have. Second, a cluster partition occurred that resulted in incorrect actions being performed by our cluster management software. Finally, the failovers triggered by these first two events impacted performance and availability more than they should have."
+    },
+    {
+     "fonte": "correcao",
+     "secao": "In ops I trust",
+     "titulo_de_correcao": false,
+     "texto": "## In ops I trust\n\nThe automated failover of our main production database could be described as the root cause of both of these downtime events. In each situation in which that occurred, if any member of our operations team had been asked if the failover should have been performed, the answer would have been a resounding no. There are many situations in which automated failover is an excellent strategy for ensuring the availability of a service. After careful consideration, we’ve determined that ensuring the availability of our primary production database is not one of these situations. To this end, we’ve made changes to our Pacemaker configuration to ensure failover of the ‘active’ database role will only occur when initiated by a member of our operations team.\n\nWe’re also investigating solutions to ensure that these failovers don’t impact performance when they must be performed, either in an emergency situation or as a part of scheduled maintenance. There are various facilities for warming the InnoDB buffer pool of slave databases that we’re investigating and testing for this purpose.\n\nFinally, our operations team is performing a full audit of our Pacemaker and Heartbeat stack focusing on the code path that triggered the segfault on Tuesday. We’re also performing a strenuous round of hardware testing on the server on which the segfault occurred out of an abundance of caution."
+    },
+    {
+     "fonte": "similar",
+     "secao": "Monday, September 10th",
+     "titulo_de_correcao": false,
+     "texto": "## Monday, September 10th\n\nThe events that led up to Monday’s downtime began with a rather innocuous database migration. We use a two-pass migration system to allow for zero-downtime MySQL schema migration. This has been a relatively recent addition, but we’ve used it a handful of times without any issue.\n\nMonday’s migration caused higher load on the database than our operations team has previously seen during these sorts of migrations. So high, in fact, that they caused Percona Replication Manager’s health checks to fail on the master. In response to the failed master health check, Percona Replication manager moved the ‘active’ role and the master database to another server in the cluster and stopped MySQL on the node it perceived as failed.\n\nAt the time of this failover, the new database selected for the ‘active’ role had a cold InnoDB buffer pool and performed rather poorly. The system load generated by the site’s query load on a cold cache soon caused Percona Replication Manager’s health checks to fail again, and the ‘active’ role failed back to the server it was on originally.\n\nAt this point, I decided to disable all health checks by enabling Pacemaker’s maintenance-mode; an operating mode in which no health checks or automatic failover actions are performed. Performance on the site slowly recovered as the buffer pool slowly reached normal levels."
+    },
+    {
+     "fonte": "similar",
+     "secao": "Tuesday, September 11th",
+     "titulo_de_correcao": false,
+     "texto": "## Tuesday, September 11th\n\nAs a result of this data drift, inconsistencies between MySQL and other data stores in our infrastructure were possible. We use Redis to query dashboard event stream entries and repository routes from automatically generated MySQL ids. In situations where the id MySQL generated for a record is used to query data in Redis, the cross-data-store foreign key relationships became out of sync for records created during this window.\n\nConsequentially, some events created during this window appeared on the wrong users’ dashboards. Also, some repositories created during this window were incorrectly routed. We’ve removed all of the leaked events, and performed an audit of all repositories incorrectly routed during this window. 16 of these repositories were private, and for seven minutes from 8:19 AM to 8:26 AM PDT on Tuesday, Sept 11th, were accessible to people outside of the repository’s list of collaborators or team members. We’ve contacted all of the owners of these repositories directly. If you haven’t received a message from us, your repository was not affected.\n\nAfter confirming that the out-of-date database node was properly terminated, our operations team began to recover the state of the cluster on the ‘a’ and ‘b’ nodes. The original attempt to disable maintenance-mode was not reflected in the cluster state at this time, and subsequent attempts to make changes to the cluster state were unsuccessful. After tactical evaluation, we team determined that a Pacemaker restart was necessary to obtain a clean state.\n\nAt this point, all Pacemaker and Heartbeat processes were stopped on both nodes, then started on the ‘a’ node. MySQL was successfully started on the ‘a’ node and assumed the ‘active’ role. Performance on the site slowly recovered as the buffer pool slowly reached normal levels."
+    }
+   ]
+  },
+  "posicao_busca_inicial": 3,
+  "esperado_em_novos": [
+   "DAN-093"
+  ],
+  "busca_inicial": [],
+  "achados": [
+   "DAN-093",
+   "DAN-048",
+   "DAN-078",
+   "DAN-003",
+   "DAN-164",
+   "DAN-094",
+   "DAN-096",
+   "DAN-186"
+  ],
+  "esperado_na_busca_inicial": [],
+  "esperado_nos_achados": [
+   "DAN-093"
+  ],
+  "esperado_aprofundado": [
+   "DAN-093"
+  ],
+  "esperado_descartado": [],
+  "plano": {
+   "aprofundar": [
+    {
+     "id": "DAN-093",
+     "consulta": "schema migration MySQL failover stale node wrong owner root cause fix remediation",
+     "why": "É o único que combina schema migration → failover do MySQL → usuários vendo registros de outras contas (repositórios privados roteados para donos errados), exatamente o padrão do incidente atual."
+    }
+   ],
+   "novas_consultas": [
+    "MySQL failover schema migration users seeing other accounts records data leakage",
+    "schema migration caused MySQL failover cross-tenant data exposure isolation failure"
+   ],
+   "descartar": [],
+   "justificativa": "",
+   "avisos": []
+  },
+  "trechos_aprofundamento": {
+   "DAN-093": [
+    {
+     "secao": "Monday, September 10th",
+     "similaridade": 0.676,
+     "fonte_consulta": "llm",
+     "inicio": "## Monday, September 10th  The events that led up to Monday’s downtime began with a rather innocuous database migration. We use a two-pass migration system to allow for zero-downtime MySQL schema migration. This has been a relatively recent addition, but we’ve used it a handful of times without any "
+    },
+    {
+     "secao": "Tuesday, September 11th",
+     "similaridade": 0.646,
+     "fonte_consulta": "llm",
+     "inicio": "## Tuesday, September 11th  The following morning, our operations team was notified by a developer of incorrect query results returning from the node providing the ‘standby’ role. I investigated the situation and determined that when the cluster was placed into maintenance-mode the day before, actio"
+    },
+    {
+     "secao": "Tuesday, September 11th",
+     "similaridade": 0.473,
+     "fonte_consulta": "causa",
+     "inicio": "## Tuesday, September 11th  In summary, three primary events contributed to the downtime of the past few days. First, several failovers of the ‘active’ database role happened when they shouldn’t have. Second, a cluster partition occurred that resulted in incorrect actions being performed by our clus"
+    },
+    {
+     "secao": "Tuesday, September 11th",
+     "similaridade": 0.392,
+     "fonte_consulta": "correcao",
+     "inicio": "## Tuesday, September 11th  As a result of this data drift, inconsistencies between MySQL and other data stores in our infrastructure were possible. We use Redis to query dashboard event stream entries and repository routes from automatically generated MySQL ids. In situations where the id MySQL gen"
+    },
+    {
+     "secao": "In ops I trust",
+     "similaridade": 0.336,
+     "fonte_consulta": "correcao",
+     "inicio": "## In ops I trust  The automated failover of our main production database could be described as the root cause of both of these downtime events. In each situation in which that occurred, if any member of our operations team had been asked if the failover should have been performed, the answer would "
+    }
+   ]
+  },
+  "novos": [
+   "DAN-048",
+   "DAN-078",
+   "DAN-093",
+   "DAN-003",
+   "DAN-164",
+   "DAN-094",
+   "DAN-096",
+   "DAN-186",
+   "DAN-080",
+   "DAN-056",
+   "DAN-058",
+   "DAN-155",
+   "DAN-099",
+   "DAN-181",
+   "DAN-162"
+  ],
+  "buscas": [
+   {
+    "etapa": "find_similar_incidents (descrição)",
+    "consulta": "A schema migration caused an unexpected MySQL failover and, since then, some users are seeing records from other accounts.",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-048",
+     "DAN-078",
+     "DAN-093",
+     "DAN-003",
+     "DAN-164",
+     "DAN-094",
+     "DAN-096",
+     "DAN-186",
+     "DAN-080",
+     "DAN-056"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "MySQL failover schema migration users seeing other accounts records data leakage",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-048",
+     "DAN-056",
+     "DAN-058",
+     "DAN-078",
+     "DAN-093",
+     "DAN-164",
+     "DAN-094",
+     "DAN-003",
+     "DAN-155",
+     "DAN-096"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "schema migration caused MySQL failover cross-tenant data exposure isolation failure",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-078",
+     "DAN-093",
+     "DAN-048",
+     "DAN-058",
+     "DAN-094",
+     "DAN-003",
+     "DAN-099",
+     "DAN-080",
+     "DAN-181",
+     "DAN-162"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "schema migration MySQL failover stale node wrong owner root cause fix remediation",
+    "filtro": {
+     "incidente": "DAN-093"
+    },
+    "ids": [
+     "DAN-093"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-093"
+    },
+    "ids": [
+     "DAN-093"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-093"
+    },
+    "ids": [
+     "DAN-093"
+    ]
+   }
+  ],
+  "chamadas_llm": [
+   {
+    "segundos": 36.0,
+    "tokens": 1393,
+    "ferramentas": [
+     "find_similar_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   },
+   {
+    "segundos": 9.0,
+    "tokens": 3583,
+    "ferramentas": [
+     "search_inside_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": "Encontrei um incidente que se parece muito com o atual: **DAN-093 (GitHub)** — schema migration disparou failover do MySQL e, após a eleição de um nó primário desatualizado, repositórios privados foram brevemente roteados para os donos errados (usuários vendo dados de outras contas). Vou buscar a ca"
+   }
+  ],
+  "segundos": 46
+ },
+ {
+  "id": "q-216",
+  "tipo": "sintoma_e2",
+  "esperado": [
+   "DAN-106"
+  ],
+  "trechos_do_esperado": {
+   "DAN-106": [
+    {
+     "fonte": "llm",
+     "secao": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "titulo_de_correcao": false,
+     "texto": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nAt 12:47 AM PDT on April 21st, a network change was performed as part of our normal AWS scaling activities in a single Availability Zone in the US East Region. The configuration change was to upgrade the capacity of the primary network. During the change, one of the standard steps is to shift traffic off of one of the redundant routers in the primary EBS network to allow the upgrade to happen. The traffic shift was executed incorrectly and rather than routing the traffic to the other router on the primary network, the traffic was routed onto the lower capacity redundant EBS network. For a portion of the EBS cluster in the affected Availability Zone, this meant that they did not have a functioning primary or secondary network because traffic was purposely shifted away from the primary network and the secondary network couldn’t handle the traffic level it was receiving. As a result, many EBS nodes in the affected Availability Zone were completely isolated from other EBS nodes in its cluster. Unlike a normal network interruption, this change disconnected both the primary and secondary network simultaneously, leaving the affected nodes completely isolated from one another."
+    },
+    {
+     "fonte": "causa",
+     "secao": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "titulo_de_correcao": false,
+     "texto": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nTwo factors caused the situation in this EBS cluster to degrade further during the early part of the event. First, the nodes failing to find new nodes did not back off aggressively enough when they could not find space, but instead, continued to search repeatedly. There was also a race condition in the code on the EBS nodes that, with a very low probability, caused them to fail when they were concurrently closing a large number of requests for replication. In a normally operating EBS cluster, this issue would result in very few, if any, node crashes; however, during this re-mirroring storm, the volume of connection attempts was extremely high, so it began triggering this issue more frequently. Nodes began to fail as a result of the bug, resulting in more volumes left needing to re-mirror. This created more “stuck” volumes and added more requests to the re-mirroring storm."
+    },
+    {
+     "fonte": "correcao",
+     "secao": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "titulo_de_correcao": false,
+     "texto": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nIn addition to the technical insights and improvements that will result from this event, we also identified improvements that need to be made in our customer communications. We would like our communications to be more frequent and contain more information. We understand that during an outage, customers want to know as many details as possible about what’s going on, how long it will take to fix, and what we are doing so that it doesn’t happen again. Most of the AWS team, including the entire senior leadership team, was directly involved in helping to coordinate, troubleshoot and resolve the event. Initially, our primary focus was on thinking through how to solve the operational problems for customers rather than on identifying root causes. We felt that that focusing our efforts on a solution and not the problem was the right thing to do for our customers, and that it helped us to return the services and our customers back to health more quickly. We updated customers when we had new information that we felt confident was accurate and refrained from speculating, knowing that once we had returned the services back to health that we would quickly transition to the data collection and analysis stage that would drive this post mortem.\n\nThat said, we think we can improve in this area. We switched to more regular updates part of the way through this event and plan to continue with similar frequency of updates in the future. In addition, we are already working on how we can staff our developer support team more expansively in an event such as this, and organize to provide early and meaningful information, while still avoiding speculation.\n\nWe also can do a better job of making it easier for customers to tell if their resources have been impacted, and we are developing tools to allow you to see via the APIs if your instances are impaired.\n\n**Service Credit for Affected Customers**"
+    },
+    {
+     "fonte": "correcao",
+     "secao": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "titulo_de_correcao": false,
+     "texto": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nWe will be making a number of changes to prevent a cluster from getting into a re-mirroring storm in the future. With additional excess capacity, the degraded EBS cluster would have more quickly absorbed the large number of re-mirroring requests and avoided the re-mirroring storm. We now understand the amount of capacity needed for large recovery events and will be modifying our capacity planning and alarming so that we carry the additional safety capacity that is needed for large scale failures. We have already increased our capacity buffer significantly, and expect to have the requisite new capacity in place in a few weeks. We will also modify our retry logic in the EBS server nodes to prevent a cluster from getting into a re-mirroring storm. When a large interruption occurs, our retry logic will back off more aggressively and focus on re-establishing connectivity with previous replicas rather than futilely searching for new nodes with which to re-mirror. We have begun working through these changes and are confident we can address the root cause of the re-mirroring storm by modifying this logic. Finally, we have identified the source of the race condition that led to EBS node failure. We have a fix and will be testing it and deploying it to our clusters in the next couple of weeks. These changes provide us with three separate protections against having a repeat of this event.\n\n**Impact to Multiple Availability Zones**"
+    },
+    {
+     "fonte": "similar",
+     "secao": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "titulo_de_correcao": false,
+     "texto": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nWhen this network connectivity issue occurred, a large number of EBS nodes in a single EBS cluster lost connection to their replicas. When the incorrect traffic shift was rolled back and network connectivity was restored, these nodes rapidly began searching the EBS cluster for available server space where they could re-mirror data. Once again, in a normally functioning cluster, this occurs in milliseconds. In this case, because the issue affected such a large number of volumes concurrently, the free capacity of the EBS cluster was quickly exhausted, leaving many of the nodes “stuck” in a loop, continuously searching the cluster for free space. This quickly led to a “re-mirroring storm,” where a large number of volumes were effectively “stuck” while the nodes searched the cluster for the storage space it needed for its new replica. At this point, about 13% of the volumes in the affected Availability Zone were in this “stuck” state."
+    },
+    {
+     "fonte": "similar",
+     "secao": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "titulo_de_correcao": false,
+     "texto": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nA large majority of the volumes in the degraded EBS cluster were still functioning properly and the focus was to recover the cluster without affecting more volumes. At 11:30AM PDT, the team developed a way to prevent EBS servers in the degraded EBS cluster from futilely contacting other servers (who didn’t have free space at this point anyway) without affecting the other essential communication between nodes in the cluster. After this change was made, the cluster stopped degrading further and additional volumes were no longer at risk of becoming “stuck”. Before this change was deployed, the failed servers resulting from the race condition resulted in an additional 5% of the volumes in the affected Availability Zone becoming “stuck”. However, volumes were also slowly re-mirroring as some capacity was made available which allowed existing “stuck” volumes to become ”unstuck”. The net result was that when this change was deployed, the total “stuck” volumes in the affected Availability Zone was 13%."
+    }
+   ]
+  },
+  "posicao_busca_inicial": 1,
+  "esperado_em_novos": [
+   "DAN-106"
+  ],
+  "busca_inicial": [],
+  "achados": [
+   "DAN-106",
+   "DAN-143",
+   "DAN-109",
+   "DAN-073",
+   "DAN-048",
+   "DAN-164",
+   "DAN-071",
+   "DAN-191"
+  ],
+  "esperado_na_busca_inicial": [],
+  "esperado_nos_achados": [
+   "DAN-106"
+  ],
+  "esperado_aprofundado": [
+   "DAN-106"
+  ],
+  "esperado_descartado": [],
+  "plano": {
+   "aprofundar": [
+    {
+     "id": "DAN-106",
+     "consulta": "routine networking upgrade human error volume loss root cause fix",
+     "why": "Bate muito com o incidente atual: atualização de rede de rotina, erro humano, pane regional e perda de volumes. Difere porque é da Amazon EC2/RDS, não especificamente block storage travar instâncias."
+    },
+    {
+     "id": "DAN-143",
+     "consulta": "automatic upgrade network rules removed outage fix remediation",
+     "why": "Semelhança: upgrade de rede automático causando pane em múltiplas regiões. Difere: remove regras de rede em vez de travar volumes de bloco, e afeta clusters Kubernetes, não instâncias diretas."
+    },
+    {
+     "id": "DAN-109",
+     "consulta": "network disruption storage nodes down root cause fix",
+     "why": "Semelhança: problema de rede derrubando nós de armazenamento. Difere: é uma disruption de rede, não uma atualização planejada de rotina, e foca em DynamoDB metadata, não EBS/block storage."
+    }
+   ],
+   "novas_consultas": [
+    "block storage volumes frozen region-wide instances stopped network update",
+    "block storage volume lock during network maintenance upgrade region outage"
+   ],
+   "descartar": [],
+   "justificativa": "",
+   "avisos": []
+  },
+  "trechos_aprofundamento": {
+   "DAN-106": [
+    {
+     "secao": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "similaridade": 0.456,
+     "fonte_consulta": "llm",
+     "inicio": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region  At 12:47 AM PDT on April 21st, a network change was performed as part of our normal AWS scaling activities in a single Availability Zone in the US East Region. The configuration change was to upgrade the capacity "
+    },
+    {
+     "secao": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "similaridade": 0.452,
+     "fonte_consulta": "llm",
+     "inicio": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region  When this network connectivity issue occurred, a large number of EBS nodes in a single EBS cluster lost connection to their replicas. When the incorrect traffic shift was rolled back and network connectivity was r"
+    },
+    {
+     "secao": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "similaridade": 0.434,
+     "fonte_consulta": "causa",
+     "inicio": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region  Two factors caused the situation in this EBS cluster to degrade further during the early part of the event. First, the nodes failing to find new nodes did not back off aggressively enough when they could not find "
+    },
+    {
+     "secao": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "similaridade": 0.448,
+     "fonte_consulta": "correcao",
+     "inicio": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region  In addition to the technical insights and improvements that will result from this event, we also identified improvements that need to be made in our customer communications. We would like our communications to be "
+    },
+    {
+     "secao": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "similaridade": 0.388,
+     "fonte_consulta": "correcao",
+     "inicio": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region  We will be making a number of changes to prevent a cluster from getting into a re-mirroring storm in the future. With additional excess capacity, the degraded EBS cluster would have more quickly absorbed the large"
+    }
+   ],
+   "DAN-143": [
+    {
+     "secao": "Root cause",
+     "similaridade": 0.628,
+     "fonte_consulta": "llm",
+     "inicio": "## Root cause  We have identified (and since disabled) the initial trigger for the outage: on March 8, 2023, at 06:00 UTC, a security update to systemd was automatically applied to a number of VMs, which caused a latent adverse interaction in the network stack (on Ubuntu 22.04 via systemd v249) to m"
+    },
+    {
+     "secao": "Root cause",
+     "similaridade": 0.553,
+     "fonte_consulta": "llm",
+     "inicio": "## Root cause  However, the base OS image we use to run Kubernetes had a legacy security update channel enabled, which caused the update to apply automatically. By design we use fairly minimal base OS images so these updates are infrequent and until that day, weren’t ever disruptive.  To compound th"
+    },
+    {
+     "secao": "Lessons learned",
+     "similaridade": 0.422,
+     "fonte_consulta": "causa",
+     "inicio": "## Lessons learned  The following is not the sum total of everything we learned during the incident but rather important themes that pertain to the whole platform.  This was our first global incident. We built Datadog regions with the explicit design goal of being autonomous and resilient to local f"
+    },
+    {
+     "secao": "Lessons learned",
+     "similaridade": 0.446,
+     "fonte_consulta": "correcao",
+     "inicio": "## Lessons learned  Even with separate systems that serve live data when historical data is not accessible (e.g., APM’s Live Search and Log Management’s Live Tail), we did not provide our customers with clear guidance on how they could access our systems as soon as they were available, even while th"
+    },
+    {
+     "secao": "Recovery",
+     "similaridade": 0.445,
+     "fonte_consulta": "correcao",
+     "inicio": "## Recovery  The high-level steps of the recovery had to be sequenced because of the magnitude of the compute capacity drop:  - First, for each region, recover enough compute capacity so that it could scale back to what it needed to process incoming data at the normal rate. In fact, working with eac"
+    }
+   ],
+   "DAN-109": [
+    {
+     "secao": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region",
+     "similaridade": 0.561,
+     "fonte_consulta": "llm",
+     "inicio": "### Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region  So, when the network disruption occurred on Sunday morning, and a number of storage servers simultaneously requested their membership data, the metadata service was processing some membership lists that "
+    },
+    {
+     "secao": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region",
+     "similaridade": 0.545,
+     "fonte_consulta": "llm",
+     "inicio": "### Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region  The specific assignment of a group of partitions to a given server is called a “membership.” The membership of a set of table/partitions within a server is managed by DynamoDB’s internal metadata service"
+    },
+    {
+     "secao": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region",
+     "similaridade": 0.368,
+     "fonte_consulta": "causa",
+     "inicio": "### Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region  Initially, we were unable to add capacity to the metadata service because it was under such high load, preventing us from successfully making the requisite administrative requests. After several failed a"
+    },
+    {
+     "secao": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region",
+     "similaridade": 0.407,
+     "fonte_consulta": "correcao",
+     "inicio": "### Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region  There’s one other bit worth mentioning. After we resolved the key issue on Sunday, we were left with a low error rate, hovering between 0.15%-0.25%. We knew there would be some cleanup to do after the ev"
+    },
+    {
+     "secao": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region",
+     "similaridade": 0.359,
+     "fonte_consulta": "correcao",
+     "inicio": "### Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region  There are several actions we'll take immediately to avoid a recurrence of Sunday's DynamoDB event. First, we have already significantly increased the capacity of the metadata service. Second, we are inst"
+    }
+   ]
+  },
+  "novos": [
+   "DAN-106",
+   "DAN-073",
+   "DAN-048",
+   "DAN-164",
+   "DAN-109",
+   "DAN-071",
+   "DAN-191",
+   "DAN-064",
+   "DAN-139",
+   "DAN-060",
+   "DAN-143",
+   "DAN-208",
+   "DAN-065",
+   "DAN-189",
+   "DAN-063"
+  ],
+  "buscas": [
+   {
+    "etapa": "find_similar_incidents (descrição)",
+    "consulta": "Durante uma atualização de rede de rotina, os volumes de armazenamento em bloco travaram na região inteira e as instâncias que dependem deles pararam.",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-106",
+     "DAN-073",
+     "DAN-048",
+     "DAN-164",
+     "DAN-109",
+     "DAN-071",
+     "DAN-191",
+     "DAN-064",
+     "DAN-139",
+     "DAN-060"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "block storage volumes frozen region-wide instances stopped network update",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-106",
+     "DAN-143",
+     "DAN-060",
+     "DAN-073",
+     "DAN-065",
+     "DAN-189",
+     "DAN-063",
+     "DAN-109",
+     "DAN-107",
+     "DAN-210"
+    ]
+   },
+   {
+    "etapa": "find_similar_incidents",
+    "consulta": "block storage volume lock during network maintenance upgrade region outage",
+    "filtro": {
+     "excluir": []
+    },
+    "ids": [
+     "DAN-106",
+     "DAN-073",
+     "DAN-208",
+     "DAN-109",
+     "DAN-112",
+     "DAN-143",
+     "DAN-078",
+     "DAN-219",
+     "DAN-060",
+     "DAN-209"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "routine networking upgrade human error volume loss root cause fix",
+    "filtro": {
+     "incidente": "DAN-106"
+    },
+    "ids": [
+     "DAN-106"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-106"
+    },
+    "ids": [
+     "DAN-106"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-106"
+    },
+    "ids": [
+     "DAN-106"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "automatic upgrade network rules removed outage fix remediation",
+    "filtro": {
+     "incidente": "DAN-143"
+    },
+    "ids": [
+     "DAN-143"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-143"
+    },
+    "ids": [
+     "DAN-143"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-143"
+    },
+    "ids": [
+     "DAN-143"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "network disruption storage nodes down root cause fix",
+    "filtro": {
+     "incidente": "DAN-109"
+    },
+    "ids": [
+     "DAN-109"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "what was the root cause of the failure",
+    "filtro": {
+     "incidente": "DAN-109"
+    },
+    "ids": [
+     "DAN-109"
+    ]
+   },
+   {
+    "etapa": "search_inside_incidents",
+    "consulta": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filtro": {
+     "incidente": "DAN-109"
+    },
+    "ids": [
+     "DAN-109"
+    ]
+   }
+  ],
+  "chamadas_llm": [
+   {
+    "segundos": 2.2,
+    "tokens": 1386,
+    "ferramentas": [
+     "find_similar_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   },
+   {
+    "segundos": 95.6,
+    "tokens": 3785,
+    "ferramentas": [
+     "search_inside_incidents"
+    ],
+    "nomes_corrigidos": 0,
+    "json_consertados": 0,
+    "campos_completados": 0,
+    "malformadas": 0,
+    "detalhe_malformadas": [],
+    "texto": ""
+   }
+  ],
+  "segundos": 99
+ }
+]
