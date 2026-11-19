@@ -45,3 +45,14 @@ Branch `e5-troca-modelo`, opção `--modelo` (o `.env` não muda). Mesmo agente,
 
 Uma rodada de 295 com 4 em paralelo falhou inteira no embedding (`float != BFloat16`, várias threads na GPU ao mesmo
 tempo). Corrigido com uma trava em `rag/busca.py` (`vetorizar`); a rodada que falhou foi apagada.
+
+## Limitador de chamadas: comparação (2026-11-19)
+
+Mesmo agente (modo atual, Nemotron 3.5 super-vl), as mesmas 32 perguntas (12 da E3 + 20 difíceis), 3 em paralelo:
+
+| Rodadas | Versão | Certo aprofundado (31) | Perdidas por 429 | Avisos de 429 | Tempo |
+|---|---|---|---|---|---|
+| `2026-11-19_0642_sem-limitador` + `0646_perguntas_dificeis_sem-limitador` | sem `rag/limite_llm.py` (só 3 tentativas curtas do LangGraph) | 22 | 3 (q10, q-171, q-218) | ~40 | ~6 min |
+| `2026-11-19_0654_com-limitador` + `0659_perguntas_dificeis_com-limitador` | com `rag/limite_llm.py` (`LLM_RPM=10`, espera de 30/60/120 s) | 25 | 0 | 20 | ~7,5 min |
+
+O limitador eliminou as perdas e reduziu os 429 pela metade, com ~1,5 min a mais nas 32 perguntas.
