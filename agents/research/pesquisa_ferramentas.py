@@ -149,6 +149,7 @@ def find_similar_incidents(queries: list[str], state: Annotated[dict, InjectedSt
         garantidos = busca.buscar(state["descricao"], N_DOCS, N_TRECHOS, excluir=excluir)
         for r in garantidos:
             r["doc_id"] = _id_curto(r["doc_id"])
+            r["origem_incidente"] = "descricao"
             for d in r.get("detalhes", []):
                 d.update({"origem": "similar", "consulta": state["descricao"]})
         registro.append({"etapa": "find_similar_incidents (descrição)", "consulta": state["descricao"],
@@ -157,6 +158,7 @@ def find_similar_incidents(queries: list[str], state: Annotated[dict, InjectedSt
         res = busca.buscar(consulta, N_DOCS, N_TRECHOS, excluir=excluir)
         for r in res:
             r["doc_id"] = _id_curto(r["doc_id"])
+            r.setdefault("origem_incidente", "consulta_llm")
             for d in r.get("detalhes", []):
                 d.update({"origem": "similar", "consulta": consulta})
             if r["doc_id"] not in por_id or r["similaridade"] > por_id[r["doc_id"]]["similaridade"]:
