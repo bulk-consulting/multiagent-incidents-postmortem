@@ -9,8 +9,8 @@ from agents.triage.schema import CATEGORIES
 # An example of the answer format. It is built with json.dumps so it is always valid JSON.
 EXAMPLE_ANSWER = json.dumps(
     {
-        "symptoms": ["login requests time out", "error rate above 20%"],
-        "affected_service": "auth",
+        "symptoms": ["search requests time out", "error rate above 20%"],
+        "affected_service": "search",
         "category": None,
         "enough_information": True,
         "missing_information": [],

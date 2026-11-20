@@ -19,10 +19,10 @@ def ids(result):
 
 print("list_investigations")
 checker.check("without filter: returns all 4", len(ids(list_investigations())) == 4)
-checker.check("filter 'checkout': only INC-042", ids(list_investigations("checkout")) == ["INC-042"])
+checker.check("filter 'login': only INC-042", ids(list_investigations("login")) == ["INC-042"])
 checker.check(
-    "filter ignores case and extra words ('Checkout page')",
-    ids(list_investigations("Checkout page")) == ["INC-042"],
+    "filter ignores case and extra words ('Login page')",
+    ids(list_investigations("Login page")) == ["INC-042"],
 )
 
 wrong_guess = list_investigations("recommendations")
@@ -34,7 +34,7 @@ checker.check(
 print("\nrun_tool (what the agent calls)")
 checker.check(
     "valid call with arguments as JSON text",
-    ids(run_tool("list_investigations", '{"service": "auth"}')) == ["INC-044"],
+    ids(run_tool("list_investigations", '{"service": "search"}')) == ["INC-044"],
 )
 checker.check("empty arguments are fine", len(ids(run_tool("list_investigations", ""))) == 4)
 checker.check("unknown tool gives an error", "error" in run_tool("delete_everything", "{}"))

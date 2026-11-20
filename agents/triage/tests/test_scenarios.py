@@ -8,8 +8,8 @@ Run from the repository root:
     .venv/Scripts/python.exe -m agents.triage.tests.test_scenarios vague duplicate (only these)
 
 The test investigations are in agents/triage/data/investigations.json:
-    INC-041 payments-api (open)   INC-042 checkout (open)
-    INC-043 batch-jobs (closed)   INC-044 auth (open)
+    INC-041 payments-api (open)   INC-042 login (open)
+    INC-043 batch-jobs (closed)   INC-044 search (open)
 """
 import sys
 import time
@@ -29,14 +29,14 @@ sys.stdout.reconfigure(encoding="utf-8")
 SCENARIOS = [
     {
         "name": "duplicate",
-        "message": "Since the deploy this afternoon the checkout page is returning 500 errors.",
+        "message": "Since the deploy this afternoon the login page is returning error 500.",
         "next_step": TELL_RELATED_INCIDENT,
         "related_id": "INC-042",
         "uses_tool": True,
     },
     {
         "name": "duplicate_in_portuguese",
-        "message": "O checkout está retornando erro 500 desde o deploy das 14h.",
+        "message": "A página de login está retornando erro 500 desde o deploy das 14h.",
         "next_step": TELL_RELATED_INCIDENT,
         "related_id": "INC-042",
         "uses_tool": True,
@@ -50,7 +50,7 @@ SCENARIOS = [
     },
     {
         "name": "same_service_different_problem",
-        "message": "The checkout page loads very slowly since this morning, but it does not show any error.",
+        "message": "The login page loads very slowly since this morning, but it does not show any error.",
         "next_step": GO_TO_RESEARCH,
         "related_id": None,
         "uses_tool": True,

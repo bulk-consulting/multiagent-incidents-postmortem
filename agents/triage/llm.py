@@ -16,7 +16,7 @@ env = dotenv_values(ROOT / ".env")
 
 API_KEY = env.get("NVIDIA_API_KEY")
 BASE_URL = env.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
-MODEL = env.get("LLM_MODEL", "openai/gpt-oss-20b")
+MODEL = env.get("LLM_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b")
 
 # The free NIM plan has a queue: one call can take a couple of minutes.
 TIMEOUT = httpx.Timeout(15.0, read=300.0)

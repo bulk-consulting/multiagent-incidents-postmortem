@@ -18,7 +18,7 @@ checker = Checker()
 
 # A messages history in which the tool already returned all investigations.
 messages = [
-    {"role": "user", "content": "The checkout returns 500."},
+    {"role": "user", "content": "The login page returns 500."},
     {"role": "tool", "tool_call_id": "1", "content": json.dumps(list_investigations())},
 ]
 

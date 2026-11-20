@@ -4,7 +4,7 @@ Este documento descreve o primeiro agente funcional do projeto: o **Agente Triag
 de um analista, decide se há informação suficiente, confere se o problema já está sendo investigado e
 devolve uma resposta estruturada. Quem decide o próximo passo é o código, não o modelo.
 
-**Resumo:** o agente usa o `openai/gpt-oss-20b` (NVIDIA NIM) e uma única ferramenta, `list_investigations`.
+**Resumo:** o agente usa o `nvidia/nemotron-3.5-super-vl-120b-a12b` (NVIDIA NIM) e uma única ferramenta, `list_investigations`.
 O modelo extrai os sintomas, decide se a informação basta e, se basta, consulta as investigações abertas
 antes de responder. A resposta é validada com Pydantic e com duas regras em código. Nos testes, 33 checks
 sem modelo e 6 cenários reais com o modelo (18 checks) passaram.
@@ -44,12 +44,12 @@ Exemplo de saída para um duplicado:
 
 ```json
 {
-  "symptoms": ["checkout page returning 500 errors"],
-  "affected_service": "checkout",
+  "symptoms": ["login page returning error 500"],
+  "affected_service": "login",
   "category": null,
   "enough_information": true,
   "missing_information": [],
-  "related_incident": {"incident_id": "INC-042", "title": "Checkout returns HTTP 500 after the 14:00 deploy; Redis connection timeouts in the logs"}
+  "related_incident": {"incident_id": "INC-042", "title": "Login page returns HTTP 500 after the 14:00 deploy; Redis connection timeouts in the logs"}
 }
 ```
 
@@ -138,8 +138,7 @@ Fora do agente, o código escolhe o próximo passo, nesta ordem:
 
 ## 7. Como rodar
 
-Todos os comandos, a partir da raiz do repositório. Cada chamada ao modelo leva de 2 a 12 minutos no plano
-gratuito do NIM. É preciso `NVIDIA_API_KEY` no `.env` da raiz.
+Todos os comandos, a partir da raiz do repositório. Cada cenário leva de 4 a 6 segundos. É preciso `NVIDIA_API_KEY` no `.env` da raiz.
 
 | O que | Comando |
 |---|---|
@@ -151,18 +150,40 @@ gratuito do NIM. É preciso `NVIDIA_API_KEY` no `.env` da raiz.
 Cenários: `duplicate`, `duplicate_in_portuguese`, `new_problem`, `same_service_different_problem`,
 `closed_investigation_is_ignored`, `vague`.
 
+### Comandos da demonstração (3 casos)
+
+Cada comando mostra a Messages history completa, o resultado em JSON e o próximo passo. Rodar um de cada vez.
+
+Caso 1, mensagem vaga. Esperado: `ask_user`, sem usar a ferramenta.
+
+```bash
+.venv/Scripts/python.exe -m agents.triage.tests.test_agent_loop "Something is broken, please help!"
+```
+
+Caso 2, problema já reportado. Esperado: `tell_related_incident`, com o `incident_id` INC-042.
+
+```bash
+.venv/Scripts/python.exe -m agents.triage.tests.test_agent_loop "Since the deploy this afternoon the login page is returning error 500."
+```
+
+Caso 3, problema novo. Esperado: `go_to_research`, com os sintomas extraídos.
+
+```bash
+.venv/Scripts/python.exe -m agents.triage.tests.test_agent_loop "Our recommendations API is returning empty lists messages since this morning for all types of Products"
+```
+
 ## 8. Evidências dos testes
 
 **Sem modelo: 33 checks, todos passam** (esquema 9, ferramenta 13, decisão 3, regras do agente 8).
 
-**Com o modelo: 6 cenários, 18 de 18 checks.**
+**Com o modelo: 6 cenários, 18 de 18 checks** (refeitos com o `nemotron-3.5-super-vl` depois da troca de modelo).
 
 | Cenário | Esperado | Resultado |
 |---|---|---|
-| `duplicate` — checkout com erro 500 após o deploy | `tell_related_incident`, INC-042 | passou |
+| `duplicate` — página de login com erro 500 após o deploy | `tell_related_incident`, INC-042 | passou |
 | `duplicate_in_portuguese` — mesma situação em português | `tell_related_incident`, INC-042 | passou |
 | `new_problem` — recommendations devolve listas vazias | `go_to_research` | passou |
-| `same_service_different_problem` — checkout lento, sem erro | `go_to_research` (outro sintoma) | passou |
+| `same_service_different_problem` — login lento, sem erro | `go_to_research` (outro sintoma) | passou |
 | `closed_investigation_is_ignored` — batch-jobs sem memória | `go_to_research` (INC-043 está fechada) | passou |
 | `vague` — "Something is broken, please help!" | `ask_user`, sem usar a ferramenta | passou |
 
@@ -170,8 +191,10 @@ Depois de renomear `id` para `incident_id`, o cenário `duplicate` foi rodado de
 
 ## 9. Limitações conhecidas
 
-- **Lento:** de 2 a 12 minutos por cenário no plano gratuito. Para a demonstração, convém ter uma execução
-  já pronta; `vague` é a mais rápida (cerca de 2,5 minutos).
+- **Troca de modelo:** o `openai/gpt-oss-20b`, usado no início, foi desativado pelo NVIDIA em 18/11/2026
+  (erro HTTP 410). O Triagem passou para o `nvidia/nemotron-3.5-super-vl-120b-a12b`, que também chama ferramentas e
+  é bem mais rápido (o `mistral-large-4` também passou nos 6 cenários, em 16 a 72 s). O modelo pode ser trocado com `LLM_MODEL` no `.env`. O RAG (`rag/llm.py`) e o agente
+  pesquisador ainda apontam para o modelo antigo e precisam da mesma troca.
 - **Dados de teste:** as 4 investigações em `data/investigations.json` são fictícias.
 - **`category` é um palpite:** numa execução do `duplicate` o modelo preencheu `Config Errors` sem pista
   clara. É opcional e só serve de dica para a pesquisa.

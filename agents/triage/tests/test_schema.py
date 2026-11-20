@@ -21,8 +21,8 @@ def is_rejected(data):
 
 print("Good answers are accepted")
 complete = {
-    "symptoms": ["checkout returns 500"],
-    "affected_service": "checkout",
+    "symptoms": ["login page returns 500"],
+    "affected_service": "login",
     "category": "Config Errors",
     "enough_information": True,
     "related_incident": {"incident_id": "INC-042", "title": "Checkout returns HTTP 500"},
