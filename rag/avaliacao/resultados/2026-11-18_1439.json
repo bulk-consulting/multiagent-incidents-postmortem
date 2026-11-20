@@ -1,0 +1,904 @@
+{
+ "meta": {
+  "quando": "2026-11-18_1439",
+  "modelo": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+  "prompt": "v2",
+  "n_docs": 5,
+  "n_trechos": 4
+ },
+ "resultados": [
+  {
+   "id": "q01",
+   "tipo": "mari",
+   "pergunta": "Um administrador cansado apagou o diretório errado e perdemos seis horas de dados. Já aconteceu algo parecido? O que causou e como resolveram?",
+   "esperado": [
+    "DAN-164"
+   ],
+   "erro": null,
+   "segundos": 52.0,
+   "recuperados": [
+    {
+     "id": "DAN-164",
+     "similaridade": 0.681,
+     "titulo": "Gitlab — Postmortem of database outage of January 31"
+    },
+    {
+     "id": "DAN-043",
+     "similaridade": 0.644,
+     "titulo": "Keepthescore — We deleted the production database by accident 💥 | Keep the Score blog"
+    },
+    {
+     "id": "DAN-220",
+     "similaridade": 0.6,
+     "titulo": "Spotify — Incident Management at Spotify | Spotify Engineering"
+    },
+    {
+     "id": "DAN-186",
+     "similaridade": 0.597,
+     "titulo": "Instapaper — Instapaper Outage Cause & Recovery | by Brian Donohue | Making Instapaper | Medium"
+    },
+    {
+     "id": "DAN-209",
+     "similaridade": 0.597,
+     "titulo": "Reddit — Why Reddit was down on Aug 11 : announcements"
+    }
+   ],
+   "resposta": {
+    "resposta": "Sim. Já aconteceu algo parecido no incidente [DAN-164] (GitLab). O resumo do postmortem menciona exatamente um administrador cansado que apagou o diretório errado e cerca de seis horas de dados perdidos.\n\nCausa: a replicação do banco de dados tinha parado após um pico de carga (aumento de spam e um processo que tentava remover um funcionário do GitLab e seus dados associados, acionado por um relato de abuso). Enquanto tentavam redefinir/reconstruir o banco secundário, um engenheiro apagou o diretório de dados do PostgreSQL pensando que estava no secundário, mas estava no primário. Cerca de 300 GB de dados foram removidos e o serviço ficou fora do ar por aproximadamente 18 horas. Foram perdidas modificações feitas entre 17:20 e 00:00 UTC de 31 de janeiro de 2017, afetando cerca de 5.000 projetos, 5.000 comentários e 700 novas contas de usuário.\n\nComo resolveram: o trecho fornecido não descreve completamente as etapas de recuperação. Informa que os engenheiros tentaram restaurar o banco e foram procurar backups, mas o texto é interrompido nesse ponto. O que se sabe é que a restauração levou mais de 18 horas.\n\nOutro incidente semelhante de exclusão acidental é o [DAN-043] (Keepthescore), onde o banco de produção foi apagado por engano e restaurado a partir de backup do DigitalOcean em 30 minutos, embora 7 horas de dados tenham sido perdidas.",
+    "incidentes_citados": [
+     "DAN-043",
+     "DAN-164"
+    ],
+    "evidencia": "parcial"
+   },
+   "citados": [
+    "DAN-043",
+    "DAN-164"
+   ],
+   "invalidos": [],
+   "tentativas": 1,
+   "uso": [
+    {
+     "tentativa": 1,
+     "segundos": 51.9,
+     "prompt_tokens": 5661,
+     "completion_tokens": 2368,
+     "total_tokens": 8029,
+     "prompt_tokens_details": {
+      "cached_tokens": 4336
+     },
+     "completion_tokens_details": {
+      "reasoning_tokens": 1934
+     }
+    }
+   ],
+   "auto": {
+    "posicoes_esperado": [
+     1
+    ],
+    "esperado_no_contexto": true,
+    "cita_esperado": true,
+    "cita_fora_do_contexto": false,
+    "evidencia": "parcial"
+   }
+  },
+  {
+   "id": "q02",
+   "tipo": "mari",
+   "pergunta": "Um comando digitado errado removeu servidores demais e derrubou o armazenamento S3. O que aconteceu e o que mudou depois?",
+   "esperado": [
+    "DAN-104"
+   ],
+   "erro": null,
+   "segundos": 11.4,
+   "recuperados": [
+    {
+     "id": "DAN-104",
+     "similaridade": 0.799,
+     "titulo": "Amazon — Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region"
+    },
+    {
+     "id": "DAN-105",
+     "similaridade": 0.682,
+     "titulo": "Amazon — AWS Service Health Dashboard - Amazon S3 Availability Event: July 20, 2008"
+    },
+    {
+     "id": "DAN-230",
+     "similaridade": 0.663,
+     "titulo": "Tarsnap — Tarsnap outage 2016-07-24 10:15:19--11:40:04"
+    },
+    {
+     "id": "DAN-064",
+     "similaridade": 0.647,
+     "titulo": "Amazon — Summary of the Amazon EC2 Issues in the Asia Pacific (Tokyo) Region (AP-NORTHEAST-1)"
+    },
+    {
+     "id": "DAN-073",
+     "similaridade": 0.645,
+     "titulo": "PythonAnywhere — Outage report 7 July 2020 - PythonAnywhere News"
+    }
+   ],
+   "resposta": {
+    "resposta": "O postmortem [DAN-104] descreve que em 28 de fevereiro de 2017, às 9:37AM PST, a equipe do Amazon S3 debugava um problema no sistema de faturamento quando um membro autorizado executou, usando um playbook estabelecido, um comando destinado a remover um pequeno número de servidores de um subsistema usado pelo processo de billing. Um dos inputs do comando foi digitado incorretamente (typo), removendo um conjunto maior de servidores do que pretendido. Esses servidores suportavam dois subsistemas críticos do S3: o index subsystem (que gerencia metadados e localização de todos os objetos S3 e é necessário para atender GET, LIST, PUT e DELETE) e o placement subsystem (que aloca novo armazenamento e depende do index subsystem). A remoção significativa de capacidade forçou um full restart desses sistemas, deixando o S3 impossibilitado de atender requisições e afetando outros serviços AWS que dependiam do S3, incluindo o S3 console, lançamentos de novas instâncias EC2, volumes EBS que precisavam de dados de snapshot e AWS Lambda.\n\nA recuperação ocorreu da seguinte forma: às 12:26PM PST o index subsystem ativou capacidade suficiente para começar a atender GET, LIST e DELETE; às 1:18PM PST o index subsystem estava totalmente recuperado e essas APIs funcionavam normalmente; o placement subsystem iniciou a recuperação após o index subsystem funcionar e terminou às 1:54PM PST, momento em que o S3 voltou a operar normalmente.\n\nDepois do incidente, a Amazon mudou a ferramenta de remoção de capacidade para remover capacidade mais lentamente e adicionou salvaguardas para impedir que capacidade seja removida quando isso levar qualquer subsistema abaixo do nível mínimo de capacidade requerido, evitando que um input incorreto desencadeie um evento semelhante. Também auditaram outras ferramentas operacionais para garantir verificações de segurança similares e repriorizaram o particionamento adicional do index subsystem para começar imediatamente, com o objetivo de reduzir o blast radius e melhorar o tempo de recuperação.",
+    "incidentes_citados": [
+     "DAN-104"
+    ],
+    "evidencia": "forte"
+   },
+   "citados": [
+    "DAN-104"
+   ],
+   "invalidos": [],
+   "tentativas": 1,
+   "uso": [
+    {
+     "tentativa": 1,
+     "segundos": 11.2,
+     "prompt_tokens": 7058,
+     "completion_tokens": 1611,
+     "total_tokens": 8669,
+     "prompt_tokens_details": {
+      "cached_tokens": 4336
+     },
+     "completion_tokens_details": {
+      "reasoning_tokens": 1086
+     }
+    }
+   ],
+   "auto": {
+    "posicoes_esperado": [
+     1
+    ],
+    "esperado_no_contexto": true,
+    "cita_esperado": true,
+    "cita_fora_do_contexto": false,
+    "evidencia": "forte"
+   }
+  },
+  {
+   "id": "q03",
+   "tipo": "mari",
+   "pergunta": "Um certificado expirou e os complementos do navegador Firefox pararam de funcionar. Qual foi a causa e como foi resolvido?",
+   "esperado": [
+    "DAN-090"
+   ],
+   "erro": null,
+   "segundos": 8.2,
+   "recuperados": [
+    {
+     "id": "DAN-090",
+     "similaridade": 0.77,
+     "titulo": "Mozilla — Add-Ons Outage Post-Mortem Result - Mozilla Hacks - the Web developer blog"
+    },
+    {
+     "id": "DAN-025",
+     "similaridade": 0.71,
+     "titulo": "Firefox — Retrospective and Technical Details on the recent Firefox Outage - Mozilla Hacks - the Web developer blog"
+    },
+    {
+     "id": "DAN-216",
+     "similaridade": 0.6,
+     "titulo": "Skyliner — Post-mortem: Outages on 1/19/17 and 1/23/17 | by Coda Hale | Skyliner"
+    },
+    {
+     "id": "DAN-136",
+     "similaridade": 0.597,
+     "titulo": "Cloudflare — Incident report on memory leak caused by Cloudflare parser bug"
+    },
+    {
+     "id": "DAN-023",
+     "similaridade": 0.579,
+     "titulo": "Facebook — More details about the October 4 outage - Engineering at Meta"
+    }
+   ],
+   "resposta": {
+    "resposta": "Causa: Um certificado usado para assinar os add-ons do Firefox expirou por volta de 4 de maio de 2019. A equipe responsável pelo sistema de assinaturas sabia que o certificado estava prestes a expirar, mas acreditava incorretamente que o Firefox ignorava as datas de expiração. Parte dessa confusão se deve a um incidente anterior no qual a verificação de certificados de entidade final (end-entity certificate checking) havia sido desabilitada, gerando incerteza sobre o status da verificação de certificados intermediários. Além disso, o plano de QA da Mozilla não incluía testes para expiração de certificados, então o problema não foi detectado [DAN-090].\n\nResolução: Cerca de nove horas depois, a Mozilla enviou um add-on privilegiado que injetou um certificado válido no certificate store do Firefox, recriando a cadeia de certificados válida e desbloqueando os add-ons. A resolução completa levou aproximadamente 15-21 horas para a maioria dos usuários [DAN-090].",
+    "incidentes_citados": [
+     "DAN-090"
+    ],
+    "evidencia": "forte"
+   },
+   "citados": [
+    "DAN-090"
+   ],
+   "invalidos": [],
+   "tentativas": 1,
+   "uso": [
+    {
+     "tentativa": 1,
+     "segundos": 8.0,
+     "prompt_tokens": 6087,
+     "completion_tokens": 973,
+     "total_tokens": 7060,
+     "prompt_tokens_details": {
+      "cached_tokens": 4336
+     },
+     "completion_tokens_details": {
+      "reasoning_tokens": 671
+     }
+    }
+   ],
+   "auto": {
+    "posicoes_esperado": [
+     1
+    ],
+    "esperado_no_contexto": true,
+    "cita_esperado": true,
+    "cita_fora_do_contexto": false,
+    "evidencia": "forte"
+   }
+  },
+  {
+   "id": "q04",
+   "tipo": "mari",
+   "pergunta": "Raios atingiram o datacenter e causaram queda de energia nos discos. Que incidente foi esse e quais foram as consequências?",
+   "esperado": [
+    "DAN-071"
+   ],
+   "erro": null,
+   "segundos": 15.9,
+   "recuperados": [
+    {
+     "id": "DAN-067",
+     "similaridade": 0.712,
+     "titulo": "Cloudflare — Post mortem on the Cloudflare Control Plane and Analytics Outage | Cloudflare Blog"
+    },
+    {
+     "id": "DAN-068",
+     "similaridade": 0.706,
+     "titulo": "Cloudflare — Major data center power failure (again): Cloudflare Code Orange tested | Cloudflare Blog"
+    },
+    {
+     "id": "DAN-071",
+     "similaridade": 0.706,
+     "titulo": "Google — Google Cloud Status Dashboard — Successive lightning strikes on their European datacenter (europe-west1-b) caused loss of power to Google Compute..."
+    },
+    {
+     "id": "DAN-231",
+     "similaridade": 0.652,
+     "titulo": "Telstra — A fire in a Telstra exchange is causing flight delays and network outages | Business Insider"
+    },
+    {
+     "id": "DAN-048",
+     "similaridade": 0.65,
+     "titulo": "Razorpay — The Day of the RDS Multi-AZ Failover - Razorpay Tech"
+    }
+   ],
+   "resposta": {
+    "resposta": "O incidente foi o Google Compute Engine Incident #15056, que afetou a zona europeia europe-west1-b [DAN-071].\n\nO que aconteceu: quatro sucessivas descargas elétricas (lightning strikes) na rede elétrica local que alimenta o datacenter causaram uma breve perda de energia nos sistemas de armazenamento que hospedam capacidade de disco para instâncias GCE nessa zona, em 13 de agosto de 2015, às 09:19 PDT. Segundo o registro de datas do postmortem, o incidente começou em 2015-08-13 09:25 e terminou em 2015-08-16 09:35 (US/Pacific).\n\nConsequências:\n- Cerca de 5% dos Standard Persistent Disks (HDDs) na zona sofreram pelo menos uma falha de leitura ou gravação de I/O durante o incidente.\n- Uma pequena fração desses discos teve perda permanente de dados (menos de 0,000001% do espaço de PD alocado em europe-west1-b).\n- Operações de gerenciamento nos discos afetados também falharam, como a criação de snapshots.\n- Apenas os Standard Persistent Disks que existiam quando o incidente começou foram afetados; discos criados após 09:19 PDT não foram impactados. SSD Persistent Disks, disk snapshots e Local SSDs não foram afetados.\n- Em alguns casos, a recuperação completa não foi possível.",
+    "incidentes_citados": [
+     "DAN-071"
+    ],
+    "evidencia": "forte"
+   },
+   "citados": [
+    "DAN-071"
+   ],
+   "invalidos": [],
+   "tentativas": 1,
+   "uso": [
+    {
+     "tentativa": 1,
+     "segundos": 15.6,
+     "prompt_tokens": 5783,
+     "completion_tokens": 1570,
+     "total_tokens": 7353,
+     "prompt_tokens_details": {
+      "cached_tokens": 4336
+     },
+     "completion_tokens_details": {
+      "reasoning_tokens": 1174
+     }
+    }
+   ],
+   "auto": {
+    "posicoes_esperado": [
+     3
+    ],
+    "esperado_no_contexto": true,
+    "cita_esperado": true,
+    "cita_fora_do_contexto": false,
+    "evidencia": "forte"
+   }
+  },
+  {
+   "id": "q05",
+   "tipo": "mari",
+   "pergunta": "Um deploy com versões diferentes do código causou prejuízo de 460 milhões de dólares. Como isso aconteceu?",
+   "esperado": [
+    "DAN-084"
+   ],
+   "erro": null,
+   "segundos": 16.0,
+   "recuperados": [
+    {
+     "id": "DAN-084",
+     "similaridade": 0.773,
+     "titulo": "Knight Capital — Knightmare: A DevOps Cautionary Tale – Doug Seven"
+    },
+    {
+     "id": "DAN-050",
+     "similaridade": 0.612,
+     "titulo": "rust-lang — crates.io Postmortem: Broken Crate Downloads | Inside Rust Blog"
+    },
+    {
+     "id": "DAN-106",
+     "similaridade": 0.612,
+     "titulo": "Amazon — Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+    },
+    {
+     "id": "DAN-017",
+     "similaridade": 0.606,
+     "titulo": "Cloudflare — Cloudflare incident on October 30, 2023 | Cloudflare Blog"
+    },
+    {
+     "id": "DAN-042",
+     "similaridade": 0.601,
+     "titulo": "Heroku — How I Broke `git push heroku main` | Heroku"
+    }
+   ],
+   "resposta": {
+    "resposta": "O postmortem [DAN-084] explica que a Knight realizou deploys manuais do novo software entre 27 e 31 de julho de 2012, copiando-o para oito servidores SMARS. Em um desses servidores, um técnico não copiou o novo código e não houve revisão por um segundo técnico. Por isso, ninguém percebeu que o código antigo “Power Peg” ainda estava naquele oitavo servidor e que o novo código do Retail Liquidity Program (RLP) não havia sido adicionado.\n\nEm 1º de agosto de 2012, quando os mercados abriram, os sete servidores com o deploy correto processaram as ordens normalmente, mas as ordens enviadas ao oitavo servidor acionaram a flag do Power Peg e reativaram o código antigo. Esse código começou a rotear ordens filhas para execução sem rastrear a quantidade de ações contra a ordem pai, algo como um loop infinito. Durante os 45 minutos de negociação seguintes, a Knight tentou parar o problema, mas não havia kill-switch. Ao desinstalar o novo código dos servidores onde ele estava correto, deixou o código quebrado ativo em todos os servidores, ampliando as ordens errôneas até que o sistema foi parado. O prejuízo foi de US$ 460 milhões.",
+    "incidentes_citados": [
+     "DAN-084"
+    ],
+    "evidencia": "forte"
+   },
+   "citados": [
+    "DAN-084"
+   ],
+   "invalidos": [],
+   "tentativas": 1,
+   "uso": [
+    {
+     "tentativa": 1,
+     "segundos": 15.7,
+     "prompt_tokens": 5546,
+     "completion_tokens": 1870,
+     "total_tokens": 7416,
+     "prompt_tokens_details": {
+      "cached_tokens": 4336
+     },
+     "completion_tokens_details": {
+      "reasoning_tokens": 1516
+     }
+    }
+   ],
+   "auto": {
+    "posicoes_esperado": [
+     1
+    ],
+    "esperado_no_contexto": true,
+    "cita_esperado": true,
+    "cita_fora_do_contexto": false,
+    "evidencia": "forte"
+   }
+  },
+  {
+   "id": "q06",
+   "tipo": "mari",
+   "pergunta": "O cliente do Steam apagou todos os arquivos do computador do usuário. Qual foi o bug?",
+   "esperado": [
+    "DAN-236"
+   ],
+   "erro": null,
+   "segundos": 13.5,
+   "recuperados": [
+    {
+     "id": "DAN-236",
+     "similaridade": 0.721,
+     "titulo": "Valve — Moved ~/.local/share/steam. Ran steam. It deleted everything on system owned by user. · Issue #3671 · ValveSoftware/steam-for-linux · GitHub"
+    },
+    {
+     "id": "DAN-059",
+     "similaridade": 0.643,
+     "titulo": "Valve — Steam Outage: How to Monitor Data Center Connectivity"
+    },
+    {
+     "id": "DAN-154",
+     "similaridade": 0.603,
+     "titulo": "Fastly — Summary of June 8 outage | Fastly"
+    },
+    {
+     "id": "DAN-226",
+     "similaridade": 0.585,
+     "titulo": "Stack Exchange — Stack Exchange Network Status — Outage Postmortem - January 24 2017"
+    },
+    {
+     "id": "DAN-216",
+     "similaridade": 0.583,
+     "titulo": "Skyliner — Post-mortem: Outages on 1/19/17 and 1/23/17 | by Coda Hale | Skyliner"
+    }
+   ],
+   "resposta": {
+    "resposta": "O contexto não confirma oficialmente pela Valve qual foi a causa raiz. O incidente [DAN-236] relata que, após mover a pasta ~/.local/share/steam para outro disco, criar um symlink e reiniciar o Steam, o cliente apagou recursivamente todos os arquivos pertencentes ao usuário a partir do diretório raiz. Um comentarista no issue suspeita que o bug esteja no script steam.sh, que não verificaria as próprias variáveis, e aponta a linha 468 (`rm -rf \"$STEAMROOT/\"\\*`) como o comando perigoso que poderia ter causado a exclusão.",
+    "incidentes_citados": [
+     "DAN-236"
+    ],
+    "evidencia": "parcial"
+   },
+   "citados": [
+    "DAN-236"
+   ],
+   "invalidos": [],
+   "tentativas": 1,
+   "uso": [
+    {
+     "tentativa": 1,
+     "segundos": 13.4,
+     "prompt_tokens": 5017,
+     "completion_tokens": 1864,
+     "total_tokens": 6881,
+     "prompt_tokens_details": {
+      "cached_tokens": 4336
+     },
+     "completion_tokens_details": {
+      "reasoning_tokens": 1663
+     }
+    }
+   ],
+   "auto": {
+    "posicoes_esperado": [
+     1
+    ],
+    "esperado_no_contexto": true,
+    "cita_esperado": true,
+    "cita_fora_do_contexto": false,
+    "evidencia": "parcial"
+   }
+  },
+  {
+   "id": "q07",
+   "tipo": "sintoma_dificil",
+   "pergunta": "Na virada do leap second, vários servidores Linux travaram ao mesmo tempo e pararam de responder. Já aconteceu antes? Qual foi a causa?",
+   "esperado": [
+    "DAN-088"
+   ],
+   "aceitos": [
+    "DAN-089"
+   ],
+   "erro": null,
+   "segundos": 12.3,
+   "recuperados": [
+    {
+     "id": "DAN-088",
+     "similaridade": 0.68,
+     "titulo": "Linux — LKML: Chris Adams: Re: Bug: Status/Summary of slashdot leap-second crash on new years 2008-2009"
+    },
+    {
+     "id": "DAN-103",
+     "similaridade": 0.65,
+     "titulo": "Allegro — Post-mortem report on 23-24, October 2014 failure | blog.allegro.tech"
+    },
+    {
+     "id": "DAN-087",
+     "similaridade": 0.627,
+     "titulo": "Cloudflare — How and why the leap second affected Cloudflare DNS"
+    },
+    {
+     "id": "DAN-089",
+     "similaridade": 0.626,
+     "titulo": "Linux — LKML: John Stultz: Re: [PATCH 0/2][RFC] Potential fix for leapsecond caused futex issue (v2)"
+    },
+    {
+     "id": "DAN-129",
+     "similaridade": 0.625,
+     "titulo": "Chef.io — Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef"
+    }
+   ],
+   "resposta": {
+    "resposta": "Sim, já aconteceu antes em servidores Linux.\n\nNo postmortem [DAN-088], na virada de 2008 para 2009, sistemas com kernel Linux (incluindo RHEL 4, kernel 2.6.9-67.0.7.EL) travaram e pararam de responder durante o leap second. A causa foi um deadlock: o código do leap second rodava no manipulador de interrupção do timer, que segurava `xtime_lock`, e fazia um `printk` para logar o evento; o `printk` acorda o `klogd`, que em algumas condições tenta obter o tempo, esperando por `xtime_lock`, travando o sistema.\n\nNo postmortem [DAN-089], em 2012, quando o leap second ocorreu, `CLOCK_REALTIME` foi atrasado em um segundo sem que `clock_was_set()` fosse chamada, então o `hrtimer base.offset` de `CLOCK_REALTIME` não foi atualizado. Isso fez timers `TIMER_ABSTIME` expirarem um segundo cedo, incluindo timers de sub-segundo que retornavam imediatamente. Aplicações que faziam `sleep` em loop então entravam em spinwait sem dormir, gerando alta carga e derrubando serviços web.",
+    "incidentes_citados": [
+     "DAN-088",
+     "DAN-089"
+    ],
+    "evidencia": "forte"
+   },
+   "citados": [
+    "DAN-088",
+    "DAN-089"
+   ],
+   "invalidos": [],
+   "tentativas": 1,
+   "uso": [
+    {
+     "tentativa": 1,
+     "segundos": 12.0,
+     "prompt_tokens": 5888,
+     "completion_tokens": 1669,
+     "total_tokens": 7557,
+     "prompt_tokens_details": {
+      "cached_tokens": 4336
+     },
+     "completion_tokens_details": {
+      "reasoning_tokens": 1308
+     }
+    }
+   ],
+   "auto": {
+    "posicoes_esperado": [
+     1
+    ],
+    "esperado_no_contexto": true,
+    "cita_esperado": true,
+    "cita_fora_do_contexto": false,
+    "evidencia": "forte"
+   }
+  },
+  {
+   "id": "q08",
+   "tipo": "sintoma_dificil",
+   "pergunta": "Uma instância Redis primária caiu, o cluster rebalanceou e agora as conexões dos usuários estão falhando em cascata por todo o sistema. Algum incidente parecido no histórico?",
+   "esperado": [
+    "DAN-145"
+   ],
+   "erro": null,
+   "segundos": 14.6,
+   "recuperados": [
+    {
+     "id": "DAN-145",
+     "similaridade": 0.782,
+     "titulo": "Discord — Discord Status - Unavailable Guilds & Connection Issues"
+    },
+    {
+     "id": "DAN-234",
+     "similaridade": 0.742,
+     "titulo": "Twilio — Billing Incident Post-Mortem: Breakdown, Analysis and Root Cause | Twilio"
+    },
+    {
+     "id": "DAN-066",
+     "similaridade": 0.705,
+     "titulo": "Cloudflare — A Byzantine failure in the real world"
+    },
+    {
+     "id": "DAN-029",
+     "similaridade": 0.684,
+     "titulo": "GoCardless — Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+    },
+    {
+     "id": "DAN-048",
+     "similaridade": 0.682,
+     "titulo": "Razorpay — The Day of the RDS Multi-AZ Failover - Razorpay Tech"
+    }
+   ],
+   "resposta": {
+    "resposta": "Sim. O incidente [DAN-145] (Discord) corresponde ao sintoma descrito: uma instância Redis primária de um cluster de alta disponibilidade usada pelos serviços de API caiu offline incorretamente após uma migração automática do Google Cloud Platform, forçando o cluster a rebalancear e desencadeando problemas conhecidos no tratamento de failover do Redis pelas instâncias de API. Isso gerou uma interrupção parcial, seguida por uma falha em cascata pelo sistema real-time da Discord, afetando as conexões dos usuários.\n\nEm [DAN-145], após a falha da primária e o rebalanceamento do cluster, algumas instâncias de API não lidaram corretamente com o failover do Redis. Posteriormente, problemas não percebidos em outros serviços causaram uma cascata de falhas pelo sistema em tempo real, impactando severamente a integridade do serviço e exigindo uma reinicialização completa para reconectar milhões de clientes ao longo de 20 minutos.\n\nOutros incidentes no contexto envolvem Redis ([DAN-234] Twilio), mas tratam de perda de conectividade entre master e slaves, resincronização massiva e cobranças indevidas de billing - não o mesmo cenário de queda da primária com rebalanceamento e cascata de conexões de usuários.",
+    "incidentes_citados": [
+     "DAN-145"
+    ],
+    "evidencia": "forte"
+   },
+   "citados": [
+    "DAN-145",
+    "DAN-234"
+   ],
+   "invalidos": [],
+   "tentativas": 1,
+   "uso": [
+    {
+     "tentativa": 1,
+     "segundos": 14.2,
+     "prompt_tokens": 6357,
+     "completion_tokens": 1064,
+     "total_tokens": 7421,
+     "prompt_tokens_details": {
+      "cached_tokens": 4336
+     },
+     "completion_tokens_details": {
+      "reasoning_tokens": 717
+     }
+    }
+   ],
+   "auto": {
+    "posicoes_esperado": [
+     1
+    ],
+    "esperado_no_contexto": true,
+    "cita_esperado": true,
+    "cita_fora_do_contexto": false,
+    "evidencia": "forte"
+   }
+  },
+  {
+   "id": "q09",
+   "tipo": "sintoma_dificil",
+   "pergunta": "Recebemos relatos de que pacotes no repositório público de bibliotecas, publicados em nome de um desenvolvedor conhecido, contêm código malicioso. Há casos parecidos? Como foram tratados?",
+   "esperado": [
+    "DAN-122"
+   ],
+   "erro": null,
+   "segundos": 14.0,
+   "recuperados": [
+    {
+     "id": "DAN-122",
+     "similaridade": 0.578,
+     "titulo": "Bintray — Bintray Status - Malicious packages reported in JCenter"
+    },
+    {
+     "id": "DAN-152",
+     "similaridade": 0.572,
+     "titulo": "ESLint — Postmortem for Malicious Packages Published on July 12th, 2018 - ESLint - Pluggable JavaScript Linter"
+    },
+    {
+     "id": "DAN-157",
+     "similaridade": 0.552,
+     "titulo": "Gentoo — Project:Infrastructure/Incident reports/2018-06-28 Github - Gentoo wiki"
+    },
+    {
+     "id": "DAN-177",
+     "similaridade": 0.551,
+     "titulo": "Homebrew — Security Incident Disclosure — Homebrew"
+    },
+    {
+     "id": "DAN-136",
+     "similaridade": 0.544,
+     "titulo": "Cloudflare — Incident report on memory leak caused by Cloudflare parser bug"
+    }
+   ],
+   "resposta": {
+    "resposta": "Sim. O contexto descreve dois incidentes semelhantes de pacotes maliciosos publicados em nome de desenvolvedores conhecidos, com causas e tratamentos diferentes.\n\n[DAN-122] Bintray/JCenter: em julho de 2017, um usuário que se passava por Jake Wharton pediu a inclusão de um pacote Maven no JCenter. O pacote era tecnicamente válido, mas continha código malicioso. O time de Suporte não detectou a personificação e aprovou a inclusão. Os reports de abuso feitos em fevereiro de 2018 não chegaram ao sistema de monitoramento devido a uma falha técnica, e o caso só ficou público em dezembro de 2018. O tratamento foi: banir o usuário falso, remover os pacotes maliciosos e seus links no JCenter; adicionar monitoramento com alertas e mais logs ao sistema de reports; atualizar o processo de solicitação de inclusão com passos para lidar com tentativas de personificação; criar uma equipe dedicada de moderação de solicitações de inclusão; e garantir resposta rápida a sinais da comunidade, incluindo canais sociais como Twitter.\n\n[DAN-152] ESLint: em 12 de julho de 2018, um atacante comprometeu a conta npm de um mantenedor do ESLint (presumivelmente usando credenciais reutilizadas de um vazamento externo) e publicou versões maliciosas de eslint-config-eslint@5.0.2 e eslint-scope@3.7.2, com um script postinstall que exfililtrava o arquivo .npmrc. O tratamento foi: unpublish dos pacotes maliciosos do registro npm; remoção do pastebin.com que hospedava o código malicioso; publicação de eslint-scope@3.7.3 com o código da versão 3.7.1 para que caches pegassem a versão limpa; e revogação pelo npm de todos os access tokens gerados antes de 2018-07-12 12:30 UTC.",
+    "incidentes_citados": [
+     "DAN-122",
+     "DAN-152"
+    ],
+    "evidencia": "forte"
+   },
+   "citados": [
+    "DAN-122",
+    "DAN-152"
+   ],
+   "invalidos": [],
+   "tentativas": 1,
+   "uso": [
+    {
+     "tentativa": 1,
+     "segundos": 13.9,
+     "prompt_tokens": 5048,
+     "completion_tokens": 1670,
+     "total_tokens": 6718,
+     "prompt_tokens_details": {
+      "cached_tokens": 4336
+     },
+     "completion_tokens_details": {
+      "reasoning_tokens": 1141
+     }
+    }
+   ],
+   "auto": {
+    "posicoes_esperado": [
+     1
+    ],
+    "esperado_no_contexto": true,
+    "cita_esperado": true,
+    "cita_fora_do_contexto": false,
+    "evidencia": "forte"
+   }
+  },
+  {
+   "id": "q10",
+   "tipo": "busca_falha",
+   "pergunta": "Depois de um deploy, um serviço central passou a responder 401 para todas as requisições e vários produtos que dependem dele estão falhando. Já vimos isso antes?",
+   "esperado": [
+    "DAN-017"
+   ],
+   "observacao": "Na avaliação da E2 a busca põe o DAN-017 em 8º lugar, fora dos 5 que vão para o prompt. O comportamento certo é não inventar: dizer que não achou um caso equivalente ou apontar só analogias parciais.",
+   "erro": null,
+   "segundos": 9.1,
+   "recuperados": [
+    {
+     "id": "DAN-017",
+     "similaridade": 0.664,
+     "titulo": "Cloudflare — Cloudflare incident on October 30, 2023 | Cloudflare Blog"
+    },
+    {
+     "id": "DAN-220",
+     "similaridade": 0.643,
+     "titulo": "Spotify — Incident Management at Spotify | Spotify Engineering"
+    },
+    {
+     "id": "DAN-066",
+     "similaridade": 0.615,
+     "titulo": "Cloudflare — A Byzantine failure in the real world"
+    },
+    {
+     "id": "DAN-008",
+     "similaridade": 0.611,
+     "titulo": "Cloudflare — Partial Cloudflare outage on October 25, 2022"
+    },
+    {
+     "id": "DAN-067",
+     "similaridade": 0.6,
+     "titulo": "Cloudflare — Post mortem on the Cloudflare Control Plane and Analytics Outage | Cloudflare Blog"
+    }
+   ],
+   "resposta": {
+    "resposta": "Sim. No contexto, o incidente [DAN-017] descreve exatamente esse padrão: após um deploy, um bug em uma ferramenta de deploy fez o ambiente de produção referenciar uma versão de staging, fazendo com que o serviço central Workers KV retornasse HTTP 401 (Unauthorized) para todas as operações de get, put, delete e list. Isso provocou falhas em cascata em vários produtos dependentes, incluindo Pages, Access, WARP / Zero Trust, Images e Cache Purge (single file). A resolução foi feita pelos engenheiros da Cloudflare, que trocaram manualmente, via mecanismo de break glass, a rota de produção de volta para a versão anterior funcional do Workers KV, eliminando imediatamente o caminho de requisição com falha.",
+    "incidentes_citados": [
+     "DAN-017"
+    ],
+    "evidencia": "forte"
+   },
+   "citados": [
+    "DAN-017"
+   ],
+   "invalidos": [],
+   "tentativas": 1,
+   "uso": [
+    {
+     "tentativa": 1,
+     "segundos": 9.0,
+     "prompt_tokens": 5534,
+     "completion_tokens": 944,
+     "total_tokens": 6478,
+     "prompt_tokens_details": {
+      "cached_tokens": 4336
+     },
+     "completion_tokens_details": {
+      "reasoning_tokens": 722
+     }
+    }
+   ],
+   "auto": {
+    "posicoes_esperado": [
+     1
+    ],
+    "esperado_no_contexto": true,
+    "cita_esperado": true,
+    "cita_fora_do_contexto": false,
+    "evidencia": "forte"
+   }
+  },
+  {
+   "id": "q11",
+   "tipo": "varios_incidentes",
+   "pergunta": "Quais incidentes do histórico envolveram certificados e o que causou o problema em cada um?",
+   "esperado": [
+    "DAN-090",
+    "DAN-086"
+   ],
+   "erro": null,
+   "segundos": 14.8,
+   "recuperados": [
+    {
+     "id": "DAN-086",
+     "similaridade": 0.61,
+     "titulo": "Azure — Summary of Windows Azure Service Disruption on Feb 29th, 2012 | Microsoft Azure Blog"
+    },
+    {
+     "id": "DAN-090",
+     "similaridade": 0.56,
+     "titulo": "Mozilla — Add-Ons Outage Post-Mortem Result - Mozilla Hacks - the Web developer blog"
+    },
+    {
+     "id": "DAN-198",
+     "similaridade": 0.513,
+     "titulo": "NASA — Apollo 11 and Other Screw-Ups"
+    },
+    {
+     "id": "DAN-191",
+     "similaridade": 0.508,
+     "titulo": "Kings College London — IT Infrastructure Resiliency Review (23 February 2017)"
+    },
+    {
+     "id": "DAN-221",
+     "similaridade": 0.502,
+     "titulo": "Square — Incident Summary: 2017–03–16. Authors: Erik Bourget, Toby Reyelts… | by Square Engineering | Square Corner Blog | Medium"
+    }
+   ],
+   "resposta": {
+    "resposta": "Dois incidentes do histórico envolveram certificados:\n\n[DAN-086] Azure - Falha no Windows Azure em 29 de fevereiro de 2012. A causa foi um erro de código (“leap day bug”) ao gerar certificados de transferência com validade de um ano: o sistema calculava a data de expiração (“valid-to”) simplesmente somando um ao ano da data atual. Em 29 de fevereiro de 2012 isso produziu uma data de expiração de 29 de fevereiro de 2013, uma data inválida que fez a criação do certificado falhar. Como a criação do certificado é necessária para o Guest Agent (GA) se conectar ao HA, o GA terminava, o HA reiniciava a VM após o timeout de 25 minutos e, após três timeouts seguidos, o servidor era marcado como defeituoso e as VMs eram movidas para outros hosts.\n\n[DAN-090] Mozilla - Indisponibilidade de add-ons do Firefox em maio de 2019. A causa foi a expiração de um certificado usado para assinar add-ons. A equipe responsável sabia que o certificado estava expirando, mas acreditou incorretamente que o Firefox ignorava datas de expiração. Essa confusão decorreu, em parte, de um incidente anterior em que a verificação de certificados de entidade final (end-entity certificate checking) havia sido desabilitada, gerando incerteza sobre a verificação de certificados intermediários. Além disso, o plano de QA da Mozilla não incluía testes de expiração de certificados, então o problema não foi detectado antes de acontecer.\n\nOs demais incidentes recuperados ([DAN-198] Apollo 11, [DAN-191] Kings College London e [DAN-221] Square) não mencionam certificados como causa ou envolvimento no contexto fornecido.",
+    "incidentes_citados": [
+     "DAN-086",
+     "DAN-090"
+    ],
+    "evidencia": "forte"
+   },
+   "citados": [
+    "DAN-086",
+    "DAN-090",
+    "DAN-191",
+    "DAN-198",
+    "DAN-221"
+   ],
+   "invalidos": [],
+   "tentativas": 1,
+   "uso": [
+    {
+     "tentativa": 1,
+     "segundos": 14.7,
+     "prompt_tokens": 6746,
+     "completion_tokens": 1717,
+     "total_tokens": 8463,
+     "prompt_tokens_details": {
+      "cached_tokens": 4336
+     },
+     "completion_tokens_details": {
+      "reasoning_tokens": 1222
+     }
+    }
+   ],
+   "auto": {
+    "posicoes_esperado": [
+     2,
+     1
+    ],
+    "esperado_no_contexto": true,
+    "cita_esperado": true,
+    "cita_fora_do_contexto": false,
+    "evidencia": "forte"
+   }
+  },
+  {
+   "id": "q12",
+   "tipo": "fora_do_corpus",
+   "pergunta": "O que causou a indisponibilidade do Pix do Banco Central em março de 2025 e quanto tempo durou?",
+   "esperado": [],
+   "observacao": "Incidente fictício e fora do corpus. Resposta certa: evidência insuficiente, sem inventar causa nem duração.",
+   "erro": null,
+   "segundos": 5.4,
+   "recuperados": [
+    {
+     "id": "DAN-066",
+     "similaridade": 0.569,
+     "titulo": "Cloudflare — A Byzantine failure in the real world"
+    },
+    {
+     "id": "DAN-134",
+     "similaridade": 0.556,
+     "titulo": "CircleCI — Postmortem: May 21, 2021 - Delay in starting Docker Jobs. Machine & remote Docker environments blocked - Announcements - CircleCI Discuss"
+    },
+    {
+     "id": "DAN-155",
+     "similaridade": 0.551,
+     "titulo": "Flowdock — CA Flowdock – Outage 22nd & 23rd April 2020"
+    },
+    {
+     "id": "DAN-009",
+     "similaridade": 0.544,
+     "titulo": "Cloudflare — Cloudflare incident on January 24, 2023 | Cloudflare Blog"
+    },
+    {
+     "id": "DAN-216",
+     "similaridade": 0.543,
+     "titulo": "Skyliner — Post-mortem: Outages on 1/19/17 and 1/23/17 | by Coda Hale | Skyliner"
+    }
+   ],
+   "resposta": {
+    "resposta": "O CONTEXTO recuperado não contém nenhum postmortem sobre a indisponibilidade do Pix do Banco Central em março de 2025. Portanto, não é possível informar a causa nem a duração desse incidente com base no material disponível.\n\nO contexto inclui incidentes de Cloudflare (DAN-066, DAN-009), CircleCI (DAN-134), Flowdock (DAN-155) e Skyliner (DAN-216), mas nenhum deles se refere ao Pix ou ao Banco Central.",
+    "incidentes_citados": [],
+    "evidencia": "insuficiente"
+   },
+   "citados": [
+    "DAN-009",
+    "DAN-066",
+    "DAN-134",
+    "DAN-155",
+    "DAN-216"
+   ],
+   "invalidos": [],
+   "tentativas": 1,
+   "uso": [
+    {
+     "tentativa": 1,
+     "segundos": 5.3,
+     "prompt_tokens": 6454,
+     "completion_tokens": 474,
+     "total_tokens": 6928,
+     "prompt_tokens_details": {
+      "cached_tokens": 4336
+     },
+     "completion_tokens_details": {
+      "reasoning_tokens": 297
+     }
+    }
+   ],
+   "auto": {
+    "posicoes_esperado": [],
+    "esperado_no_contexto": null,
+    "cita_esperado": null,
+    "cita_fora_do_contexto": false,
+    "evidencia": "insuficiente"
+   }
+  }
+ ]
+}

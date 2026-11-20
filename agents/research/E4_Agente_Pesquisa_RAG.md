@@ -5,10 +5,16 @@ como ele foi testado. O código está nesta pasta, `agents/research/`.
 
 **Resumo:** o Agente Pesquisa RAG recebe a descrição de um incidente em andamento e encontra, na base de
 post-mortems, os incidentes passados mais parecidos com os trechos que explicam a causa e a correção de
-cada um. Uma busca inicial em código traz 10 candidatos; o GPT-OSS-20B lê o título e o resumo de cada um e
+cada um. Uma busca inicial em código traz 10 candidatos; o LLM lê o título e o resumo de cada um e
 decide, chamando ferramentas, quais aprofundar e com que consulta, ou se procura outros incidentes. No teste
 completo (32 perguntas), o incidente certo foi aprofundado em todas as perguntas em que estava entre os 10
 candidatos, e os trechos entregues traziam a correção completa em 23 dos 27 incidentes conferidos à mão.
+
+**Troca de modelo (18/11):** o `openai/gpt-oss-20b` saiu do NVIDIA NIM em 18/11/2026. A equipe adotou o
+`nvidia/nemotron-3.5-super-vl-120b-a12b`. Com o mesmo agente, ele repetiu o resultado do GPT-OSS nas 32 perguntas
+(duas rodadas), sem nenhum problema de chamada de ferramenta e em ~12 s por pergunta (o GPT-OSS levava ~3 min).
+A rapidez permitiu testar a suíte inteira da E2: o incidente certo foi aprofundado em 284 de 284 perguntas em que
+estava entre os 10 candidatos (ver a seção 7). Os resultados das seções 7 e 8 até 17/11 são do GPT-OSS-20B.
 
 ## 1. Entregas e evidências
 
@@ -67,7 +73,7 @@ refinamento:  START → agente ⇄ ferramentas → montar_achados → END
 | Nó | O que faz | LLM? |
 |---|---|---|
 | `busca_inicial` | busca em duas etapas da E3 com a descrição e com cada sintoma; junta por incidente e fica com os 10 mais parecidos | não |
-| `agente` | GPT-OSS-20B no NVIDIA NIM, via `ChatNVIDIA` com `tool_choice="auto"`: lê título e resumo dos candidatos e decide se chama uma ferramenta | sim |
+| `agente` | LLM no NVIDIA NIM (`nvidia/nemotron-3.5-super-vl-120b-a12b`; até 17/11, `openai/gpt-oss-20b`), via `ChatNVIDIA` com `tool_choice="auto"`: lê título e resumo dos candidatos e decide se chama uma ferramenta | sim |
 | `ferramentas` | `ToolNode` do LangGraph: executa a ferramenta chamada | não |
 | `montar_achados` | junta candidatos, incidentes novos e trechos do aprofundamento; ordena, limita e registra | não |
 
@@ -178,11 +184,25 @@ As correções parciais ou ausentes são limite do corpus: uma issue do GitHub (
 | testado e retirado: o LLM avaliar cada incidente como strong/partial/weak | o modelo marcou incidentes errados como strong nas 6 perguntas difíceis |
 | testado e retirado: uma consulta alternativa sempre executada em código | 1 acerto em 6, com 2 incidentes de ruído em toda pergunta |
 
+**Com o Nemotron 3.5 super-vl** (rodadas de 18/11, `resultados/README.md`):
+
+| | Resultado |
+|---|---|
+| 12 da E3 + 20 difíceis, 2 rodadas | igual ao GPT-OSS nas duas: 11/11, 8/8, 6/6, 0/6 |
+| 137 perguntas de sintoma da suíte da E2, 2 rodadas | certo aprofundado em 130/131 e 131/131 até o 10º lugar; 0/6 além do 10º |
+| suíte inteira da E2 (295 perguntas: sintoma, causa e geral) | certo aprofundado em 284/284 até o 10º lugar; das 5 fora do corpus, 3 procuraram outros incidentes e encerraram sem aprofundar |
+| chamadas de ferramenta | sem JSON malformado nem nome vazado; 1 vez a lista de argumentos veio como texto (convertida em código) |
+| tempo | ~10 a 12 s por pergunta (mediana) |
+
+Com 20 candidatos em vez de 10 (`--candidatos 20`), as 4 perguntas de sintoma com o certo entre o 11º e o 20º
+também foram resolvidas, sem perder nenhuma das outras. O padrão ficou em 10, porque poucos casos se beneficiam.
+
 ## 8. Limitações
 
 - **Incidente certo além do 10º lugar:** o agente não o encontra, porque quase nunca decide procurar outros
   quando algum candidato parece parecido. Na suíte da E2, isso acontece em ~4% das perguntas de sintoma.
-- **Latência:** cada chamada ao NIM gratuito leva ~2,5 minutos e às vezes estoura o tempo de 300 s.
+- **Latência:** com o GPT-OSS-20B, cada chamada ao NIM gratuito levava ~2,5 minutos; com o Nemotron 3.5 super-vl, ~10 s.
+- **Dependência do provedor:** o modelo usado até 17/11 saiu do NIM sem aviso prévio no projeto; o mesmo pode acontecer com o atual.
 - **Caminhos testados só em parte:** a entrada com sintomas e o refinamento com pedido do Diagnóstico ainda
   não foram testados na versão atual; dependem dos agentes Triagem e Diagnóstico.
 - **Amostra pequena e modelo variável:** cada versão rodou uma vez, com `temperature=1.0`. Diferenças de 1 ou

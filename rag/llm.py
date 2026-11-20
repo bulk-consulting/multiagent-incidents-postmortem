@@ -4,7 +4,7 @@ Cliente do LLM: GPT-OSS-20B no NVIDIA NIM (API no formato da OpenAI).
 Configuração no arquivo .env da raiz do repositório (fora do git):
     NVIDIA_API_KEY=nvapi-...
     NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
-    LLM_MODEL=openai/gpt-oss-20b
+    LLM_MODEL=nvidia/nemotron-3.5-super-vl-120b-a12b
 
 Duas funções:
     conversar(mensagens)                       resposta em texto livre
@@ -23,14 +23,19 @@ import json
 import time
 from pathlib import Path
 
+import sys
+
 import httpx
 from dotenv import dotenv_values
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import limite_llm  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 _env = dotenv_values(ROOT / ".env")
 
 BASE_URL = _env.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
-MODELO = _env.get("LLM_MODEL", "openai/gpt-oss-20b")
+MODELO = _env.get("LLM_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b")
 
 # O plano gratuito do NIM tem fila: nos testes, cada chamada levou de 2 a 2,5 minutos.
 TIMEOUT = httpx.Timeout(15.0, read=300.0)
@@ -54,6 +59,11 @@ TENTAR_DE_NOVO = (httpx.TimeoutException, httpx.TransportError, ErroTemporarioLL
 
 
 def _post(corpo: dict) -> dict:
+    """Uma chamada ao NIM, dentro do ritmo de limite_llm (LLM_RPM por minuto e espera longa em 429)."""
+    return limite_llm.chamar(lambda: _post_uma_vez(corpo), aviso="rag")
+
+
+def _post_uma_vez(corpo: dict) -> dict:
     chave = _env.get("NVIDIA_API_KEY")
     if not chave:
         raise ErroLLM(f"NVIDIA_API_KEY não encontrada em {ROOT / '.env'}")
@@ -83,7 +93,9 @@ def conversar(mensagens: list[dict], max_tokens: int = 1024, temperatura: float 
 
 
 def estruturado(mensagens: list[dict], nome: str, descricao: str, schema: dict,
-                max_tokens: int = 2048, temperatura: float = 1.0) -> dict:
+                max_tokens: int = 8192, temperatura: float = 1.0) -> dict:
+    # 8192: o nemotron-3.5-super-vl raciocina antes de responder; com 2048, 6 de 12 respostas da E3 pararam
+    # por limite de tokens (finish_reason=length) antes de chamar a ferramenta (teste de 2026-11-18).
     """Obriga o modelo a "chamar" a ferramenta `nome` e devolve os argumentos já convertidos de JSON.
 
     Devolve {"dados", "raciocinio", "uso", "segundos"}. Se a resposta não vier no formato

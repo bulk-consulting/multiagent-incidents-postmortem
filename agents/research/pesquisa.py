@@ -20,7 +20,7 @@ loop de refinamento fica no roteamento do grafo principal.
 
 Uso (a partir da raiz do repositório, com o banco no ar):
     multiagent_env/bin/python -I agents/research/pesquisa.py "descrição do incidente" [--sintoma "..."]...
-        [--sem-llm] [--json saida.json]
+        [--sem-llm] [--json saida.json] [--modelo nvidia/nemotron-3.5-super-vl-120b-a12b]
     # refinamento: parte dos achados de uma rodada anterior e de um pedido do Diagnóstico
     multiagent_env/bin/python -I agents/research/pesquisa.py "descrição" --anteriores saida.json --pedido "..."
 """
@@ -45,6 +45,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "rag"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import busca  # noqa: E402
+import limite_llm  # noqa: E402
 import pesquisa_ferramentas as pf  # noqa: E402
 import pesquisa_prompt as pp  # noqa: E402
 from prompts import _id_curto  # noqa: E402
@@ -117,6 +118,7 @@ def busca_inicial(estado: EstadoPesquisa) -> dict:
 # ---------------------------------------------------------------- agente (LLM com ferramentas)
 
 _llm = None
+MODELO_FORCADO: str | None = None  # testes: troca o modelo do .env só nesta execução (avaliar_pesquisa.py --modelo)
 
 
 def llm_com_ferramentas():
@@ -125,9 +127,9 @@ def llm_com_ferramentas():
     if _llm is None:
         from langchain_nvidia_ai_endpoints import ChatNVIDIA
         env = dotenv_values(ROOT / ".env")
-        modelo = ChatNVIDIA(model=env.get("LLM_MODEL", "openai/gpt-oss-20b"), api_key=env["NVIDIA_API_KEY"],
+        modelo = ChatNVIDIA(model=MODELO_FORCADO or env.get("LLM_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b"), api_key=env["NVIDIA_API_KEY"],
                             base_url=env.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1"),
-                            temperature=1.0, max_completion_tokens=2048,
+                            temperature=1.0, max_completion_tokens=4096,  # modelos com raciocínio gastam tokens antes da resposta
                             timeout=300)  # o polling do ChatNVIDIA desiste em 60 s por padrão; o NIM leva ~2,5 min
         _llm = modelo.bind_tools(pf.FERRAMENTAS, tool_choice="auto")
     return _llm
@@ -224,11 +226,23 @@ def montar_lista_resumos(candidatos: list[dict]) -> str:
 
 
 def completar_argumentos(msg: AIMessage) -> int:
-    """Se o modelo esquecer o campo why de search_inside_incidents, preenche com
+    """Arruma argumentos fora do formato antes de a ferramenta validar: lista mandada como texto (JSON dentro de
+    uma string) vira lista, e o campo why esquecido em search_inside_incidents é preenchido com
     um valor neutro para a ferramenta rodar mesmo assim, em vez de falhar na validação. Devolve quantos campos
     foram preenchidos (fica registrado: é sinal de que o modelo não seguiu o formato)."""
     n = 0
     for c in msg.tool_calls:
+        # Lista mandada como texto com um JSON dentro (visto com o Nemotron 3.5 em 2026-11-18:
+        # {"searches": "[{\"incident_id\": ...}]"}): converte para lista antes de a ferramenta validar.
+        for campo in ("searches", "queries"):
+            valor = c["args"].get(campo)
+            if isinstance(valor, str) and valor.strip().startswith("["):
+                try:
+                    convertido = json.loads(valor)
+                except json.JSONDecodeError:
+                    convertido = (_fechar_json('{"x": ' + valor) or {}).get("x")
+                if isinstance(convertido, list):
+                    c["args"][campo], n = convertido, n + 1
         if c["name"] != "search_inside_incidents":
             continue
         for item in c["args"].get("searches") or []:
@@ -262,12 +276,18 @@ def agente(estado: EstadoPesquisa) -> dict:
         return {"messages": novas + [msg]}
     historico = [SystemMessage(pp.SISTEMA)] + list(estado.get("messages", [])) + novas
     infos, n = [], len(estado.get("chamadas_llm", []))
-    for tentativa in range(2):  # 2ª só se a chamada de ferramenta vier malformada
+    for tentativa in range(2):  # 2ª só se a chamada vier malformada ou vazia
         msg, info = _chamar_llm(historico)
         n += 1
         infos.append(info)
-        if msg.tool_calls or not msg.invalid_tool_calls or tentativa == 1:
+        vazia = not msg.tool_calls and not msg.invalid_tool_calls and not str(msg.content or "").strip()
+        if tentativa == 1 or msg.tool_calls or not (msg.invalid_tool_calls or vazia):
             break
+        if vazia:
+            # Resposta sem texto e sem ferramenta (visto com o Nemotron 3.5: o raciocínio gasta o limite de tokens
+            # antes da resposta). Pede de novo uma vez, sem mudar o histórico.
+            print("[agente] resposta vazia; pedindo de novo", flush=True)
+            continue
         # Chamada malformada (JSON inválido nos argumentos): a mensagem ruim não entra no histórico
         # (o NIM recusaria um tool_call sem resposta); o modelo recebe o erro e tenta de novo.
         erro = "; ".join(str(c.get("error") or "argumentos inválidos")[:200] for c in msg.invalid_tool_calls)
@@ -283,7 +303,7 @@ def agente(estado: EstadoPesquisa) -> dict:
 def _chamar_llm(historico: list) -> tuple[AIMessage, dict]:
     t = time.time()
     try:
-        msg = llm_com_ferramentas().invoke(historico)
+        msg = limite_llm.chamar(lambda: llm_com_ferramentas().invoke(historico), aviso="agente")
     except Exception as e:
         print(f"[agente] falha ({type(e).__name__}: {str(e)[:120]}); o grafo vai tentar de novo", flush=True)
         raise
@@ -368,7 +388,13 @@ def montar_achados(estado: EstadoPesquisa) -> dict:
         aprofundado = r["doc_id"] in aprofundados or bool(r.get("aprofundado"))  # refinamento: mantém o anterior
         achados.append({**r, "aprofundado": aprofundado, "why": justificativas.get(r["doc_id"], r.get("why")),
                         "detalhes": (extra + detalhes)[:MAX_TRECHOS]})  # aprofundamento primeiro
-    achados.sort(key=lambda r: not r["aprofundado"])  # aprofundados primeiro, mantendo a ordem de similaridade
+    # ordem: os que o LLM aprofundou, na ordem em que ele os listou (o primeiro é o que ele acha mais parecido);
+    # depois os aprofundados em rodadas anteriores (refinamento); depois os demais, por similaridade
+    ordem_llm = {}
+    for item in plano["aprofundar"]:
+        ordem_llm.setdefault(item["id"], len(ordem_llm))
+    achados.sort(key=lambda r: (0, ordem_llm[r["doc_id"]]) if r["doc_id"] in ordem_llm and r["doc_id"] in aprofundados
+                 else ((1, 0) if r["aprofundado"] else (2, 0)))
     achados = achados[:MAX_ACHADOS]  # os que sobram ficam em ids_vistos (não voltam numa busca nova)
     vistos = sorted(set(estado.get("ids_vistos", [])) | ja)
     return {"achados": achados, "aprofundados": aprofundados, "novos": novos, "plano": plano,
@@ -455,7 +481,11 @@ def main() -> None:
     ap.add_argument("--anteriores", type=Path, help="JSON de uma rodada anterior (refinamento)")
     ap.add_argument("--sem-llm", action="store_true", help="chamada fixa, sem o NIM")
     ap.add_argument("--json", type=Path, help="salva o estado final")
+    ap.add_argument("--modelo", help="modelo do NIM só nesta execução (padrão: LLM_MODEL do .env)")
     a = ap.parse_args()
+    if a.modelo:
+        global MODELO_FORCADO
+        MODELO_FORCADO = a.modelo
     anteriores = json.loads(a.anteriores.read_text()) if a.anteriores else None
     t = time.time()
     estado = pesquisar(" ".join(a.descricao), a.sintoma, a.pedido, anteriores, a.sem_llm, _mostrar)

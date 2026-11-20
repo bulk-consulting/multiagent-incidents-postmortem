@@ -125,12 +125,18 @@ def main() -> None:
     ap.add_argument("--arquivo", type=Path, default=ROOT / "rag/avaliacao/perguntas.json",
                     help="JSON com {'perguntas': [...]} (padrão: as 12 da E3; ex.: perguntas_dificeis.json)")
     ap.add_argument("--paralelo", type=int, default=1, help="quantas perguntas ao mesmo tempo (padrão: 1)")
+    ap.add_argument("--modelo", help="modelo do NIM só nesta rodada (padrão: LLM_MODEL do .env)")
+    ap.add_argument("--candidatos", type=int, help="candidatos da busca inicial que o LLM lê (padrão: pesquisa.N_DOCS)")
     a = ap.parse_args()
     todas = json.loads(a.arquivo.read_text())["perguntas"]
     alvo = set(a.perguntas.split(",")) if a.perguntas else None
     perguntas = [p for p in todas if not alvo or p["id"] in alvo]
     # Carrega o modelo de embedding e o cliente do LLM antes das threads (evita carregar duas vezes ao mesmo tempo).
-    pesquisa.busca.vetorizar("aquecimento")
+    if a.modelo:
+        pesquisa.MODELO_FORCADO = a.modelo
+    if a.candidatos:
+        pesquisa.N_DOCS = a.candidatos
+        pesquisa.busca.vetorizar("aquecimento")
     if not a.sem_llm:
         pesquisa.llm_com_ferramentas()
 
@@ -148,6 +154,10 @@ def main() -> None:
         resultados = list(pool.map(uma, perguntas))
     print(f"total: {time.time() - t0:.0f}s com {a.paralelo} em paralelo", flush=True)
     sufixo = "" if a.arquivo.name == "perguntas.json" else "_" + a.arquivo.stem
+    if a.modelo:
+        sufixo += "_" + a.modelo.split("/")[-1].replace(".", "-")  # sem ponto: with_suffix cortaria o nome
+    if a.candidatos:
+        sufixo += f"_{a.candidatos}cand"
     saida = AQUI / "resultados" / f"pesquisa_{datetime.now():%Y-%m-%d_%H%M}{sufixo}{'_semllm' if a.sem_llm else ''}"
     saida.parent.mkdir(exist_ok=True)
     saida.with_suffix(".json").write_text(json.dumps(resultados, ensure_ascii=False, indent=1))
