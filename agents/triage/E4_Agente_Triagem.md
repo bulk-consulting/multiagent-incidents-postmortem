@@ -212,4 +212,21 @@ Depois de renomear `id` para `incident_id`, o cenário `duplicate` foi rodado de
 | `routing.py` | a decisão final: `ask_user`, `tell_related_incident`, `go_to_research` |
 | `llm.py` | cliente do NVIDIA NIM com novas tentativas em erro temporário |
 | `data/investigations.json` | investigações de teste |
+| `node.py` | o agente como nó do LangGraph (duas funções que embrulham o agente, sem reescrevê-lo) |
 | `tests/` | testes sem modelo e cenários reais |
+
+## 11. Como nó do LangGraph
+
+O agente mantém o próprio laço (`agent.py`). O arquivo `node.py` só o embrulha para o grafo principal:
+
+| Função | O que faz |
+|---|---|
+| `triage_node(state)` | lê `descricao` do estado, roda o agente e escreve `triage_result` (o `TriageResult` completo) e `sintomas` (a entrada que o Agente Pesquisa já espera) |
+| `route_after_triage(state)` | aresta condicional: devolve `ask_user`, `tell_related_incident` ou `go_to_research`, a mesma decisão do `routing.py` |
+
+A Messages history fica dentro do agente e não entra no estado compartilhado, porque o Agente Pesquisa tem a
+sua própria chave `messages` e as duas se misturariam.
+
+Teste: `.venv/Scripts/python.exe -m agents.triage.tests.test_node` (grafo LangGraph de verdade com o agente
+trocado por um falso: 7 checks, sem modelo). Também foi rodado com o modelo real, passando pelo nó: os três
+casos da demonstração foram para `ask_user`, `tell_related_incident` e `go_to_research`.
