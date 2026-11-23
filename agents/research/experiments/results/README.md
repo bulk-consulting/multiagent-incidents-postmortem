@@ -105,6 +105,10 @@ Depois da tradução do código e dos prompts para o inglês (modo atual, Nemotr
 |---|---|---|---|
 | `research_2026-11-23_1300` + `1302_questions_hard` | 12 da E3 + 20 difíceis | 11/11, 8/8, 6/6, 0/6 (25/31), igual à versão em português | 0 malformadas, 1 campo completado em código; nenhum 429 perdido |
 
-Os prompts em inglês não mudaram o resultado do modo atual. Num teste rápido de 1 pergunta, o híbrido não achou o
-DAN-197 (que tinha achado antes); como as consultas do LLM variam (`temperature=1.0`), só uma rodada das 32 no
-modo híbrido diz se houve mudança.
+| `research_2026-11-23_1332_hybrid` + `1336_questions_hard_hybrid` | híbrido | 11/11, 8/8, 6/6, 5/6 (30/31); antes 29/31 | 62 chamadas, 0 malformadas, nenhum 429 |
+| `research_2026-11-23_1342_agentic` + `1346_questions_hard_agentic` | agêntico puro | 11/11, 7/8, 5/6, 3/6 (26/31); antes 21/31 e 24/31 | 64 chamadas, 0 malformadas, nenhum 429 |
+
+Os prompts em inglês não pioraram nenhum dos três modos. O híbrido continua o melhor (30/31; só a q-243, com o
+certo em 12º, ficou de fora). O agêntico puro segue variando e perdendo casos que estão entre os 10 primeiros.
+Num teste rápido de 1 pergunta, o híbrido não tinha achado o DAN-197; no `demo.py` e nas 32 achou, então foi
+variação das consultas do LLM (`temperature=1.0`).
