@@ -56,6 +56,11 @@ MIN_CHARS_RESUMO = 100     # resumo mais curto que isso vai acompanhado do iníc
 N_TRECHOS_SIMILAR = 2      # trechos parecidos com a descrição, por incidente
 MAX_TRECHOS = 7            # teto de trechos por incidente nos achados (até 5 do aprofundamento + 2 da busca inicial)
 MAX_CHAMADAS_LLM = 2       # por execução do agente
+# Modo agêntico (um dos três modos; ver ativar_modo_agentico): sem busca inicial em código; o LLM escreve as próprias
+# consultas com find_similar_incidents desde a 1ª chamada. Ligado por --agentico.
+MODO_AGENTICO = False
+MAX_CHAMADAS_AGENTICO = 4
+N_DOCS_FIND_AGENTICO = 10  # incidentes que find_similar_incidents devolve no modo agêntico (como os 10 candidatos)
 
 
 class EstadoPesquisa(TypedDict, total=False):
@@ -118,6 +123,7 @@ def busca_inicial(estado: EstadoPesquisa) -> dict:
 # ---------------------------------------------------------------- agente (LLM com ferramentas)
 
 _llm = None
+RACIOCINIO = True  # False: enable_thinking=False (o modelo responde sem raciocínio interno; menos tokens)
 MODELO_FORCADO: str | None = None  # testes: troca o modelo do .env só nesta execução (avaliar_pesquisa.py --modelo)
 
 
@@ -267,14 +273,19 @@ def _chamada_fixa(estado: EstadoPesquisa) -> AIMessage:
 
 def agente(estado: EstadoPesquisa) -> dict:
     novas = []
-    if not estado.get("messages"):  # 1ª chamada: monta a mensagem com os incidentes encontrados
+    agentico = MODO_AGENTICO and not estado.get("candidatos")
+    if not estado.get("messages") and agentico:  # 1ª chamada, modo agêntico: sem incidentes; o LLM procura
+        novas.append(HumanMessage(pp.mensagem_usuario_agentico(estado["descricao"], estado.get("sintomas", []),
+                                                               estado.get("pedido_busca", ""))))
+    elif not estado.get("messages"):  # 1ª chamada: monta a mensagem com os incidentes encontrados
         contexto = montar_lista_resumos(estado.get("candidatos", []))
         novas.append(HumanMessage(pp.mensagem_usuario(estado["descricao"], estado.get("sintomas", []),
                                                       contexto, estado.get("pedido_busca", ""))))
     if estado.get("sem_llm"):
         msg = _chamada_fixa(estado) if not estado.get("messages") else AIMessage("modo --sem-llm: fim.")
         return {"messages": novas + [msg]}
-    historico = [SystemMessage(pp.SISTEMA)] + list(estado.get("messages", [])) + novas
+    sistema = pp.SISTEMA_AGENTICO if MODO_AGENTICO else pp.SISTEMA
+    historico = [SystemMessage(sistema)] + list(estado.get("messages", [])) + novas
     infos, n = [], len(estado.get("chamadas_llm", []))
     for tentativa in range(2):  # 2ª só se a chamada vier malformada ou vazia
         msg, info = _chamar_llm(historico)
@@ -303,7 +314,8 @@ def agente(estado: EstadoPesquisa) -> dict:
 def _chamar_llm(historico: list) -> tuple[AIMessage, dict]:
     t = time.time()
     try:
-        msg = limite_llm.chamar(lambda: llm_com_ferramentas().invoke(historico), aviso="agente")
+        extra = {} if RACIOCINIO else {"chat_template_kwargs": {"enable_thinking": False}}
+        msg = limite_llm.chamar(lambda: llm_com_ferramentas().invoke(historico, **extra), aviso="agente")
     except Exception as e:
         print(f"[agente] falha ({type(e).__name__}: {str(e)[:120]}); o grafo vai tentar de novo", flush=True)
         raise
@@ -328,8 +340,24 @@ def _tentar_de_novo(e: Exception) -> bool:
 
 # ---------------------------------------------------------------- roteamento
 
+def ativar_modo_agentico() -> None:
+    """Liga o modo agêntico (experimento): sem busca inicial em código, até 4 chamadas ao LLM e
+    find_similar_incidents devolvendo 10 incidentes."""
+    global MODO_AGENTICO
+    MODO_AGENTICO = True
+    pf.N_DOCS = N_DOCS_FIND_AGENTICO
+
+
+def ativar_modo_hibrido() -> None:
+    """Modo agêntico + rede de segurança: a 1ª busca do LLM inclui também a descrição original (feita em
+    código); os 10 incidentes dela entram sempre e as consultas do LLM acrescentam até 5 novos."""
+    ativar_modo_agentico()
+    pf.INCLUIR_DESCRICAO_NA_1A_BUSCA = True
+    pp.SISTEMA_AGENTICO = pp.SISTEMA_AGENTICO + pp.AVISO_HIBRIDO
+
+
 def rota_entrada(estado: EstadoPesquisa) -> Literal["busca_inicial", "agente"]:
-    return "agente" if estado.get("candidatos") else "busca_inicial"
+    return "agente" if estado.get("candidatos") or MODO_AGENTICO else "busca_inicial"
 
 
 def depois_do_agente(estado: EstadoPesquisa) -> Literal["ferramentas", "montar_achados"]:
@@ -344,7 +372,8 @@ def depois_das_ferramentas(estado: EstadoPesquisa) -> Literal["agente", "montar_
             break
         rodada.append(m.name)
     chamadas = len(estado.get("chamadas_llm", []))
-    if "find_similar_incidents" in rodada and chamadas < MAX_CHAMADAS_LLM and not estado.get("sem_llm"):
+    limite = MAX_CHAMADAS_AGENTICO if MODO_AGENTICO else MAX_CHAMADAS_LLM
+    if "find_similar_incidents" in rodada and chamadas < limite and not estado.get("sem_llm"):
         return "agente"
     return "montar_achados"
 
@@ -482,10 +511,16 @@ def main() -> None:
     ap.add_argument("--sem-llm", action="store_true", help="chamada fixa, sem o NIM")
     ap.add_argument("--json", type=Path, help="salva o estado final")
     ap.add_argument("--modelo", help="modelo do NIM só nesta execução (padrão: LLM_MODEL do .env)")
+    ap.add_argument("--agentico", action="store_true", help="experimento: o LLM faz a 1ª busca (sem busca inicial em código)")
+    ap.add_argument("--hibrido", action="store_true", help="experimento: modo agêntico + a descrição original na 1ª busca")
     a = ap.parse_args()
     if a.modelo:
         global MODELO_FORCADO
         MODELO_FORCADO = a.modelo
+    if a.hibrido:
+        ativar_modo_hibrido()
+    elif a.agentico:
+        ativar_modo_agentico()
     anteriores = json.loads(a.anteriores.read_text()) if a.anteriores else None
     t = time.time()
     estado = pesquisar(" ".join(a.descricao), a.sintoma, a.pedido, anteriores, a.sem_llm, _mostrar)

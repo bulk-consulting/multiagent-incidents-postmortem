@@ -56,3 +56,35 @@ Mesmo agente (modo atual, Nemotron 3.5 super-vl), as mesmas 32 perguntas (12 da 
 | `2026-11-19_0654_com-limitador` + `0659_perguntas_dificeis_com-limitador` | com `rag/limite_llm.py` (`LLM_RPM=10`, espera de 30/60/120 s) | 25 | 0 | 20 | ~7,5 min |
 
 O limitador eliminou as perdas e reduziu os 429 pela metade, com ~1,5 min a mais nas 32 perguntas.
+
+## Os três modos de busca: atual, agêntico puro e híbrido (2026-11-18)
+
+Os três ficam no código (`pesquisa.py`): o atual é o padrão; `--agentico` e `--hibrido` ligam os outros dois.
+
+| Rodada | Modo | Perguntas | Resultado principal |
+|---|---|---|---|
+| `2026-11-18_1529_agentico` + `1540_perguntas_dificeis_agentico` | agêntico puro (`--agentico`): o LLM faz a 1ª busca | 12 da E3 + 20 difíceis, 1 por vez | 10/10 (E3), 5/7 (4º–5º), 2/6 (6º–10º), 4/5 além do 10º; 3 perguntas perdidas por 429 (antes do limitador) |
+| `2026-11-18_2138_agentico` + `2146_perguntas_dificeis_agentico` | agêntico puro, 2ª rodada, com o limitador | 12 da E3 + 20 difíceis | 11/11, 7/8, 4/6, 2/6 além do 10º (24/31 no total, contra 21/31 na 1ª): o agêntico puro varia de uma rodada para outra; quando erra, o certo não aparece em nenhuma das buscas do LLM |
+| `2026-11-18_1557_hibrido` + `1608_perguntas_dificeis_hibrido` | híbrido (`--hibrido`): consultas do LLM + a descrição original na 1ª busca | 12 da E3 + 20 difíceis, 2 em paralelo | 11/11, 8/8, 6/6, 4/6 além do 10º; 2 chamadas por pergunta; nenhuma perdida |
+| `2026-11-18_1802_perguntas_sintoma_e2_hibrido` | híbrido, `LLM_RPM=10`, 2 em paralelo | 137 de sintoma | 130/131 até o 10º (a falha, q-227, tem vários casos parecidos de verdade), 4/6 além do 10º (modo atual: 0/6); 172 avisos de 429, todos resolvidos; 75 min, ~60 deles de espera |
+| `2026-11-18_1825_..._hibrido_parcial` | híbrido, 1 por vez | 137 de sintoma, **interrompida** em 41 | 41/41; 429 continuou mesmo uma por vez (~1 a cada 1,3 pergunta) |
+
+## O limite de requisições do NIM (testes de 2026-11-18)
+
+O painel da conta mostra "Your API Rate Limit: Up to 40 rpm". A documentação pública não dá número, diz que o
+limite varia por modelo e com o número de usuários, e a API não devolve cabeçalhos de limite.
+
+| Teste | 429 |
+|---|---|
+| 12 chamadas curtas (~20 tokens), super-vl e Lightning alternados, espaçadas de 10 s (19:41) | 0 |
+| 10 perguntas do híbrido, 1 por vez (`2016`) | 8 |
+| as mesmas, com intervalo mínimo de 6 s entre chamadas (`2104`) | 10 (o espaçamento foi desfeito) |
+| as mesmas, sem raciocínio interno, `--sem-raciocinio` (`2114`): saída ~10× menor | 8 |
+
+Conclusão: não é bloqueio da conta (chamadas curtas passam), nem rajada (espaçar não ajudou), nem o tamanho da
+saída (sem raciocínio não ajudou). Sobram o tamanho da entrada (~4.500 tokens nas chamadas do agente) ou um limite
+real bem abaixo de 40/min e instável. O que ficou no código: `rag/limite_llm.py` (no máximo `LLM_RPM` = 10 por
+minuto e espera de 30/60/120 s em 429), que absorveu todos os 429 sem perder perguntas; e a opção
+`--sem-raciocinio` (desligada por padrão), que não muda o 429 mas reduz a saída sem perder qualidade nas 10
+perguntas testadas (10/10). Para testes em lote, os 429 deixam as rodadas 2 a 3 vezes mais lentas; se isso
+atrapalhar o projeto, a saída é um endpoint pago.

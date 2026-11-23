@@ -225,3 +225,21 @@ multiagent_env/bin/python -I agents/research/pesquisa.py "descrição" --anterio
 multiagent_env/bin/python -I agents/research/experimentos/avaliar_pesquisa.py --paralelo 2
 multiagent_env/bin/python -I agents/research/experimentos/avaliar_pesquisa.py --arquivo agents/research/experimentos/perguntas_dificeis.json --paralelo 2
 ```
+
+### Os três modos de busca
+
+O agente tem três modos. O **atual** é o padrão; os outros dois são ligados com uma opção, em `pesquisa.py`,
+no `avaliar_pesquisa.py` e no `demo.py`:
+
+| Modo | Opção | Quem faz a 1ª busca | 12 da E3 + 20 difíceis (certo aprofundado) |
+|---|---|---|---|
+| atual | (nenhuma) | o código, com a descrição do analista (10 candidatos) | 25/31; 0/6 além do 10º |
+| agêntico puro | `--agentico` | o LLM, com as consultas que ele escreve | 21/31 e 24/31 em duas rodadas (varia) |
+| híbrido | `--hibrido` | o LLM escreve as consultas, e o código soma a descrição original (até 5 extras) | 29/31; 4/6 além do 10º |
+
+O híbrido acertou mais, mas faz 2 chamadas ao LLM por pergunta. Detalhes em `experimentos/resultados/README.md`.
+
+```bash
+# demonstração passo a passo do modo híbrido (em inglês, usada na apresentação da E4)
+multiagent_env/bin/python -I agents/research/demo.py [--exemplo mars] [--pausa 3]
+```
