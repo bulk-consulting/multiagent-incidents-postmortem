@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="750" viewBox="0 0 680 750" role="img">
+<title>Research agent internal flow</title>
+<desc>The incident description and symptoms go to the initial search in code, which finds 10 candidates in pgvector (skipped in agentic and hybrid modes and in a refinement). The LLM reads titles and summaries and calls a tool or stops. Code fixes malformed tool calls. The LangGraph ToolNode runs find_similar_incidents, whose new incidents go back to the LLM, or search_inside_incidents, which finds root-cause and fix passages and goes to build_findings. The output is the findings for the Diagnosis agent.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<style>
+text { font-family: "Segoe UI", Arial, Helvetica, sans-serif; }
+.th { font-size: 14px; font-weight: 600; }
+.t { font-size: 14px; }
+.ts { font-size: 12px; }
+.gray .th, .gray .t { fill: #2C2C2A; } .gray .ts { fill: #5F5E5A; }
+.purple .th, .purple .t { fill: #26215C; } .purple .ts { fill: #534AB7; }
+.teal .th, .teal .t { fill: #04342C; } .teal .ts { fill: #0F6E56; }
+.gray rect { fill: #F1EFE8; stroke: #5F5E5A; stroke-width: 0.8; }
+.purple rect { fill: #EEEDFE; stroke: #534AB7; stroke-width: 0.8; }
+.teal rect { fill: #E1F5EE; stroke: #0F6E56; stroke-width: 0.8; }
+.lbl { fill: #444441; }
+.arr { stroke: #5F5E5A; stroke-width: 1.5; fill: none; }
+.leader { stroke: #888780; stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
+</style>
+</defs>
+<rect width="680" height="750" fill="#FFFFFF"/>
+
+<rect x="20" y="70" width="640" height="436" rx="16" fill="none" stroke="#7F77DD" stroke-width="2" stroke-dasharray="8 5"/>
+<g class="purple"><rect x="30" y="52" width="150" height="30" rx="6"/>
+<text class="th" x="105" y="67" text-anchor="middle" dominant-baseline="central">Research agent</text></g>
+<text class="ts lbl" x="650" y="90" text-anchor="end">max 2 LLM calls (4 in agentic/hybrid), set in code</text>
+
+<g class="gray"><rect x="150" y="14" width="260" height="40" rx="20"/>
+<text class="th" x="280" y="34" text-anchor="middle" dominant-baseline="central">Description + symptoms</text></g>
+<text class="ts lbl" x="422" y="26">refinement: + previous findings</text>
+<text class="ts lbl" x="422" y="42">+ request from the Diagnosis agent</text>
+
+<g class="gray"><rect x="170" y="96" width="220" height="56" rx="8"/>
+<text class="th" x="280" y="114" text-anchor="middle" dominant-baseline="central">Initial search</text>
+<text class="ts" x="280" y="134" text-anchor="middle" dominant-baseline="central">10 candidates from pgvector</text></g>
+
+<g class="purple"><rect x="170" y="190" width="220" height="56" rx="8"/>
+<text class="th" x="280" y="208" text-anchor="middle" dominant-baseline="central">LLM call</text>
+<text class="ts" x="280" y="228" text-anchor="middle" dominant-baseline="central">Look inside, or search more?</text></g>
+
+<g class="gray"><rect x="170" y="276" width="220" height="44" rx="8"/>
+<text class="th" x="280" y="290" text-anchor="middle" dominant-baseline="central">Fix tool calls</text>
+<text class="ts" x="280" y="308" text-anchor="middle" dominant-baseline="central">names, broken JSON, text lists</text></g>
+
+<g class="gray"><rect x="460" y="262" width="190" height="56" rx="8"/>
+<text class="th" x="555" y="280" text-anchor="middle" dominant-baseline="central">Run the tool</text>
+<text class="ts" x="555" y="300" text-anchor="middle" dominant-baseline="central">LangGraph ToolNode</text></g>
+
+<g class="teal"><rect x="460" y="336" width="190" height="48" rx="8"/>
+<text class="t" x="555" y="352" text-anchor="middle" dominant-baseline="central">find_similar_incidents</text>
+<text class="ts" x="555" y="370" text-anchor="middle" dominant-baseline="central">new searches, LLM queries</text></g>
+
+<g class="teal"><rect x="460" y="392" width="190" height="48" rx="8"/>
+<text class="t" x="555" y="408" text-anchor="middle" dominant-baseline="central">search_inside_incidents</text>
+<text class="ts" x="555" y="426" text-anchor="middle" dominant-baseline="central">LLM query + fixed cause/fix</text></g>
+
+<g class="gray"><rect x="170" y="430" width="220" height="56" rx="8"/>
+<text class="th" x="280" y="448" text-anchor="middle" dominant-baseline="central">Build findings</text>
+<text class="ts" x="280" y="468" text-anchor="middle" dominant-baseline="central">deepened first, up to 8</text></g>
+
+<g class="gray"><rect x="120" y="530" width="320" height="40" rx="20"/>
+<text class="th" x="280" y="550" text-anchor="middle" dominant-baseline="central">Findings for the Diagnosis agent</text></g>
+<text class="ts lbl" x="280" y="590" text-anchor="middle">incident_id, company, title, url, summary, why + up to 7 passages</text>
+<text class="ts lbl" x="280" y="606" text-anchor="middle">(similar text, LLM query, root cause, fix / prevention)</text>
+
+<line x1="280" y1="54" x2="280" y2="94" class="arr" marker-end="url(#arrow)"/>
+<path d="M150 34 L10 34 L10 218 L168 218" class="arr" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<text class="ts lbl" x="32" y="112">agentic,</text>
+<text class="ts lbl" x="32" y="128">hybrid or</text>
+<text class="ts lbl" x="32" y="144">refinement:</text>
+<text class="ts lbl" x="32" y="160">no initial search</text>
+<line x1="280" y1="152" x2="280" y2="188" class="arr" marker-end="url(#arrow)"/>
+<line x1="280" y1="246" x2="280" y2="274" class="arr" marker-end="url(#arrow)"/>
+<line x1="390" y1="296" x2="458" y2="296" class="arr" marker-end="url(#arrow)"/>
+<text class="ts lbl" x="424" y="286" text-anchor="middle">tool call</text>
+<path d="M555 262 L555 218 L392 218" class="arr" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<text class="ts lbl" x="400" y="206">after find_similar: back to the LLM</text>
+<line x1="555" y1="318" x2="555" y2="334" class="leader"/>
+<line x1="555" y1="384" x2="555" y2="390" class="leader"/>
+<line x1="280" y1="320" x2="280" y2="428" class="arr" marker-end="url(#arrow)"/>
+<text class="ts lbl" x="292" y="378">no tool call: done</text>
+<path d="M458 416 L420 416 L420 458 L392 458" class="arr" marker-end="url(#arrow)"/>
+<text class="ts lbl" x="400" y="482">after search_inside_incidents</text>
+<line x1="280" y1="486" x2="280" y2="528" class="arr" marker-end="url(#arrow)"/>
+
+<text class="th lbl" x="30" y="642">Search modes</text>
+<text class="ts lbl" x="30" y="662">normal (default): the code runs the initial search; the LLM reads 10 candidates</text>
+<text class="ts lbl" x="30" y="680">agentic: no initial search; the LLM writes its own queries with find_similar_incidents</text>
+<text class="ts lbl" x="30" y="698">hybrid: agentic + the analyst's text is always searched too (up to 5 extra incidents)</text>
+
+<g class="purple"><rect x="40" y="722" width="16" height="16" rx="4"/></g>
+<text class="ts lbl" x="64" y="730" dominant-baseline="central">LLM</text>
+<g class="gray"><rect x="140" y="722" width="16" height="16" rx="4"/></g>
+<text class="ts lbl" x="164" y="730" dominant-baseline="central">Python code</text>
+<g class="teal"><rect x="280" y="722" width="16" height="16" rx="4"/></g>
+<text class="ts lbl" x="304" y="730" dominant-baseline="central">Tool function</text>
+</svg>

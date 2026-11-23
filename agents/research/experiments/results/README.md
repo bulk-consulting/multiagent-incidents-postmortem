@@ -1,11 +1,19 @@
 # Resultados dos testes do Agente Pesquisa RAG
 
-Gerados por `agents/research/experimentos/avaliar_pesquisa.py`, no banco da ingestão da main. Cada rodada tem
+Gerados por `agents/research/experiments/evaluate_research.py`, no banco da ingestão da main. Cada rodada tem
 um `.md` (tabela + decisões do LLM + trechos trazidos) e um `.json` (dados completos).
+
+**Nomes em português e em inglês (23/11/2026):** o código do agente passou para o inglês, como o do Agente
+Triagem. As rodadas até 23/11 (`pesquisa_*.json` e `.md`) são registro histórico da versão em português e
+ficam como estão, com os nomes da época: `avaliar_pesquisa.py`, `perguntas_dificeis.json`, opções `--hibrido`,
+`--agentico`, `--sem-llm`, campos `achados`, `aprofundado`, `trechos` etc. As rodadas novas se chamam
+`research_*`, com campos em inglês (`findings`, `deepened`, `passages`). Os arquivos de perguntas foram
+renomeados (`perguntas_dificeis.json` → `questions_hard.json`, `perguntas_sintoma_e2.json` →
+`questions_symptom_e2.json`, `perguntas_e2_completa.json` → `questions_e2_full.json`), com o mesmo conteúdo.
 
 Perguntas:
 - **12 da E3** (`rag/avaliacao/perguntas.json`): o incidente certo quase sempre vem em 1º na busca.
-- **20 difíceis** (`perguntas_dificeis.json`): perguntas de sintoma da suíte da E2 em que a busca põe o
+- **20 difíceis** (`questions_hard.json`): perguntas de sintoma da suíte da E2 em que a busca põe o
   incidente certo abaixo do 3º lugar (8 em 4º–5º, 6 em 6º–10º, 6 além do 10º).
 
 | Rodada | Versão do agente | Perguntas | Resultado principal |
@@ -88,3 +96,15 @@ minuto e espera de 30/60/120 s em 429), que absorveu todos os 429 sem perder per
 `--sem-raciocinio` (desligada por padrão), que não muda o 429 mas reduz a saída sem perder qualidade nas 10
 perguntas testadas (10/10). Para testes em lote, os 429 deixam as rodadas 2 a 3 vezes mais lentas; se isso
 atrapalhar o projeto, a saída é um endpoint pago.
+
+## Código em inglês: conferência (2026-11-23)
+
+Depois da tradução do código e dos prompts para o inglês (modo atual, Nemotron 3.5 super-vl, 2 em paralelo):
+
+| Rodada | Perguntas | Certo aprofundado | Chamadas de ferramenta |
+|---|---|---|---|
+| `research_2026-11-23_1300` + `1302_questions_hard` | 12 da E3 + 20 difíceis | 11/11, 8/8, 6/6, 0/6 (25/31), igual à versão em português | 0 malformadas, 1 campo completado em código; nenhum 429 perdido |
+
+Os prompts em inglês não mudaram o resultado do modo atual. Num teste rápido de 1 pergunta, o híbrido não achou o
+DAN-197 (que tinha achado antes); como as consultas do LLM variam (`temperature=1.0`), só uma rodada das 32 no
+modo híbrido diz se houve mudança.

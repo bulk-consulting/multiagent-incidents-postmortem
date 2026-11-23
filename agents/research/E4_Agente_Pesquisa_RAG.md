@@ -20,10 +20,10 @@ estava entre os 10 candidatos (ver a seção 7). Os resultados das seções 7 e 
 
 | Entrega | O que foi feito | Evidência |
 |---|---|---|
-| **4.1** Primeiro agente | Agente Pesquisa RAG em LangGraph: papel e instruções no prompt, duas ferramentas, decisão pelo LLM, saída estruturada (`achados`) | `agents/research/pesquisa.py`, `agents/research/pesquisa_prompt.py` |
-| **4.2** Agente com o RAG como ferramenta | o LLM chama a busca do RAG (`rag/busca.py`) por meio das ferramentas, decidindo se busca, qual ferramenta usar, em quais incidentes e com que consulta | `agents/research/pesquisa_ferramentas.py` |
-| **4.3** Ferramentas | `search_inside_incidents` e `find_similar_incidents`, com schema, validação e limites | `agents/research/pesquisa_ferramentas.py` |
-| **4.4** Testes do agente isolado | 12 perguntas da E3 + 20 perguntas difíceis da suíte da E2; incidente certo aprofundado, chamadas de ferramenta válidas e causa/correção conferidas à mão | `agents/research/experimentos/`, `agents/research/experimentos/resultados/README.md` |
+| **4.1** Primeiro agente | Agente Pesquisa RAG em LangGraph: papel e instruções no prompt, duas ferramentas, decisão pelo LLM, saída estruturada (`findings`) | `agents/research/agent.py`, `agents/research/prompts.py` |
+| **4.2** Agente com o RAG como ferramenta | o LLM chama a busca do RAG (`rag/busca.py`) por meio das ferramentas, decidindo se busca, qual ferramenta usar, em quais incidentes e com que consulta | `agents/research/tools.py` |
+| **4.3** Ferramentas | `search_inside_incidents` e `find_similar_incidents`, com schema, validação e limites | `agents/research/tools.py` |
+| **4.4** Testes do agente isolado | 12 perguntas da E3 + 20 perguntas difíceis da suíte da E2; incidente certo aprofundado, chamadas de ferramenta válidas e causa/correção conferidas à mão | `agents/research/experiments/`, `agents/research/experiments/results/README.md` |
 | **4.5** Documentação | este documento | |
 
 ## 2. Papel e responsabilidades
@@ -47,41 +47,52 @@ No desenho da E1.2, o Agente Pesquisa RAG fica entre o Agente Triagem e o Agente
 
 | Campo | O que é | Origem |
 |---|---|---|
-| `descricao` | descrição do incidente em andamento | analista |
-| `sintomas` | sintomas separados, opcional | Agente Triagem (ainda não existe) |
-| `pedido_busca` | o que falta, opcional (refinamento) | Agente Diagnóstico (ainda não existe) |
-| `candidatos`, `ids_vistos` | achados de uma rodada anterior (refinamento) | rodada anterior do agente |
+| `description` | descrição do incidente em andamento | analista |
+| `symptoms` | sintomas separados, opcional | Agente Triagem (`TriageResult.symptoms`) |
+| `search_request` | o que falta, opcional (refinamento) | Agente Diagnóstico (ainda não existe) |
+| `candidates`, `seen_ids` | achados de uma rodada anterior (refinamento) | rodada anterior do agente |
 
 **Saída:**
 
 | Campo | O que é |
 |---|---|
-| `achados` | até 8 incidentes, os aprofundados primeiro. Cada um com ID, empresa, título, link, resumo, similaridade, `aprofundado`, `why` (por que o LLM o escolheu) e até 7 trechos |
-| `buscas` | registro de cada busca: etapa, consulta, filtro e IDs encontrados |
-| `chamadas_llm` | tempo, tokens, ferramentas chamadas e correções aplicadas em cada chamada ao LLM |
+| `findings` | até 8 incidentes, os aprofundados primeiro. Cada um com `incident_id`, `company`, `title`, `url`, `summary`, `similarity`, `deepened`, `why` (por que o LLM o escolheu) e até 7 trechos (`passages`) |
+| `search_log` | registro de cada busca: etapa, consulta, filtro e IDs encontrados |
+| `llm_calls` | tempo, tokens, ferramentas chamadas e correções aplicadas em cada chamada ao LLM |
 
-Cada trecho dos achados traz a seção, o texto, a similaridade e a origem: `similar` (busca inicial) ou
-`aprofundamento` (com a consulta que o trouxe: a do LLM, a fixa de causa ou a fixa de correção).
+Cada trecho traz `section`, `content`, `similarity` e `origin`: `similar` (busca inicial) ou `deep_search`
+(aprofundamento), com a consulta que o trouxe (`query`) e de onde ela veio (`query_source`: `llm`, `cause` ou `fix`).
+
+O código e os nomes estão em inglês, como no Agente Triagem. A busca em si continua no `rag/busca.py` (E3, em
+português); as duas funções do topo de `tools.py` traduzem o resultado dela para os nomes em inglês.
 
 ## 4. O fluxo
 
 ```
-1ª volta:     START → busca_inicial → agente ⇄ ferramentas → montar_achados → END
-refinamento:  START → agente ⇄ ferramentas → montar_achados → END
+1ª volta:     START → initial_search → agent ⇄ tools → build_findings → END
+refinamento:  START → agent ⇄ tools → build_findings → END
 ```
+
+![Fluxo interno do Agente Pesquisa RAG](research_agent_flow.svg)
+
+Como ler o desenho: a linha tracejada roxa marca o que está **dentro do agente**. Roxo é o LLM, cinza é código
+Python e verde são as ferramentas. As setas tracejadas são os caminhos que voltam ou pulam etapas: a busca
+inicial é pulada nos modos agêntico e híbrido e no refinamento, e os incidentes novos de
+`find_similar_incidents` voltam ao LLM. Depois de `search_inside_incidents`, ou quando o LLM encerra sem
+chamar ferramenta, o fluxo segue para `build_findings`, que monta a saída para o Agente Diagnóstico.
 
 | Nó | O que faz | LLM? |
 |---|---|---|
-| `busca_inicial` | busca em duas etapas da E3 com a descrição e com cada sintoma; junta por incidente e fica com os 10 mais parecidos | não |
-| `agente` | LLM no NVIDIA NIM (`nvidia/nemotron-3.5-super-vl-120b-a12b`; até 17/11, `openai/gpt-oss-20b`), via `ChatNVIDIA` com `tool_choice="auto"`: lê título e resumo dos candidatos e decide se chama uma ferramenta | sim |
-| `ferramentas` | `ToolNode` do LangGraph: executa a ferramenta chamada | não |
-| `montar_achados` | junta candidatos, incidentes novos e trechos do aprofundamento; ordena, limita e registra | não |
+| `initial_search` | busca em duas etapas da E3 com a descrição e com cada sintoma; junta por incidente e fica com os 10 mais parecidos | não |
+| `agent` | LLM no NVIDIA NIM (`nvidia/nemotron-3.5-super-vl-120b-a12b`; até 17/11, `openai/gpt-oss-20b`), via `ChatNVIDIA` com `tool_choice="auto"`: lê título e resumo dos candidatos e decide se chama uma ferramenta | sim |
+| `tools` | `ToolNode` do LangGraph: executa a ferramenta chamada | não |
+| `build_findings` | junta candidatos, incidentes novos e trechos do aprofundamento; ordena, limita e registra | não |
 
 **Roteamento (código):**
-- do `START`: se já há candidatos (refinamento), vai direto ao `agente`; senão, à `busca_inicial`;
-- do `agente`: se chamou ferramenta, vai às `ferramentas`; senão, a `montar_achados`;
-- das `ferramentas`: volta ao `agente` só se a ferramenta foi `find_similar_incidents` e o LLM foi chamado
-  menos de 2 vezes (há incidentes novos para olhar); senão, vai a `montar_achados`.
+- do `START`: se já há candidatos (refinamento) ou o modo é agêntico/híbrido, vai direto ao `agent`; senão, à `initial_search`;
+- do `agent`: se chamou ferramenta, vai às `tools`; senão, a `build_findings`;
+- das `tools`: volta ao `agent` só se a ferramenta foi `find_similar_incidents` e o LLM foi chamado
+  menos de 2 vezes (4 nos modos agêntico e híbrido); senão, vai a `build_findings`.
 
 O LLM recebe só o título e o resumo de cada candidato (~3 mil caracteres para 10 candidatos). Os resumos do
 catálogo do danluu costumam dizer o que aconteceu e por quê; os detalhes chegam pelo aprofundamento.
@@ -116,12 +127,12 @@ Procura outros incidentes parecidos com o atual.
 Usa a mesma busca em duas etapas, excluindo os incidentes já vistos, e devolve até 5 incidentes com título
 e resumo. Depois disso, o LLM é chamado de novo e pode aprofundar os novos.
 
-As duas ferramentas devolvem um texto curto para o LLM e os dados completos para o `montar_achados`
+As duas ferramentas devolvem um texto curto para o LLM e os dados completos para o `build_findings`
 (`response_format="content_and_artifact"`).
 
 ## 6. Critérios de decisão
 
-**O que o LLM decide** (instruções em `pesquisa_prompt.py`):
+**O que o LLM decide** (instruções em `prompts.py`):
 1. comparar o incidente atual com o resumo de cada candidato, até o último: mesmo tipo de falha, mesmo
    componente, mesmo gatilho; palavras em comum não bastam;
 2. aprofundar os que mais se parecem (até 3), com uma consulta e o `why` de cada um;
@@ -141,13 +152,14 @@ As duas ferramentas devolvem um texto curto para o LLM e os dados completos para
 
 ## 7. Testes do agente isolado
 
-Script: `agents/research/experimentos/avaliar_pesquisa.py` (opções `--arquivo`, `--perguntas`, `--paralelo`,
-`--sem-llm`). Cada rodada gera um `.md` e um `.json` em `agents/research/experimentos/resultados/`.
+Script: `agents/research/experiments/evaluate_research.py` (opções `--file`, `--questions`, `--parallel`,
+`--no-llm`, `--hybrid`, `--agentic`). Cada rodada gera um `.md` e um `.json` em `agents/research/experiments/results/`.
+As rodadas até 23/11 (arquivos `pesquisa_*`) são da versão com o código em português.
 
 **Perguntas:**
 - **12 da E3** (`rag/avaliacao/perguntas.json`): o incidente certo quase sempre vem em 1º na busca; uma
   pergunta é sobre um incidente fora do corpus (q12, o Pix);
-- **20 difíceis** (`agents/research/experimentos/perguntas_dificeis.json`): perguntas de sintoma da suíte da E2
+- **20 difíceis** (`agents/research/experiments/questions_hard.json`): perguntas de sintoma da suíte da E2
   em que a busca põe o certo abaixo do 3º lugar (8 em 4º–5º, 6 em 6º–10º, 6 além do 10º).
 
 **O que foi conferido:**
@@ -155,7 +167,7 @@ Script: `agents/research/experimentos/avaliar_pesquisa.py` (opções `--arquivo`
 - **ferramentas:** as chamadas vieram válidas? precisaram de correção?
 - **saída:** os trechos entregues trazem a causa e a correção? Leitura dos trechos inteiros do incidente
   certo, comparando com o post-mortem completo para separar falha da busca de limite do corpus
-  (`resultados/conferencia_causa_correcao_2026-11-17.md`).
+  (`results/conferencia_causa_correcao_2026-11-17.md`).
 
 **Resultado da versão atual** (rodadas `2026-11-17_1831` e `2026-11-17_1840_perguntas_dificeis`):
 
@@ -173,7 +185,7 @@ Script: `agents/research/experimentos/avaliar_pesquisa.py` (opções `--arquivo`
 As correções parciais ou ausentes são limite do corpus: uma issue do GitHub (Steam), uma thread de e-mail
 (kernel) e um post curto (BBC) que não descrevem a correção.
 
-**Como se chegou à versão atual** (detalhe em `resultados/README.md`):
+**Como se chegou à versão atual** (detalhe em `results/README.md`):
 
 | Mudança | Efeito medido |
 |---|---|
@@ -184,7 +196,7 @@ As correções parciais ou ausentes são limite do corpus: uma issue do GitHub (
 | testado e retirado: o LLM avaliar cada incidente como strong/partial/weak | o modelo marcou incidentes errados como strong nas 6 perguntas difíceis |
 | testado e retirado: uma consulta alternativa sempre executada em código | 1 acerto em 6, com 2 incidentes de ruído em toda pergunta |
 
-**Com o Nemotron 3.5 super-vl** (rodadas de 18/11, `resultados/README.md`):
+**Com o Nemotron 3.5 super-vl** (rodadas de 18/11, `results/README.md`):
 
 | | Resultado |
 |---|---|
@@ -194,7 +206,7 @@ As correções parciais ou ausentes são limite do corpus: uma issue do GitHub (
 | chamadas de ferramenta | sem JSON malformado nem nome vazado; 1 vez a lista de argumentos veio como texto (convertida em código) |
 | tempo | ~10 a 12 s por pergunta (mediana) |
 
-Com 20 candidatos em vez de 10 (`--candidatos 20`), as 4 perguntas de sintoma com o certo entre o 11º e o 20º
+Com 20 candidatos em vez de 10 (`--candidates 20`), as 4 perguntas de sintoma com o certo entre o 11º e o 20º
 também foram resolvidas, sem perder nenhuma das outras. O padrão ficou em 10, porque poucos casos se beneficiam.
 
 ## 8. Limitações
@@ -216,30 +228,30 @@ A partir da raiz do repositório, com o banco no ar (`docker compose up -d`) e o
 
 ```bash
 # uma investigação
-multiagent_env/bin/python -I agents/research/pesquisa.py "descrição do incidente" [--sintoma "..."] [--json saida.json]
+multiagent_env/bin/python -I agents/research/agent.py "descrição do incidente" [--symptom "..."] [--json saida.json]
 
 # refinamento a partir de uma rodada anterior
-multiagent_env/bin/python -I agents/research/pesquisa.py "descrição" --anteriores saida.json --pedido "o que falta"
+multiagent_env/bin/python -I agents/research/agent.py "descrição" --previous saida.json --request "o que falta"
 
 # testes
-multiagent_env/bin/python -I agents/research/experimentos/avaliar_pesquisa.py --paralelo 2
-multiagent_env/bin/python -I agents/research/experimentos/avaliar_pesquisa.py --arquivo agents/research/experimentos/perguntas_dificeis.json --paralelo 2
+multiagent_env/bin/python -I agents/research/experiments/evaluate_research.py --parallel 2
+multiagent_env/bin/python -I agents/research/experiments/evaluate_research.py --file agents/research/experiments/questions_hard.json --parallel 2
 ```
 
 ### Os três modos de busca
 
-O agente tem três modos. O **atual** é o padrão; os outros dois são ligados com uma opção, em `pesquisa.py`,
-no `avaliar_pesquisa.py` e no `demo.py`:
+O agente tem três modos. O **atual** é o padrão; os outros dois são ligados com uma opção, em `agent.py`,
+no `evaluate_research.py` e no `demo.py`:
 
 | Modo | Opção | Quem faz a 1ª busca | 12 da E3 + 20 difíceis (certo aprofundado) |
 |---|---|---|---|
 | atual | (nenhuma) | o código, com a descrição do analista (10 candidatos) | 25/31; 0/6 além do 10º |
-| agêntico puro | `--agentico` | o LLM, com as consultas que ele escreve | 21/31 e 24/31 em duas rodadas (varia) |
-| híbrido | `--hibrido` | o LLM escreve as consultas, e o código soma a descrição original (até 5 extras) | 29/31; 4/6 além do 10º |
+| agêntico puro | `--agentic` | o LLM, com as consultas que ele escreve | 21/31 e 24/31 em duas rodadas (varia) |
+| híbrido | `--hybrid` | o LLM escreve as consultas, e o código soma a descrição original (até 5 extras) | 29/31; 4/6 além do 10º |
 
-O híbrido acertou mais, mas faz 2 chamadas ao LLM por pergunta. Detalhes em `experimentos/resultados/README.md`.
+O híbrido acertou mais, mas faz 2 chamadas ao LLM por pergunta. Detalhes em `experiments/results/README.md`.
 
 ```bash
 # demonstração passo a passo do modo híbrido (em inglês, usada na apresentação da E4)
-multiagent_env/bin/python -I agents/research/demo.py [--exemplo mars] [--pausa 3]
+multiagent_env/bin/python -I agents/research/demo.py [--example mars] [--pause 3]
 ```
