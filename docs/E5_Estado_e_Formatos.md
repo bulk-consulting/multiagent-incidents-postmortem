@@ -276,11 +276,14 @@ algumas rodadas com o modelo real:
 
 ## 11. Pontos para a equipe confirmar
 
+**Decididos (23/11):**
+- o Diagnóstico começa sem ferramenta; a `check_incident` entra só se os testes mostrarem necessidade (seção 5);
+- `MAX_RESEARCH_ROUNDS = 3` e até 2 correções do relatório;
+- o relatório sai no idioma do analista.
+
+**Para a Mari confirmar:**
 1. O pedido de dados vai direto ao `ask_analyst`, sem o Relatório (seção 2).
-2. O Diagnóstico começa sem ferramenta; a `check_incident` entra só se os testes mostrarem necessidade (seção 5).
-3. `MAX_RESEARCH_ROUNDS = 3` e até 2 correções do relatório.
-4. O relatório no idioma do analista.
-5. Os nomes do estado (seção 3): o `node.py` do Triagem passa a usar `description` e `symptoms`.
+2. Os nomes do estado (seção 3): o `node.py` do Triagem passa a usar `description` e `symptoms`.
 
 ## 12. Resumo simples
 
@@ -312,4 +315,4 @@ fica sem resposta.
 **Quem faz o quê:** André faz o Diagnóstico, o estado e o grafo; Mari faz o Relatório com a validação e liga o
 Triagem ao grafo; os dois fazem juntos os testes de integração e a demonstração.
 
-**O que falta combinar:** os 5 pontos da seção 11.
+**O que falta combinar:** os 2 pontos da seção 11 que dependem da Mari.
