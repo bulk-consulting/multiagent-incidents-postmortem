@@ -91,6 +91,10 @@ class InvestigationState(TypedDict, total=False):
     trace: Annotated[list[dict], operator.add]   # {"node": ..., "seconds": ..., "summary": ...}: passo a passo
 ```
 
+O código está em `agents/orchestration/state.py`. As classes Pydantic que entram no estado (`TriageResult`,
+`DiagnosisResult`, `Report`...) precisam estar na lista `STATE_CLASSES` desse arquivo: o checkpointer só lê de
+volta os tipos registrados (sem a lista, o LangGraph avisa que vai bloquear numa versão futura).
+
 **Quem lê e quem escreve:**
 
 | Campo | Escreve | Lê |
