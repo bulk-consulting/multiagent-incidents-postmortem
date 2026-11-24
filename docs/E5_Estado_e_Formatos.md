@@ -51,9 +51,18 @@ e escrevem o mesmo estado, salvo por `incident_id`.
 | `report` | agente | Mari | escreve o `Report` (diagnóstico ou inconclusivo) |
 | `validate_report` | código | Mari | confere campos e fontes; se falhar, volta ao `report` com os erros |
 
-Proposta para simplificar: o **pedido de dados** vai direto para o `ask_analyst`, com as perguntas que o
-Triagem ou o Diagnóstico já escreveram, sem passar pelo Relatório. Na E1.2 o Relatório redigia o pedido; assim
-economizamos uma chamada ao LLM, e as perguntas já vêm no idioma do analista. **A confirmar com a Mari.**
+**Quem escreve as perguntas ao analista:** o agente que percebeu a falta.
+- **Triagem** (falta informação para começar: o serviço, o gatilho): já é assim hoje. O agente da Mari escreve as
+  perguntas em `missing_information`, no idioma do analista, e o caminho `ask_user` as devolve. A E1.2 não previa
+  esse caso; ele nasceu na construção do Triagem.
+- **Diagnóstico** (falta evidência do incidente atual para concluir, por exemplo o código de erro): **mudança em
+  relação à E1.2**. Na E1.2, o Agente Relatório redigia esse pedido de dados. A proposta é o próprio Diagnóstico
+  escrever as perguntas (`questions_for_analyst`), porque é ele que sabe o que falta; o Relatório só reescreveria a
+  lista, com uma chamada ao LLM a mais e mais espera para o analista (limite de 10 chamadas por minuto).
+
+Nos dois casos, as perguntas vão direto para o `ask_analyst` (código + `interrupt()`), que pode acrescentar um texto
+fixo ("Para continuar a investigação, preciso de:"). O Relatório fica com o diagnóstico e o relatório inconclusivo.
+**A confirmar com a Mari** (muda o que o Relatório faz).
 
 ## 3. O estado compartilhado (`InvestigationState`)
 
@@ -286,7 +295,8 @@ algumas rodadas com o modelo real:
 - o relatório sai no idioma do analista.
 
 **Para a Mari confirmar:**
-1. O pedido de dados vai direto ao `ask_analyst`, sem o Relatório (seção 2).
+1. O Diagnóstico escreve as próprias perguntas ao analista, sem passar pelo Relatório, como o Triagem já faz
+   (seção 2; mudança em relação à E1.2).
 2. Os nomes do estado (seção 3): o `node.py` do Triagem passa a usar `description` e `symptoms`.
 
 ## 12. Resumo simples
