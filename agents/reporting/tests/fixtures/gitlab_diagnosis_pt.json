@@ -1,0 +1,109 @@
+{
+ "incident_id": "INV-0002",
+ "description": "Perdemos cerca de seis horas de dados do banco. Um administrador cansado apagou o diretório errado enquanto resolvia o atraso de replicação.",
+ "triage_result": {
+  "symptoms": [
+   "database replication lagging",
+   "wrong directory deleted on the database server",
+   "about six hours of data lost"
+  ],
+  "affected_service": "database",
+  "category": null,
+  "enough_information": true,
+  "missing_information": [],
+  "related_incident": null
+ },
+ "findings": [
+  {
+   "incident_id": "DAN-164",
+   "company": "Gitlab",
+   "title": "Postmortem of database outage of January 31",
+   "url": "https://about.gitlab.com/2017/02/10/postmortem-of-database-outage-of-january-31/",
+   "summary": "Influx of requests overloaded the database, caused replication to lag, tired admin deleted the wrong directory, six hours of data lost. See also [earlier report](https://about.gitlab.com/2017/02/01/gitlab-dot-com-database-incident) and [HN discussion](https://web.archive.org/web/20240918153505/https://news.ycombinator.com/item?id=13537052).",
+   "similarity": 0.64,
+   "deepened": true,
+   "why": "Matches almost exactly: replication lag, a tired admin deleted the wrong directory, hours of data lost.",
+   "passages": [
+    {
+     "section": "Root cause analysis",
+     "content": "## Root cause analysis\n\nTo analyse the root cause of these problems we'll use a technique called \"The 5 Whys\". We'll break up the incident into 2 main problems: GitLab.com being down, and it taking a long time to restore GitLab.com.\n\n**Problem 1:** GitLab.com was down for about 18 hours.\n\n1. **Why was GitLab.com down?** - The database directory of the primary database\nwas removed by accident, instead of removing the database directory of the\nsecondary.\n\n2. **Why was the database directory removed?** - Database replication stopped,\nrequiring the secondary to be reset/rebuilt. This in turn requires that the\nPostgreSQL data directory is empty. Restoring this required manual work as\nthis was not automated, nor was it documented properly.\n\n3. **Why did replication stop?** - A spike in database load caused the database\nreplication process to stop. This was due to the primary removing WAL\nsegments before the secondary could replicate them.\n\n4. **Why did the database load increase?** - This was caused by two events\nhappening at the same time: an increase in spam, and a process trying to",
+     "similarity": 0.639,
+     "origin": "deep_search",
+     "query_source": "llm"
+    },
+    {
+     "section": "Improving recovery procedures",
+     "content": "## Improving recovery procedures\n\nWe are currently working on fixing and improving our various recovery procedures. Work is split across the following issues:\n\n1. Overview of status of all issues listed in this blog post (#1684)\n\n2. Update PS1 across all hosts to more clearly differentiate between hosts and environments (#1094)\n\n3. Prometheus monitoring for backups (#1095)\n\n4. Set PostgreSQL's max\\_connections to a sane value (#1096)\n\n5. Investigate Point in time recovery & continuous archiving for PostgreSQL (#1097)\n\n6. Hourly LVM snapshots of the production databases (#1098)\n\n7. Azure disk snapshots of production databases (#1099)\n\n8. Move staging to the ARM environment (#1100)\n\n9. Recover production replica(s) (#1101)\n\n10. Automated testing of recovering PostgreSQL database backups (#1102)\n\n11. Improve PostgreSQL replication documentation/runbooks (#1103)\n\n12. Investigate pgbarman for creating PostgreSQL backups (#1105)\n\n13. Investigate using WAL-E as a means of Database Backup and Realtime Replication (#494)\n\n14. Build Streaming Database Restore\n\n15. Assign an owner for data durability",
+     "similarity": 0.447,
+     "origin": "deep_search",
+     "query_source": "fix"
+    }
+   ]
+  },
+  {
+   "incident_id": "DAN-043",
+   "company": "Keepthescore",
+   "title": "We deleted the production database by accident 💥 | Keep the Score blog",
+   "url": "https://web.archive.org/web/20201101133510/https://keepthescore.co/blog/posts/deleting_the_production_database/",
+   "summary": "Engineers deleted the production database by accident. Database is a managed database from DigitalOcean with backups once a day. 30 minutes after the disaster, it went back online, however 7 hours of scoreboard data was gone forever.",
+   "similarity": 0.58,
+   "deepened": true,
+   "why": "Similar pattern: accidental deletion of production data and hours of data lost; it was a managed database.",
+   "passages": [
+    {
+     "section": "What happened?",
+     "content": "## What happened?\n\nIt’s tempting to blame the disaster on the couple of glasses of red wine. However, the function that wiped the database was written whilst sober. It’s a function that deletes the local database and creates all the required tables from scratch. This evening, whilst doing some late evening coding, the function connected to the production database and wiped it. Why? This is something we’re still trying to figure out.\n\nHere is the code that caused the disaster:\n\n```\ndef database_model_create():\n    \"\"\"Only works on localhost to prevent catastrophe\"\"\"\n    database = config.DevelopmentConfig.DB_DATABASE\n    user = config.DevelopmentConfig.DB_USERNAME\n    password = config.DevelopmentConfig.DB_PASSWORD\n    port = config.DevelopmentConfig.DB_PORT\n    local_db = PostgresqlDatabase(database=database, user=user, password=password, host='localhost', port=port)\n    local_db.drop_tables([Game, Player, Round, Score, Order])\n    local_db.create_tables([Game, Player, Round, Score, Order])\n    print('Initialized the local database.')\n```\nNote that `host` is hardcoded to `localhost`.",
+     "similarity": 0.61,
+     "origin": "deep_search",
+     "query_source": "llm"
+    },
+    {
+     "section": "What have we learned? Why won’t this happen again?",
+     "content": "## What have we learned? Why won’t this happen again?\n\nWe’ve learned that having a function that deletes your database is too dangerous to have lying around. The problem is, you can never really test the safety mechanisms properly, because testing it would mean pointing a gun at the production database.\n\nWe’ve learned that having a backup which allows a quick recovery is absolutely essential. Thanks DigitalOcean, for making this part reliable and simple.\n\nWe’ve learned that even a disaster can have some up-sides. This blog post generated a lot of interest. When life gives you citrus fruits, and so on.\n\nThe truth is, we can never be 100% sure that something like this won’t happen again. Computers are just too complex and there are days when the complexity gremlins win. However, we will figure out what went wrong and ensure that this *particular* error doesn’t happen again.",
+     "similarity": 0.724,
+     "origin": "deep_search",
+     "query_source": "fix"
+    }
+   ]
+  },
+  {
+   "incident_id": "DAN-220",
+   "company": "Spotify",
+   "title": "Incident Management at Spotify | Spotify Engineering",
+   "url": "https://labs.spotify.com/2013/06/04/incident-management-at-spotify/",
+   "summary": "Lack of exponential backoff in a microservice caused a cascading failure, leading to notable service degradation.",
+   "similarity": 0.31,
+   "deepened": false,
+   "why": "",
+   "passages": []
+  }
+ ],
+ "diagnosis": {
+  "hypotheses": [
+   {
+    "cause": "A manual deletion on the wrong database host during a replication problem, made worse because the backups were not working, so the data could not be restored.",
+    "based_on": [
+     "DAN-164"
+    ],
+    "matches": "Same trigger: replication lag, an administrator deleted data on the wrong host, and about six hours of data were lost.",
+    "differs": "Our message does not say which backups failed.",
+    "confidence": "high"
+   },
+   {
+    "cause": "No safety barrier around a destructive database operation, with backups made only once a day.",
+    "based_on": [
+     "DAN-043"
+    ],
+    "matches": "Accidental deletion of production data and hours of data lost.",
+    "differs": "That was a managed database with daily backups; ours may be different.",
+    "confidence": "medium"
+   }
+  ],
+  "evidence_sufficient": true,
+  "gaps": [],
+  "next_step": "report",
+  "search_request": "",
+  "questions_for_analyst": []
+ },
+ "research_rounds": 1
+}
