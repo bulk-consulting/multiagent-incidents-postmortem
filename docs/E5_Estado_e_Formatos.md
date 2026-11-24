@@ -146,22 +146,43 @@ class Hypothesis(BaseModel):
     based_on: list[str]                  # incident_ids dos achados que sustentam a hipótese (pelo menos 1)
     matches: str                         # o que bate entre o incidente atual e os passados
     differs: str                         # o que não bate
-    confidence: Literal["high", "medium", "low"]
+    same_trigger: Literal["yes", "no", "unknown"]  # o gatilho do caso passado é do mesmo TIPO? (unknown: gatilho atual desconhecido)
+    same_component: Literal["yes", "no"]           # o componente que falhou é do mesmo TIPO?
+    confidence: Literal["high", "medium", "low"]   # já com o teto aplicado pelo código
 
 class DiagnosisResult(BaseModel):
     hypotheses: list[Hypothesis]         # até 3, da mais à menos provável
-    evidence_sufficient: bool
+    evidence_sufficient: bool            # decidido pelo código
     gaps: list[str]                      # o que falta para ter certeza
-    next_step: Literal["report", "refine_search", "ask_analyst"]
-    search_request: str = ""             # obrigatório se next_step == "refine_search"
-    questions_for_analyst: list[str] = []  # obrigatório se next_step == "ask_analyst" (idioma do analista)
+    next_step: Literal["report", "refine_search", "ask_analyst"]  # decidido pelo código
+    search_request: str = ""             # preenchido só se next_step == "refine_search"
+    questions_for_analyst: list[str] = []  # preenchido só se next_step == "ask_analyst" (idioma do analista)
 ```
+
+**Quem decide o quê (mudança de 24/11).** O modelo escreve um rascunho (`DiagnosisDraft`): as hipóteses, com as
+duas comparações (`same_trigger`, `same_component`), as lacunas, uma busca sugerida (sempre, em inglês) e até 3
+perguntas ao analista (opcional). O **código** (`decide()` em `agents/diagnosis/schema.py`) transforma o rascunho
+no `DiagnosisResult`:
+
+1. **Teto da confiança:** `high` só com mesmo tipo de gatilho **e** de componente; com um dos dois diferente ou
+   desconhecido, no máximo `medium`; com os dois diferentes, `low`.
+2. **Evidência suficiente:** alguma hipótese `high` ou `medium`, com o mesmo tipo de componente, gatilho que não
+   seja diferente (igual ou desconhecido) e baseada em pelo menos um incidente **aprofundado** (com trechos).
+3. **Próximo passo:** basta → `report`; não basta → `refine_search` enquanto houver rodadas (e uma busca
+   sugerida); senão `ask_analyst`, se houver perguntas; senão `report` (inconclusivo).
+
+**Por quê:** nos testes, quando o modelo decidia sozinho, ele disse "a evidência basta" em 24 de 24 respostas,
+mesmo quando o próprio campo `differs` dizia que o caso passado era outro tipo de falha (por exemplo, MySQL com
+proxy contra Postgres reduzido); `refine_search` nunca foi escolhido. Pedir um aviso mais rígido no prompt não
+resolveu. Com as duas comparações e a decisão no código, nos casos em que o Pesquisa não trouxe o incidente certo,
+o Diagnóstico passou a pedir nova busca, e os casos que acertavam continuaram certos (resultados em
+`agents/orchestration/experiments/results/diagnosis_cases_2026-11-24_*.json`).
 
 **Regras de consistência** (no esquema, como no `TriageResult`):
 - `evidence_sufficient` verdadeiro → `next_step == "report"` e pelo menos 1 hipótese;
 - `refine_search` → `search_request` não vazio; `ask_analyst` → `questions_for_analyst` não vazio.
 
-**Regras em código** (no nó, como no `agents/triage/agent.py`): todo `incident_id` de `based_on` tem de estar
+**Regras em código** (no agente, como no `agents/triage/agent.py`): todo `incident_id` de `based_on` tem de estar
 nos `findings`; se não estiver, o erro volta ao modelo e ele corrige.
 
 Sem confiança numérica (0–1): o livro do Dibia recomenda categorias com justificativa, porque o número
@@ -298,6 +319,9 @@ algumas rodadas com o modelo real:
 1. O Diagnóstico escreve as próprias perguntas ao analista, sem passar pelo Relatório, como o Triagem já faz
    (seção 2; mudança em relação à E1.2).
 2. Os nomes do estado (seção 3): o `node.py` do Triagem passa a usar `description` e `symptoms`.
+3. A hipótese do Diagnóstico ganhou `same_trigger` e `same_component`, e `evidence_sufficient` e `next_step`
+   passaram a ser decididos pelo código (seção 5). O formato do `DiagnosisResult` é o mesmo; o Relatório pode
+   ignorar os dois campos novos ou usá-los para explicar a confiança.
 
 ## 12. Resumo simples
 
@@ -316,8 +340,9 @@ continuar depois.
 2. O **Triagem** separa os sintomas. Se falta informação, o sistema pausa e pergunta ao analista; quando ele
    responde, o Triagem lê de novo. Se o problema já está sendo investigado, o sistema avisa e termina.
 3. O **Pesquisa** encontra incidentes passados parecidos e os trechos de causa e correção.
-4. O **Diagnóstico** propõe as causas mais prováveis e diz se a evidência basta. Se não basta, pode pedir uma
-   nova busca (no máximo 3 rodadas) ou perguntar ao analista.
+4. O **Diagnóstico** propõe as causas mais prováveis e compara cada uma com o caso passado (mesmo tipo de
+   gatilho? mesmo tipo de componente?). A partir dessas comparações, um código decide se a evidência basta. Se
+   não basta, pede uma nova busca (no máximo 3 rodadas) ou pergunta ao analista.
 5. O **Relatório** escreve a resposta final: o diagnóstico, com causa, correção, prevenção e links dos
    post-mortems, ou um relatório inconclusivo, explicando o que faltou.
 6. Um código confere o relatório (os links existem? cada causa tem fonte?). Se algo estiver errado, o
@@ -329,4 +354,4 @@ fica sem resposta.
 **Quem faz o quê:** André faz o Diagnóstico, o estado e o grafo; Mari faz o Relatório com a validação e liga o
 Triagem ao grafo; os dois fazem juntos os testes de integração e a demonstração.
 
-**O que falta combinar:** os 2 pontos da seção 11 que dependem da Mari.
+**O que falta combinar:** os 3 pontos da seção 11 que dependem da Mari.
