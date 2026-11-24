@@ -1,0 +1,72 @@
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "We cannot retrieve, enumerate, write or erase stored objects through our APIs.",
+      "The systems that track object locations and assign space for incoming objects are offline.",
+      "Products relying on our storage platform are running into failures as well.",
+      "Our status page controls no longer let us publish updates for separate products."
+    ],
+    "affected_service": "Our cloud object store",
+    "dependent_impact": "We are having trouble with the object store control panel, provisioning virtual machines, disk volumes that pull snapshot contents from the object store, and on-demand function execution. Our status page also cannot be updated product by product.",
+    "scope": "The outage spans our US East location in northern Virginia, covering regional object operations and products relying on them. We do not have a customer impact percentage.",
+    "timing": "Failures appeared abruptly in the morning, just after a routine operations instruction was run.",
+    "trigger": "During the morning, a team member with the appropriate access followed our usual operating procedure to take a handful of machines out of a system supporting storage billing.",
+    "environment": [
+      "Cloud object store",
+      "APIs for reading, enumerating, writing and removing objects",
+      "Object metadata and location tracking",
+      "Allocation of space for new objects",
+      "Storage billing infrastructure",
+      "Virtual machine provisioning",
+      "Cloud disk volumes",
+      "On-demand function execution",
+      "Public service status page"
+    ],
+    "already_tried": [
+      "Since we cannot post product-specific notices, we are communicating through our public status feed and a general notice at the top of the status page."
+    ],
+    "misleading_signals": []
+  },
+  "complete_message": "Across our US East location, customers cannot read, enumerate, write or remove objects, and we are seeing knock-on failures in virtual machine, disk volume and serverless offerings. Everything started failing abruptly this morning. Immediately beforehand, an engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting storage billing.",
+  "conversation": [
+    {
+      "analyst": "Requests are failing across an entire region."
+    },
+    {
+      "if_asked_about": "which product is impacted",
+      "analyst": "It is our cloud object store, and products relying on it are having trouble too."
+    },
+    {
+      "if_asked_about": "preceding activity or possible trigger",
+      "analyst": "We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process."
+    },
+    {
+      "if_asked_about": "onset and extent of impact",
+      "analyst": "Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it."
+    },
+    {
+      "if_asked_about": "observed failures",
+      "analyst": "We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "An authorized team member entered an incorrect input when executing a standard operational command intended to remove a small number of servers from a subsystem used by the object storage billing process. The incorrect input caused a much larger set of servers to be removed than intended, including servers supporting the metadata index and storage placement subsystems. The index subsystem manages object metadata and location information and is required for GET, LIST, PUT, and DELETE requests. The placement subsystem allocates storage for new objects during PUT requests and depends on the index subsystem. The loss of significant capacity forced both subsystems to undergo full restarts. Because of the service's growth, restarting the subsystems and performing metadata integrity checks took longer than expected.",
+    "fix": [
+      "Restarted the metadata index subsystem and performed the necessary safety checks to validate metadata integrity.",
+      "By 12:26 PM PST, the index subsystem had recovered enough capacity to begin serving GET, LIST, and DELETE requests.",
+      "By 1:18 PM PST, the index subsystem had fully recovered, and GET, LIST, and DELETE APIs were functioning normally.",
+      "Recovered the storage placement subsystem after the index subsystem became functional.",
+      "By 1:54 PM PST, the placement subsystem had completed recovery, restoring PUT requests and normal object storage operations.",
+      "Dependent services began recovering after object storage APIs became available. Some required additional time to process backlogs accumulated during the disruption."
+    ],
+    "prevention": [
+      "Modified the operational tool to remove capacity more slowly.",
+      "Added safeguards to prevent capacity removal when it would bring a subsystem below its minimum required capacity.",
+      "Initiated an audit of other operational tools to ensure similar safety checks exist.",
+      "Reprioritized partitioning of the metadata index subsystem into smaller cells to reduce the impact of failures and improve recovery times.",
+      "Planned further improvements to the recovery time of key object storage subsystems.",
+      "Changed the service health dashboard administration console to operate across multiple regions so that status updates would not depend on a single affected region."
+    ],
+    "changes": "The capacity-removal tool was modified to remove servers more slowly and enforce minimum subsystem capacity safeguards. The service health dashboard administration console was changed to run across multiple regions. Additional partitioning of the metadata index subsystem into smaller cells was reprioritized for implementation."
+  }
+}

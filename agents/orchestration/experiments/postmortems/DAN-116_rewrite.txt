@@ -1,0 +1,107 @@
+Below is a test case built from an incident post-mortem. I need the analyst-facing parts REWRITTEN so that a
+search engine cannot find the original post-mortem just by matching words. Imagine a DIFFERENT company had a
+similar incident and its on-call analyst describes it in their own words.
+
+Rewrite only these parts: "visible_during_incident", "complete_message" and "conversation".
+Copy "discovered_later" exactly as it is, without changes.
+
+Rules for the rewrite:
+- Keep the same facts and their meaning: the kind of failure, the kind of service, the trigger (or the lack of
+  one), the timing pattern (sudden or gradual, "a few days after", "right after a deploy") and the scope.
+- Do NOT reuse distinctive wording from the original: rephrase every sentence. Avoid copying phrases of 4 or
+  more words from the input.
+- Do NOT copy exact error messages, status texts or log lines: describe them in other words
+  (e.g. "the API rejects the request saying an input is invalid" instead of the exact message).
+- Do NOT copy exact numbers, versions, percentages, counts or times: use approximate or relative values
+  ("most of the network" instead of "85%", "in the early evening" instead of "17:57 UTC",
+  "a few hundred servers" instead of "900").
+- Do NOT use internal names of components, tools, settings, commands or endpoints from the input
+  (e.g. "Tenant Service", "pg_basebackup", "max_wal_senders", "/organizations"): use plain descriptions
+  ("the service that checks permissions", "the tool we use to copy the database to the replica").
+- Generic technology names are fine only when an analyst would naturally say them (Redis, Kubernetes, Postgres),
+  but prefer plain words when the technology is not essential to the symptom.
+- Change the business domain only if it would identify the company (e.g. an ad exchange can stay "our ad
+  serving platform"; a famous product name must go).
+- Keep the analyst's point of view ("our", "we"), during the incident: no root cause, no fix, no lessons,
+  no dates.
+- "complete_message": 2 to 4 sentences. "conversation": exactly 5 items in the same order, the first message
+  short and incomplete (one symptom, no service name, no trigger).
+- Return only JSON with the same keys and structure as the input. If you can create files, create a
+  downloadable file named DAN-116_rewrite.json; otherwise return only the JSON text, which will be saved as DAN-116_rewrite.json.
+
+TEST CASE (DAN-116):
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Our ad auction and serving server clusters are crashing almost simultaneously.",
+      "Ad serving has stopped completely across the platform.",
+      "Incoming ad requests are not being processed, auctions are not completing, and winning ads are not being served.",
+      "The outage is affecting both direct transaction traffic and traffic from external exchange sources."
+    ],
+    "affected_service": "Our ad auction and serving service, which receives incoming ad requests, conducts auctions, and serves the winning ads.",
+    "dependent_impact": "Our entire ad serving platform is unavailable because the affected service is its entry point. Direct traffic failures can result in broken pages. We are also unable to participate in auctions originating from external exchange sources.",
+    "scope": "All approximately 900 server instances across our six data centers worldwide crashed at nearly the same time. Ad serving is completely halted globally.",
+    "timing": "The crashes began suddenly at approximately 17:54 UTC (1:54 PM New York time), with server clusters failing almost simultaneously.",
+    "trigger": "An internal database update had passed our production validation checks and was being distributed to approximately 900 server instances worldwide immediately before the crashes.",
+    "environment": [
+      "An internal database that distributes data updates to production servers.",
+      "Approximately 900 ad auction and serving server instances deployed worldwide.",
+      "Six production data centers.",
+      "Production validation systems that check data updates before distribution.",
+      "A service that receives ad requests, conducts auctions, and serves winning ads.",
+      "Direct transaction traffic and traffic from external exchange sources."
+    ],
+    "already_tried": [
+      "Within three minutes of the outage, two engineering teams were assembled to investigate the crashes and work on restarting the servers worldwide."
+    ],
+    "misleading_signals": [
+      "The internal database update had successfully passed production validation checks before being distributed to the production servers."
+    ]
+  },
+  "complete_message": "We're experiencing a global outage in our ad auction and serving service that started suddenly around 17:54 UTC. All approximately 900 server instances across our six data centers crashed almost simultaneously, completely stopping ad serving worldwide and affecting both direct transactions and external exchange traffic. An internal database update had just passed our production validation checks and was being distributed to the servers when the crashes began. Our engineering teams are investigating and attempting to restart the affected servers.",
+  "conversation": [
+    {
+      "analyst": "We're seeing server clusters crash almost simultaneously, and ad requests are no longer being processed."
+    },
+    {
+      "if_asked_about": "the affected service",
+      "analyst": "It's our ad auction and serving service, which receives incoming ad requests, runs auctions, and serves the winning ads. It's also the entry point to our ad serving platform."
+    },
+    {
+      "if_asked_about": "what changed right before / the trigger",
+      "analyst": "An update from our internal database had just passed production validation and was being distributed to our servers worldwide. We haven't confirmed whether it's responsible for the crashes."
+    },
+    {
+      "if_asked_about": "when it started and who is affected",
+      "analyst": "It started suddenly around 17:54 UTC, and approximately 900 server instances across all six of our data centers worldwide crashed almost simultaneously. Ad serving is completely stopped globally, affecting both direct transactions and external exchange traffic."
+    },
+    {
+      "if_asked_about": "the errors or symptoms seen",
+      "analyst": "The server clusters are crashing, incoming ad requests aren't being processed, and we're not serving ads. Direct traffic failures can result in broken pages, and we're also unable to participate in external exchange auctions."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "An old double-free bug in the ad auction and serving service was triggered by an internal database update that deleted a rarely changed in-memory object. The service used time-based memory reclamation, which deferred freeing the object's memory until a later time. A defect caused the object to be deleted twice, resulting in a crash when the deferred deletion executed. The production validation systems initially accepted the update because the deletion had been scheduled but had not yet executed. The validation process did not wait for the deferred deletion window to pass before authorizing distribution, so the faulty update reached the production servers worldwide before the delayed crashes became visible. Test coverage for this rarely changed portion of the data model was also incomplete.",
+    "fix": [
+      "Engineers used a newly generated internal database snapshot that had been tested and confirmed not to trigger the bug to restore service in one data center.",
+      "By 18:30 UTC, the first data center had recovered enough capacity to process approximately 50% of its normal direct transaction volume.",
+      "Engineers worked on generating new database snapshots for the other five data centers to support recovery.",
+      "A second engineering team identified the double-free bug and created and tested a software fix by 18:47 UTC.",
+      "The team initiated a worldwide deployment of the updated ad auction and serving service containing the fix.",
+      "The global deployment failed because the deployment infrastructure lacked sufficient capacity for a simultaneous rollout across all six data centers.",
+      "Engineers converted the failed global deployment into a rolling deployment.",
+      "By 20:00 UTC, the updated service was deployed and processing 100% of direct transaction traffic worldwide.",
+      "The remaining external exchange supply traffic was restored over approximately the following hour."
+    ],
+    "prevention": [
+      "Planned: Modify production validation systems to approve data changes only after the deferred memory deletion window has passed, allowing delayed failures to become visible before distribution.",
+      "Planned: Add a second validation tier that tests incoming data changes under real production request traffic conditions.",
+      "Planned: Require data changes to pass both validation tiers before distribution to the rest of the production systems.",
+      "Planned: Review and expand software testing to cover rarely changed data model components and edge cases that existing tests missed.",
+      "Planned: Introduce additional types of tests to improve detection of defects that occur under unusual conditions.",
+      "Planned: Re-engineer emergency recovery procedures to provide a clear, predictable way to return production systems to a known-good state after problematic data or configuration changes.",
+      "Planned: Improve and test deployment infrastructure to ensure it can handle emergency deployments across all production data centers."
+    ],
+    "changes": "A software fix for the double-free bug was created, tested, and deployed in an updated version of the ad auction and serving service. The exact code modification is not specified in the post-mortem. Additional changes to validation configuration, testing, recovery procedures, and deployment infrastructure were proposed but were not reported as completed."
+  }
+}

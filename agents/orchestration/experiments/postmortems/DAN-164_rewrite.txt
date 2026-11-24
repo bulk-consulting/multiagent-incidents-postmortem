@@ -1,0 +1,127 @@
+Below is a test case built from an incident post-mortem. I need the analyst-facing parts REWRITTEN so that a
+search engine cannot find the original post-mortem just by matching words. Imagine a DIFFERENT company had a
+similar incident and its on-call analyst describes it in their own words.
+
+Rewrite only these parts: "visible_during_incident", "complete_message" and "conversation".
+Copy "discovered_later" exactly as it is, without changes.
+
+Rules for the rewrite:
+- Keep the same facts and their meaning: the kind of failure, the kind of service, the trigger (or the lack of
+  one), the timing pattern (sudden or gradual, "a few days after", "right after a deploy") and the scope.
+- Do NOT reuse distinctive wording from the original: rephrase every sentence. Avoid copying phrases of 4 or
+  more words from the input.
+- Do NOT copy exact error messages, status texts or log lines: describe them in other words
+  (e.g. "the API rejects the request saying an input is invalid" instead of the exact message).
+- Do NOT copy exact numbers, versions, percentages, counts or times: use approximate or relative values
+  ("most of the network" instead of "85%", "in the early evening" instead of "17:57 UTC",
+  "a few hundred servers" instead of "900").
+- Do NOT use internal names of components, tools, settings, commands or endpoints from the input
+  (e.g. "Tenant Service", "pg_basebackup", "max_wal_senders", "/organizations"): use plain descriptions
+  ("the service that checks permissions", "the tool we use to copy the database to the replica").
+- Generic technology names are fine only when an analyst would naturally say them (Redis, Kubernetes, Postgres),
+  but prefer plain words when the technology is not essential to the symptom.
+- Change the business domain only if it would identify the company (e.g. an ad exchange can stay "our ad
+  serving platform"; a famous product name must go).
+- Keep the analyst's point of view ("our", "we"), during the incident: no root cause, no fix, no lessons,
+  no dates.
+- "complete_message": 2 to 4 sentences. "conversation": exactly 5 items in the same order, the first message
+  short and incomplete (one symptom, no service name, no trigger).
+- Return only JSON with the same keys and structure as the input. If you can create files, create a
+  downloadable file named DAN-164_rewrite.json; otherwise return only the JSON text, which will be saved as DAN-164_rewrite.json.
+
+TEST CASE (DAN-164):
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Our hosted code collaboration service is unavailable.",
+      "Users cannot access their hosted code repositories or wikis through the service.",
+      "Earlier, many users were unable to post comments on issues and merge requests.",
+      "The primary PostgreSQL database experienced a significant increase in load.",
+      "The PostgreSQL standby began falling behind the primary, and replication stopped.",
+      "The standby could no longer retrieve required WAL segments from the primary.",
+      "Repeated pg_basebackup attempts appeared to hang without meaningful output.",
+      "One pg_basebackup attempt reported insufficient available replication connections.",
+      "After changing PostgreSQL settings, the database initially refused to restart because too many semaphores were being created."
+    ],
+    "affected_service": "Our hosted code collaboration service, backed by a primary PostgreSQL database.",
+    "dependent_impact": "Users cannot access hosted repositories and wikis through the service, or perform normal project management activities such as commenting on issues and merge requests.",
+    "scope": "Users of our hosted service are affected. Self-managed deployments and separately hosted customer instances are not affected. The exact number of affected users is not yet known.",
+    "timing": "Database load increased around 19:00 UTC. The standby began experiencing replication problems around 23:00 UTC. The major service outage occurred around 23:30 UTC.",
+    "trigger": "Immediately before the outage, engineers were manually rebuilding the PostgreSQL standby after replication stopped. The work involved clearing the standby data directory, attempting pg_basebackup, and changing PostgreSQL replication and connection settings.",
+    "environment": [
+      "PostgreSQL 9.6",
+      "One primary PostgreSQL server and one hot-standby secondary",
+      "PostgreSQL streaming replication",
+      "WAL segments",
+      "pg_basebackup",
+      "LVM snapshots",
+      "A staging environment containing a copy of the production database",
+      "Cloud-hosted database servers"
+    ],
+    "already_tried": [
+      "Investigated the increase in database load, initially suspected to involve spam. Getting the load under control took several hours.",
+      "Cleared the standby PostgreSQL data directory and attempted to rebuild it using pg_basebackup. The command appeared to hang without useful output.",
+      "Retried pg_basebackup multiple times. One attempt reported that the primary did not have enough available replication connections.",
+      "Increased max_wal_senders from 3 to 32. PostgreSQL then refused to restart, reporting that too many semaphores were being created.",
+      "Reduced max_connections from 8000 to 2000. PostgreSQL restarted successfully, but pg_basebackup still did not begin transferring data.",
+      "Used strace to investigate pg_basebackup. It showed the process waiting in a poll call but did not reveal a clear problem.",
+      "After the major outage began, checked the usual logical database backups. The object storage backup bucket was empty, and no recent backup could be found.",
+      "Asked other engineers for help and began reviewing available recovery options."
+    ],
+    "misleading_signals": [
+      "The increased database load was initially suspected to be caused by spam.",
+      "pg_basebackup appeared to be stuck because it produced no meaningful output, even with verbose logging.",
+      "strace showed pg_basebackup waiting in a poll call without providing an explanation.",
+      "The team suspected that previous pg_basebackup attempts might have left files in the standby data directory."
+    ]
+  },
+  "complete_message": "Our hosted code collaboration service is currently unavailable, and users cannot access their repositories or wikis; earlier, many users were also unable to post comments on issues and merge requests. Database load increased around 19:00 UTC, and by approximately 23:00 UTC our PostgreSQL standby had fallen behind and replication had stopped. The major outage began around 23:30 UTC, following manual attempts to rebuild the standby using pg_basebackup and changes to PostgreSQL connection settings. The impact appears limited to our hosted service, while self-managed and separately hosted instances remain unaffected.",
+  "conversation": [
+    {
+      "analyst": "Users are reporting that they can't access their repositories."
+    },
+    {
+      "if_asked_about": "the affected service",
+      "analyst": "It's our hosted code collaboration service. We use PostgreSQL with one primary database server and one hot-standby secondary."
+    },
+    {
+      "if_asked_about": "what changed right before / the trigger",
+      "analyst": "We were manually rebuilding the PostgreSQL standby because replication had stopped. We attempted pg_basebackup and changed max_wal_senders and max_connections during troubleshooting."
+    },
+    {
+      "if_asked_about": "when it started and who is affected",
+      "analyst": "Database load increased around 19:00 UTC, replication problems appeared around 23:00 UTC, and the major outage began around 23:30 UTC. Users of our hosted service are affected, but self-managed and separately hosted instances are not."
+    },
+    {
+      "if_asked_about": "the errors or symptoms seen",
+      "analyst": "Many users couldn't post comments on issues or merge requests, and now the hosted service is unavailable. The standby fell behind the primary and replication stopped because required WAL segments were no longer available. During recovery attempts, pg_basebackup appeared to hang, one attempt reported insufficient replication connections, and PostgreSQL initially refused to restart because of excessive semaphore creation."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "During manual recovery of the PostgreSQL standby, an engineer accidentally executed a data-directory removal operation on the primary database server instead of the secondary. The operation was stopped within seconds, but approximately 300 GB of production database data had already been removed. The repair work had been necessary because increased database load caused replication lag, and WAL segments required by the standby had already been removed from the primary without WAL archiving. The increased load involved both spam activity and a background process attempting to remove an employee account and its associated data after an erroneous abuse report. Recovery was severely complicated by unavailable backups: the logical backup job was using pg_dump 9.2 against PostgreSQL 9.6, causing the backups to fail. Failure notifications were rejected because the automated emails lacked the required DMARC configuration, leaving the team unaware of the problem. Database disk snapshots were not enabled, and the secondary had already been cleared during the replication repair. As a result, the team had to recover from an older LVM snapshot in staging, losing subsequent database modifications.",
+    "fix": [
+      "Selected the most recent usable LVM snapshot, taken around 17:20 UTC, to minimize data loss.",
+      "Copied the PostgreSQL data directory from the staging environment back to production. The transfer took approximately 18 hours because of slow storage.",
+      "Restored the production database from the staging copy, initially without webhooks.",
+      "Created a separate staging database from the original LVM snapshot to recover webhook records that had been removed from the normal staging copy.",
+      "Exported the webhook table using SQL and imported it into the restored production database.",
+      "Included advancing database sequences by 100000 in the recovery procedure to prevent reuse of identifiers assigned before the outage.",
+      "Gradually re-enabled the hosted service and confirmed that it was operating as expected."
+    ],
+    "prevention": [
+      "Increased LVM snapshot frequency from once every 24 hours to once every hour.",
+      "Planned clearer shell prompts to distinguish production and standby hosts and their environments.",
+      "Planned Prometheus monitoring for database backups and a public backup monitoring dashboard.",
+      "Planned automated testing of PostgreSQL backup restoration.",
+      "Planned improvements to PostgreSQL replication documentation and recovery runbooks.",
+      "Planned to assign explicit ownership for data durability and recovery procedures.",
+      "Planned to investigate point-in-time recovery and continuous PostgreSQL WAL archiving.",
+      "Planned to investigate database disk snapshots for production servers.",
+      "Planned to investigate additional backup mechanisms and streaming database restoration.",
+      "Planned to recover production replicas and introduce additional standby servers with connection pooling or load balancing.",
+      "Planned improvements to abuse reporting and account removal procedures to reduce the risk of accidentally scheduling legitimate accounts for deletion.",
+      "Planned improvements to the staging infrastructure and to recovery procedures across the broader service infrastructure."
+    ],
+    "changes": "During incident troubleshooting, PostgreSQL max_wal_senders was increased from 3 to 32, and max_connections was reduced from 8000 to 2000. Following the incident, LVM snapshot frequency was increased from daily to hourly. Additional monitoring, replication, backup, recovery, and infrastructure changes were proposed or under investigation, but the post-mortem does not establish that all of them were completed."
+  }
+}

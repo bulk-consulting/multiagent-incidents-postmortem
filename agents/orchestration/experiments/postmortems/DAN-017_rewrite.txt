@@ -1,0 +1,116 @@
+Below is a test case built from an incident post-mortem. I need the analyst-facing parts REWRITTEN so that a
+search engine cannot find the original post-mortem just by matching words. Imagine a DIFFERENT company had a
+similar incident and its on-call analyst describes it in their own words.
+
+Rewrite only these parts: "visible_during_incident", "complete_message" and "conversation".
+Copy "discovered_later" exactly as it is, without changes.
+
+Rules for the rewrite:
+- Keep the same facts and their meaning: the kind of failure, the kind of service, the trigger (or the lack of
+  one), the timing pattern (sudden or gradual, "a few days after", "right after a deploy") and the scope.
+- Do NOT reuse distinctive wording from the original: rephrase every sentence. Avoid copying phrases of 4 or
+  more words from the input.
+- Do NOT copy exact error messages, status texts or log lines: describe them in other words
+  (e.g. "the API rejects the request saying an input is invalid" instead of the exact message).
+- Do NOT copy exact numbers, versions, percentages, counts or times: use approximate or relative values
+  ("most of the network" instead of "85%", "in the early evening" instead of "17:57 UTC",
+  "a few hundred servers" instead of "900").
+- Do NOT use internal names of components, tools, settings, commands or endpoints from the input
+  (e.g. "Tenant Service", "pg_basebackup", "max_wal_senders", "/organizations"): use plain descriptions
+  ("the service that checks permissions", "the tool we use to copy the database to the replica").
+- Generic technology names are fine only when an analyst would naturally say them (Redis, Kubernetes, Postgres),
+  but prefer plain words when the technology is not essential to the symptom.
+- Change the business domain only if it would identify the company (e.g. an ad exchange can stay "our ad
+  serving platform"; a famous product name must go).
+- Keep the analyst's point of view ("our", "we"), during the incident: no root cause, no fix, no lessons,
+  no dates.
+- "complete_message": 2 to 4 sentences. "conversation": exactly 5 items in the same order, the first message
+  short and incomplete (one symptom, no service name, no trigger).
+- Return only JSON with the same keys and structure as the input. If you can create files, create a
+  downloadable file named DAN-017_rewrite.json; otherwise return only the JSON text, which will be saved as DAN-017_rewrite.json.
+
+TEST CASE (DAN-017):
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Our distributed key-value store is returning HTTP 401 Unauthorized errors for get, put, delete, and list operations instead of completing requests.",
+      "Applications that depend on our key-value store are experiencing elevated error rates or becoming unavailable.",
+      "Our static site hosting service is returning HTTP 500 errors for hosted applications and new deployments.",
+      "Unauthenticated users cannot log in through our access control service, and applications requiring JWT certificate validation or device posture checks are failing.",
+      "Some users cannot register new devices or connect to resources protected by device posture or session timeout policies.",
+      "Our image management API is returning errors, although existing image delivery continues working.",
+      "Single-file cache purges are failing in some data centers.",
+      "Uploading or editing edge compute applications through the dashboard, command-line tooling, or API is failing.",
+      "Our AI request proxy service cannot proxy requests.",
+      "Our traffic waiting room service cannot access its configurations and is failing open.",
+      "Our browser verification widget cannot load its JavaScript entry point, and some security challenge pages are blocking users.",
+      "Parts of our administrative dashboard are returning errors.",
+      "Our normal deployment rollback tooling and CI authentication mechanisms are unavailable."
+    ],
+    "affected_service": "Our globally distributed key-value storage service",
+    "dependent_impact": "Multiple services that depend on our key-value store are affected, including static site hosting, access control and authentication, secure network connectivity, image management, single-file cache purging, edge application deployment, AI request proxying, traffic waiting rooms, browser verification, security challenge pages, and parts of our administrative dashboard.",
+    "scope": "Multiple customer-facing services are affected. Applications using our key-value store are failing, while edge applications that do not use it remain operational. Existing image delivery is unaffected, and some data centers with locally cached configuration can still perform single-file cache purges. Some existing authenticated sessions and previously enrolled devices remain functional, depending on their policies. We do not have a specific affected-user percentage or regional breakdown.",
+    "timing": "We started a progressive deployment at 18:58 UTC. At approximately 19:40 UTC, alerts fired after a portion of traffic was routed to an unexpected destination. At 19:54 UTC, when we attempted to roll back, failures rapidly expanded across services.",
+    "trigger": "We were progressively deploying a new build of our key-value store using an internal deployment API. After continuing the rollout, we observed traffic being routed to an unexpected destination and decided to roll back. The rollback attempt coincided with failures spreading at scale.",
+    "environment": [
+      "Globally distributed key-value storage",
+      "Staging and production deployment environments",
+      "Progressive deployment tooling and API",
+      "Edge compute applications",
+      "REST API",
+      "HTTP",
+      "JWT authentication and certificate validation",
+      "Device posture verification",
+      "Continuous integration (CI) system",
+      "Internal administrative dashboard",
+      "Locally cached configuration data"
+    ],
+    "already_tried": [
+      "We attempted to roll back the deployment using the progressive deployment API at 19:54 UTC, but traffic began failing at scale instead of recovering.",
+      "We attempted to use our normal internal rollback mechanisms, but the administrative dashboard and authentication services were also affected.",
+      "Our usual CI-based rollback process was blocked because authentication failures prevented access to the secrets required for the rollback."
+    ],
+    "misleading_signals": []
+  },
+  "complete_message": "Our distributed key-value storage service is returning HTTP 401 Unauthorized errors, and multiple dependent services are failing, including static site hosting with HTTP 500 errors, authentication, and edge application deployments. The widespread failures started around 19:54 UTC, following a progressive deployment that began at 18:58 UTC and generated routing alerts around 19:40 UTC. We attempted to roll back the deployment, but failures spread across services, and our normal rollback tooling is also affected. Multiple customer-facing services are impacted, although some existing sessions and applications that do not depend on the key-value store remain operational.",
+  "conversation": [
+    {
+      "analyst": "We're seeing a sudden spike in HTTP 401 errors, and several customer-facing features are failing."
+    },
+    {
+      "if_asked_about": "the affected service",
+      "analyst": "Our globally distributed key-value storage service is returning HTTP 401 Unauthorized errors. Several other services depend on it, including our static site hosting, authentication, and edge application deployment services."
+    },
+    {
+      "if_asked_about": "what changed right before / the trigger",
+      "analyst": "We started progressively deploying a new build of the key-value store. After continuing the rollout, some traffic went to an unexpected destination and alerts fired, so we attempted to roll back, but the failures became much more widespread."
+    },
+    {
+      "if_asked_about": "when it started and who is affected",
+      "analyst": "We first saw routing-related alerts around 19:40 UTC, and widespread failures started around 19:54 UTC. Multiple customer-facing services are affected, but applications that don't use our key-value store and some existing authenticated sessions are still working."
+    },
+    {
+      "if_asked_about": "the errors or symptoms seen",
+      "analyst": "Our key-value store is returning HTTP 401 errors for get, put, delete, and list requests. Our static site hosting service is returning HTTP 500 errors, users are having authentication problems, edge application uploads are failing, and some other dependent services are unavailable. Our usual rollback tools are also inaccessible because of authentication failures."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "A latent bug in our progressive deployment tool caused its release-listing API to return builds from both staging and production instead of restricting results to the requested environment. During the production rollout, the deployment automation incorrectly selected a script deployed to the staging account rather than the intended production-account build. The production routing configuration consequently pointed to a version that was not running in the production environment and was not authorized for production access. Requests to the key-value store were effectively routed into a black hole and returned HTTP 401 errors, causing failures across dependent services. Recovery was further delayed because our dashboard and CI authentication mechanisms themselves depended on the unavailable key-value store, preventing the normal rollback process from accessing the necessary secrets.",
+    "fix": [
+      "Engineers used an emergency break-glass mechanism to bypass the unavailable normal deployment tooling.",
+      "At approximately 20:15 UTC, engineers manually changed production deployment routes to point back to the previously deployed, known-good build, restoring the majority of traffic to a working version.",
+      "By approximately 20:29 UTC, key-value store error rates had returned to pre-incident levels, and dependent services recovered within the following minute.",
+      "The incident was fully resolved by approximately 20:31 UTC."
+    ],
+    "prevention": [
+      "Plan to move key-value store deployments onto standardized deployment models with automated impact detection and recovery.",
+      "Ensure rollback mechanisms always have access to a known-good deployment identifier.",
+      "Make rollback procedures work independently of the access control service so they remain usable during authentication outages.",
+      "Introduce deployment pre-checks that validate input parameters and prevent version mismatches from reaching production.",
+      "Harden progressive deployment tooling for multi-tenant environments rather than relying on single-tenant assumptions.",
+      "Add validation to progressive deployment scripts to verify that each selected deployment belongs to the intended environment, such as staging or production.",
+      "Improve deployment tooling and product-level dependency controls to reduce the impact of failures in shared infrastructure."
+    ],
+    "changes": "During recovery, engineers manually changed the production routing configuration from the incorrect deployment target to the previous known-good production build using emergency access mechanisms. The post-mortem describes additional deployment-tool validation, rollback improvements, and deployment standardization as planned follow-up work, not as changes already completed."
+  }
+}

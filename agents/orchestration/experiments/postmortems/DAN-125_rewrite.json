@@ -1,0 +1,90 @@
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "CPU on our hosted Postgres instance has hit the ceiling and queries are struggling.",
+      "The browser interface is down: people are locked out of their accounts, job output and help pages.",
+      "The traffic distributor for the browser interface is getting server-side failures from its availability probes, which report an inability to connect to the database.",
+      "Our web workers are being taken out of rotation as unhealthy.",
+      "Fresh machines keep spinning up only to fail readiness probes and get shut down before serving traffic.",
+      "The public programmatic interface and the interface used by build workers are also seeing probe failures, although their machines have not been taken out of rotation.",
+      "Jobs continue to run and results are still being posted back to code reviews.",
+      "Some browser traffic is getting through again, but latency is high and not every request completes.",
+      "The engineer covering the shift slept through the incident because the paging service never called; we eventually noticed email and chat notifications."
+    ],
+    "affected_service": "The browser-based interface and public site for our continuous integration offering",
+    "dependent_impact": "People are locked out of accounts, job output and help pages; compilation and test jobs still run and review results still get posted.",
+    "scope": "Anyone trying to sign in or retrieve job output or help pages is impacted; we have no regional breakdown or estimate of the affected share of customers.",
+    "timing": "Database responsiveness deteriorated in the late afternoon UTC; roughly an hour and a half afterward the site became largely unreachable. We noticed the incident several hours into the web disruption.",
+    "trigger": "To lower hosting expenses, we recently moved our hosted Postgres deployment, which spans availability zones, onto a lower-capacity machine class. We also replaced local connection pools on each app machine with a shared pooling host.",
+    "environment": [
+      "Hosted Postgres deployment spanning availability zones",
+      "Another relational datastore",
+      "Shared database connection-pool host",
+      "Redis",
+      "Memcached",
+      "Ruby web application built with Rails",
+      "Separate traffic distributors for browser requests, public REST calls and build-worker requests",
+      "Automatically managed VM fleets",
+      "Web availability probes at sub-minute intervals",
+      "Hosted VMs booting from prebuilt images",
+      "Monitoring for hosted infrastructure",
+      "Paging service with escalation for duty engineers"
+    ],
+    "already_tried": [
+      "We tried moving Postgres to a higher-capacity tier via the hosting portal, but the provider's authorization subsystem prevented the change.",
+      "The vendor's service-health site corroborated the disruption, so we held off on increasing database capacity.",
+      "We tried booting a validation VM from a fresh image, but the portal failed internally when we selected the machine's permissions role.",
+      "Once the vendor's authorization trouble eased, we tried provisioning more machines, only to encounter our account's quota for provisioning requests."
+    ],
+    "misleading_signals": [
+      "The lower-capacity database looked healthy just after the switch.",
+      "Metrics looked reasonable during our early checks and the period we thought was the start of heavy demand, but we had not exercised the setup at maximum production traffic."
+    ]
+  },
+  "complete_message": "Our CI site's browser interface has stopped serving customers: accounts, job output and help pages are inaccessible, while jobs and review-result reporting continue normally. Postgres CPU hit its ceiling in the late afternoon UTC, followed roughly an hour and a half later by a major loss of web access. Not long ago we moved the hosted database to a lower-capacity tier and consolidated the app machines' connection pools onto a shared host.",
+  "conversation": [
+    {
+      "analyst": "People are locked out of their accounts."
+    },
+    {
+      "if_asked_about": "which part of the offering is impacted",
+      "analyst": "The browser side of our CI offering is unavailable, including job output and help pages. Jobs themselves keep running and review results are still posted."
+    },
+    {
+      "if_asked_about": "recent modifications or possible initiating event",
+      "analyst": "We cut hosting expenses by moving our hosted Postgres deployment onto a less powerful tier recently. Instead of maintaining a pool on each app machine, we now share one pooling host."
+    },
+    {
+      "if_asked_about": "onset and breadth of disruption",
+      "analyst": "Postgres began slowing in the late afternoon UTC, with the site becoming largely unreachable roughly an hour and a half afterward. Account access, job output and help pages are unavailable to everyone trying to reach them; we have no evidence of a regional boundary."
+    },
+    {
+      "if_asked_about": "observed failures and diagnostic signals",
+      "analyst": "The database has no CPU headroom left. Web availability probes report server-side failures because they cannot connect to the database; the traffic distributor takes affected machines out of rotation, and fresh machines never pass their probes."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "The smaller managed PostgreSQL instance could not handle the production workload during peak traffic, causing CPU saturation and database performance degradation. The application's health-check endpoint depended on successful connections to both SQL databases, Redis, and Memcached. When database connections failed, the health checks returned HTTP 500 errors, causing the dashboard load balancer to remove its application servers. Auto Scaling Groups launched replacement servers, but the server bootstrap process attempted to retrieve the currently deployed code revision from an endpoint on the unavailable website. Because that endpoint could not be reached, replacement servers ran the older application version embedded in their machine images. That version's health check referenced a database that had already been decommissioned, so replacement servers also failed health checks and could not join the load balancer. The resulting repeated instance launches and terminations eventually exhausted cloud instance request limits. Recovery was further delayed by cloud provider access-management issues and an on-call alerting configuration that failed to wake the team. The centralized pgbouncer configuration was reverted during recovery, but the post-mortem did not establish it as a confirmed root cause.",
+    "fix": [
+      "Temporarily reassigned servers from the build agent API load balancer to the dashboard load balancer, restoring partial website availability. Requests remained slow because the database was still overloaded.",
+      "Waited until the cloud provider's access-management problems subsided and the instance request limits allowed additional launches.",
+      "Upgraded the managed PostgreSQL database to a larger instance type capable of handling the workload.",
+      "Built and deployed updated server images that no longer depended on the unavailable website to determine the current application revision.",
+      "Changed the server bootstrap process to retrieve the latest deployed revision from a file stored in object storage.",
+      "Removed the centralized pgbouncer server and restored the previously working per-host pgbouncer configuration.",
+      "Used the cloud provider's command-line interface for the final database and server changes because the web console was still experiencing problems."
+    ],
+    "prevention": [
+      "Changed the application health-check endpoint so it returns success when the application can be reached, without requiring successful database or dependent-service connections.",
+      "Considered introducing a separate external monitoring health check that verifies database and dependent-service connectivity.",
+      "Changed server initialization to retrieve the current deployed revision from object storage rather than the production website.",
+      "Planned load testing for significant infrastructure changes, including database instance changes and connection-pooling architecture.",
+      "Identified the need to monitor infrastructure credits and costs more closely to avoid rushed capacity changes.",
+      "Changed Auto Scaling Groups to use virtual-machine health checks and fixed desired instance counts during the high-churn situation.",
+      "Identified the ability to suspend and resume automatic scaling processes as an additional option for managing future high-churn incidents.",
+      "Manually tested on-call team members' notification settings to verify that phone calls were delivered correctly.",
+      "Considered regular company-wide alerting tests and automatic phone calls when engineers begin their on-call shifts."
+    ],
+    "changes": "Database: upgraded the managed PostgreSQL instance to a larger capacity. Connection pooling: reverted from centralized pgbouncer to per-host pgbouncer. Application health checks: removed database and dependent-service connectivity checks from the primary load-balancer endpoint. Server bootstrap: replaced the production website's deployed-revision endpoint with a revision file stored in object storage. Server images: built and deployed updated images supporting the new bootstrap process. Auto scaling: switched to virtual-machine health checks and locked desired instance counts during the incident. Alerting: corrected and manually tested on-call phone notification settings."
+  }
+}

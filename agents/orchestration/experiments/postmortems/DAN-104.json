@@ -1,0 +1,72 @@
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Our object storage service is unable to serve GET, LIST, PUT, and DELETE requests.",
+      "The metadata index and storage placement subsystems are unavailable.",
+      "Other services that depend on our object storage service are experiencing disruptions.",
+      "We cannot update individual service statuses through our service health dashboard administration console."
+    ],
+    "affected_service": "Our object storage service",
+    "dependent_impact": "The object storage management console, new compute instance launches, block-storage volumes requiring data from object storage snapshots, and our serverless computing service are affected. Our service health dashboard administration console is also unavailable for individual service status updates.",
+    "scope": "Our eastern US region (Northern Virginia). Object storage requests across the region are affected, along with regional services that depend on object storage. The percentage of affected customers is not specified.",
+    "timing": "The disruption began on the morning of the incident, following an operational command executed at 9:37 AM PST. The interruption was sudden.",
+    "trigger": "At 9:37 AM PST, an authorized team member executed a command from an established playbook intended to remove a small number of servers from a subsystem used by our object storage billing process.",
+    "environment": [
+      "Object storage service",
+      "GET, LIST, PUT, and DELETE APIs",
+      "Metadata index subsystem",
+      "Storage placement subsystem",
+      "Object storage billing subsystem",
+      "Compute instance service",
+      "Block storage service",
+      "Serverless computing service",
+      "Service health dashboard"
+    ],
+    "already_tried": [
+      "We used our public status feed and the service health dashboard banner to communicate the incident because individual service status updates were unavailable through the dashboard administration console."
+    ],
+    "misleading_signals": []
+  },
+  "complete_message": "Our object storage service is failing GET, LIST, PUT, and DELETE requests across our eastern US region, with dependent compute, block-storage, and serverless services also affected. The disruption began this morning, shortly after 9:37 AM PST. Just before the disruption, one of our engineers executed a standard playbook command intended to remove a small number of servers from a subsystem used by our billing process.",
+  "conversation": [
+    {
+      "analyst": "We're seeing widespread request failures across one of our regions."
+    },
+    {
+      "if_asked_about": "the affected service",
+      "analyst": "Our object storage service is affected. Other services that depend on it are also experiencing problems."
+    },
+    {
+      "if_asked_about": "what changed right before / the trigger",
+      "analyst": "One of our engineers executed a command from our standard playbook to remove a small number of servers from a subsystem used by our billing process. We were investigating why the billing system was progressing more slowly than expected."
+    },
+    {
+      "if_asked_about": "when it started and who is affected",
+      "analyst": "It started this morning, shortly after 9:37 AM PST. The disruption affects our eastern US region, including customers using object storage and services that depend on it."
+    },
+    {
+      "if_asked_about": "the errors or symptoms seen",
+      "analyst": "GET, LIST, PUT, and DELETE requests are failing. We're also seeing problems with new compute instance launches, block-storage volumes that need data from object storage snapshots, serverless computing, and the object storage console. We can't update individual service statuses through our health dashboard administration console either."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "An authorized team member entered an incorrect input when executing a standard operational command intended to remove a small number of servers from a subsystem used by the object storage billing process. The incorrect input caused a much larger set of servers to be removed than intended, including servers supporting the metadata index and storage placement subsystems. The index subsystem manages object metadata and location information and is required for GET, LIST, PUT, and DELETE requests. The placement subsystem allocates storage for new objects during PUT requests and depends on the index subsystem. The loss of significant capacity forced both subsystems to undergo full restarts. Because of the service's growth, restarting the subsystems and performing metadata integrity checks took longer than expected.",
+    "fix": [
+      "Restarted the metadata index subsystem and performed the necessary safety checks to validate metadata integrity.",
+      "By 12:26 PM PST, the index subsystem had recovered enough capacity to begin serving GET, LIST, and DELETE requests.",
+      "By 1:18 PM PST, the index subsystem had fully recovered, and GET, LIST, and DELETE APIs were functioning normally.",
+      "Recovered the storage placement subsystem after the index subsystem became functional.",
+      "By 1:54 PM PST, the placement subsystem had completed recovery, restoring PUT requests and normal object storage operations.",
+      "Dependent services began recovering after object storage APIs became available. Some required additional time to process backlogs accumulated during the disruption."
+    ],
+    "prevention": [
+      "Modified the operational tool to remove capacity more slowly.",
+      "Added safeguards to prevent capacity removal when it would bring a subsystem below its minimum required capacity.",
+      "Initiated an audit of other operational tools to ensure similar safety checks exist.",
+      "Reprioritized partitioning of the metadata index subsystem into smaller cells to reduce the impact of failures and improve recovery times.",
+      "Planned further improvements to the recovery time of key object storage subsystems.",
+      "Changed the service health dashboard administration console to operate across multiple regions so that status updates would not depend on a single affected region."
+    ],
+    "changes": "The capacity-removal tool was modified to remove servers more slowly and enforce minimum subsystem capacity safeguards. The service health dashboard administration console was changed to run across multiple regions. Additional partitioning of the metadata index subsystem into smaller cells was reprioritized for implementation."
+  }
+}

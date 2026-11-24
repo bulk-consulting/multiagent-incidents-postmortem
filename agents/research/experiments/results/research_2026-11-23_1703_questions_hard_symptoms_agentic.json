@@ -1,0 +1,4122 @@
+[
+ {
+  "id": "q-020",
+  "type": "sintoma_pos_4-5",
+  "expected": [
+   "DAN-164"
+  ],
+  "symptoms": [
+   "production database accidentally deleted"
+  ],
+  "expected_passages": {
+   "DAN-164": [
+    {
+     "source": "llm",
+     "section": "Root cause analysis",
+     "fix_title": false,
+     "text": "## Root cause analysis\n\nTo analyse the root cause of these problems we'll use a technique called \"The 5 Whys\". We'll break up the incident into 2 main problems: GitLab.com being down, and it taking a long time to restore GitLab.com.\n\n**Problem 1:** GitLab.com was down for about 18 hours.\n\n1. **Why was GitLab.com down?** - The database directory of the primary database\nwas removed by accident, instead of removing the database directory of the\nsecondary.\n\n2. **Why was the database directory removed?** - Database replication stopped,\nrequiring the secondary to be reset/rebuilt. This in turn requires that the\nPostgreSQL data directory is empty. Restoring this required manual work as\nthis was not automated, nor was it documented properly.\n\n3. **Why did replication stop?** - A spike in database load caused the database\nreplication process to stop. This was due to the primary removing WAL\nsegments before the secondary could replicate them.\n\n4. **Why did the database load increase?** - This was caused by two events\nhappening at the same time: an increase in spam, and a process trying to\nremove a GitLab employee and their associated data.\n\n5. **Why was a GitLab employee scheduled for removal?** - The employee was\nreported for abuse by a troll. The current system used for responding to\nabuse reports makes it too easy to overlook the details of those reported. As\na result the employee was accidentally scheduled for removal.\n\n**Problem 2:** restoring GitLab.com took over 18 hours.\n\n1. **Why did restoring GitLab.com take so long?** - GitLab.com had to be\nrestored using a copy of the staging database. This was hosted on slower\nAzure VMs in a different region."
+    },
+    {
+     "source": "cause",
+     "section": "Root cause analysis",
+     "fix_title": false,
+     "text": "## Root cause analysis\n\n2. **Why was the staging database needed for restoring GitLab.com?** - Azure\ndisk snapshots were not enabled for the database servers, and the periodic\ndatabase backups using `pg_dump` were not working.\n\n3. **Why could we not fail over to the secondary database host?** - The\nsecondary database's data was wiped as part of restoring database\nreplication. As such it could not be used for disaster recovery.\n\n4. **Why could we not use the standard backup procedure?** - The standard backup\nprocedure uses `pg_dump` to perform a logical backup of the database. This\nprocedure failed silently because it was using PostgreSQL 9.2, while\nGitLab.com runs on PostgreSQL 9.6.\n\n5. **Why did the backup procedure fail silently?** - Notifications were\nsent upon failure, but because of the Emails being rejected there was no\nindication of failure. The sender was an automated process with no other\nmeans to report any errors.\n\n6. **Why were the Emails rejected?** - Emails were rejected by the receiving\nmail server due to the Emails not being signed using DMARC.\n\n7. **Why were Azure disk snapshots not enabled?** - We assumed our other backup\nprocedures were sufficient. Furthermore, restoring these snapshots can take\ndays.\n\n8. **Why was the backup procedure not tested on a regular basis?** - Because\nthere was no ownership, as a result nobody was responsible for testing this\nprocedure."
+    },
+    {
+     "source": "fix",
+     "section": "Improving recovery procedures",
+     "fix_title": true,
+     "text": "## Improving recovery procedures\n\nWe are currently working on fixing and improving our various recovery procedures. Work is split across the following issues:\n\n1. Overview of status of all issues listed in this blog post (#1684)\n\n2. Update PS1 across all hosts to more clearly differentiate between hosts and environments (#1094)\n\n3. Prometheus monitoring for backups (#1095)\n\n4. Set PostgreSQL's max\\_connections to a sane value (#1096)\n\n5. Investigate Point in time recovery & continuous archiving for PostgreSQL (#1097)\n\n6. Hourly LVM snapshots of the production databases (#1098)\n\n7. Azure disk snapshots of production databases (#1099)\n\n8. Move staging to the ARM environment (#1100)\n\n9. Recover production replica(s) (#1101)\n\n10. Automated testing of recovering PostgreSQL database backups (#1102)\n\n11. Improve PostgreSQL replication documentation/runbooks (#1103)\n\n12. Investigate pgbarman for creating PostgreSQL backups (#1105)\n\n13. Investigate using WAL-E as a means of Database Backup and Realtime Replication (#494)\n\n14. Build Streaming Database Restore\n\n15. Assign an owner for data durability\n\nWe are also working on setting up multiple secondaries and balancing the load amongst these hosts. More information on this can be found at:\n\n- Bundle pgpool-II 3.6.1 (!1251)\n\n- Connection pooling/load balancing for PostgreSQL (#259)\n\nOur main focus is to improve disaster recovery, and making it more obvious as to\nwhat host you're using; instead of preventing production engineers from running\ncertain commands. For example, one could alias `rm` to something safer but in\ndoing so would only protect themselves against accidentally running `rm -rf /important-data`, not against disk corruption or any of the many other ways you\ncan lose data."
+    },
+    {
+     "source": "fix",
+     "section": "Improving recovery procedures",
+     "fix_title": true,
+     "text": "## Improving recovery procedures\n\nAn ideal environment is one in which you *can* make mistakes but easily and\nquickly recover from them with minimal to no impact. This in turn requires you\nto be able to perform these procedures on a regular basis, and make it easy to\ntest and roll back any changes. For example, we are in the process of setting up\nprocedures that allow developers to test their database migrations. More\ninformation on this can be found in the issue\n\"Tool for executing and reverting Rails migrations on staging\".\n\nWe're also looking into ways to build better recovery procedures for the entire GitLab.com infrastructure, and not just the database; and to ensure there is ownership of these procedures. The issue for this is \"Disaster recovery for everything that is not the database\".\n\nMonitoring wise we also started working on a public backup monitoring dashboard,\nwhich can be found at https://dashboards.gitlab.com/dashboard/db/postgresql-backups.\nCurrently this dashboard only contains data of our `pg_dump` backup procedure,\nbut we aim to add more data over time.\n\nOne might notice that at the moment our `pg_dump` backups are 3 days old.  We\nperform these backups on a secondary as `pg_dump` can put quite a bit of\npressure on a database. Since we are in the process of rebuilding our\nsecondaries the `pg_dump` backup procedure is suspended for the time being. Fear\nnot however, as LVM snapshots are now taken every hour instead of once per 24\nhours. Enabling Azure disk snapshots is something we're still looking into.\n\nFinally, we're looking into improving our abuse reporting and response system. More information regarding this can be found in the issue \"Removal of users by spam should not hard delete\"."
+    },
+    {
+     "source": "similar",
+     "section": "",
+     "fix_title": false,
+     "text": "On January 31st 2017, we experienced a major service outage for one of our products, the online service GitLab.com. The outage was caused by an accidental removal of data from our primary database server.\n\nThis incident caused the GitLab.com service to be unavailable for many hours. We also lost some production data that we were eventually unable to recover. Specifically, we lost modifications to database data such as projects, comments, user accounts, issues and snippets, that took place between 17:20 and 00:00 UTC on January 31. Our best estimate is that it affected roughly 5,000 projects, 5,000 comments and 700 new user accounts. Code repositories or wikis hosted on GitLab.com were unavailable during the outage, but were not affected by the data loss. GitLab Enterprise customers, GitHost customers, and self-managed GitLab CE users were not affected by the outage, or the data loss.\n\nLosing production data is unacceptable. To ensure this does not happen again we're working on multiple improvements to our operations & recovery procedures for GitLab.com. In this article we'll look at what went wrong, what we did to recover, and what we'll do to prevent this from happening in the future.\n\nTo the GitLab.com users whose data we lost and to the people affected by the outage: we're sorry. I apologize personally, as GitLab's CEO, and on behalf of everyone at GitLab."
+    },
+    {
+     "source": "similar",
+     "section": "Improving recovery procedures",
+     "fix_title": true,
+     "text": "## Improving recovery procedures\n\nIf you think there are additional measures we can take to prevent incidents like this please let us know in the comments."
+    }
+   ]
+  },
+  "initial_search_position": 4,
+  "expected_in_new": [
+   "DAN-164"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-043",
+   "DAN-164",
+   "DAN-056",
+   "DAN-146",
+   "DAN-048",
+   "DAN-091",
+   "DAN-186",
+   "DAN-058"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-164"
+  ],
+  "expected_deepened": [
+   "DAN-164"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-043",
+     "query": "root cause fix accidental production database deletion recovery backup",
+     "why": "Closest match: production database deleted by accident during operations; want to see cause and recovery"
+    },
+    {
+     "id": "DAN-164",
+     "query": "root cause fix admin deleted wrong directory database data loss recovery",
+     "why": "Close match: accidental deletion of database files by an admin, data lost; want cause and fix"
+    },
+    {
+     "id": "DAN-056",
+     "query": "root cause fix accidental truncation production database environment variable",
+     "why": "Related match: production database accidentally truncated; want cause and remediation"
+    }
+   ],
+   "new_queries": [
+    "production database accidentally deleted maintenance",
+    "accidental database deletion drop table human error"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-043": [
+    {
+     "section": "What have we learned? Why won’t this happen again?",
+     "similarity": 0.723,
+     "query_source": "llm",
+     "start": "## What have we learned? Why won’t this happen again?  We’ve learned that having a function that deletes your database is too dangerous to have lying around. The problem is, you can never really test the safety mechanisms properly, because testing it would mean pointing a gun at the production datab"
+    },
+    {
+     "section": "",
+     "similarity": 0.628,
+     "query_source": "llm",
+     "start": "Today at around 10:45pm CET, after a couple of glasses of red wine, we deleted the production database by accident 😨. Over 300.00 scoreboards and their associated data were vaporised in an instant.  Thankfully our database is a managed database from DigitalOcean, which means that DigitalOcean automa"
+    },
+    {
+     "section": "Some perspective",
+     "similarity": 0.425,
+     "query_source": "cause",
+     "start": "## Some perspective  Thankfully nobody’s job is at risk due to this disaster. The founder is not going to fire the developer – because they are one and the same person.  Also, this webapp is just a side-project. It’s not the software that’s running a power-plant. Nonetheless, we have many users, som"
+    },
+    {
+     "section": "What happened?",
+     "similarity": 0.323,
+     "query_source": "fix",
+     "start": "## What happened?  It’s tempting to blame the disaster on the couple of glasses of red wine. However, the function that wiped the database was written whilst sober. It’s a function that deletes the local database and creates all the required tables from scratch. This evening, whilst doing some late "
+    }
+   ],
+   "DAN-164": [
+    {
+     "section": "Root cause analysis",
+     "similarity": 0.681,
+     "query_source": "llm",
+     "start": "## Root cause analysis  To analyse the root cause of these problems we'll use a technique called \"The 5 Whys\". We'll break up the incident into 2 main problems: GitLab.com being down, and it taking a long time to restore GitLab.com.  **Problem 1:** GitLab.com was down for about 18 hours.  1. **Why w"
+    },
+    {
+     "section": "",
+     "similarity": 0.566,
+     "query_source": "llm",
+     "start": "On January 31st 2017, we experienced a major service outage for one of our products, the online service GitLab.com. The outage was caused by an accidental removal of data from our primary database server.  This incident caused the GitLab.com service to be unavailable for many hours. We also lost som"
+    },
+    {
+     "section": "Root cause analysis",
+     "similarity": 0.474,
+     "query_source": "cause",
+     "start": "## Root cause analysis  2. **Why was the staging database needed for restoring GitLab.com?** - Azure disk snapshots were not enabled for the database servers, and the periodic database backups using `pg_dump` were not working.  3. **Why could we not fail over to the secondary database host?** - The "
+    },
+    {
+     "section": "Improving recovery procedures",
+     "similarity": 0.447,
+     "query_source": "fix",
+     "start": "## Improving recovery procedures  We are currently working on fixing and improving our various recovery procedures. Work is split across the following issues:  1. Overview of status of all issues listed in this blog post (#1684)  2. Update PS1 across all hosts to more clearly differentiate between h"
+    },
+    {
+     "section": "Improving recovery procedures",
+     "similarity": 0.396,
+     "query_source": "fix",
+     "start": "## Improving recovery procedures  An ideal environment is one in which you *can* make mistakes but easily and quickly recover from them with minimal to no impact. This in turn requires you to be able to perform these procedures on a regular basis, and make it easy to test and roll back any changes. "
+    }
+   ],
+   "DAN-056": [
+    {
+     "section": "What We Learned",
+     "similarity": 0.731,
+     "query_source": "llm",
+     "start": "## What We Learned  We have held an internal incident retrospective to learn more about how the data failure occurred, what can be improved on our side to protect against such a failure, and how to better restore and protect data if a similar incident should ever occur.  - It took us a day to uncove"
+    },
+    {
+     "section": "Remediation",
+     "similarity": 0.678,
+     "query_source": "llm",
+     "start": "## Remediation  Steps we have taken to avoid accidental database table truncation:  - Revoked the truncate permission on our databases, effectively making it impossible for tables to be truncated.  - Patched our internal spechelpers to check for the DATABASEURL environment variable.  - Added a shell"
+    },
+    {
+     "section": "Conclusion",
+     "similarity": 0.496,
+     "query_source": "cause",
+     "start": "## Conclusion  Here at Travis CI we take security very seriously. The data failure we experienced was unprecedented in both scope and size. Unfortunately, when responding we missed some steps which would have reduced the problems that occurred.  We are incredibly sorry for any inconvenience caused t"
+    },
+    {
+     "section": "Update",
+     "similarity": 0.416,
+     "query_source": "fix",
+     "start": "## Update  Database provisioning from the recovery point is still underway. We are doing preparatory work to deal with increased demand when travis-ci.com comes back online. We also continue to investigate the original issue.  Posted Mar 13, 2018 - 14:29 UTC"
+    },
+    {
+     "section": "What happened",
+     "similarity": 0.404,
+     "query_source": "fix",
+     "start": "## What happened  On Tuesday, 13 March 2018 at 12:04 UTC a database query was accidentally run against our production database which truncated all tables. The query was blocked for around 10 minutes and finally executed at 12:14 UTC.  As we responded to alerts immediately following this, our API rem"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-043",
+   "DAN-146",
+   "DAN-056",
+   "DAN-164",
+   "DAN-048",
+   "DAN-091",
+   "DAN-186",
+   "DAN-058",
+   "DAN-092",
+   "DAN-094"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "production database accidentally deleted maintenance",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-043",
+     "DAN-146",
+     "DAN-056",
+     "DAN-164",
+     "DAN-048",
+     "DAN-091",
+     "DAN-186",
+     "DAN-058",
+     "DAN-092",
+     "DAN-094"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "accidental database deletion drop table human error",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-043",
+     "DAN-056",
+     "DAN-048",
+     "DAN-146",
+     "DAN-164",
+     "DAN-058",
+     "DAN-120",
+     "DAN-104",
+     "DAN-092",
+     "DAN-091"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause fix accidental production database deletion recovery backup",
+    "filter": {
+     "incident": "DAN-043"
+    },
+    "ids": [
+     "DAN-043"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-043"
+    },
+    "ids": [
+     "DAN-043"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-043"
+    },
+    "ids": [
+     "DAN-043"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause fix admin deleted wrong directory database data loss recovery",
+    "filter": {
+     "incident": "DAN-164"
+    },
+    "ids": [
+     "DAN-164"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-164"
+    },
+    "ids": [
+     "DAN-164"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-164"
+    },
+    "ids": [
+     "DAN-164"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause fix accidental truncation production database environment variable",
+    "filter": {
+     "incident": "DAN-056"
+    },
+    "ids": [
+     "DAN-056"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-056"
+    },
+    "ids": [
+     "DAN-056"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-056"
+    },
+    "ids": [
+     "DAN-056"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 4.1,
+    "tokens": 1167,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 5.4,
+    "tokens": 2814,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": "I found several incidents. The most similar ones appear to be DAN-043 (Keepthescore — production database deleted by accident), DAN-164 (GitLab — admin deleted the wrong directory causing data loss), and DAN-056 (TravisCI — accidental production database truncation). Let me dig into their root cause"
+   }
+  ],
+  "seconds": 10
+ },
+ {
+  "id": "q-022",
+  "type": "sintoma_pos_4-5",
+  "expected": [
+   "DAN-104"
+  ],
+  "symptoms": [
+   "storage service went down",
+   "services depending on storage went down"
+  ],
+  "expected_passages": {
+   "DAN-104": [
+    {
+     "source": "cause",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nS3 subsystems are designed to support the removal or failure of significant capacity with little or no customer impact. We build our systems with the assumption that things will occasionally fail, and we rely on the ability to remove and replace capacity as one of our core operational processes. While this is an operation that we have relied on to maintain our systems since the launch of S3, we have not completely restarted the index subsystem or the placement subsystem in our larger regions for many years. S3 has experienced massive growth over the last several years and the process of restarting these services and running the necessary safety checks to validate the integrity of the metadata took longer than expected. The index subsystem was the first of the two affected subsystems that needed to be restarted. By 12:26PM PST, the index subsystem had activated enough capacity to begin servicing S3 GET, LIST, and DELETE requests. By 1:18PM PST, the index subsystem was fully recovered and GET, LIST, and DELETE APIs were functioning normally. The S3 PUT API also required the placement subsystem. The placement subsystem began recovery when the index subsystem was functional and finished recovery at 1:54PM PST. At this point, S3 was operating normally. Other AWS services that were impacted by this event began recovering. Some of these services had accumulated a backlog of work during the S3 disruption and required additional time to fully recover."
+    },
+    {
+     "source": "fix",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nFrom the beginning of this event until 11:37AM PST, we were unable to update the individual services’ status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console has on Amazon S3. Instead, we used the AWS Twitter feed (@AWSCloud) and SHD banner text to communicate status until we were able to update the individual services’ status on the SHD. We understand that the SHD provides important visibility to our customers during operational events and we have changed the SHD administration console to run across multiple AWS regions.\n\nFinally, we want to apologize for the impact this event caused for our customers. While we are proud of our long track record of availability with Amazon S3, we know how critical this service is to our customers, their applications and end users, and their businesses. We will do everything we can to learn from this event and use it to improve our availability even further."
+    },
+    {
+     "source": "fix",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nOne of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region. This subsystem is necessary to serve all GET, LIST, PUT, and DELETE requests. The second subsystem, the placement subsystem, manages allocation of new storage and requires the index subsystem to be functioning properly to correctly operate. The placement subsystem is used during PUT requests to allocate storage for new objects. Removing a significant portion of the capacity caused each of these systems to require a full restart. While these subsystems were being restarted, S3 was unable to service requests. Other AWS services in the US-EAST-1 Region that rely on S3 for storage, including the S3 console, Amazon Elastic Compute Cloud (EC2) new instance launches, Amazon Elastic Block Store (EBS) volumes (when data was needed from a S3 snapshot), and AWS Lambda were also impacted while the S3 APIs were unavailable."
+    },
+    {
+     "source": "similar",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nWe’d like to give you some additional information about the service disruption that occurred in the Northern Virginia (US-EAST-1) Region on the morning of February 28th, 2017. The Amazon Simple Storage Service (S3) team was debugging an issue causing the S3 billing system to progress more slowly than expected. At 9:37AM PST, an authorized S3 team member using an established playbook executed a command which was intended to remove a small number of servers for one of the S3 subsystems that is used by the S3 billing process. Unfortunately, one of the inputs to the command was entered incorrectly and a larger set of servers was removed than intended. The servers that were inadvertently removed supported two other S3 subsystems. One of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region. This subsystem is necessary to serve all GET, LIST, PUT, and DELETE requests."
+    },
+    {
+     "source": "similar",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nWe are making several changes as a result of this operational event. While removal of capacity is a key operational practice, in this instance, the tool used allowed too much capacity to be removed too quickly. We have modified this tool to remove capacity more slowly and added safeguards to prevent capacity from being removed when it will take any subsystem below its minimum required capacity level. This will prevent an incorrect input from triggering a similar event in the future. We are also auditing our other operational tools to ensure we have similar safety checks. We will also make changes to improve the recovery time of key S3 subsystems. We employ multiple techniques to allow our services to recover from any failure quickly. One of the most important involves breaking services into small partitions which we call cells. By factoring services into cells, engineering teams can assess and thoroughly test recovery processes of even the largest service or subsystem. As S3 has scaled, the team has done considerable work to refactor parts of the service into smaller cells to reduce blast radius and improve recovery. During this event, the recovery time of the index subsystem still took longer than we expected. The S3 team had planned further partitioning of the index subsystem later this year. We are reprioritizing that work to begin immediately."
+    }
+   ]
+  },
+  "initial_search_position": 4,
+  "expected_in_new": [
+   "DAN-104"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-104",
+   "DAN-189",
+   "DAN-073",
+   "DAN-109",
+   "DAN-209",
+   "DAN-139",
+   "DAN-205",
+   "DAN-125"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-104"
+  ],
+  "expected_deepened": [
+   "DAN-104"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-104",
+     "query": "root cause fix human error remove servers typo S3 outage dependent systems restart",
+     "why": "Operator command to remove a few servers removed too many, taking down storage (S3) and dependent services — matches current incident closely."
+    },
+    {
+     "id": "DAN-189",
+     "query": "root cause fix operator reboot small number servers all servers datacenter lax input validation",
+     "why": "Operator command meant for a small number of servers affected many more, causing outage — similar pattern of unintended scope."
+    }
+   ],
+   "new_queries": [
+    "storage service outage after operator removed servers command",
+    "dependent services down storage service removed servers"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-104": [
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.609,
+     "query_source": "llm",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  We are making several changes as a result of this operational event. While removal of capacity is a key operational practice, in this instance, the tool used allowed too much capacity to be removed too quickl"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.606,
+     "query_source": "llm",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  We’d like to give you some additional information about the service disruption that occurred in the Northern Virginia (US-EAST-1) Region on the morning of February 28th, 2017. The Amazon Simple Storage Servic"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.312,
+     "query_source": "cause",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  S3 subsystems are designed to support the removal or failure of significant capacity with little or no customer impact. We build our systems with the assumption that things will occasionally fail, and we rely"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.303,
+     "query_source": "fix",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  From the beginning of this event until 11:37AM PST, we were unable to update the individual services’ status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console ha"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.219,
+     "query_source": "fix",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  One of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region. This subsystem is necessary to serve all GET, LIST, PUT, and DELETE requests. The s"
+    }
+   ],
+   "DAN-189": [
+    {
+     "section": "What Happened?",
+     "similarity": 0.629,
+     "query_source": "llm",
+     "start": "## What Happened?  Due to an operator error, all us-east-1 API systems and customer instances were simultaneously rebooted at 2014-05-27T20:13Z (13:13PDT). Rounded to minutes, the minimum downtime for customer instances was 20 minutes, and the maximum was 149 minutes (2.5 hours). 80 percent of custo"
+    },
+    {
+     "section": "What Happened?",
+     "similarity": 0.575,
+     "query_source": "llm",
+     "start": "## What Happened?  The small number of machines that lagged for the remaining time were subject to a known, transient bug in a network card driver on legacy hardware platforms whereby obtaining a DHCP lease upon boot occasionally fails. In our experience, platforms with this network device will enco"
+    },
+    {
+     "section": "Next Steps",
+     "similarity": 0.434,
+     "query_source": "cause",
+     "start": "## Next Steps  We will be taking several steps to prevent this failure mode from happening again, and ensuring that other business disaster scenarios are able to recover more quickly.  First, we will be dramatically improving the tooling that humans (and systems) interact with such that input valida"
+    },
+    {
+     "section": "Closing",
+     "similarity": 0.539,
+     "query_source": "fix",
+     "start": "## Closing  We want to reiterate our apology for the magnitude of this issue and the impact it caused our customers and their customers. We will be working as diligently as we can, and as expediently as we can, to prevent an issue like this from happening again.  Sincerely, The Joyent Team"
+    },
+    {
+     "section": "Postmortem for outage of us-east-1",
+     "similarity": 0.441,
+     "query_source": "fix",
+     "start": "## Postmortem for outage of us-east-1  May 28, 2014 - by The Joyent Team  We would like to share the details on what occurred during the outage on 5/27/2014 in our us-east-1 data center, what we have learned, and what actions we are taking to prevent this from happening again. On behalf of all of Jo"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-073",
+   "DAN-109",
+   "DAN-209",
+   "DAN-104",
+   "DAN-139",
+   "DAN-205",
+   "DAN-125",
+   "DAN-230",
+   "DAN-189",
+   "DAN-222"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "storage service outage after operator removed servers command",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-073",
+     "DAN-209",
+     "DAN-104",
+     "DAN-230",
+     "DAN-189",
+     "DAN-067",
+     "DAN-109",
+     "DAN-064",
+     "DAN-191",
+     "DAN-222"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "dependent services down storage service removed servers",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-073",
+     "DAN-109",
+     "DAN-139",
+     "DAN-205",
+     "DAN-125",
+     "DAN-222",
+     "DAN-209",
+     "DAN-020",
+     "DAN-146",
+     "DAN-104"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause fix human error remove servers typo S3 outage dependent systems restart",
+    "filter": {
+     "incident": "DAN-104"
+    },
+    "ids": [
+     "DAN-104"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-104"
+    },
+    "ids": [
+     "DAN-104"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-104"
+    },
+    "ids": [
+     "DAN-104"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause fix operator reboot small number servers all servers datacenter lax input validation",
+    "filter": {
+     "incident": "DAN-189"
+    },
+    "ids": [
+     "DAN-189"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-189"
+    },
+    "ids": [
+     "DAN-189"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-189"
+    },
+    "ids": [
+     "DAN-189"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 1.8,
+    "tokens": 1240,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 9.1,
+    "tokens": 3184,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 11
+ },
+ {
+  "id": "q-170",
+  "type": "sintoma_pos_4-5",
+  "expected": [
+   "DAN-018"
+  ],
+  "symptoms": [
+   "API and dashboard are crashing",
+   "internal service receiving flood of calls from dashboard"
+  ],
+  "expected_passages": {
+   "DAN-018": [
+    {
+     "source": "cause",
+     "section": "Going forward",
+     "fix_title": true,
+     "text": "## Going forward\n\nWe believe it’s important to learn from our mistakes and this incident is an opportunity to make some improvements. Those improvements can be categorized as either ways to reduce / eliminate the impact of a similar change or as improvements to our observability tooling to better inform the team during future events."
+    },
+    {
+     "source": "fix",
+     "section": "Improving visibility",
+     "fix_title": true,
+     "text": "### Improving visibility\n\nWe immediately saw an increase in our API usage but found it difficult to identify which requests were retries vs new requests. Had we known that we were seeing a sustained large volume of new requests, it would have made it easier to identify the issue as a loop in the dashboard. We are adding changes to how we call our APIs from our dashboard to include additional information, including if the request is a retry or new request.\n\nWe’re very sorry about the disruption. We will continue to investigate this issue and make improvements to our systems and processes."
+    },
+    {
+     "source": "fix",
+     "section": "How we responded",
+     "fix_title": false,
+     "text": "## How we responded\n\nOur first goal in an incident is to restore service. Often that involves fixing the underlying issue directly, but not always. In this case we noticed increased usage across our Tenant Service, so we focused on reducing the load and increasing the available resources. We installed a global rate limit on the Tenant Service to help regulate the load. The Tenant Service is a GoLang process that runs on Kubernetes in a subset of our datacenters. We increased the number of pods available as well to help improve throughput. While we did this, we had others on the team continue to investigate why we were seeing the unusually high usage. Ultimately, increasing the resources available to the tenant service helped with availability but was insufficient to restore normal service.\n\nAfter the Tenant Service began reporting healthy again and the API largely recovered, we still observed a considerable number of errors being reported from the service. We theorized that these were responsible for the ongoing Dashboard availability issues and made a patch to the service with the expectation that it would improve the API health and restore the dashboard to a healthy state. Ultimately this change degraded service further and was quickly reverted. The second outage can be seen in the graph above.\n\nIt’s painful to have an outage like this. That said, there were a few things that helped lessen the impact. Our automatic alerting service quickly identified the correct people to join the call and start working on remediation. Additionally, this was a failure in the control plane which has strict separation of concerns from the data plane. Thus, the outage did not affect services on Cloudflare’s network. The majority of users at Cloudflare were unaffected unless they were making configuration changes or using our dashboard."
+    },
+    {
+     "source": "similar",
+     "section": "Reducing impact",
+     "fix_title": false,
+     "text": "### Reducing impact\n\nWe use Argo Rollouts for releasing, which monitors deployments for errors and automatically rolls back that service on a detected error. We’ve been migrating our services over to Argo Rollouts but have not yet updated the Tenant Service to use it. Had it been in place, we would have automatically rolled back the second Tenant Service update limiting the second outage. This work had already been scheduled by the team and we’ve increased the priority of the migration.\n\nWhen we restarted the Tenant Service, everyone’s dashboard began to re-authenticate with the API. This caused the API to become unstable again causing issues with everyone’s dashboard. This pattern is a common one often referred to as a Thundering Herd. Once a resource or service is made available, everyone tries to use it all at once. This is common, but was amplified by the bug in our dashboard logic. The fix for this behavior has already been released via a hotfix shortly after the impact was over. We’ll be introducing changes to the dashboard that include random delays to spread out retries and reduce contention as well.\n\nFinally, the Tenant Service was not allocated sufficient capacity to handle spikes in load like this. We’ve allocated substantially more resources to this service, and are improving the monitoring so that we will be proactively alerted before this service hits capacity limits."
+    },
+    {
+     "source": "similar",
+     "section": "What Happened",
+     "fix_title": false,
+     "text": "## What Happened\n\nWe had an outage in our Tenant Service API which led to a broad outage of many of our APIs and the Cloudflare Dashboard.\n\nThe incident’s impact stemmed from several issues, but the immediate trigger was a bug in the dashboard. This bug caused repeated, unnecessary calls to the Tenant Service API. The API calls were managed by a React useEffect hook, but we mistakenly included a problematic object in its dependency array. Because this object was recreated on every state or prop change, React treated it as “always new,” causing the useEffect to re-run each time. As a result, the API call executed many times during a single dashboard render instead of just once. This behavior coincided with a service update to the Tenant Service API, compounding instability and ultimately overwhelming the service, which then failed to recover.\n\nWhen the Tenant Service became overloaded, it had an impact on other APIs and the dashboard because Tenant Service is part of our API request authorization logic. Without Tenant Service, API request authorization can not be evaluated. When authorization evaluation fails, API requests return 5xx status codes.\n\nWe’re very sorry about the disruption. The rest of this blog goes into depth on what happened, and what steps we are taking to prevent it from happening again."
+    }
+   ]
+  },
+  "initial_search_position": 4,
+  "expected_in_new": [
+   "DAN-018"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-018",
+   "DAN-144",
+   "DAN-066",
+   "DAN-025",
+   "DAN-182",
+   "DAN-133",
+   "DAN-029",
+   "DAN-129"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-018"
+  ],
+  "expected_deepened": [
+   "DAN-018"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-018",
+     "query": "React component dependency array bug excessive API calls Tenant Service fix",
+     "why": "Dashboard after frontend deploy flooding internal service with calls, crashing API and dashboard — matches current incident symptoms exactly"
+    },
+    {
+     "id": "DAN-144",
+     "query": "thundering herd reconnect frontend memory queues cascading error fix",
+     "why": "Cascading failure where frontend overwhelmed internal service after deploy — similar trigger but different root cause"
+    }
+   ],
+   "new_queries": [
+    "dashboard internal service infinite request loop after frontend deploy API crashing",
+    "frontend deploy causes dashboard flood internal service calls crash loop"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-018": [
+    {
+     "section": "What Happened",
+     "similarity": 0.743,
+     "query_source": "llm",
+     "start": "## What Happened  We had an outage in our Tenant Service API which led to a broad outage of many of our APIs and the Cloudflare Dashboard.  The incident’s impact stemmed from several issues, but the immediate trigger was a bug in the dashboard. This bug caused repeated, unnecessary calls to the Tena"
+    },
+    {
+     "section": "Reducing impact",
+     "similarity": 0.665,
+     "query_source": "llm",
+     "start": "### Reducing impact  We use Argo Rollouts for releasing, which monitors deployments for errors and automatically rolls back that service on a detected error. We’ve been migrating our services over to Argo Rollouts but have not yet updated the Tenant Service to use it. Had it been in place, we would "
+    },
+    {
+     "section": "Going forward",
+     "similarity": 0.407,
+     "query_source": "cause",
+     "start": "## Going forward  We believe it’s important to learn from our mistakes and this incident is an opportunity to make some improvements. Those improvements can be categorized as either ways to reduce / eliminate the impact of a similar change or as improvements to our observability tooling to better in"
+    },
+    {
+     "section": "Improving visibility",
+     "similarity": 0.408,
+     "query_source": "fix",
+     "start": "### Improving visibility  We immediately saw an increase in our API usage but found it difficult to identify which requests were retries vs new requests. Had we known that we were seeing a sustained large volume of new requests, it would have made it easier to identify the issue as a loop in the das"
+    },
+    {
+     "section": "How we responded",
+     "similarity": 0.457,
+     "query_source": "fix",
+     "start": "## How we responded  Our first goal in an incident is to restore service. Often that involves fixing the underlying issue directly, but not always. In this case we noticed increased usage across our Tenant Service, so we focused on reducing the load and increasing the available resources. We install"
+    }
+   ],
+   "DAN-144": [
+    {
+     "section": "Summary",
+     "similarity": 0.514,
+     "query_source": "llm",
+     "start": "## Summary  At 11:38 on March 20, a server for one of the internal services (presence) at Discord which tracks real time state and presence information for all connected users, disconnected from its other cluster members. Shortly thereafter the nodes of another service (sessions) which handles the r"
+    },
+    {
+     "section": "Investigation and Analysis",
+     "similarity": 0.498,
+     "query_source": "llm",
+     "start": "## Investigation and Analysis  While we’ve invested immense effort and engineering in scaling and improving the performance of many core services and database over the past months, we’ve also seen immense growth. As such, our engineers were concerned with simply letting the thundering herd that is m"
+    },
+    {
+     "section": "Investigation and Analysis",
+     "similarity": 0.455,
+     "query_source": "cause",
+     "start": "## Investigation and Analysis  The initial issue which caused this outage can be boiled down to the CPU soft lockups that we observed on the individual presence server. Although we’ve previously seen these CPU soft lockups on other servers and services, this incident caused around 40 20-30 second lo"
+    },
+    {
+     "section": "Action Items / Response",
+     "similarity": 0.441,
+     "query_source": "fix",
+     "start": "## Action Items / Response  During the outage, engineers were able to roll out upgrades to our presence server (which had previously been untouched for almost a year). These changes fix the split-brain bug previously mentioned, and include other planned upgrades. We’ve added a hard limit to the numb"
+    },
+    {
+     "section": "Resolved",
+     "similarity": 0.382,
+     "query_source": "fix",
+     "start": "## Resolved  We look to be back to nominal operation. We've isolated the issue to within the GCP hypervisor causing a soft-cpu lock on one of our services - causing a cascading failure throughout our system which triggered us to have to do a full-restart of our realtime services. We're actively inve"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-144",
+   "DAN-018",
+   "DAN-066",
+   "DAN-025",
+   "DAN-182",
+   "DAN-133",
+   "DAN-029",
+   "DAN-129",
+   "DAN-220",
+   "DAN-016"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "dashboard internal service infinite request loop after frontend deploy API crashing",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-144",
+     "DAN-018",
+     "DAN-066",
+     "DAN-025",
+     "DAN-182",
+     "DAN-133",
+     "DAN-029",
+     "DAN-129",
+     "DAN-016",
+     "DAN-180"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "frontend deploy causes dashboard flood internal service calls crash loop",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-144",
+     "DAN-018",
+     "DAN-066",
+     "DAN-182",
+     "DAN-220",
+     "DAN-029",
+     "DAN-129",
+     "DAN-016",
+     "DAN-155",
+     "DAN-218"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "React component dependency array bug excessive API calls Tenant Service fix",
+    "filter": {
+     "incident": "DAN-018"
+    },
+    "ids": [
+     "DAN-018"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-018"
+    },
+    "ids": [
+     "DAN-018"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-018"
+    },
+    "ids": [
+     "DAN-018"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "thundering herd reconnect frontend memory queues cascading error fix",
+    "filter": {
+     "incident": "DAN-144"
+    },
+    "ids": [
+     "DAN-144"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-144"
+    },
+    "ids": [
+     "DAN-144"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-144"
+    },
+    "ids": [
+     "DAN-144"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 3.0,
+    "tokens": 1254,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 5.5,
+    "tokens": 2613,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 9
+ },
+ {
+  "id": "q-171",
+  "type": "sintoma_pos_4-5",
+  "expected": [
+   "DAN-018"
+  ],
+  "symptoms": [
+   "API going down",
+   "Dashboard going down",
+   "Internal service flooded with calls from dashboard"
+  ],
+  "expected_passages": {
+   "DAN-018": [
+    {
+     "source": "cause",
+     "section": "Going forward",
+     "fix_title": true,
+     "text": "## Going forward\n\nWe believe it’s important to learn from our mistakes and this incident is an opportunity to make some improvements. Those improvements can be categorized as either ways to reduce / eliminate the impact of a similar change or as improvements to our observability tooling to better inform the team during future events."
+    },
+    {
+     "source": "fix",
+     "section": "Improving visibility",
+     "fix_title": true,
+     "text": "### Improving visibility\n\nWe immediately saw an increase in our API usage but found it difficult to identify which requests were retries vs new requests. Had we known that we were seeing a sustained large volume of new requests, it would have made it easier to identify the issue as a loop in the dashboard. We are adding changes to how we call our APIs from our dashboard to include additional information, including if the request is a retry or new request.\n\nWe’re very sorry about the disruption. We will continue to investigate this issue and make improvements to our systems and processes."
+    },
+    {
+     "source": "fix",
+     "section": "How we responded",
+     "fix_title": false,
+     "text": "## How we responded\n\nOur first goal in an incident is to restore service. Often that involves fixing the underlying issue directly, but not always. In this case we noticed increased usage across our Tenant Service, so we focused on reducing the load and increasing the available resources. We installed a global rate limit on the Tenant Service to help regulate the load. The Tenant Service is a GoLang process that runs on Kubernetes in a subset of our datacenters. We increased the number of pods available as well to help improve throughput. While we did this, we had others on the team continue to investigate why we were seeing the unusually high usage. Ultimately, increasing the resources available to the tenant service helped with availability but was insufficient to restore normal service.\n\nAfter the Tenant Service began reporting healthy again and the API largely recovered, we still observed a considerable number of errors being reported from the service. We theorized that these were responsible for the ongoing Dashboard availability issues and made a patch to the service with the expectation that it would improve the API health and restore the dashboard to a healthy state. Ultimately this change degraded service further and was quickly reverted. The second outage can be seen in the graph above.\n\nIt’s painful to have an outage like this. That said, there were a few things that helped lessen the impact. Our automatic alerting service quickly identified the correct people to join the call and start working on remediation. Additionally, this was a failure in the control plane which has strict separation of concerns from the data plane. Thus, the outage did not affect services on Cloudflare’s network. The majority of users at Cloudflare were unaffected unless they were making configuration changes or using our dashboard."
+    },
+    {
+     "source": "similar",
+     "section": "Reducing impact",
+     "fix_title": false,
+     "text": "### Reducing impact\n\nWe use Argo Rollouts for releasing, which monitors deployments for errors and automatically rolls back that service on a detected error. We’ve been migrating our services over to Argo Rollouts but have not yet updated the Tenant Service to use it. Had it been in place, we would have automatically rolled back the second Tenant Service update limiting the second outage. This work had already been scheduled by the team and we’ve increased the priority of the migration.\n\nWhen we restarted the Tenant Service, everyone’s dashboard began to re-authenticate with the API. This caused the API to become unstable again causing issues with everyone’s dashboard. This pattern is a common one often referred to as a Thundering Herd. Once a resource or service is made available, everyone tries to use it all at once. This is common, but was amplified by the bug in our dashboard logic. The fix for this behavior has already been released via a hotfix shortly after the impact was over. We’ll be introducing changes to the dashboard that include random delays to spread out retries and reduce contention as well.\n\nFinally, the Tenant Service was not allocated sufficient capacity to handle spikes in load like this. We’ve allocated substantially more resources to this service, and are improving the monitoring so that we will be proactively alerted before this service hits capacity limits."
+    },
+    {
+     "source": "similar",
+     "section": "What Happened",
+     "fix_title": false,
+     "text": "## What Happened\n\nWe had an outage in our Tenant Service API which led to a broad outage of many of our APIs and the Cloudflare Dashboard.\n\nThe incident’s impact stemmed from several issues, but the immediate trigger was a bug in the dashboard. This bug caused repeated, unnecessary calls to the Tenant Service API. The API calls were managed by a React useEffect hook, but we mistakenly included a problematic object in its dependency array. Because this object was recreated on every state or prop change, React treated it as “always new,” causing the useEffect to re-run each time. As a result, the API call executed many times during a single dashboard render instead of just once. This behavior coincided with a service update to the Tenant Service API, compounding instability and ultimately overwhelming the service, which then failed to recover.\n\nWhen the Tenant Service became overloaded, it had an impact on other APIs and the dashboard because Tenant Service is part of our API request authorization logic. Without Tenant Service, API request authorization can not be evaluated. When authorization evaluation fails, API requests return 5xx status codes.\n\nWe’re very sorry about the disruption. The rest of this blog goes into depth on what happened, and what steps we are taking to prevent it from happening again."
+    }
+   ]
+  },
+  "initial_search_position": 4,
+  "expected_in_new": [
+   "DAN-018"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-018",
+   "DAN-029",
+   "DAN-066",
+   "DAN-144",
+   "DAN-067",
+   "DAN-133",
+   "DAN-129",
+   "DAN-145"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-018"
+  ],
+  "expected_deepened": [
+   "DAN-018"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-018",
+     "query": "root cause React component dependency array excessive API calls Tenant Service fix",
+     "why": "This incident matches the current one: dashboard React component bug causing excessive calls to an internal service after a frontend change, overwhelming the system and taking down API and dashboard."
+    }
+   ],
+   "new_queries": [
+    "dashboard flooding internal service with requests after frontend deploy causing API outage",
+    "frontend deploy causing retry storm infinite loop internal service dashboard API down"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-018": [
+    {
+     "section": "What Happened",
+     "similarity": 0.708,
+     "query_source": "llm",
+     "start": "## What Happened  We had an outage in our Tenant Service API which led to a broad outage of many of our APIs and the Cloudflare Dashboard.  The incident’s impact stemmed from several issues, but the immediate trigger was a bug in the dashboard. This bug caused repeated, unnecessary calls to the Tena"
+    },
+    {
+     "section": "Reducing impact",
+     "similarity": 0.642,
+     "query_source": "llm",
+     "start": "### Reducing impact  We use Argo Rollouts for releasing, which monitors deployments for errors and automatically rolls back that service on a detected error. We’ve been migrating our services over to Argo Rollouts but have not yet updated the Tenant Service to use it. Had it been in place, we would "
+    },
+    {
+     "section": "Going forward",
+     "similarity": 0.407,
+     "query_source": "cause",
+     "start": "## Going forward  We believe it’s important to learn from our mistakes and this incident is an opportunity to make some improvements. Those improvements can be categorized as either ways to reduce / eliminate the impact of a similar change or as improvements to our observability tooling to better in"
+    },
+    {
+     "section": "Improving visibility",
+     "similarity": 0.408,
+     "query_source": "fix",
+     "start": "### Improving visibility  We immediately saw an increase in our API usage but found it difficult to identify which requests were retries vs new requests. Had we known that we were seeing a sustained large volume of new requests, it would have made it easier to identify the issue as a loop in the das"
+    },
+    {
+     "section": "How we responded",
+     "similarity": 0.457,
+     "query_source": "fix",
+     "start": "## How we responded  Our first goal in an incident is to restore service. Often that involves fixing the underlying issue directly, but not always. In this case we noticed increased usage across our Tenant Service, so we focused on reducing the load and increasing the available resources. We install"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-029",
+   "DAN-066",
+   "DAN-018",
+   "DAN-144",
+   "DAN-067",
+   "DAN-133",
+   "DAN-129",
+   "DAN-145",
+   "DAN-218",
+   "DAN-220"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "dashboard flooding internal service with requests after frontend deploy causing API outage",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-029",
+     "DAN-066",
+     "DAN-018",
+     "DAN-144",
+     "DAN-067",
+     "DAN-133",
+     "DAN-129",
+     "DAN-145",
+     "DAN-218",
+     "DAN-220"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "frontend deploy causing retry storm infinite loop internal service dashboard API down",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-018",
+     "DAN-144",
+     "DAN-066",
+     "DAN-133",
+     "DAN-067",
+     "DAN-029",
+     "DAN-220",
+     "DAN-017",
+     "DAN-129",
+     "DAN-001"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause React component dependency array excessive API calls Tenant Service fix",
+    "filter": {
+     "incident": "DAN-018"
+    },
+    "ids": [
+     "DAN-018"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-018"
+    },
+    "ids": [
+     "DAN-018"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-018"
+    },
+    "ids": [
+     "DAN-018"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 3.7,
+    "tokens": 1244,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 4.9,
+    "tokens": 2745,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": "I found several incidents, and **[DAN-018 Cloudflare]** looks like a very strong match: a React component bug in the dashboard caused excessive API calls to an internal service (Tenant Service), overwhelming the system and cascading into broader API and dashboard failures — closely matching \"dashboa"
+   }
+  ],
+  "seconds": 9
+ },
+ {
+  "id": "q-222",
+  "type": "sintoma_pos_4-5",
+  "expected": [
+   "DAN-121"
+  ],
+  "symptoms": [
+   "backend database overloaded and rate-limiting requests",
+   "video player timeouts"
+  ],
+  "expected_passages": {},
+  "initial_search_position": 4,
+  "expected_in_new": [],
+  "initial_search": [],
+  "findings": [
+   "DAN-147",
+   "DAN-101",
+   "DAN-186",
+   "DAN-016",
+   "DAN-001",
+   "DAN-183",
+   "DAN-129",
+   "DAN-219"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [],
+  "expected_deepened": [],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-147",
+     "query": "database capacity overload request queue cascading failure root cause fix",
+     "why": "Describes cascading failure from insufficient database capacity overloaded by request queue, closely matching backend database overload causing service timeouts."
+    },
+    {
+     "id": "DAN-101",
+     "query": "database connection pool exhaustion app timeouts root cause fix",
+     "why": "Describes intermittent app timeouts from database connection pool exhaustion, similar to database overload causing video player timeouts."
+    },
+    {
+     "id": "DAN-186",
+     "query": "hosted database limits hit migration recovery",
+     "why": "Describes hitting limits on a hosted database, relevant to database being overloaded and rate-limiting requests."
+    }
+   ],
+   "new_queries": [
+    "backend database overloaded rate limiting video player timeout",
+    "database rate limiting requests causing service timeouts",
+    "backend database overload video streaming service timeout"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-147": [
+    {
+     "section": "Authentication Issues - DUO1",
+     "similarity": 0.618,
+     "query_source": "llm",
+     "start": "## Authentication Issues - DUO1  From that point, the DUO1 deployment was stable but traffic and load continued to grow. After further review of the data surrounding the incident, it was determined that the outage was not solely the result of the software release in question, but ultimately a combin"
+    },
+    {
+     "section": "Authentication Issues - DUO1",
+     "similarity": 0.595,
+     "query_source": "llm",
+     "start": "## Authentication Issues - DUO1  Now that we had a better understanding of what was causing these prolonged backups, we knew what to do. On August 29th, we implemented a max limit to this queue. If we attempt to go over the limit, we'll start proactively rejecting the requests instead of queuing the"
+    },
+    {
+     "section": "Authentication Latency on DUO1 Deployment",
+     "similarity": 0.398,
+     "query_source": "cause",
+     "start": "## Authentication Latency on DUO1 Deployment  ## Postmortem  ## Authentication Issues - DUO1  Incident Report - 2018/08/29  Summary:  From 14:11 to 15:13 UTC on August 29th, 2018, the DUO1 deployment experienced performance degradation that resulted in increased authentication latency and intermitte"
+    },
+    {
+     "section": "Authentication Issues - DUO1",
+     "similarity": 0.367,
+     "query_source": "fix",
+     "start": "## Authentication Issues - DUO1  - We’ve been actively re-architecting the database tier of our deployments so that we can home customers to a specific database server within a deployment. That way, we’re able to quickly add capacity on demand for those customers that need it without affecting other"
+    },
+    {
+     "section": "Update",
+     "similarity": 0.323,
+     "query_source": "fix",
+     "start": "## Update  We're still monitoring an elevated number of slow and/or failed authentication requests affecting our DUO1 deployment. Our Engineering team is actively working to resolve this issue.  Posted Aug 29, 2018 - 11:17 EDT"
+    }
+   ],
+   "DAN-101": [
+    {
+     "section": "",
+     "similarity": 0.689,
+     "query_source": "llm",
+     "start": "Earlier this year, we experienced intermittent timeouts in our application while interacting with our database over a period of two weeks.  Despite our best efforts, we couldn’t immediately identify a clear cause; there were no code changes that significantly altered our database usage, no sudden ch"
+    },
+    {
+     "section": "",
+     "similarity": 0.687,
+     "query_source": "llm",
+     "start": "It wasn’t until a few days later that we realised this was the root of our problems. As the timeouts were intermittent and didn’t occur every day, it took a little while to confirm the issue. But, it’s now been 4 months and we’ve been database timeout free.  This did confirm our suspicions from earl"
+    },
+    {
+     "section": "",
+     "similarity": 0.405,
+     "query_source": "cause",
+     "start": "At this point, we felt we’d sunk a decent amount of time into investigating this outage, and we’d shipped a good amount of low-hanging fruit, we called it a day and closed the incident.  Within a couple of days of shipping the initial incident, lightning struck twice—we were timing out again.  I was"
+    },
+    {
+     "section": "See related articles",
+     "similarity": 0.421,
+     "query_source": "fix",
+     "start": "## See related articles  ### We gave cloud agents a phone to QA  ### How savepoints quietly throttled our Postgres queue  ### Building Investigations: what it takes to build an AI SRE  ## So good, you’ll break things on purpose  Ready for modern incident management? Book a call with one of our exper"
+    },
+    {
+     "section": "",
+     "similarity": 0.317,
+     "query_source": "fix",
+     "start": "Originally, we would receive this event from Slack, and within the lifetime of that HTTP request, we’d perform any responses we needed to, e.g. offering to attach a GitHub link that a user has just posted in the channel. Regardless of the operation, we’d always do *some* database queries, like looki"
+    }
+   ],
+   "DAN-186": [
+    {
+     "section": "**Prevention**",
+     "similarity": 0.677,
+     "query_source": "llm",
+     "start": "# **Prevention**  Without knowledge of the pre-April 2014 file size limit, it was difficult to foresee and prevent this issue. As far as we can tell, there’s no information in the RDS console in the form of monitoring, alerts or logging that would have let us know we were approaching the 2TB file si"
+    },
+    {
+     "section": "**Limited service restoration**",
+     "similarity": 0.67,
+     "query_source": "llm",
+     "start": "# **Limited service restoration**  We didn’t have a good disaster recovery plan in the event our MySQL instance failed with a critical filesystem issue that all of our backups were also subject to.  After a long phone call with AWS support and discussing the limitation with Pinterest’s Site Reliabil"
+    },
+    {
+     "section": "**Accountability**",
+     "similarity": 0.46,
+     "query_source": "cause",
+     "start": "# **Accountability**  I take full responsibility for the incident and the downtime. While the information about the 2TB limitation wasn’t directly available to me, it’s my responsibility to understand the limitations of the technologies I’m using in my day-to-day operations, even if those technologi"
+    },
+    {
+     "section": "**Action items**",
+     "similarity": 0.477,
+     "query_source": "fix",
+     "start": "# **Action items**  As part of our retrospective process at Pinterest, we’re defining a better workflow for system-wide Instapaper outages that escalate issues immediately to Pinterest’s Site Reliability Engineering team.  Additionally, we’re going to be more aggressive with testing our MySQL backup"
+    },
+    {
+     "section": "**Full service restoration**",
+     "similarity": 0.454,
+     "query_source": "fix",
+     "start": "# **Full service restoration**  Once we had the new ext4-backed database with full data and indexes synced up to the temporary production database, the final step was to promote the new database to master and deploy the application code to point to the new database.  We performed the restoration wit"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-016",
+   "DAN-001",
+   "DAN-147",
+   "DAN-101",
+   "DAN-183",
+   "DAN-129",
+   "DAN-219",
+   "DAN-094",
+   "DAN-148",
+   "DAN-186"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "backend database overloaded rate limiting video player timeout",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-147",
+     "DAN-186",
+     "DAN-016",
+     "DAN-148",
+     "DAN-129",
+     "DAN-164",
+     "DAN-121",
+     "DAN-219",
+     "DAN-101",
+     "DAN-094"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "database rate limiting requests causing service timeouts",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-016",
+     "DAN-001",
+     "DAN-147",
+     "DAN-101",
+     "DAN-183",
+     "DAN-129",
+     "DAN-219",
+     "DAN-094",
+     "DAN-148",
+     "DAN-164"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "database capacity overload request queue cascading failure root cause fix",
+    "filter": {
+     "incident": "DAN-147"
+    },
+    "ids": [
+     "DAN-147"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-147"
+    },
+    "ids": [
+     "DAN-147"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-147"
+    },
+    "ids": [
+     "DAN-147"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "database connection pool exhaustion app timeouts root cause fix",
+    "filter": {
+     "incident": "DAN-101"
+    },
+    "ids": [
+     "DAN-101"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-101"
+    },
+    "ids": [
+     "DAN-101"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-101"
+    },
+    "ids": [
+     "DAN-101"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "hosted database limits hit migration recovery",
+    "filter": {
+     "incident": "DAN-186"
+    },
+    "ids": [
+     "DAN-186"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-186"
+    },
+    "ids": [
+     "DAN-186"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-186"
+    },
+    "ids": [
+     "DAN-186"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 4.0,
+    "tokens": 1227,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 48.3,
+    "tokens": 2877,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 53
+ },
+ {
+  "id": "q-012",
+  "type": "sintoma_pos_4-5",
+  "expected": [
+   "DAN-211"
+  ],
+  "symptoms": [
+   "service discovery layer is slow",
+   "writes are timing out",
+   "other services are starting to fail"
+  ],
+  "expected_passages": {},
+  "initial_search_position": 5,
+  "expected_in_new": [],
+  "initial_search": [],
+  "findings": [
+   "DAN-020",
+   "DAN-109",
+   "DAN-222",
+   "DAN-220",
+   "DAN-129",
+   "DAN-066",
+   "DAN-219",
+   "DAN-101"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [],
+  "expected_deepened": [],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-020",
+     "query": "service discovery config bad client brought down service discovery globally dependent client root cause fix",
+     "why": "Directly about service discovery failure causing cascading impact to other services - matches the current incident's service discovery slowness and dependent service failures"
+    },
+    {
+     "id": "DAN-109",
+     "query": "metadata services load timeout storage nodes take themselves down retry cascade root cause fix",
+     "why": "Describes timeouts causing nodes to fail and retry storms creating cascading failures - similar pattern to service discovery writes timing out and other services failing"
+    },
+    {
+     "id": "DAN-222",
+     "query": "Cassandra cluster crash producers blocking queue insert operations cascading failure root cause fix",
+     "why": "Cluster failure causing dependent producers to block and cascade to entire application failure - matches the pattern of service discovery slowness causing other services to fail"
+    }
+   ],
+   "new_queries": [
+    "service discovery slow writes timeout cascading failures",
+    "service discovery layer write timeout dependent services failing"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-020": [
+    {
+     "section": "The failure of a core system",
+     "similarity": 0.69,
+     "query_source": "llm",
+     "start": "## The failure of a core system  The incident was caused by the failure of an internal service discovery and dynamic configuration system that the vast majority of Datadog software components rely on. Service discovery is a central directory of all services running at a given time and provides an ea"
+    },
+    {
+     "section": "A thundering herd",
+     "similarity": 0.686,
+     "query_source": "llm",
+     "start": "## A thundering herd  Back to our fateful day. When the smaller, latency-measuring cluster was recycled (scaled down and back up again), its nodes were unreachable for enough time for the larger cluster to issue a large volume of DNS requests back to the service discovery system. The volume of DNS r"
+    },
+    {
+     "section": "How do we avoid it in the future?",
+     "similarity": 0.506,
+     "query_source": "cause",
+     "start": "## How do we avoid it in the future?  Post-incident, all engineering teams have been involved in forensic investigations in order to understand in depth what happened and summarize all the findings in a copious collection of internal postmortems. Here is the gist of what we are prioritizing now to a"
+    },
+    {
+     "section": "Improve our external response",
+     "similarity": 0.48,
+     "query_source": "fix",
+     "start": "## Improve our external response  It starts with having a dedicated role with clear processes to disseminate updates about high visibility incidents throughout. It also includes having clearer communication on the impact of an incident as it develops."
+    },
+    {
+     "section": "Improve the resilience of service discovery",
+     "similarity": 0.401,
+     "query_source": "fix",
+     "start": "## Improve the resilience of service discovery  The need to register and deregister services won’t go away but we must support it with a system that is not a single point of failure (be it distributed or not)."
+    }
+   ],
+   "DAN-109": [
+    {
+     "section": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region",
+     "similarity": 0.63,
+     "query_source": "llm",
+     "start": "### Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region  Initially, we were unable to add capacity to the metadata service because it was under such high load, preventing us from successfully making the requisite administrative requests. After several failed a"
+    },
+    {
+     "section": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region",
+     "similarity": 0.626,
+     "query_source": "llm",
+     "start": "### Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region  So, when the network disruption occurred on Sunday morning, and a number of storage servers simultaneously requested their membership data, the metadata service was processing some membership lists that "
+    },
+    {
+     "section": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region",
+     "similarity": 0.364,
+     "query_source": "cause",
+     "start": "### Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region  There’s one other bit worth mentioning. After we resolved the key issue on Sunday, we were left with a low error rate, hovering between 0.15%-0.25%. We knew there would be some cleanup to do after the ev"
+    },
+    {
+     "section": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region",
+     "similarity": 0.359,
+     "query_source": "fix",
+     "start": "### Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region  There are several actions we'll take immediately to avoid a recurrence of Sunday's DynamoDB event. First, we have already significantly increased the capacity of the metadata service. Second, we are inst"
+    },
+    {
+     "section": "Impact on Other Services",
+     "similarity": 0.345,
+     "query_source": "fix",
+     "start": "### Impact on Other Services  Between 2:15am PDT and 7:10am PDT, the EC2 Auto Scaling Service delivered significantly increased API faults. From 7:10am PDT to 10:52am PDT, the Auto Scaling service was substantially delayed in bringing new instances into service, or terminating existing unhealthy ins"
+    }
+   ],
+   "DAN-222": [
+    {
+     "section": "",
+     "similarity": 0.694,
+     "query_source": "llm",
+     "start": "We do not yet fully understand why the Cassandra cluster failed, but we do know how to isolate and mitigate against similar problems in the future. We are working with the Cassandra developer community, as we have done in the past, to identify the problem and work toward a fix. We remain confident t"
+    },
+    {
+     "section": "",
+     "similarity": 0.664,
+     "query_source": "llm",
+     "start": "Due to the widespread failure in the Cassandra ring, we did not attempt to restore the cluster incrementally. We instead attempted a complete restart of the cluster, hoping that all the nodes would bootstrap and agree on the configuration of the cluster. We have previously used this approach success"
+    },
+    {
+     "section": "",
+     "similarity": 0.457,
+     "query_source": "cause",
+     "start": "To understand the outage, consider the highly abstracted view of the Stackdriver architecture below. Data is posted to the gateway web service. The gateway has a set of queues (shown in red) that buffer the messages as they are routed to multiple independent consumers. The archiving consumer push da"
+    },
+    {
+     "section": "",
+     "similarity": 0.397,
+     "query_source": "fix",
+     "start": "We are planning changes to the Stackdriver infrastructure to mitigate similar problems in the future. Most critically, we are planning to add a greater degree of separation for the pipelines used for real-time data display and alerting. To do this, we will break the dependencies in the queueing serv"
+    },
+    {
+     "section": "",
+     "similarity": 0.38,
+     "query_source": "fix",
+     "start": "At about 11:30 AM attempts to restore the existing Cassandra cluster were abandoned. We began our disaster recovery strategy of building a new Cassandra cluster. By 1:30 PM, a new 36-node Cassandra cluster was deployed and bootstrapped. Deployment of a new Cassandra cluster is not unprecedented in o"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-220",
+   "DAN-020",
+   "DAN-129",
+   "DAN-066",
+   "DAN-109",
+   "DAN-222",
+   "DAN-219",
+   "DAN-101",
+   "DAN-221",
+   "DAN-113"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "service discovery slow writes timeout cascading failures",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-220",
+     "DAN-020",
+     "DAN-129",
+     "DAN-066",
+     "DAN-109",
+     "DAN-222",
+     "DAN-219",
+     "DAN-101",
+     "DAN-221",
+     "DAN-113"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "service discovery layer write timeout dependent services failing",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-020",
+     "DAN-220",
+     "DAN-129",
+     "DAN-109",
+     "DAN-211",
+     "DAN-066",
+     "DAN-222",
+     "DAN-113",
+     "DAN-230",
+     "DAN-205"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "service discovery config bad client brought down service discovery globally dependent client root cause fix",
+    "filter": {
+     "incident": "DAN-020"
+    },
+    "ids": [
+     "DAN-020"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-020"
+    },
+    "ids": [
+     "DAN-020"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-020"
+    },
+    "ids": [
+     "DAN-020"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "metadata services load timeout storage nodes take themselves down retry cascade root cause fix",
+    "filter": {
+     "incident": "DAN-109"
+    },
+    "ids": [
+     "DAN-109"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-109"
+    },
+    "ids": [
+     "DAN-109"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-109"
+    },
+    "ids": [
+     "DAN-109"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "Cassandra cluster crash producers blocking queue insert operations cascading failure root cause fix",
+    "filter": {
+     "incident": "DAN-222"
+    },
+    "ids": [
+     "DAN-222"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-222"
+    },
+    "ids": [
+     "DAN-222"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-222"
+    },
+    "ids": [
+     "DAN-222"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 12.0,
+    "tokens": 1215,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 42.9,
+    "tokens": 2716,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 56
+ },
+ {
+  "id": "q-263",
+  "type": "sintoma_pos_4-5",
+  "expected": [
+   "DAN-200"
+  ],
+  "symptoms": [
+   "onboard computer resets itself"
+  ],
+  "expected_passages": {
+   "DAN-200": [
+    {
+     "source": "llm",
+     "section": "HOW WAS THE PROBLEM CORRECTED",
+     "fix_title": true,
+     "text": "## HOW WAS THE PROBLEM CORRECTED\n\nOnce we understood the problem the fix appeared obvious : change the creation flags for the semaphore so as to enable priority inheritance. The Wind River folks, for many of their services, supply global configuration variables for parameters such as the \"options\" parameter for the semMCreate used by the select service (although this is not documented and those who do not have vxWorks source code or have not studied the source code might be unaware of this feature). However, the fix is not so obvious for several reasons :\n\n1) The code for this is in the selectLib() and is common for all device creations. When you change this global variable all of the select semaphores created after that point will be created with the new options. There was no easy way in our initialization logic to only modify the semaphore associated with the pipe used for bc_dist task to ASI/MET task communications.\n\n2) If we make this change, and it is applied on a global basis, how will this change the behavior of the rest of the system ?\n\n3) The priority inheritance option was deliberately left out by Wind River in the default selectLib() service for optimum performance. How will performance degrade if we turn priority inheritance on ?\n\n4) Was there some intrinsic behavior of the select mechanism itself that would change if priority inheritance was enabled ?"
+    },
+    {
+     "source": "llm",
+     "section": "HOW WAS THE PROBLEM CORRECTED",
+     "fix_title": true,
+     "text": "## HOW WAS THE PROBLEM CORRECTED\n\nWe did end up modifying the global variable to include the priority inheritance option. This corrected the problem. We asked Wind River to analyze the potential impacts for (3) and (4). They concluded that the performance impact would be minimal and that the behavior of select() would not change so long as there was always only one task waiting for any particular file descriptor. This is true in our system. I believe that the debate at Wind River still continues on whether the priority inheritance option should be on as the default. For (1) and (2) the change did alter the characteristics of all of the select semaphores. We concluded, both by analysis and test, that there was no adverse behavior. We tested the system extensively before we changed the software on the spacecraft."
+    },
+    {
+     "source": "fix",
+     "section": "ANALYSIS AND LESSONS",
+     "fix_title": true,
+     "text": "## ANALYSIS AND LESSONS\n\nDid we (the JPL team) make an error in assuming how the select/pipe mechanism would work ? Yes, probably. But there was no conscious decision to not have the priority inheritance option enabled. We just missed it. There are several other places in the flight software where similar protection is required for critical data structures and the semaphores do have priority inversion protection. A good lesson when you fly COTS stuff - make sure you know how it works.\n\nMike is quite correct in saying that we could not have figured this out **ever** if we did not have the tools to give us the insight. We built many of the tools into the software for exactly this type of problem. We always planned to leave them in. In fact, the shell (and the stdout stream) were very useful the entire mission. If you want more detail send me a note."
+    },
+    {
+     "source": "similar",
+     "section": "HUMAN NATURE, DEADLINE PRESSURES",
+     "fix_title": false,
+     "text": "## HUMAN NATURE, DEADLINE PRESSURES\n\nWe did see the problem before landing but could not get it to repeat when we tried to track it down. It was not forgotten nor was it deemed unimportant. Yes, we were concentrating heavily on the entry and landing software. Yes, we considered this problem lower priority. Yes, we would have liked to have everything perfect before landing. However, I don’t see any problem here other than we ran out of time to get the lower priority issues completed.\n\nWe did have one other thing on our side; we knew how robust our system was because that is the way we designed it.\n\nWe knew that if this problem occurred we would reset. We built in mechanisms to recover the current activity so that there would be no interruptions in the science data (although this wasn’t used until later in the landed mission). We built in the ability (and tested it) to go through multiple resets while we were going through the Martian atmosphere. We designed the software to recover from radiation induced errors in the memory or the processor. The spacecraft would have even done a 60 day mission on its own, including deploying the rover, if the radio receiver had broken when we landed. There are a large number of safeguards in the system to ensure robust, continued operation in the event of a failure of this type. These safeguards allowed us to designate problems of this nature as lower priority.\n\nWe had our priorities right."
+    },
+    {
+     "source": "similar",
+     "section": "THE FAILURE",
+     "fix_title": false,
+     "text": "## THE FAILURE\n\nThe failure was identified by the spacecraft as a failure of the bc_dist task to complete its execution before the bc_sched task started. The reaction to this by the spacecraft was to reset the computer. This reset reinitializes all of the hardware and software. It also terminates the execution of the current ground commanded activities. No science or engineering data is lost that has already been collected (the data in RAM is recovered so long as power is not lost). However, the remainder of the activities for that day were not accomplished until the next day.\n\nThe failure turned out to be a case of priority inversion (how we discovered this and how we fixed it are covered later). The higher priority bc_dist task was blocked by the much lower priority ASI/MET task that was holding a shared resource. The ASI/MET task had acquired this resource and then been preempted by several of the medium priority tasks. When the bc_sched task was activated, to setup the transactions for the next 1553 bus cycle, it detected that the bc_dist task had not completed its execution. The resource that caused this problem was a mutual exclusion semaphore used within the select() mechanism to control access to the list of file descriptors that the select() mechanism was to wait on."
+    }
+   ]
+  },
+  "initial_search_position": 5,
+  "expected_in_new": [
+   "DAN-200"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-200",
+   "DAN-189",
+   "DAN-198",
+   "DAN-146",
+   "DAN-103",
+   "DAN-191",
+   "DAN-066",
+   "DAN-069"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-200"
+  ],
+  "expected_deepened": [
+   "DAN-200"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-200",
+     "query": "root cause priority inversion VxWorks reset fix priority inheritance",
+     "why": "Mars Pathfinder onboard computer reset a few days after landing, matching current incident of onboard computer resetting days after going into operation"
+    }
+   ],
+   "new_queries": [
+    "onboard computer spontaneous reset reboot days after operation",
+    "embedded computer keeps resetting itself after going into service"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-200": [
+    {
+     "section": "HOW WAS THE PROBLEM CORRECTED",
+     "similarity": 0.665,
+     "query_source": "llm",
+     "start": "## HOW WAS THE PROBLEM CORRECTED  Once we understood the problem the fix appeared obvious : change the creation flags for the semaphore so as to enable priority inheritance. The Wind River folks, for many of their services, supply global configuration variables for parameters such as the \"options\" p"
+    },
+    {
+     "section": "HOW WAS THE PROBLEM CORRECTED",
+     "similarity": 0.626,
+     "query_source": "llm",
+     "start": "## HOW WAS THE PROBLEM CORRECTED  We did end up modifying the global variable to include the priority inheritance option. This corrected the problem. We asked Wind River to analyze the potential impacts for (3) and (4). They concluded that the performance impact would be minimal and that the behavio"
+    },
+    {
+     "section": "THE FAILURE",
+     "similarity": 0.577,
+     "query_source": "cause",
+     "start": "## THE FAILURE  The failure was identified by the spacecraft as a failure of the bc_dist task to complete its execution before the bc_sched task started. The reaction to this by the spacecraft was to reset the computer. This reset reinitializes all of the hardware and software. It also terminates th"
+    },
+    {
+     "section": "ANALYSIS AND LESSONS",
+     "similarity": 0.354,
+     "query_source": "fix",
+     "start": "## ANALYSIS AND LESSONS  Did we (the JPL team) make an error in assuming how the select/pipe mechanism would work ? Yes, probably. But there was no conscious decision to not have the priority inheritance option enabled. We just missed it. There are several other places in the flight software where s"
+    },
+    {
+     "section": "HUMAN NATURE, DEADLINE PRESSURES",
+     "similarity": 0.436,
+     "query_source": "fix",
+     "start": "## HUMAN NATURE, DEADLINE PRESSURES  We did see the problem before landing but could not get it to repeat when we tried to track it down. It was not forgotten nor was it deemed unimportant. Yes, we were concentrating heavily on the entry and landing software. Yes, we considered this problem lower pr"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-189",
+   "DAN-198",
+   "DAN-146",
+   "DAN-103",
+   "DAN-191",
+   "DAN-066",
+   "DAN-069",
+   "DAN-074",
+   "DAN-211",
+   "DAN-200"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "onboard computer spontaneous reset reboot days after operation",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-189",
+     "DAN-198",
+     "DAN-146",
+     "DAN-103",
+     "DAN-191",
+     "DAN-066",
+     "DAN-069",
+     "DAN-211",
+     "DAN-200",
+     "DAN-073"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "embedded computer keeps resetting itself after going into service",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-103",
+     "DAN-198",
+     "DAN-074",
+     "DAN-189",
+     "DAN-191",
+     "DAN-069",
+     "DAN-073",
+     "DAN-211",
+     "DAN-154",
+     "DAN-146"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause priority inversion VxWorks reset fix priority inheritance",
+    "filter": {
+     "incident": "DAN-200"
+    },
+    "ids": [
+     "DAN-200"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-200"
+    },
+    "ids": [
+     "DAN-200"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-200"
+    },
+    "ids": [
+     "DAN-200"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 2.5,
+    "tokens": 1244,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 3.5,
+    "tokens": 2339,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 6
+ },
+ {
+  "id": "q-032",
+  "type": "sintoma_pos_6-10",
+  "expected": [
+   "DAN-104"
+  ],
+  "symptoms": [
+   "storage service completely down",
+   "storage service not recovering"
+  ],
+  "expected_passages": {
+   "DAN-104": [
+    {
+     "source": "llm",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nWe’d like to give you some additional information about the service disruption that occurred in the Northern Virginia (US-EAST-1) Region on the morning of February 28th, 2017. The Amazon Simple Storage Service (S3) team was debugging an issue causing the S3 billing system to progress more slowly than expected. At 9:37AM PST, an authorized S3 team member using an established playbook executed a command which was intended to remove a small number of servers for one of the S3 subsystems that is used by the S3 billing process. Unfortunately, one of the inputs to the command was entered incorrectly and a larger set of servers was removed than intended. The servers that were inadvertently removed supported two other S3 subsystems. One of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region. This subsystem is necessary to serve all GET, LIST, PUT, and DELETE requests."
+    },
+    {
+     "source": "fix",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nFrom the beginning of this event until 11:37AM PST, we were unable to update the individual services’ status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console has on Amazon S3. Instead, we used the AWS Twitter feed (@AWSCloud) and SHD banner text to communicate status until we were able to update the individual services’ status on the SHD. We understand that the SHD provides important visibility to our customers during operational events and we have changed the SHD administration console to run across multiple AWS regions.\n\nFinally, we want to apologize for the impact this event caused for our customers. While we are proud of our long track record of availability with Amazon S3, we know how critical this service is to our customers, their applications and end users, and their businesses. We will do everything we can to learn from this event and use it to improve our availability even further."
+    },
+    {
+     "source": "fix",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nOne of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region. This subsystem is necessary to serve all GET, LIST, PUT, and DELETE requests. The second subsystem, the placement subsystem, manages allocation of new storage and requires the index subsystem to be functioning properly to correctly operate. The placement subsystem is used during PUT requests to allocate storage for new objects. Removing a significant portion of the capacity caused each of these systems to require a full restart. While these subsystems were being restarted, S3 was unable to service requests. Other AWS services in the US-EAST-1 Region that rely on S3 for storage, including the S3 console, Amazon Elastic Compute Cloud (EC2) new instance launches, Amazon Elastic Block Store (EBS) volumes (when data was needed from a S3 snapshot), and AWS Lambda were also impacted while the S3 APIs were unavailable."
+    },
+    {
+     "source": "similar",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nS3 subsystems are designed to support the removal or failure of significant capacity with little or no customer impact. We build our systems with the assumption that things will occasionally fail, and we rely on the ability to remove and replace capacity as one of our core operational processes. While this is an operation that we have relied on to maintain our systems since the launch of S3, we have not completely restarted the index subsystem or the placement subsystem in our larger regions for many years. S3 has experienced massive growth over the last several years and the process of restarting these services and running the necessary safety checks to validate the integrity of the metadata took longer than expected. The index subsystem was the first of the two affected subsystems that needed to be restarted. By 12:26PM PST, the index subsystem had activated enough capacity to begin servicing S3 GET, LIST, and DELETE requests. By 1:18PM PST, the index subsystem was fully recovered and GET, LIST, and DELETE APIs were functioning normally. The S3 PUT API also required the placement subsystem. The placement subsystem began recovery when the index subsystem was functional and finished recovery at 1:54PM PST. At this point, S3 was operating normally. Other AWS services that were impacted by this event began recovering. Some of these services had accumulated a backlog of work during the S3 disruption and required additional time to fully recover."
+    },
+    {
+     "source": "similar",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nWe are making several changes as a result of this operational event. While removal of capacity is a key operational practice, in this instance, the tool used allowed too much capacity to be removed too quickly. We have modified this tool to remove capacity more slowly and added safeguards to prevent capacity from being removed when it will take any subsystem below its minimum required capacity level. This will prevent an incorrect input from triggering a similar event in the future. We are also auditing our other operational tools to ensure we have similar safety checks. We will also make changes to improve the recovery time of key S3 subsystems. We employ multiple techniques to allow our services to recover from any failure quickly. One of the most important involves breaking services into small partitions which we call cells. By factoring services into cells, engineering teams can assess and thoroughly test recovery processes of even the largest service or subsystem. As S3 has scaled, the team has done considerable work to refactor parts of the service into smaller cells to reduce blast radius and improve recovery. During this event, the recovery time of the index subsystem still took longer than we expected. The S3 team had planned further partitioning of the index subsystem later this year. We are reprioritizing that work to begin immediately."
+    }
+   ]
+  },
+  "initial_search_position": 7,
+  "expected_in_new": [
+   "DAN-104"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-104",
+   "DAN-103",
+   "DAN-146",
+   "DAN-073",
+   "DAN-070",
+   "DAN-191",
+   "DAN-210",
+   "DAN-109"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-104"
+  ],
+  "expected_deepened": [
+   "DAN-104"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-104",
+     "query": "root cause human error command remove servers typo S3 outage fix restart recovery",
+     "why": "The current incident: a routine command to remove a few servers took down the storage service and it is not recovering. DAN-104 matches closely: a command intending to remove a small number of servers was mistyped and removed a larger set, bringing down S3 storage until a full restart."
+    }
+   ],
+   "new_queries": [
+    "storage service down after removing servers routine command not recovering",
+    "storage outage caused by operator removing servers quorum loss"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-104": [
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.578,
+     "query_source": "llm",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  We’d like to give you some additional information about the service disruption that occurred in the Northern Virginia (US-EAST-1) Region on the morning of February 28th, 2017. The Amazon Simple Storage Servic"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.576,
+     "query_source": "llm",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  We are making several changes as a result of this operational event. While removal of capacity is a key operational practice, in this instance, the tool used allowed too much capacity to be removed too quickl"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.312,
+     "query_source": "cause",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  S3 subsystems are designed to support the removal or failure of significant capacity with little or no customer impact. We build our systems with the assumption that things will occasionally fail, and we rely"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.303,
+     "query_source": "fix",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  From the beginning of this event until 11:37AM PST, we were unable to update the individual services’ status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console ha"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.219,
+     "query_source": "fix",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  One of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region. This subsystem is necessary to serve all GET, LIST, PUT, and DELETE requests. The s"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-103",
+   "DAN-146",
+   "DAN-073",
+   "DAN-070",
+   "DAN-191",
+   "DAN-210",
+   "DAN-109",
+   "DAN-067",
+   "DAN-118",
+   "DAN-104"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "storage service down after removing servers routine command not recovering",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-103",
+     "DAN-146",
+     "DAN-073",
+     "DAN-070",
+     "DAN-210",
+     "DAN-109",
+     "DAN-067",
+     "DAN-118",
+     "DAN-104",
+     "DAN-189"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "storage outage caused by operator removing servers quorum loss",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-073",
+     "DAN-191",
+     "DAN-209",
+     "DAN-208",
+     "DAN-107",
+     "DAN-109",
+     "DAN-222",
+     "DAN-071",
+     "DAN-189",
+     "DAN-068"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause human error command remove servers typo S3 outage fix restart recovery",
+    "filter": {
+     "incident": "DAN-104"
+    },
+    "ids": [
+     "DAN-104"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-104"
+    },
+    "ids": [
+     "DAN-104"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-104"
+    },
+    "ids": [
+     "DAN-104"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 4.3,
+    "tokens": 1275,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 15.3,
+    "tokens": 3079,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": "DAN-104 (Amazon S3) is a very strong match: a command meant to remove a small number of servers was mistyped and removed a larger set, taking down the S3 storage service and requiring a full restart. I'll look inside it for the root cause and fix.\n"
+   }
+  ],
+  "seconds": 20
+ },
+ {
+  "id": "q-223",
+  "type": "sintoma_pos_6-10",
+  "expected": [
+   "DAN-121"
+  ],
+  "symptoms": [
+   "backend database overloaded and throttling requests",
+   "video player timing out"
+  ],
+  "expected_passages": {
+   "DAN-121": [
+    {
+     "source": "cause",
+     "section": "",
+     "fix_title": false,
+     "text": "We recognise that during this incident, with BBC iPlayer unavailable for some periods for some users you may not have been able to watch or listen to the programmes you wanted. I’m afraid we can’t simply turn back the clock, and as such the availability for you to watch some programmes in the normal seven day catch-up window was reduced. Essentially programmes aired on Saturday 12th July and Sunday 13th July were not available this last weekend for some users. It's small consolation but that was the weekend of the World Cup Final, Scottish Open, Women's Open and other live sporting events which are less likely to be viewed on catch-up. I should also stress that programmes aired this weekend - when the problems occurred - are available now on BBC iPlayer.\n\nBBC iPlayer is an incredibly popular product, last year alone we had 3 billion requests and instances like this are incredibly rare.\n\nWe will now be completing the forensics to make sure that we’ve fully understood the root causes, and put in place the measures necessary to minimise the chances of such interruptions in the future.\n\nWe're sorry for the inconvenience.\n\n*Richard Cooper is Controller of Digital Distribution, BBC Future Media*"
+    },
+    {
+     "source": "similar",
+     "section": "",
+     "fix_title": false,
+     "text": "Hi, I'm Richard Cooper, the BBC's Controller of Digital Distribution for BBC Future Media.\n\nAs many of you will have noticed we suffered a serious incident over the weekend which impacted BBC iPlayer, BBC iPlayer Radio, and audio and video playback on other parts of bbc.co.uk. We also had to use our emergency homepage for prolonged periods of time.\n\nHere’s what happened.\n\nWe have a system comprising 58 application servers and 10 database servers that provides programme and clip metadata. This data powers various BBC iPlayer applications for the devices that we support (which is over 1200 and counting) as well as modules of programme information and clips on many sites across BBC Online. This system is split across two data centres in a \"hot-hot\" configuration (both running at the same time), with the expectation that we can run at any time from either one of those data centres.\n\nAt 9.30 on Saturday morning (19th July 2014) the load on the database went through the roof, meaning that many requests for metadata to the application servers started to fail.\n\nThe immediate impact of this depended on how each product uses that data. In many cases the metadata is cached at the product level, and can continue to serve content while attempting to revalidate. In some cases (mostly older applications), the metadata is used directly, and so those products started to fail.\n\nAt almost the same time we had a second problem. We use a caching layer in front of most of the products on BBC Online, and one of the pools failed. The products managed by that pool include BBC iPlayer and the BBC homepage, and the failure made all of those products inaccessible. That opened up a major incident at the same time on a second front."
+    },
+    {
+     "source": "similar",
+     "section": "",
+     "fix_title": false,
+     "text": "Our first priority was to restore the caching layer. The failure was a complex one (we’re still doing the forensics on it), and it has repeated a number of times. It was this failure that resulted in us switching the homepage to its emergency mode (“Due to technical problems, we are displaying a simplified version of the BBC Homepage”). We used the emergency page a number of times during the weekend, eventually leaving it up until we were confident that we had completely stabilised the cache.\n\nRestoring the metadata service was complex. Isolating the source of the additional load proved to be far from straightforward, and restoring the service itself is not as simple as rebooting it (turning it off and on again is the ultimate solution to most problems). Performance of the system remained sufficiently poor that in the end we decided to do some significant remedial work on Saturday afternoon, which ran on until the evening. During that period, BBC iPlayer was effectively not useable.\n\nAfter that work was complete we were in a walking wounded state that allowed close to normal operation for much of the site, though BBC iPlayer remained down on a number of devices. We chose to run it in this mode throughout the rest of the weekend while planning a full restoration of the service. By the time we were ready to do that we were entering the peak period on Sunday evening, so rather than risk the service further, we chose instead to do it on Monday morning."
+    }
+   ]
+  },
+  "initial_search_position": 8,
+  "expected_in_new": [
+   "DAN-121"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-121",
+   "DAN-147",
+   "DAN-219",
+   "DAN-148",
+   "DAN-129",
+   "DAN-101",
+   "DAN-134",
+   "DAN-156"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-121"
+  ],
+  "expected_deepened": [
+   "DAN-121"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-121",
+     "query": "root cause database overload throttle requests fix capacity monitoring",
+     "why": "Closest match: database backend overloaded and throttling requests, services including iPlayer (video player) timing out—mirrors the current incident's symptom and component."
+    }
+   ],
+   "new_queries": [
+    "backend database overloaded throttling requests video player timing out",
+    "database overload causing service timeouts video player backend"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-121": [
+    {
+     "section": "",
+     "similarity": 0.487,
+     "query_source": "llm",
+     "start": "Hi, I'm Richard Cooper, the BBC's Controller of Digital Distribution for BBC Future Media.  As many of you will have noticed we suffered a serious incident over the weekend which impacted BBC iPlayer, BBC iPlayer Radio, and audio and video playback on other parts of bbc.co.uk. We also had to use our"
+    },
+    {
+     "section": "",
+     "similarity": 0.451,
+     "query_source": "llm",
+     "start": "Our first priority was to restore the caching layer. The failure was a complex one (we’re still doing the forensics on it), and it has repeated a number of times. It was this failure that resulted in us switching the homepage to its emergency mode (“Due to technical problems, we are displaying a sim"
+    },
+    {
+     "section": "",
+     "similarity": 0.348,
+     "query_source": "cause",
+     "start": "We recognise that during this incident, with BBC iPlayer unavailable for some periods for some users you may not have been able to watch or listen to the programmes you wanted. I’m afraid we can’t simply turn back the clock, and as such the availability for you to watch some programmes in the normal"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-147",
+   "DAN-219",
+   "DAN-121",
+   "DAN-148",
+   "DAN-129",
+   "DAN-101",
+   "DAN-134",
+   "DAN-156",
+   "DAN-164",
+   "DAN-094"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "backend database overloaded throttling requests video player timing out",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-147",
+     "DAN-219",
+     "DAN-148",
+     "DAN-101",
+     "DAN-121",
+     "DAN-134",
+     "DAN-164",
+     "DAN-129",
+     "DAN-156",
+     "DAN-094"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "database overload causing service timeouts video player backend",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-147",
+     "DAN-121",
+     "DAN-129",
+     "DAN-148",
+     "DAN-156",
+     "DAN-164",
+     "DAN-134",
+     "DAN-094",
+     "DAN-220",
+     "DAN-144"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause database overload throttle requests fix capacity monitoring",
+    "filter": {
+     "incident": "DAN-121"
+    },
+    "ids": [
+     "DAN-121"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-121"
+    },
+    "ids": [
+     "DAN-121"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-121"
+    },
+    "ids": [
+     "DAN-121"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 1.6,
+    "tokens": 1209,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 3.6,
+    "tokens": 2651,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": "The search returned several candidates. **DAN-121 (BBC Online)** is the strongest match: it describes a database backend overloaded, throttling requests from various services, and services timing out—specifically including BBC iPlayer (a video player). Let me dig into its root cause and fix.\n"
+   }
+  ],
+  "seconds": 6
+ },
+ {
+  "id": "q-229",
+  "type": "sintoma_pos_6-10",
+  "expected": [
+   "DAN-125"
+  ],
+  "symptoms": [
+   "database cannot handle peak load",
+   "dependent servers failing in cascade"
+  ],
+  "expected_passages": {
+   "DAN-125": [
+    {
+     "source": "cause",
+     "section": "What a morning…",
+     "fix_title": false,
+     "text": "## What a morning…\n\nThe Buildkite team are currently based out of Melbourne, Australia — which meant we were all asleep when we first went offline (3:21 AM AEST). Usually if this happens our primary on-call person would get a phone call from PagerDuty letting them know that Buildkite is having problems, but due to mis-configured settings on PagerDuty and our phones being on “silent”, that didn’t happen.\n\nWe woke up at 21:00 UTC almost 4 hours after we went offline to see our phones full of emails, tweets and Slack messages letting us know Buildkite was down. Many expletives were yelled as we all raced out of bed, opened laptops, and started figuring out what was going on.\n\n*SMS from Tim this morning when he discovered the outage*\n\nIt took us a while to figure out what was going on, and at 22:28 UTC we made some temporary fixes to get buildkite.com back online. Although we were able to start servicing web requests, our response times were really bad and some requests were just getting dropped.\n\nWe finally recovered at 23:10 UTC and spent the rest of the day working on making sure this doesn’t happen again.\n\n*Buildkite’s uptime over the last 24 hours — it’s not great…*"
+    },
+    {
+     "source": "fix",
+     "section": "Moving forward",
+     "fix_title": true,
+     "text": "## Moving forward\n\nTim, Sam and I would like to personally apologise for the downtime. We know exactly what it’s like when services you rely upon have technical issues (AWS had problems when we were trying to fix ours). It’s incredibly frustrating and at times infuriating. We don’t want to be that sort of company and we don’t want our customers and friends to feel like that.\n\nWe’d also like to personally thank you all for your understanding during the downtime. It’s was very heart warming and encouraging to see such lovely tweets while we were working to get everything back online.\n\nWe can’t promise that we won’t go down again, but we can promise that we won’t make the same mistakes twice. Not only are we stronger technically, we’re a stronger team now because of it.\n\nIf you have any questions or would like to know more about what happened, feel free to email me directly keith@buildkite.com\n\n❤ Keith, Tim and Sam"
+    },
+    {
+     "source": "fix",
+     "section": "AWS issues prevented us from fixing anything",
+     "fix_title": true,
+     "text": "## AWS issues prevented us from fixing anything\n\nOnce we were all online and had finished identifying what the problems were, we decided the first thing we wanted to do was upgrade the database.\n\nWe logged into the AWS Console and tried upgrading the database, but due to IAM issues AWS was experiencing, the interface wouldn’t let us make the changes. We checked the AWS Status Page and noticed they were having problems, so we decided to skip this step for now and go onto the next thing.\n\n*Screenshot of AWS Status Page showing IAM issues*\n\nWe needed to push out a new AMI to our servers that didn’t reference https://buildkite.com/\\_secret/version. We made the necessary changes, built the AMI and decided to test it out before deploying it to the rest of our infrastructure. When we tried to launch it, we discovered the IAM role selector wasn’t working either. We kept getting “Internal server error” in the AWS Console — which we guess to be IAM related.\n\nAt this point we stole some servers from the Agent API and added them to the ELB that services requests for the dashboard. This allowed us to bring buildkite.com back online — although requests were slow due to the database still being under heavy load.\n\nOnce the IAM issues had subsided we tried launching new EC2 servers, but we got hit by another AWS issue: EC2 request limits. Because servers had kept coming up, failing health checks, and going down again, we had reached out EC2 request limit. Our only option here was to wait it out."
+    },
+    {
+     "source": "similar",
+     "section": "Database performance issues",
+     "fix_title": false,
+     "text": "## Database performance issues\n\nWe scheduled a maintenance window on the weekend to downgrade the database. The downgrade was successful and everything was looking great. The performance of the new database looked fine and we were happy with the results.\n\nOur largest customers are in US timezones, so we wouldn’t really have known how the database was going to hold up under heavy load until Monday morning in the US (Monday night for us). We monitored it into our evening and what we thought was the beginning of the US peak period and everything seemed to be tracking okay, so we went to bed.\n\nSince the new database didn’t have as much memory as the old one, we also moved to a centralised pgbouncer to pool connections across all of our servers in hopes to reduce the per-connection memory overhead.\n\nAt around 16:00 UTC the database started struggling. It couldn’t keep up and its CPU started maxing out. These performance problems started a cascade of other issues.\n\n*CPU Utilization of our new database*\n\n**Lesson #2:** Do load testing after significant infrastructure changes. Due to the tight time constraints before the next AWS bill, we didn’t load test the new database or the centralized pgbouncer setup.\nWe’ve already started planning how this could work and ways we can do it without impacting others using the system."
+    },
+    {
+     "source": "similar",
+     "section": "AWS issues prevented us from fixing anything",
+     "fix_title": true,
+     "text": "## AWS issues prevented us from fixing anything\n\nAfter some time we were eventually able to upgrade the database to an instance type that could handle the load and roll out new servers that fixed self deploys. We had to use the aws-cli to do these last steps since the AWS Console was still having issues.\n\nAlong with upgrading the database, we also took this opportunity to remove the centralized pgbouncer server. We previously used to have pgbouncer installed on each host and pool from there. Since we knew the previous setup had worked well, we reverted back to that until we had capacity to investigate if the new pgbouncer setup was working.\n\n**Lesson #6:** When you see high churn issues in AWS make sure to stop your health check and autoscaling rules so that you don’t run into future EC2 request limits. When we hit ours we changed the Auto Scaling Groups to EC2 health checks and locked in desired counts.\nAs part of writing this postmortem, we discovered you can “Suspend and Resume Auto Scaling Processes” directly from within AWS — which would have been very useful if we’d had known about it:\nhttp://docs.aws.amazon.com/autoscaling/latest/userguide/as-suspend-resume-processes.html"
+    }
+   ]
+  },
+  "initial_search_position": 10,
+  "expected_in_new": [
+   "DAN-125"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-125",
+   "DAN-147",
+   "DAN-130",
+   "DAN-164",
+   "DAN-156",
+   "DAN-219",
+   "DAN-096",
+   "DAN-181"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-125"
+  ],
+  "expected_deepened": [
+   "DAN-125"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-125",
+     "query": "root cause database capacity downgrade fix cascading collapse dependent servers",
+     "why": "DAN-125 matches the current incident almost exactly: database capacity downgrade/downsizing, inability to handle peak load, and cascading collapse of dependent servers."
+    },
+    {
+     "id": "DAN-147",
+     "query": "root cause cascading failure insufficient database capacity fix capacity planning monitoring",
+     "why": "DAN-147 involves cascading failure due to insufficient database capacity, which is related but lacks the explicit downsizing trigger seen in the current incident."
+    }
+   ],
+   "new_queries": [
+    "database peak load cascade failure dependent servers",
+    "database downsized cannot handle load cascade outage"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-125": [
+    {
+     "section": "Database performance issues",
+     "similarity": 0.585,
+     "query_source": "llm",
+     "start": "## Database performance issues  We scheduled a maintenance window on the weekend to downgrade the database. The downgrade was successful and everything was looking great. The performance of the new database looked fine and we were happy with the results.  Our largest customers are in US timezones, s"
+    },
+    {
+     "section": "AWS issues prevented us from fixing anything",
+     "similarity": 0.533,
+     "query_source": "llm",
+     "start": "## AWS issues prevented us from fixing anything  After some time we were eventually able to upgrade the database to an instance type that could handle the load and roll out new servers that fixed self deploys. We had to use the aws-cli to do these last steps since the AWS Console was still having is"
+    },
+    {
+     "section": "What a morning…",
+     "similarity": 0.436,
+     "query_source": "cause",
+     "start": "## What a morning…  The Buildkite team are currently based out of Melbourne, Australia — which meant we were all asleep when we first went offline (3:21 AM AEST). Usually if this happens our primary on-call person would get a phone call from PagerDuty letting them know that Buildkite is having probl"
+    },
+    {
+     "section": "Moving forward",
+     "similarity": 0.469,
+     "query_source": "fix",
+     "start": "## Moving forward  Tim, Sam and I would like to personally apologise for the downtime. We know exactly what it’s like when services you rely upon have technical issues (AWS had problems when we were trying to fix ours). It’s incredibly frustrating and at times infuriating. We don’t want to be that s"
+    },
+    {
+     "section": "AWS issues prevented us from fixing anything",
+     "similarity": 0.367,
+     "query_source": "fix",
+     "start": "## AWS issues prevented us from fixing anything  Once we were all online and had finished identifying what the problems were, we decided the first thing we wanted to do was upgrade the database.  We logged into the AWS Console and tried upgrading the database, but due to IAM issues AWS was experienc"
+    }
+   ],
+   "DAN-147": [
+    {
+     "section": "Authentication Issues - DUO1",
+     "similarity": 0.599,
+     "query_source": "llm",
+     "start": "## Authentication Issues - DUO1  From that point, the DUO1 deployment was stable but traffic and load continued to grow. After further review of the data surrounding the incident, it was determined that the outage was not solely the result of the software release in question, but ultimately a combin"
+    },
+    {
+     "section": "Authentication Issues - DUO1",
+     "similarity": 0.538,
+     "query_source": "llm",
+     "start": "## Authentication Issues - DUO1  - We’ve been actively re-architecting the database tier of our deployments so that we can home customers to a specific database server within a deployment. That way, we’re able to quickly add capacity on demand for those customers that need it without affecting other"
+    },
+    {
+     "section": "Authentication Latency on DUO1 Deployment",
+     "similarity": 0.398,
+     "query_source": "cause",
+     "start": "## Authentication Latency on DUO1 Deployment  ## Postmortem  ## Authentication Issues - DUO1  Incident Report - 2018/08/29  Summary:  From 14:11 to 15:13 UTC on August 29th, 2018, the DUO1 deployment experienced performance degradation that resulted in increased authentication latency and intermitte"
+    },
+    {
+     "section": "Update",
+     "similarity": 0.323,
+     "query_source": "fix",
+     "start": "## Update  We're still monitoring an elevated number of slow and/or failed authentication requests affecting our DUO1 deployment. Our Engineering team is actively working to resolve this issue.  Posted Aug 29, 2018 - 11:17 EDT"
+    },
+    {
+     "section": "Authentication Issues - DUO1",
+     "similarity": 0.321,
+     "query_source": "fix",
+     "start": "## Authentication Issues - DUO1  Now that we had a better understanding of what was causing these prolonged backups, we knew what to do. On August 29th, we implemented a max limit to this queue. If we attempt to go over the limit, we'll start proactively rejecting the requests instead of queuing the"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-147",
+   "DAN-130",
+   "DAN-164",
+   "DAN-156",
+   "DAN-219",
+   "DAN-125",
+   "DAN-096",
+   "DAN-181",
+   "DAN-194",
+   "DAN-094"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "database peak load cascade failure dependent servers",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-147",
+     "DAN-219",
+     "DAN-181",
+     "DAN-130",
+     "DAN-156",
+     "DAN-164",
+     "DAN-194",
+     "DAN-048",
+     "DAN-125",
+     "DAN-029"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "database downsized cannot handle load cascade outage",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-147",
+     "DAN-130",
+     "DAN-164",
+     "DAN-156",
+     "DAN-125",
+     "DAN-096",
+     "DAN-094",
+     "DAN-091",
+     "DAN-219",
+     "DAN-058"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause database capacity downgrade fix cascading collapse dependent servers",
+    "filter": {
+     "incident": "DAN-125"
+    },
+    "ids": [
+     "DAN-125"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-125"
+    },
+    "ids": [
+     "DAN-125"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-125"
+    },
+    "ids": [
+     "DAN-125"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause cascading failure insufficient database capacity fix capacity planning monitoring",
+    "filter": {
+     "incident": "DAN-147"
+    },
+    "ids": [
+     "DAN-147"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-147"
+    },
+    "ids": [
+     "DAN-147"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-147"
+    },
+    "ids": [
+     "DAN-147"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 5.0,
+    "tokens": 1215,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 13.0,
+    "tokens": 2953,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 19
+ },
+ {
+  "id": "q-262",
+  "type": "sintoma_pos_6-10",
+  "expected": [
+   "DAN-200"
+  ],
+  "symptoms": [
+   "onboard computer restarts spontaneously"
+  ],
+  "expected_passages": {
+   "DAN-200": [
+    {
+     "source": "llm",
+     "section": "HOW WAS THE PROBLEM CORRECTED",
+     "fix_title": true,
+     "text": "## HOW WAS THE PROBLEM CORRECTED\n\nOnce we understood the problem the fix appeared obvious : change the creation flags for the semaphore so as to enable priority inheritance. The Wind River folks, for many of their services, supply global configuration variables for parameters such as the \"options\" parameter for the semMCreate used by the select service (although this is not documented and those who do not have vxWorks source code or have not studied the source code might be unaware of this feature). However, the fix is not so obvious for several reasons :\n\n1) The code for this is in the selectLib() and is common for all device creations. When you change this global variable all of the select semaphores created after that point will be created with the new options. There was no easy way in our initialization logic to only modify the semaphore associated with the pipe used for bc_dist task to ASI/MET task communications.\n\n2) If we make this change, and it is applied on a global basis, how will this change the behavior of the rest of the system ?\n\n3) The priority inheritance option was deliberately left out by Wind River in the default selectLib() service for optimum performance. How will performance degrade if we turn priority inheritance on ?\n\n4) Was there some intrinsic behavior of the select mechanism itself that would change if priority inheritance was enabled ?"
+    },
+    {
+     "source": "fix",
+     "section": "ANALYSIS AND LESSONS",
+     "fix_title": true,
+     "text": "## ANALYSIS AND LESSONS\n\nDid we (the JPL team) make an error in assuming how the select/pipe mechanism would work ? Yes, probably. But there was no conscious decision to not have the priority inheritance option enabled. We just missed it. There are several other places in the flight software where similar protection is required for critical data structures and the semaphores do have priority inversion protection. A good lesson when you fly COTS stuff - make sure you know how it works.\n\nMike is quite correct in saying that we could not have figured this out **ever** if we did not have the tools to give us the insight. We built many of the tools into the software for exactly this type of problem. We always planned to leave them in. In fact, the shell (and the stdout stream) were very useful the entire mission. If you want more detail send me a note."
+    },
+    {
+     "source": "fix",
+     "section": "HOW WAS THE PROBLEM CORRECTED",
+     "fix_title": true,
+     "text": "## HOW WAS THE PROBLEM CORRECTED\n\nWe did end up modifying the global variable to include the priority inheritance option. This corrected the problem. We asked Wind River to analyze the potential impacts for (3) and (4). They concluded that the performance impact would be minimal and that the behavior of select() would not change so long as there was always only one task waiting for any particular file descriptor. This is true in our system. I believe that the debate at Wind River still continues on whether the priority inheritance option should be on as the default. For (1) and (2) the change did alter the characteristics of all of the select semaphores. We concluded, both by analysis and test, that there was no adverse behavior. We tested the system extensively before we changed the software on the spacecraft."
+    },
+    {
+     "source": "similar",
+     "section": "HUMAN NATURE, DEADLINE PRESSURES",
+     "fix_title": false,
+     "text": "## HUMAN NATURE, DEADLINE PRESSURES\n\nWe did see the problem before landing but could not get it to repeat when we tried to track it down. It was not forgotten nor was it deemed unimportant. Yes, we were concentrating heavily on the entry and landing software. Yes, we considered this problem lower priority. Yes, we would have liked to have everything perfect before landing. However, I don’t see any problem here other than we ran out of time to get the lower priority issues completed.\n\nWe did have one other thing on our side; we knew how robust our system was because that is the way we designed it.\n\nWe knew that if this problem occurred we would reset. We built in mechanisms to recover the current activity so that there would be no interruptions in the science data (although this wasn’t used until later in the landed mission). We built in the ability (and tested it) to go through multiple resets while we were going through the Martian atmosphere. We designed the software to recover from radiation induced errors in the memory or the processor. The spacecraft would have even done a 60 day mission on its own, including deploying the rover, if the radio receiver had broken when we landed. There are a large number of safeguards in the system to ensure robust, continued operation in the event of a failure of this type. These safeguards allowed us to designate problems of this nature as lower priority.\n\nWe had our priorities right."
+    },
+    {
+     "source": "similar",
+     "section": "THE FAILURE",
+     "fix_title": false,
+     "text": "## THE FAILURE\n\nThe failure was identified by the spacecraft as a failure of the bc_dist task to complete its execution before the bc_sched task started. The reaction to this by the spacecraft was to reset the computer. This reset reinitializes all of the hardware and software. It also terminates the execution of the current ground commanded activities. No science or engineering data is lost that has already been collected (the data in RAM is recovered so long as power is not lost). However, the remainder of the activities for that day were not accomplished until the next day.\n\nThe failure turned out to be a case of priority inversion (how we discovered this and how we fixed it are covered later). The higher priority bc_dist task was blocked by the much lower priority ASI/MET task that was holding a shared resource. The ASI/MET task had acquired this resource and then been preempted by several of the medium priority tasks. When the bc_sched task was activated, to setup the transactions for the next 1553 bus cycle, it detected that the bc_dist task had not completed its execution. The resource that caused this problem was a mutual exclusion semaphore used within the select() mechanism to control access to the list of file descriptors that the select() mechanism was to wait on."
+    }
+   ]
+  },
+  "initial_search_position": 10,
+  "expected_in_new": [
+   "DAN-200"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-200",
+   "DAN-198",
+   "DAN-189",
+   "DAN-073",
+   "DAN-103",
+   "DAN-182",
+   "DAN-191",
+   "DAN-102"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-200"
+  ],
+  "expected_deepened": [
+   "DAN-200"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-200",
+     "query": "root cause priority inversion VxWatch system reset fix priority inheritance",
+     "why": "Mars Pathfinder onboard computer reset a few days after landing — matches current incident's onboard computer spontaneous restart days after operation"
+    }
+   ],
+   "new_queries": [
+    "onboard computer spontaneous restart intermittent reboot",
+    "avionics flight computer reboot few days after entering operation",
+    "embedded flight computer watchdog restart after days of uptime",
+    "avionics computer spontaneous reboot timer overflow millis rollover",
+    "vehicle ECU onboard computer spontaneous restart after days operation",
+    "embedded system reboot intermittent delayed days after startup watchdog"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-200": [
+    {
+     "section": "HOW WAS THE PROBLEM CORRECTED",
+     "similarity": 0.609,
+     "query_source": "llm",
+     "start": "## HOW WAS THE PROBLEM CORRECTED  Once we understood the problem the fix appeared obvious : change the creation flags for the semaphore so as to enable priority inheritance. The Wind River folks, for many of their services, supply global configuration variables for parameters such as the \"options\" p"
+    },
+    {
+     "section": "THE FAILURE",
+     "similarity": 0.596,
+     "query_source": "llm",
+     "start": "## THE FAILURE  The failure was identified by the spacecraft as a failure of the bc_dist task to complete its execution before the bc_sched task started. The reaction to this by the spacecraft was to reset the computer. This reset reinitializes all of the hardware and software. It also terminates th"
+    },
+    {
+     "section": "HUMAN NATURE, DEADLINE PRESSURES",
+     "similarity": 0.469,
+     "query_source": "cause",
+     "start": "## HUMAN NATURE, DEADLINE PRESSURES  We did see the problem before landing but could not get it to repeat when we tried to track it down. It was not forgotten nor was it deemed unimportant. Yes, we were concentrating heavily on the entry and landing software. Yes, we considered this problem lower pr"
+    },
+    {
+     "section": "ANALYSIS AND LESSONS",
+     "similarity": 0.354,
+     "query_source": "fix",
+     "start": "## ANALYSIS AND LESSONS  Did we (the JPL team) make an error in assuming how the select/pipe mechanism would work ? Yes, probably. But there was no conscious decision to not have the priority inheritance option enabled. We just missed it. There are several other places in the flight software where s"
+    },
+    {
+     "section": "HOW WAS THE PROBLEM CORRECTED",
+     "similarity": 0.348,
+     "query_source": "fix",
+     "start": "## HOW WAS THE PROBLEM CORRECTED  We did end up modifying the global variable to include the priority inheritance option. This corrected the problem. We asked Wind River to analyze the potential impacts for (3) and (4). They concluded that the performance impact would be minimal and that the behavio"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-198",
+   "DAN-189",
+   "DAN-073",
+   "DAN-103",
+   "DAN-182",
+   "DAN-191",
+   "DAN-102",
+   "DAN-066",
+   "DAN-067",
+   "DAN-146",
+   "DAN-089",
+   "DAN-230",
+   "DAN-088",
+   "DAN-069",
+   "DAN-137",
+   "DAN-016",
+   "DAN-154",
+   "DAN-210",
+   "DAN-209",
+   "DAN-205",
+   "DAN-211",
+   "DAN-127",
+   "DAN-064",
+   "DAN-129",
+   "DAN-076",
+   "DAN-208",
+   "DAN-200",
+   "DAN-070",
+   "DAN-180",
+   "DAN-135"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "onboard computer spontaneous restart intermittent reboot",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-189",
+     "DAN-198",
+     "DAN-073",
+     "DAN-103",
+     "DAN-182",
+     "DAN-191",
+     "DAN-102",
+     "DAN-066",
+     "DAN-146",
+     "DAN-069"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "avionics flight computer reboot few days after entering operation",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-198",
+     "DAN-189",
+     "DAN-066",
+     "DAN-067",
+     "DAN-069",
+     "DAN-103",
+     "DAN-191",
+     "DAN-200",
+     "DAN-146",
+     "DAN-154"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "embedded flight computer watchdog restart after days of uptime",
+    "filter": {
+     "exclude": [
+      "DAN-066",
+      "DAN-067",
+      "DAN-073",
+      "DAN-102",
+      "DAN-103",
+      "DAN-146",
+      "DAN-182",
+      "DAN-189",
+      "DAN-191",
+      "DAN-198"
+     ]
+    },
+    "ids": [
+     "DAN-230",
+     "DAN-069",
+     "DAN-137",
+     "DAN-154",
+     "DAN-210",
+     "DAN-209",
+     "DAN-205",
+     "DAN-116",
+     "DAN-180",
+     "DAN-043"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "avionics computer spontaneous reboot timer overflow millis rollover",
+    "filter": {
+     "exclude": [
+      "DAN-066",
+      "DAN-067",
+      "DAN-073",
+      "DAN-102",
+      "DAN-103",
+      "DAN-146",
+      "DAN-182",
+      "DAN-189",
+      "DAN-191",
+      "DAN-198"
+     ]
+    },
+    "ids": [
+     "DAN-089",
+     "DAN-088",
+     "DAN-016",
+     "DAN-154",
+     "DAN-069",
+     "DAN-116",
+     "DAN-087",
+     "DAN-137",
+     "DAN-230",
+     "DAN-216"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "vehicle ECU onboard computer spontaneous restart after days operation",
+    "filter": {
+     "exclude": [
+      "DAN-016",
+      "DAN-066",
+      "DAN-067",
+      "DAN-069",
+      "DAN-073",
+      "DAN-088",
+      "DAN-089",
+      "DAN-102",
+      "DAN-103",
+      "DAN-137",
+      "DAN-146",
+      "DAN-154",
+      "DAN-182",
+      "DAN-189",
+      "DAN-191",
+      "DAN-198",
+      "DAN-205",
+      "DAN-209",
+      "DAN-210",
+      "DAN-230"
+     ]
+    },
+    "ids": [
+     "DAN-127",
+     "DAN-064",
+     "DAN-076",
+     "DAN-072",
+     "DAN-060",
+     "DAN-116",
+     "DAN-074",
+     "DAN-211",
+     "DAN-151",
+     "DAN-208"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "embedded system reboot intermittent delayed days after startup watchdog",
+    "filter": {
+     "exclude": [
+      "DAN-016",
+      "DAN-066",
+      "DAN-067",
+      "DAN-069",
+      "DAN-073",
+      "DAN-088",
+      "DAN-089",
+      "DAN-102",
+      "DAN-103",
+      "DAN-137",
+      "DAN-146",
+      "DAN-154",
+      "DAN-182",
+      "DAN-189",
+      "DAN-191",
+      "DAN-198",
+      "DAN-205",
+      "DAN-209",
+      "DAN-210",
+      "DAN-230"
+     ]
+    },
+    "ids": [
+     "DAN-211",
+     "DAN-129",
+     "DAN-208",
+     "DAN-200",
+     "DAN-070",
+     "DAN-180",
+     "DAN-135",
+     "DAN-151",
+     "DAN-222",
+     "DAN-113"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause priority inversion VxWatch system reset fix priority inheritance",
+    "filter": {
+     "incident": "DAN-200"
+    },
+    "ids": [
+     "DAN-200"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-200"
+    },
+    "ids": [
+     "DAN-200"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-200"
+    },
+    "ids": [
+     "DAN-200"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 36.6,
+    "tokens": 1382,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 10.5,
+    "tokens": 2619,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": "None of the returned incidents match well — they are mostly web/IT/cloud outages. The closest is DAN-198 (Apollo 11 spacecraft computer restart), but that happened during lunar landing due to CPU load, not days after entering operation. Let me try different angles focused on embedded/flight computer"
+   },
+   {
+    "seconds": 10.0,
+    "tokens": 3937,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": "Still no relevant matches — all results are IT/web/cloud incidents. Let me try one more angle focused on embedded/vehicle electronics and delayed-onset failures.\n"
+   },
+   {
+    "seconds": 8.2,
+    "tokens": 5179,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": "I found a very strong match: **DAN-200** — NASA's Mars Pathfinder spacecraft experienced system resets a few days after landing on Mars. This matches the current incident (onboard computer, spontaneous restarts, days after entering operation). Let me retrieve the root cause and fix details.\n"
+   }
+  ],
+  "seconds": 66
+ },
+ {
+  "id": "q-228",
+  "type": "sintoma_pos_>10",
+  "expected": [
+   "DAN-125"
+  ],
+  "symptoms": [
+   "database cannot handle peak load",
+   "dependent servers crashing in cascade"
+  ],
+  "expected_passages": {
+   "DAN-125": [
+    {
+     "source": "cause",
+     "section": "What a morning…",
+     "fix_title": false,
+     "text": "## What a morning…\n\nThe Buildkite team are currently based out of Melbourne, Australia — which meant we were all asleep when we first went offline (3:21 AM AEST). Usually if this happens our primary on-call person would get a phone call from PagerDuty letting them know that Buildkite is having problems, but due to mis-configured settings on PagerDuty and our phones being on “silent”, that didn’t happen.\n\nWe woke up at 21:00 UTC almost 4 hours after we went offline to see our phones full of emails, tweets and Slack messages letting us know Buildkite was down. Many expletives were yelled as we all raced out of bed, opened laptops, and started figuring out what was going on.\n\n*SMS from Tim this morning when he discovered the outage*\n\nIt took us a while to figure out what was going on, and at 22:28 UTC we made some temporary fixes to get buildkite.com back online. Although we were able to start servicing web requests, our response times were really bad and some requests were just getting dropped.\n\nWe finally recovered at 23:10 UTC and spent the rest of the day working on making sure this doesn’t happen again.\n\n*Buildkite’s uptime over the last 24 hours — it’s not great…*"
+    },
+    {
+     "source": "fix",
+     "section": "Moving forward",
+     "fix_title": true,
+     "text": "## Moving forward\n\nTim, Sam and I would like to personally apologise for the downtime. We know exactly what it’s like when services you rely upon have technical issues (AWS had problems when we were trying to fix ours). It’s incredibly frustrating and at times infuriating. We don’t want to be that sort of company and we don’t want our customers and friends to feel like that.\n\nWe’d also like to personally thank you all for your understanding during the downtime. It’s was very heart warming and encouraging to see such lovely tweets while we were working to get everything back online.\n\nWe can’t promise that we won’t go down again, but we can promise that we won’t make the same mistakes twice. Not only are we stronger technically, we’re a stronger team now because of it.\n\nIf you have any questions or would like to know more about what happened, feel free to email me directly keith@buildkite.com\n\n❤ Keith, Tim and Sam"
+    },
+    {
+     "source": "fix",
+     "section": "AWS issues prevented us from fixing anything",
+     "fix_title": true,
+     "text": "## AWS issues prevented us from fixing anything\n\nOnce we were all online and had finished identifying what the problems were, we decided the first thing we wanted to do was upgrade the database.\n\nWe logged into the AWS Console and tried upgrading the database, but due to IAM issues AWS was experiencing, the interface wouldn’t let us make the changes. We checked the AWS Status Page and noticed they were having problems, so we decided to skip this step for now and go onto the next thing.\n\n*Screenshot of AWS Status Page showing IAM issues*\n\nWe needed to push out a new AMI to our servers that didn’t reference https://buildkite.com/\\_secret/version. We made the necessary changes, built the AMI and decided to test it out before deploying it to the rest of our infrastructure. When we tried to launch it, we discovered the IAM role selector wasn’t working either. We kept getting “Internal server error” in the AWS Console — which we guess to be IAM related.\n\nAt this point we stole some servers from the Agent API and added them to the ELB that services requests for the dashboard. This allowed us to bring buildkite.com back online — although requests were slow due to the database still being under heavy load.\n\nOnce the IAM issues had subsided we tried launching new EC2 servers, but we got hit by another AWS issue: EC2 request limits. Because servers had kept coming up, failing health checks, and going down again, we had reached out EC2 request limit. Our only option here was to wait it out."
+    },
+    {
+     "source": "similar",
+     "section": "Database performance issues",
+     "fix_title": false,
+     "text": "## Database performance issues\n\nWe scheduled a maintenance window on the weekend to downgrade the database. The downgrade was successful and everything was looking great. The performance of the new database looked fine and we were happy with the results.\n\nOur largest customers are in US timezones, so we wouldn’t really have known how the database was going to hold up under heavy load until Monday morning in the US (Monday night for us). We monitored it into our evening and what we thought was the beginning of the US peak period and everything seemed to be tracking okay, so we went to bed.\n\nSince the new database didn’t have as much memory as the old one, we also moved to a centralised pgbouncer to pool connections across all of our servers in hopes to reduce the per-connection memory overhead.\n\nAt around 16:00 UTC the database started struggling. It couldn’t keep up and its CPU started maxing out. These performance problems started a cascade of other issues.\n\n*CPU Utilization of our new database*\n\n**Lesson #2:** Do load testing after significant infrastructure changes. Due to the tight time constraints before the next AWS bill, we didn’t load test the new database or the centralized pgbouncer setup.\nWe’ve already started planning how this could work and ways we can do it without impacting others using the system."
+    },
+    {
+     "source": "similar",
+     "section": "AWS issues prevented us from fixing anything",
+     "fix_title": true,
+     "text": "## AWS issues prevented us from fixing anything\n\nAfter some time we were eventually able to upgrade the database to an instance type that could handle the load and roll out new servers that fixed self deploys. We had to use the aws-cli to do these last steps since the AWS Console was still having issues.\n\nAlong with upgrading the database, we also took this opportunity to remove the centralized pgbouncer server. We previously used to have pgbouncer installed on each host and pool from there. Since we knew the previous setup had worked well, we reverted back to that until we had capacity to investigate if the new pgbouncer setup was working.\n\n**Lesson #6:** When you see high churn issues in AWS make sure to stop your health check and autoscaling rules so that you don’t run into future EC2 request limits. When we hit ours we changed the Auto Scaling Groups to EC2 health checks and locked in desired counts.\nAs part of writing this postmortem, we discovered you can “Suspend and Resume Auto Scaling Processes” directly from within AWS — which would have been very useful if we’d had known about it:\nhttp://docs.aws.amazon.com/autoscaling/latest/userguide/as-suspend-resume-processes.html"
+    }
+   ]
+  },
+  "initial_search_position": 11,
+  "expected_in_new": [
+   "DAN-125"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-125",
+   "DAN-147",
+   "DAN-156",
+   "DAN-194",
+   "DAN-164",
+   "DAN-096",
+   "DAN-130",
+   "DAN-148"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-125"
+  ],
+  "expected_deepened": [
+   "DAN-125"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-125",
+     "query": "root cause database capacity downgrade cascading collapse fix resolution",
+     "why": "This incident matches almost exactly: database size was reduced (downgrade), peak load caused failure, and dependent servers crashed in cascade. Very strong match to current incident."
+    },
+    {
+     "id": "DAN-147",
+     "query": "root cause cascading failure insufficient database capacity fix resolution",
+     "why": "This incident involves cascading failure due to insufficient database capacity under load, similar to the current incident's symptoms."
+    }
+   ],
+   "new_queries": [
+    "database cannot handle peak load dependent servers crashing cascade",
+    "database downsized reduced size cannot handle peak load cascade failure"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-125": [
+    {
+     "section": "Database performance issues",
+     "similarity": 0.611,
+     "query_source": "llm",
+     "start": "## Database performance issues  We scheduled a maintenance window on the weekend to downgrade the database. The downgrade was successful and everything was looking great. The performance of the new database looked fine and we were happy with the results.  Our largest customers are in US timezones, s"
+    },
+    {
+     "section": "AWS issues prevented us from fixing anything",
+     "similarity": 0.552,
+     "query_source": "llm",
+     "start": "## AWS issues prevented us from fixing anything  After some time we were eventually able to upgrade the database to an instance type that could handle the load and roll out new servers that fixed self deploys. We had to use the aws-cli to do these last steps since the AWS Console was still having is"
+    },
+    {
+     "section": "What a morning…",
+     "similarity": 0.436,
+     "query_source": "cause",
+     "start": "## What a morning…  The Buildkite team are currently based out of Melbourne, Australia — which meant we were all asleep when we first went offline (3:21 AM AEST). Usually if this happens our primary on-call person would get a phone call from PagerDuty letting them know that Buildkite is having probl"
+    },
+    {
+     "section": "Moving forward",
+     "similarity": 0.469,
+     "query_source": "fix",
+     "start": "## Moving forward  Tim, Sam and I would like to personally apologise for the downtime. We know exactly what it’s like when services you rely upon have technical issues (AWS had problems when we were trying to fix ours). It’s incredibly frustrating and at times infuriating. We don’t want to be that s"
+    },
+    {
+     "section": "AWS issues prevented us from fixing anything",
+     "similarity": 0.367,
+     "query_source": "fix",
+     "start": "## AWS issues prevented us from fixing anything  Once we were all online and had finished identifying what the problems were, we decided the first thing we wanted to do was upgrade the database.  We logged into the AWS Console and tried upgrading the database, but due to IAM issues AWS was experienc"
+    }
+   ],
+   "DAN-147": [
+    {
+     "section": "Authentication Issues - DUO1",
+     "similarity": 0.607,
+     "query_source": "llm",
+     "start": "## Authentication Issues - DUO1  From that point, the DUO1 deployment was stable but traffic and load continued to grow. After further review of the data surrounding the incident, it was determined that the outage was not solely the result of the software release in question, but ultimately a combin"
+    },
+    {
+     "section": "Authentication Issues - DUO1",
+     "similarity": 0.527,
+     "query_source": "llm",
+     "start": "## Authentication Issues - DUO1  - We’ve been actively re-architecting the database tier of our deployments so that we can home customers to a specific database server within a deployment. That way, we’re able to quickly add capacity on demand for those customers that need it without affecting other"
+    },
+    {
+     "section": "Authentication Latency on DUO1 Deployment",
+     "similarity": 0.398,
+     "query_source": "cause",
+     "start": "## Authentication Latency on DUO1 Deployment  ## Postmortem  ## Authentication Issues - DUO1  Incident Report - 2018/08/29  Summary:  From 14:11 to 15:13 UTC on August 29th, 2018, the DUO1 deployment experienced performance degradation that resulted in increased authentication latency and intermitte"
+    },
+    {
+     "section": "Update",
+     "similarity": 0.323,
+     "query_source": "fix",
+     "start": "## Update  We're still monitoring an elevated number of slow and/or failed authentication requests affecting our DUO1 deployment. Our Engineering team is actively working to resolve this issue.  Posted Aug 29, 2018 - 11:17 EDT"
+    },
+    {
+     "section": "Authentication Issues - DUO1",
+     "similarity": 0.321,
+     "query_source": "fix",
+     "start": "## Authentication Issues - DUO1  Now that we had a better understanding of what was causing these prolonged backups, we knew what to do. On August 29th, we implemented a max limit to this queue. If we attempt to go over the limit, we'll start proactively rejecting the requests instead of queuing the"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-147",
+   "DAN-156",
+   "DAN-194",
+   "DAN-164",
+   "DAN-096",
+   "DAN-130",
+   "DAN-148",
+   "DAN-094",
+   "DAN-125",
+   "DAN-091"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "database cannot handle peak load dependent servers crashing cascade",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-147",
+     "DAN-156",
+     "DAN-194",
+     "DAN-164",
+     "DAN-096",
+     "DAN-148",
+     "DAN-094",
+     "DAN-219",
+     "DAN-181",
+     "DAN-129"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "database downsized reduced size cannot handle peak load cascade failure",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-147",
+     "DAN-156",
+     "DAN-130",
+     "DAN-164",
+     "DAN-125",
+     "DAN-096",
+     "DAN-094",
+     "DAN-091",
+     "DAN-058",
+     "DAN-219"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause database capacity downgrade cascading collapse fix resolution",
+    "filter": {
+     "incident": "DAN-125"
+    },
+    "ids": [
+     "DAN-125"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-125"
+    },
+    "ids": [
+     "DAN-125"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-125"
+    },
+    "ids": [
+     "DAN-125"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause cascading failure insufficient database capacity fix resolution",
+    "filter": {
+     "incident": "DAN-147"
+    },
+    "ids": [
+     "DAN-147"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-147"
+    },
+    "ids": [
+     "DAN-147"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-147"
+    },
+    "ids": [
+     "DAN-147"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 28.5,
+    "tokens": 1225,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 9.8,
+    "tokens": 2547,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 39
+ },
+ {
+  "id": "q-243",
+  "type": "sintoma_pos_>10",
+  "expected": [
+   "DAN-154"
+  ],
+  "symptoms": [
+   "CDN went down worldwide",
+   "most servers returning errors"
+  ],
+  "expected_passages": {},
+  "initial_search_position": 12,
+  "expected_in_new": [],
+  "initial_search": [],
+  "findings": [
+   "DAN-005",
+   "DAN-011",
+   "DAN-023",
+   "DAN-008",
+   "DAN-016",
+   "DAN-007",
+   "DAN-067",
+   "DAN-006"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [],
+  "expected_deepened": [],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-005",
+     "query": "bad config router rule edge routers crash root cause fix all Cloudflare down",
+     "why": "Cloudflare is a CDN; bad config crashed all edge routers taking down all of Cloudflare worldwide, matching the current CDN worldwide down and servers returning errors"
+    },
+    {
+     "id": "DAN-011",
+     "query": "database permissions change file exceeded limits systemwide outage root cause fix",
+     "why": "Systemwide Cloudflare outage caused by a propagated bad file, matching worldwide CDN down; differs in trigger (database vs config)"
+    },
+    {
+     "id": "DAN-023",
+     "query": "backbone router configuration changes global outage all properties root cause fix",
+     "why": "Global outage of all services from router config change, similar worldwide scope, but Facebook properties rather than a CDN"
+    }
+   ],
+   "new_queries": [
+    "CDN worldwide outage servers returning errors",
+    "CDN edge server failure global downtime HTTP errors"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-005": [
+    {
+     "section": "Bad Rule",
+     "similarity": 0.724,
+     "query_source": "llm",
+     "start": "### Bad Rule  Someone from our operations team is monitoring our network 24/7. As is normal practice for us, one of our ops team members took the output from the profiler and added a rule based on its output to drop packets that were between 99,971 and 99,985 bytes long. Here's what the rule (somewh"
+    },
+    {
+     "section": "Incident Response",
+     "similarity": 0.723,
+     "query_source": "llm",
+     "start": "### Incident Response  CloudFlare's ops and network teams were aware of the incident immediately because of both internal and external monitors we run on our network. While it wasn't initially clear the reason the routers had crashed, it was clear that it was an issue caused by an inability for pack"
+    },
+    {
+     "section": "",
+     "similarity": 0.406,
+     "query_source": "cause",
+     "start": "This morning at 09:47 UTC CloudFlare effectively dropped off the Internet. The outage affected all of CloudFlare's services including DNS and any services that rely on our web proxy. During the outage, anyone accessing CloudFlare.com or any site on CloudFlare's network would have received a DNS erro"
+    },
+    {
+     "section": "Parallels to Syria",
+     "similarity": 0.378,
+     "query_source": "fix",
+     "start": "### Parallels to Syria  In writing this up, I was reminded of the parallels to the Syrian Internet outage we reported on earlier this year. In that case, we were able to detect as the Syrian government shut down their board routers and effectively cut the country off from the rest of the Internet. I"
+    },
+    {
+     "section": "Flowspec",
+     "similarity": 0.291,
+     "query_source": "fix",
+     "start": "### Flowspec  We are largely a Juniper shop at CloudFlare and all the edge routers that were affected were from Juniper. One of the reasons we like Juniper is their support of a protocol called Flowspec. Flowspec allows you to propagate router rules to a large number of routers efficiently. At Cloud"
+    }
+   ],
+   "DAN-011": [
+    {
+     "section": "",
+     "similarity": 0.568,
+     "query_source": "llm",
+     "start": "On 18 November 2025 at 11:20 UTC (all times in this blog are UTC), Cloudflare's network began experiencing significant failures to deliver core network traffic. This showed up to Internet users trying to access our customers' sites as an error page indicating a failure within Cloudflare's network.  "
+    },
+    {
+     "section": "The query behaviour change",
+     "similarity": 0.559,
+     "query_source": "llm",
+     "start": "### The query behaviour change  ``` SELECT   name,   type FROM system.columns WHERE   table = 'http_requests_features' order by name; ``` Note how the query does not filter for the database name. With us gradually rolling out the explicit grants to users of a given ClickHouse cluster, after the chan"
+    },
+    {
+     "section": "The outage",
+     "similarity": 0.431,
+     "query_source": "cause",
+     "start": "## The outage  The chart below shows the volume of 5xx error HTTP status codes served by the Cloudflare network. Normally this should be very low, and it was right up until the start of the outage.  The volume prior to 11:20 is the expected baseline of 5xx errors observed across our network. The spi"
+    },
+    {
+     "section": "Remediation and follow-up steps",
+     "similarity": 0.532,
+     "query_source": "fix",
+     "start": "## Remediation and follow-up steps  Although the issue was also present in prior versions of our proxy, the impact was smaller as described below. | | 13:37 | Work focused on rollback of the Bot Management configuration file to a last-known-good version. | We were confident that the Bot Management c"
+    },
+    {
+     "section": "Remediation and follow-up steps",
+     "similarity": 0.486,
+     "query_source": "fix",
+     "start": "## Remediation and follow-up steps  Now that our systems are back online and functioning normally, work has already begun on how we will harden them against failures like this in the future. In particular we are:  - Hardening ingestion of Cloudflare-generated configuration files in the same way we w"
+    }
+   ],
+   "DAN-023": [
+    {
+     "section": "",
+     "similarity": 0.628,
+     "query_source": "llm",
+     "start": "This was the source of yesterday’s outage. During one of these routine maintenance jobs, a command was issued with the intention to assess the availability of global backbone capacity, which unintentionally took down all the connections in our backbone network, effectively disconnecting Facebook dat"
+    },
+    {
+     "section": "",
+     "similarity": 0.605,
+     "query_source": "llm",
+     "start": "All of this happened very fast. And as our engineers worked to figure out what was happening and why, they faced two large obstacles: first, it was not possible to access our data centers through our normal means because their networks were down, and second, the total loss of DNS broke many of the i"
+    },
+    {
+     "section": "",
+     "similarity": 0.403,
+     "query_source": "cause",
+     "start": "Helpfully, this is an event we’re well prepared for thanks to the “storm” drills we’ve been running for a long time now. In a storm exercise, we simulate a major system failure by taking a service, data center, or entire region offline, stress testing all the infrastructure and software involved. Ex"
+    },
+    {
+     "section": "",
+     "similarity": 0.292,
+     "query_source": "fix",
+     "start": "Now that our platforms are up and running as usual after yesterday’s outage, I thought it would be worth sharing a little more detail on what happened and why — and most importantly, how we’re learning from it.  This outage was triggered by the system that manages our global backbone network capacit"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-011",
+   "DAN-008",
+   "DAN-016",
+   "DAN-007",
+   "DAN-005",
+   "DAN-023",
+   "DAN-067",
+   "DAN-006",
+   "DAN-026",
+   "DAN-129"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "CDN worldwide outage servers returning errors",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-011",
+     "DAN-008",
+     "DAN-005",
+     "DAN-023",
+     "DAN-067",
+     "DAN-016",
+     "DAN-006",
+     "DAN-007",
+     "DAN-026",
+     "DAN-205"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "CDN edge server failure global downtime HTTP errors",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-011",
+     "DAN-008",
+     "DAN-016",
+     "DAN-007",
+     "DAN-005",
+     "DAN-026",
+     "DAN-129",
+     "DAN-184",
+     "DAN-070",
+     "DAN-067"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "bad config router rule edge routers crash root cause fix all Cloudflare down",
+    "filter": {
+     "incident": "DAN-005"
+    },
+    "ids": [
+     "DAN-005"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-005"
+    },
+    "ids": [
+     "DAN-005"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-005"
+    },
+    "ids": [
+     "DAN-005"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "database permissions change file exceeded limits systemwide outage root cause fix",
+    "filter": {
+     "incident": "DAN-011"
+    },
+    "ids": [
+     "DAN-011"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-011"
+    },
+    "ids": [
+     "DAN-011"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-011"
+    },
+    "ids": [
+     "DAN-011"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "backbone router configuration changes global outage all properties root cause fix",
+    "filter": {
+     "incident": "DAN-023"
+    },
+    "ids": [
+     "DAN-023"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-023"
+    },
+    "ids": [
+     "DAN-023"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-023"
+    },
+    "ids": [
+     "DAN-023"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 1.5,
+    "tokens": 1184,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 14.1,
+    "tokens": 2755,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 17
+ },
+ {
+  "id": "q-242",
+  "type": "sintoma_pos_>10",
+  "expected": [
+   "DAN-154"
+  ],
+  "symptoms": [
+   "CDN down worldwide",
+   "servers returning errors"
+  ],
+  "expected_passages": {},
+  "initial_search_position": null,
+  "expected_in_new": [],
+  "initial_search": [],
+  "findings": [
+   "DAN-005",
+   "DAN-011",
+   "DAN-008",
+   "DAN-016",
+   "DAN-007",
+   "DAN-023",
+   "DAN-067",
+   "DAN-006"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [],
+  "expected_deepened": [],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-005",
+     "query": "root cause bad config router rule edge routers crash fix rollback",
+     "why": "Cloudflare is a CDN; this was a worldwide outage where all edge routers crashed due to a bad config rule, matching the current worldwide CDN down and servers returning errors"
+    },
+    {
+     "id": "DAN-011",
+     "query": "root cause database permissions bot-detection systemwide outage fix rollback",
+     "why": "Cloudflare systemwide outage caused by a change propagating through the network, matching worldwide CDN failure"
+    },
+    {
+     "id": "DAN-008",
+     "query": "root cause Tiered Cache change 530 errors fix rollback",
+     "why": "Cloudflare CDN partial outage with status code errors caused by a cache system change, matching servers returning errors from CDN component"
+    }
+   ],
+   "new_queries": [
+    "CDN worldwide outage servers returning errors",
+    "content delivery network global downtime HTTP errors"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-005": [
+    {
+     "section": "Bad Rule",
+     "similarity": 0.682,
+     "query_source": "llm",
+     "start": "### Bad Rule  Someone from our operations team is monitoring our network 24/7. As is normal practice for us, one of our ops team members took the output from the profiler and added a rule based on its output to drop packets that were between 99,971 and 99,985 bytes long. Here's what the rule (somewh"
+    },
+    {
+     "section": "Incident Response",
+     "similarity": 0.623,
+     "query_source": "llm",
+     "start": "### Incident Response  CloudFlare's ops and network teams were aware of the incident immediately because of both internal and external monitors we run on our network. While it wasn't initially clear the reason the routers had crashed, it was clear that it was an issue caused by an inability for pack"
+    },
+    {
+     "section": "",
+     "similarity": 0.406,
+     "query_source": "cause",
+     "start": "This morning at 09:47 UTC CloudFlare effectively dropped off the Internet. The outage affected all of CloudFlare's services including DNS and any services that rely on our web proxy. During the outage, anyone accessing CloudFlare.com or any site on CloudFlare's network would have received a DNS erro"
+    },
+    {
+     "section": "Parallels to Syria",
+     "similarity": 0.378,
+     "query_source": "fix",
+     "start": "### Parallels to Syria  In writing this up, I was reminded of the parallels to the Syrian Internet outage we reported on earlier this year. In that case, we were able to detect as the Syrian government shut down their board routers and effectively cut the country off from the rest of the Internet. I"
+    },
+    {
+     "section": "Flowspec",
+     "similarity": 0.291,
+     "query_source": "fix",
+     "start": "### Flowspec  We are largely a Juniper shop at CloudFlare and all the edge routers that were affected were from Juniper. One of the reasons we like Juniper is their support of a protocol called Flowspec. Flowspec allows you to propagate router rules to a large number of routers efficiently. At Cloud"
+    }
+   ],
+   "DAN-011": [
+    {
+     "section": "Remediation and follow-up steps",
+     "similarity": 0.609,
+     "query_source": "llm",
+     "start": "## Remediation and follow-up steps  Although the issue was also present in prior versions of our proxy, the impact was smaller as described below. | | 13:37 | Work focused on rollback of the Bot Management configuration file to a last-known-good version. | We were confident that the Bot Management c"
+    },
+    {
+     "section": "Remediation and follow-up steps",
+     "similarity": 0.58,
+     "query_source": "llm",
+     "start": "## Remediation and follow-up steps  | Time (UTC) | Status | Description | |---|---|---| | 11:05 | Normal. | Database access control change deployed. | | 11:28 | Impact starts. | Deployment reaches customer environments, first errors observed on customer HTTP traffic. | | 11:32-13:05 | The team inves"
+    },
+    {
+     "section": "The outage",
+     "similarity": 0.431,
+     "query_source": "cause",
+     "start": "## The outage  The chart below shows the volume of 5xx error HTTP status codes served by the Cloudflare network. Normally this should be very low, and it was right up until the start of the outage.  The volume prior to 11:20 is the expected baseline of 5xx errors observed across our network. The spi"
+    },
+    {
+     "section": "Remediation and follow-up steps",
+     "similarity": 0.486,
+     "query_source": "fix",
+     "start": "## Remediation and follow-up steps  Now that our systems are back online and functioning normally, work has already begun on how we will harden them against failures like this in the future. In particular we are:  - Hardening ingestion of Cloudflare-generated configuration files in the same way we w"
+    },
+    {
+     "section": "How Cloudflare processes requests, and how this went wrong today",
+     "similarity": 0.393,
+     "query_source": "fix",
+     "start": "## How Cloudflare processes requests, and how this went wrong today  This feature file is refreshed every few minutes and published to our entire network and allows us to react to variations in traffic flows across the Internet. It allows us to react to new types of bots and new bot attacks. So it’s"
+    }
+   ],
+   "DAN-008": [
+    {
+     "section": "",
+     "similarity": 0.753,
+     "query_source": "llm",
+     "start": "*This post is also available in 简体中文, 日本語, Français, Deutsch and Español.*  Today, a change to our Tiered Cache system caused some requests to fail for users with status code 530. The impact lasted for almost six hours in total. We estimate that about 5% of all requests failed at peak. Because of th"
+    },
+    {
+     "section": "Conclusion",
+     "similarity": 0.699,
+     "query_source": "llm",
+     "start": "### Conclusion  We experienced an incident that affected a significant set of customers using Tiered Cache. After identifying the faulty component, we were able to quickly rollback and remediate the issue. We are sorry for any disruption this has caused our customers and end users trying to access s"
+    },
+    {
+     "section": "Incident timeline and impact",
+     "similarity": 0.429,
+     "query_source": "cause",
+     "start": "### Incident timeline and impact  - 2022-10-25 08:40: The release started to roll out to a small subset of data centers. - 2022-10-25 10:35: An individual customer alert fires, indicating an increase in 500 error codes. - 2022-10-25 11:20: After an investigation, a single small data center is pinpoi"
+    },
+    {
+     "section": "Remediation and follow-up steps",
+     "similarity": 0.468,
+     "query_source": "fix",
+     "start": "### Remediation and follow-up steps  To prevent this from happening again, in addition to the fixing the bug, we have identified a set of changes that help us detect and prevent issues like this in the future:  - Include a larger data center that is configured as a Tiered Cache upper tier in an earl"
+    },
+    {
+     "section": "Incident timeline and impact",
+     "similarity": 0.39,
+     "query_source": "fix",
+     "start": "### Incident timeline and impact  At 08:40 UTC, a software release of a CDN component containing a bug began slowly rolling out. The bug was triggered when a user visited a site with either Tiered Cache, Cloudflare Images, or Bandwidth Alliance configured. This bug caused a subset of those customers"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-011",
+   "DAN-008",
+   "DAN-016",
+   "DAN-007",
+   "DAN-005",
+   "DAN-023",
+   "DAN-067",
+   "DAN-006",
+   "DAN-026",
+   "DAN-129"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "CDN worldwide outage servers returning errors",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-011",
+     "DAN-008",
+     "DAN-005",
+     "DAN-023",
+     "DAN-067",
+     "DAN-016",
+     "DAN-006",
+     "DAN-007",
+     "DAN-026",
+     "DAN-205"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "content delivery network global downtime HTTP errors",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-011",
+     "DAN-008",
+     "DAN-016",
+     "DAN-007",
+     "DAN-005",
+     "DAN-129",
+     "DAN-026",
+     "DAN-137",
+     "DAN-184",
+     "DAN-121"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause bad config router rule edge routers crash fix rollback",
+    "filter": {
+     "incident": "DAN-005"
+    },
+    "ids": [
+     "DAN-005"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-005"
+    },
+    "ids": [
+     "DAN-005"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-005"
+    },
+    "ids": [
+     "DAN-005"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause database permissions bot-detection systemwide outage fix rollback",
+    "filter": {
+     "incident": "DAN-011"
+    },
+    "ids": [
+     "DAN-011"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-011"
+    },
+    "ids": [
+     "DAN-011"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-011"
+    },
+    "ids": [
+     "DAN-011"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause Tiered Cache change 530 errors fix rollback",
+    "filter": {
+     "incident": "DAN-008"
+    },
+    "ids": [
+     "DAN-008"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-008"
+    },
+    "ids": [
+     "DAN-008"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-008"
+    },
+    "ids": [
+     "DAN-008"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 3.3,
+    "tokens": 1220,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 5.3,
+    "tokens": 2713,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 9
+ }
+]

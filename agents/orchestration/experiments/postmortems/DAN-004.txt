@@ -1,0 +1,100 @@
+You will read a public incident post-mortem. I need the facts split into groups, to build a test where an
+on-call analyst reports this incident to a triage assistant, either in one message or step by step.
+
+Rules:
+- Use only what is in the post-mortem. Do not invent details.
+- Anonymize: no company, product or famous system names. Use generic names
+  ("our object storage service", "our chat platform", "the onboard computer").
+  Keep generic technology names (Redis, Kubernetes, Postgres, Consul, React) if the post-mortem mentions them.
+- Do not include dates (day, month, year). Times of day are fine.
+- Write in English, from the analyst's point of view ("our", "we"), DURING the incident:
+  the analyst does not know the root cause or the fix yet.
+- Everything outside "discovered_later" must be what the team could see or knew at the time:
+  no explanation of why it happened, no root cause, no fix, no lessons.
+- "already_tried" must stop before the problem was solved: whatever solved it goes only in "discovered_later".
+
+Return only JSON with these keys:
+
+{
+  "visible_during_incident": {
+    "symptoms": ["observable problems: errors, metrics, behavior"],
+    "affected_service": "generic name of the service that failed",
+    "dependent_impact": "what else failed because of it, or null",
+    "scope": "who and how much was affected (regions, % of users), or null",
+    "timing": "when it started (time of day, no date), sudden or gradual, or null",
+    "trigger": "what happened right before that the operators knew about (a deploy, a command, a config or data change), or null",
+    "environment": ["technologies the analyst would know are involved"],
+    "already_tried": ["what the team tried during the incident and the result, before the problem was solved"],
+    "misleading_signals": ["signals that pointed to a wrong cause, if the post-mortem mentions any"]
+  },
+
+  "complete_message": "ONE message, 2 to 4 sentences, as a good analyst would write it at the start: symptoms, affected service, scope, timing and trigger. NO root cause, NO fix, NO lessons, NO dates.",
+
+  "conversation": [
+    {"analyst": "first message: short and incomplete (one symptom, no service name, no trigger)"},
+    {"if_asked_about": "the affected service", "analyst": "the answer, in one or two sentences"},
+    {"if_asked_about": "what changed right before / the trigger", "analyst": "..."},
+    {"if_asked_about": "when it started and who is affected", "analyst": "..."},
+    {"if_asked_about": "the errors or symptoms seen", "analyst": "..."}
+  ],
+  (the conversation must have exactly these 5 items, in this order)
+
+  "discovered_later": {
+    "root_cause": "the real cause, found after the incident",
+    "fix": ["steps that fixed it"],
+    "prevention": ["changes to stop it from happening again"],
+    "changes": "code or configuration that was changed, or null"
+  }
+}
+
+POST-MORTEM:
+
+Title: Post Incident Report: April 4, 2025 - CircleCI UI Loading & build triggering issues - Announcements - CircleCI Discuss
+Company: CircleCI
+Source: https://discuss.circleci.com/t/post-incident-report-april-4-2025-circleci-ui-loading-build-triggering-issues/53208
+Catalog ID: DAN-004 (text source: extracted)
+
+## Summary
+
+On April 4, 2025, from 00:16 to 01:49 UTC (approximately 1 hour and 33 minutes), CircleCI experienced a service disruption affecting both our user interface and build capabilities. During this time, customers were unable to access the CircleCI UI or initiate new builds. The incident was caused by an inadvertently applied Web Application Firewall (WAF) rule that blocked legitimate traffic to CircleCI services. It was resolved when our engineering team identified and removed this rule.
+
+The original status page can be found here.
+
+## What Happened
+
+(all times UTC)
+
+The WAF is a critical security component that sits in front of our services and protects them from malicious traffic, while allowing legitimate requests to pass through. All times below are in UTC
+
+- **00:16**: A WAF rule was inadvertently introduced that began blocking legitimate traffic to CircleCI services.
+- **00:26 - 00:52**: Our monitoring systems detected degraded performance across multiple services. This occurred just as our teams were concluding another unrelated incident, which initially caused some confusion about whether the issues might be connected. Customers began reporting inability to access the CircleCI UI or initiate new builds, and our teams pivoted to investigate these new symptoms. The team noted a drop in GitHub webhooks and widespread connectivity issues between our frontend and backend services, spending time to ensure these weren’t aftereffects of the previous incident.
+- **00:52**: We established we were looking at a completely separate incident and launched our incident process with a new incident, and a dedicated response team was assembled to investigate the service disruption.
+- **01:15:** Initial investigation revealed broad connectivity issues between the frontend and our backing APIs, including CORS (Cross-Origin Resource Sharing) errors. The team explored multiple potential causes, including recent deployments and infrastructure changes, but the cause remained unclear.
+- **01:35**: Our automated Terraform drift detection identified a difference in configuration between our defined and current WAF settings. This discovery revealed that a WAF rule had been changed outside of our standard Terraform deployment process, and was blocking legitimate traffic to api.circleci.com and circleci.com CloudFront distributions.
+- **01:41**: The problematic WAF rule was reverted from both affected CloudFront distributions.
+- **01:49**: Our monitoring confirmed that error rates decreased across all affected services as traffic was properly routed again.
+- **01:55**: Full service restoration was confirmed across the board at this time.
+- **02:59**: The incident was officially closed after a period of monitoring confirmed stable operation.
+
+## **Root Cause Analysis**
+
+While we manage all our infrastructure, including WAF, almost entirely with Terraform, we discovered during this incident a misconfiguration in IAM controls that allowed a specific role to make changes without using our infrastructure-as-code tooling. As a result, while investigating routine security monitoring, an operator manually modified WAF configuration, believing they were taking read-only actions. The resulting change blocked legitimate traffic to our services.
+
+Based on the same assumptions, those investigating the incident did not prioritize investigating WAF configuration expecting that any changes would have gone through our Terraform pipeline and there was no record of such changes.
+
+The diverse symptoms produced across our platform combined with the occurrence shortly after a separate, unrelated incident, led to time spent on paths of inquiry that ultimately proved fruitless.
+
+Eventually, our automated drift detection process ran and identified the issue. While this safeguard was invaluable, it was nearly 80 minutes between the initial change and the detection. Drift detection identified the exact configuration change that caused the issue despite the confusion and led directly to the resolution of the incident.
+
+## Future Prevention and Process Improvement
+
+This incident highlighted the strength of our existing systems while identifying several areas where we can improve and make them even more robust:
+
+1. We have implemented stricter IAM policies that prevent direct modification of infrastructure managed by our infrastructure-as-code pipeline.
+2. Terraform’s drift detection was instrumental in identifying the root cause of this incident. We are enhancing these capabilities to provide faster alerts when critical infra components deviate from their expected state. We are also adding technical guardrails to ensure all configuration management follows this approach, which helps prevent human error and provides better visibility into changes.
+3. Specifically, we’re establishing better protocols for implementing and testing WAF rules before they reach production environments. Additionally, we are adding monitoring specifically for WAF behavior and traffic patterns to detect potential issues more quickly.
+4. We’re investigating additional technical controls through Security Control Policies (SCPs) that provide organization-wide restrictions on IAM roles, reducing the risk of accidental misconfigurations. These policies create hard boundaries on what actions can be performed on critical systems like our WAFs, adding an extra layer of protection against unintended changes.
+
+We sincerely apologize for the disruption this incident caused to your ability to build on our platform. We understand the critical role CircleCI plays in your development workflow and take any service disruption seriously. We’re committed to learning from this experience and have already implemented several measures to prevent similar occurrences in the future.
+
+Thank you for your patience and continued trust in CircleCI.

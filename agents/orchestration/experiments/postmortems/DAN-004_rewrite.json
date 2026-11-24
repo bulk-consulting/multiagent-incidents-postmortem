@@ -1,0 +1,78 @@
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Users report that our browser-based dashboard is unreachable.",
+      "People cannot launch fresh build jobs.",
+      "Our telemetry indicates that several parts of the platform are performing poorly.",
+      "Fewer event notifications are arriving from the external repository host.",
+      "Requests from our web client to the server-side APIs are failing broadly.",
+      "Browser requests to the APIs are encountering cross-origin access errors."
+    ],
+    "affected_service": "The browser dashboard and job-launching functionality of our automated software integration platform.",
+    "dependent_impact": "Users are prevented from launching builds, and fewer repository event callbacks are reaching us.",
+    "scope": "Several areas of our platform are experiencing customer-facing failures. We have neither a regional breakdown nor an estimate of the affected share of users.",
+    "timing": "Failures began shortly after midnight UTC. Our monitoring picked up poor service performance roughly ten minutes afterward and continued reporting it for about half an hour.",
+    "trigger": null,
+    "environment": [
+      "Application-layer traffic firewall",
+      "Web client services",
+      "Server-side API services",
+      "Content delivery network configurations",
+      "Browser cross-origin request controls",
+      "Infrastructure-as-code tooling",
+      "Identity and access management",
+      "External repository event callbacks"
+    ],
+    "already_tried": [
+      "We checked whether the failures were residual effects of the previous outage as it was ending and determined that the two incidents were independent.",
+      "We declared a separate outage and assigned responders specifically to it.",
+      "We looked into failed requests from the browser-facing layer to our APIs, including cross-origin failures, but found no explanation.",
+      "We reviewed recent releases and infrastructure modifications without establishing a trigger."
+    ],
+    "misleading_signals": [
+      "Because the failures surfaced as another outage was ending, we initially considered them part of that problem.",
+      "Failures spanning several services made it difficult to isolate a shared source.",
+      "We normally route infrastructure modifications through our code-based provisioning workflow, yet its history showed no matching modification."
+    ]
+  },
+  "complete_message": "Our automated build platform is having a serious outage: users cannot reach the dashboard or launch builds, and several services are performing poorly. Failures began shortly after midnight UTC; within minutes our telemetry flagged degraded service performance, fewer repository callbacks, widespread API connection failures from the web client and browser cross-origin errors. We have ruled out a connection to the outage we were finishing, but still have no confirmed trigger.",
+  "conversation": [
+    {
+      "analyst": "Users say the page will not load."
+    },
+    {
+      "if_asked_about": "which service is impacted",
+      "analyst": "Our automated software integration system is affected. People cannot open the dashboard or launch build jobs."
+    },
+    {
+      "if_asked_about": "preceding changes or possible trigger",
+      "analyst": "We still have no confirmed trigger. The failures surfaced as we were finishing a separate outage, and we are reviewing recent releases and infrastructure modifications."
+    },
+    {
+      "if_asked_about": "onset and extent of impact",
+      "analyst": "Trouble began shortly after midnight UTC. Our telemetry flagged poor performance roughly ten minutes later and kept showing it for about half an hour. Users cannot reach the dashboard or launch builds; several services are involved, but we have no reliable breakdown by region or affected user share."
+    },
+    {
+      "if_asked_about": "observed failures and error patterns",
+      "analyst": "Requests from the web client to our server APIs are failing broadly, with browsers reporting cross-origin access problems. Several services are performing poorly, and fewer event callbacks are reaching us from the repository host."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "An operator inadvertently modified a Web Application Firewall (WAF) rule while investigating routine security monitoring, believing the actions were read-only. A misconfiguration in IAM permissions allowed the operator's role to modify infrastructure directly, bypassing the standard Terraform deployment process. The modified rule blocked legitimate traffic to two CDN distributions serving the platform's web interface and API. Because the change occurred outside Terraform, investigators initially had no corresponding deployment record and did not prioritize investigating the WAF configuration. Automated Terraform drift detection eventually identified the unauthorized configuration difference approximately 80 minutes after the initial change.",
+    "fix": [
+      "At 01:35 UTC, automated Terraform drift detection identified the difference between the expected and actual WAF configurations.",
+      "At 01:41 UTC, the engineering team reverted the problematic WAF rule on both affected CDN distributions.",
+      "At 01:49 UTC, monitoring confirmed that error rates were decreasing across affected services as legitimate traffic was routed correctly again.",
+      "At 01:55 UTC, full service restoration was confirmed."
+    ],
+    "prevention": [
+      "Implemented stricter IAM policies to prevent direct modification of infrastructure managed through the infrastructure-as-code pipeline.",
+      "Enhancing Terraform drift detection to provide faster alerts when critical infrastructure configurations differ from their expected state.",
+      "Adding technical guardrails to ensure infrastructure configuration changes follow the standard infrastructure-as-code process.",
+      "Establishing improved protocols for implementing and testing WAF rules before production deployment.",
+      "Adding monitoring specifically for WAF behavior and traffic patterns to detect similar disruptions more quickly.",
+      "Investigating organization-wide Security Control Policies (SCPs) to restrict IAM role permissions and prevent unauthorized changes to critical infrastructure."
+    ],
+    "changes": "The immediate configuration correction was the reversal of an inadvertently modified WAF rule on two CDN distributions. Stricter IAM policies were subsequently implemented to restrict direct infrastructure modifications. Additional Terraform drift-detection improvements, WAF monitoring, configuration guardrails, and security-policy restrictions were identified as ongoing or planned improvements. No application code changes were reported."
+  }
+}

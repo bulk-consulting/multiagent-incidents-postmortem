@@ -1,0 +1,95 @@
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Our online development workspace is down.",
+      "People are unable to open their source projects or project documentation.",
+      "Before the downtime, a large group of customers had trouble submitting discussion replies on tickets and proposed code changes.",
+      "Demand on the main Postgres instance rose sharply.",
+      "The replica lagged increasingly far behind until synchronization ceased.",
+      "The replica needed transaction log files that the main server no longer had.",
+      "Several attempts to make a fresh physical database copy seemed to stall silently.",
+      "One copying attempt indicated that all suitable replication connection slots were occupied.",
+      "Following configuration adjustments, the database would not come back up at first due to excessive semaphore allocation."
+    ],
+    "affected_service": "Our web-based platform for collaborative software development, supported by a main Postgres instance.",
+    "dependent_impact": "Customers are locked out of source projects and their documentation and cannot carry out routine collaboration work, including discussions on tickets and proposed code changes.",
+    "scope": "The problem appears confined to our shared hosted offering; independently operated installations and dedicated customer deployments are working. We haven't established the customer count yet.",
+    "timing": "The database became heavily loaded in the evening; roughly four hours afterward, synchronization trouble emerged, with widespread downtime following about half an hour later.",
+    "trigger": "Just before the platform went offline, we were reconstructing the replica by hand because synchronization had failed. We emptied its storage directory, tried making a fresh database copy and adjusted limits related to replication and client sessions.",
+    "environment": [
+      "An older Postgres release",
+      "A main database machine paired with a live replica",
+      "Continuous database log shipping over a connection",
+      "Transaction log files",
+      "Physical database copying utility",
+      "Volume-level snapshots",
+      "Preproduction setup holding a production database copy",
+      "Database machines running in the cloud"
+    ],
+    "already_tried": [
+      "We spent a few hours investigating and bringing elevated database demand under control; abusive automated activity was an early suspicion.",
+      "We emptied the replica's storage and started a fresh physical copy, which seemed to sit idle without informative progress.",
+      "We launched the copying utility again several times; on one occasion it indicated there were no free replication slots on the main instance.",
+      "We raised the replication sender limit substantially, after which startup failed due to excessive semaphore allocation.",
+      "We cut the client session limit considerably. The database came back online, although the copying utility still showed no data movement.",
+      "We traced the copying process at the operating system level and found it waiting for an event, without learning why.",
+      "Once the platform went down, we looked for our routine logical exports. The cloud storage location held nothing, and we couldn't locate a fresh export.",
+      "We called in more colleagues and started assessing ways to recover the data."
+    ],
+    "misleading_signals": [
+      "At first we thought abusive automated traffic might explain the heavy database demand.",
+      "The copying utility looked frozen despite enabling detailed diagnostics.",
+      "System-level tracing only revealed an event wait, with no indication of the underlying issue.",
+      "We wondered whether earlier copying runs had left residual data in the replica's storage."
+    ]
+  },
+  "complete_message": "Our online development platform is down: customers are locked out of source projects and documentation, and earlier we saw widespread trouble submitting replies on tickets and proposed code changes. Heavy demand hit our main Postgres instance in the evening, with its replica losing synchronization roughly four hours afterward. About half an hour later, the platform went offline while we were trying to reconstruct that replica and adjusting database connection limits. Only our shared hosted offering appears affected; independent installations and dedicated customer deployments are still working.",
+  "conversation": [
+    {
+      "analyst": "People can't open their code projects."
+    },
+    {
+      "if_asked_about": "which platform is impacted",
+      "analyst": "It's our online workspace for software teams, running on Postgres with a main instance paired with a live replica."
+    },
+    {
+      "if_asked_about": "activity immediately preceding downtime",
+      "analyst": "Synchronization had failed, so we were reconstructing the replica by hand. We tried taking a fresh physical copy and adjusted the limits for replication streams and client sessions."
+    },
+    {
+      "if_asked_about": "onset and extent of impact",
+      "analyst": "Database demand spiked in the evening; synchronization trouble emerged roughly four hours afterward, with widespread downtime about half an hour later. Our shared hosted offering is affected, whereas independent installations and dedicated customer deployments are working."
+    },
+    {
+      "if_asked_about": "observed failures and diagnostic messages",
+      "analyst": "Earlier, lots of customers couldn't submit discussion replies on tickets or proposed code changes; now the platform is down. Our replica lagged until synchronization ceased because the transaction logs it needed were no longer on the main server. Fresh database copying attempts seemed to stall, one reported a shortage of replication slots, and after a configuration change the database initially failed to start due to excessive semaphore allocation."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "During manual recovery of the PostgreSQL standby, an engineer accidentally executed a data-directory removal operation on the primary database server instead of the secondary. The operation was stopped within seconds, but approximately 300 GB of production database data had already been removed. The repair work had been necessary because increased database load caused replication lag, and WAL segments required by the standby had already been removed from the primary without WAL archiving. The increased load involved both spam activity and a background process attempting to remove an employee account and its associated data after an erroneous abuse report. Recovery was severely complicated by unavailable backups: the logical backup job was using pg_dump 9.2 against PostgreSQL 9.6, causing the backups to fail. Failure notifications were rejected because the automated emails lacked the required DMARC configuration, leaving the team unaware of the problem. Database disk snapshots were not enabled, and the secondary had already been cleared during the replication repair. As a result, the team had to recover from an older LVM snapshot in staging, losing subsequent database modifications.",
+    "fix": [
+      "Selected the most recent usable LVM snapshot, taken around 17:20 UTC, to minimize data loss.",
+      "Copied the PostgreSQL data directory from the staging environment back to production. The transfer took approximately 18 hours because of slow storage.",
+      "Restored the production database from the staging copy, initially without webhooks.",
+      "Created a separate staging database from the original LVM snapshot to recover webhook records that had been removed from the normal staging copy.",
+      "Exported the webhook table using SQL and imported it into the restored production database.",
+      "Included advancing database sequences by 100000 in the recovery procedure to prevent reuse of identifiers assigned before the outage.",
+      "Gradually re-enabled the hosted service and confirmed that it was operating as expected."
+    ],
+    "prevention": [
+      "Increased LVM snapshot frequency from once every 24 hours to once every hour.",
+      "Planned clearer shell prompts to distinguish production and standby hosts and their environments.",
+      "Planned Prometheus monitoring for database backups and a public backup monitoring dashboard.",
+      "Planned automated testing of PostgreSQL backup restoration.",
+      "Planned improvements to PostgreSQL replication documentation and recovery runbooks.",
+      "Planned to assign explicit ownership for data durability and recovery procedures.",
+      "Planned to investigate point-in-time recovery and continuous PostgreSQL WAL archiving.",
+      "Planned to investigate database disk snapshots for production servers.",
+      "Planned to investigate additional backup mechanisms and streaming database restoration.",
+      "Planned to recover production replicas and introduce additional standby servers with connection pooling or load balancing.",
+      "Planned improvements to abuse reporting and account removal procedures to reduce the risk of accidentally scheduling legitimate accounts for deletion.",
+      "Planned improvements to the staging infrastructure and to recovery procedures across the broader service infrastructure."
+    ],
+    "changes": "During incident troubleshooting, PostgreSQL max_wal_senders was increased from 3 to 32, and max_connections was reduced from 8000 to 2000. Following the incident, LVM snapshot frequency was increased from daily to hourly. Additional monitoring, replication, backup, recovery, and infrastructure changes were proposed or under investigation, but the post-mortem does not establish that all of them were completed."
+  }
+}

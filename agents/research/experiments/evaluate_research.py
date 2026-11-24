@@ -31,10 +31,10 @@ if str(ROOT) not in sys.path:  # lets "python agents/research/experiments/evalua
 from agents.research import agent, tools  # noqa: E402
 
 
-def evaluate(q: dict, no_llm: bool) -> dict:
+def evaluate(q: dict, no_llm: bool, symptoms: list[str] | None = None, description: str | None = None) -> dict:
     start = time.time()
     try:
-        state = agent.research(q["pergunta"], no_llm=no_llm)
+        state = agent.research(description or q["pergunta"], symptoms=symptoms, no_llm=no_llm)
     except Exception as e:  # record it and go on to the next question
         return {"id": q["id"], "error": f"{type(e).__name__}: {str(e)[:300]}", "seconds": round(time.time() - start)}
     expected = set(q.get("esperado", [])) | set(q.get("aceitos", []))
@@ -53,7 +53,7 @@ def evaluate(q: dict, no_llm: bool) -> dict:
                                             for d in r["passages"]]
                          for r in state["findings"] if r["incident_id"] in expected}
     return {
-        "id": q["id"], "type": q["tipo"], "expected": sorted(expected),
+        "id": q["id"], "type": q["tipo"], "expected": sorted(expected), "symptoms": symptoms or [], "description_used": description or q["pergunta"],
         "expected_passages": expected_passages,
         "initial_search_position": q.get("posicao_busca_inicial"),
         "expected_in_new": sorted(expected & {r["incident_id"] for r in state.get("new_incidents", [])}),
@@ -133,16 +133,36 @@ def main() -> None:
     ap.add_argument("--hybrid", action="store_true", help="hybrid mode: agentic + the original description in the first search")
     ap.add_argument("--no-reasoning", action="store_true", help="enable_thinking=False in the LLM (fewer tokens)")
     ap.add_argument("--candidates", type=int, help="candidates of the initial search the LLM reads (default: agent.N_DOCS)")
+    ap.add_argument("--symptoms-from", type=Path, help="JSON of a Triage run (agents/orchestration/experiments/run_triage.py): "
+                    "runs only the questions the Triage agent sent to research, with its symptoms")
+    ap.add_argument("--symptoms-one-query", action="store_true",
+                    help="experiment: description + symptoms in one search text (tools.SYMPTOMS_IN_ONE_QUERY)")
+    ap.add_argument("--summary-from", type=Path, help="JSON of a Triage v2 run (run_triage_v2.py): runs only the questions "
+                    "sent to research, with the incident_summary in place of the original message")
     a = ap.parse_args()
     all_questions = json.loads(a.file.read_text())["perguntas"]
     wanted = set(a.questions.split(",")) if a.questions else None
     questions = [q for q in all_questions if not wanted or q["id"] in wanted]
+    symptoms_by_id: dict[str, list[str]] = {}
+    if a.symptoms_from:  # only the questions the Triage agent sent to research, with its symptoms
+        for row in json.loads(a.symptoms_from.read_text()):
+            if row.get("next_step") == "go_to_research":
+                symptoms_by_id[row["id"]] = row["triage_result"]["symptoms"]
+        questions = [q for q in questions if q["id"] in symptoms_by_id]
+    summary_by_id: dict[str, str] = {}
+    if a.summary_from:  # only the questions sent to research, with the incident_summary as the description
+        for row in json.loads(a.summary_from.read_text()):
+            if row.get("next_step") == "go_to_research":
+                summary_by_id[row["id"]] = row["triage_result"]["incident_summary"]
+        questions = [q for q in questions if q["id"] in summary_by_id]
     if a.model:
         agent.MODEL_OVERRIDE = a.model
     if a.candidates:
         agent.N_DOCS = a.candidates
     if a.no_reasoning:
         agent.REASONING = False
+    if a.symptoms_one_query:
+        tools.SYMPTOMS_IN_ONE_QUERY = True
     if a.hybrid:
         agent.enable_hybrid_mode()
     elif a.agentic:
@@ -159,6 +179,12 @@ def main() -> None:
         suffix += f"_{a.candidates}cand"
     if a.no_reasoning:
         suffix += "_no-reasoning"
+    if a.symptoms_from:
+        suffix += "_symptoms"
+    if a.summary_from:
+        suffix += "_summary"
+    if a.symptoms_one_query:
+        suffix += "_onequery"
     if a.hybrid:
         suffix += "_hybrid"
     elif a.agentic:
@@ -175,7 +201,7 @@ def main() -> None:
     lock = threading.Lock()
 
     def one(q: dict) -> dict:
-        r = evaluate(q, a.no_llm)
+        r = evaluate(q, a.no_llm, symptoms_by_id.get(q["id"]), summary_by_id.get(q["id"]))
         with lock:
             done[q["id"]] = r
             n, total = len(done), len(questions)

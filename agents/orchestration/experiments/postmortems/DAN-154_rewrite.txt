@@ -1,0 +1,93 @@
+Below is a test case built from an incident post-mortem. I need the analyst-facing parts REWRITTEN so that a
+search engine cannot find the original post-mortem just by matching words. Imagine a DIFFERENT company had a
+similar incident and its on-call analyst describes it in their own words.
+
+Rewrite only these parts: "visible_during_incident", "complete_message" and "conversation".
+Copy "discovered_later" exactly as it is, without changes.
+
+Rules for the rewrite:
+- Keep the same facts and their meaning: the kind of failure, the kind of service, the trigger (or the lack of
+  one), the timing pattern (sudden or gradual, "a few days after", "right after a deploy") and the scope.
+- Do NOT reuse distinctive wording from the original: rephrase every sentence. Avoid copying phrases of 4 or
+  more words from the input.
+- Do NOT copy exact error messages, status texts or log lines: describe them in other words
+  (e.g. "the API rejects the request saying an input is invalid" instead of the exact message).
+- Do NOT copy exact numbers, versions, percentages, counts or times: use approximate or relative values
+  ("most of the network" instead of "85%", "in the early evening" instead of "17:57 UTC",
+  "a few hundred servers" instead of "900").
+- Do NOT use internal names of components, tools, settings, commands or endpoints from the input
+  (e.g. "Tenant Service", "pg_basebackup", "max_wal_senders", "/organizations"): use plain descriptions
+  ("the service that checks permissions", "the tool we use to copy the database to the replica").
+- Generic technology names are fine only when an analyst would naturally say them (Redis, Kubernetes, Postgres),
+  but prefer plain words when the technology is not essential to the symptom.
+- Change the business domain only if it would identify the company (e.g. an ad exchange can stay "our ad
+  serving platform"; a famous product name must go).
+- Keep the analyst's point of view ("our", "we"), during the incident: no root cause, no fix, no lessons,
+  no dates.
+- "complete_message": 2 to 4 sentences. "conversation": exactly 5 items in the same order, the first message
+  short and incomplete (one symptom, no service name, no trigger).
+- Return only JSON with the same keys and structure as the input. If you can create files, create a
+  downloadable file named DAN-154_rewrite.json; otherwise return only the JSON text, which will be saved as DAN-154_rewrite.json.
+
+TEST CASE (DAN-154):
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Our global network is experiencing a severe disruption.",
+      "Approximately 85% of our network is returning errors.",
+      "Our monitoring detected the global disruption within one minute of its onset."
+    ],
+    "affected_service": "Our global edge delivery network",
+    "dependent_impact": "Our customers' services and the people who rely on them are also affected by the network errors.",
+    "scope": "Global disruption affecting approximately 85% of our network.",
+    "timing": "The disruption began suddenly at 09:47 UTC and was detected by our monitoring at 09:48 UTC.",
+    "trigger": null,
+    "environment": [],
+    "already_tried": [
+      "Our monitoring detected the global disruption at 09:48 UTC, one minute after onset.",
+      "We investigated the disruption and identified the relevant customer configuration at 10:27 UTC, before services began recovering."
+    ],
+    "misleading_signals": []
+  },
+  "complete_message": "We're experiencing a sudden global disruption in our edge delivery network, with approximately 85% of the network returning errors. The problem started at 09:47 UTC, and our monitoring detected it one minute later. We don't yet know what changed immediately before the disruption.",
+  "conversation": [
+    {
+      "analyst": "We're suddenly seeing errors across a large portion of our network."
+    },
+    {
+      "if_asked_about": "the affected service",
+      "analyst": "Our global edge delivery network is affected. Approximately 85% of the network is returning errors."
+    },
+    {
+      "if_asked_about": "what changed right before / the trigger",
+      "analyst": "We don't know yet what changed right before the disruption."
+    },
+    {
+      "if_asked_about": "when it started and who is affected",
+      "analyst": "The disruption started suddenly at 09:47 UTC, and our monitoring detected it at 09:48 UTC. The impact is global, affecting approximately 85% of our network, our customers, and people relying on their services."
+    },
+    {
+      "if_asked_about": "the errors or symptoms seen",
+      "analyst": "Approximately 85% of our global network is returning errors. Our monitoring confirms a widespread disruption."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "A previously undiscovered software bug had been introduced during an earlier software deployment. The bug could be triggered by a specific customer configuration under specific circumstances. A customer pushed a valid configuration change that met those conditions, triggering the bug and causing 85% of the global network to return errors.",
+    "fix": [
+      "Identified and isolated the triggering customer configuration.",
+      "Disabled the configuration responsible for triggering the bug.",
+      "Impacted services began recovering at 10:36 UTC.",
+      "Approximately 95% of the network was operating normally within 49 minutes of the initial disruption.",
+      "The majority of services had recovered by 11:00 UTC, and the incident was mitigated at 12:35 UTC.",
+      "Developed a permanent software fix and began deploying it at 17:25 UTC."
+    ],
+    "prevention": [
+      "Deploy the permanent bug fix across the network as quickly and safely as possible.",
+      "Conduct a complete post-mortem review of the processes and practices followed during the incident.",
+      "Investigate why software quality assurance and testing processes failed to detect the bug.",
+      "Evaluate ways to improve incident remediation time.",
+      "Invest in fundamental platform resilience improvements, leveraging WebAssembly isolation capabilities."
+    ],
+    "changes": "An earlier software deployment introduced the latent bug. A later valid customer configuration change triggered it. During mitigation, the triggering configuration was disabled. A permanent software bug fix was developed, and deployment began at 17:25 UTC. The post-mortem does not specify the exact code or configuration changes."
+  }
+}

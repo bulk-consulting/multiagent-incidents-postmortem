@@ -1,0 +1,102 @@
+You will read a public incident post-mortem. I need the facts split into groups, to build a test where an
+on-call analyst reports this incident to a triage assistant, either in one message or step by step.
+
+Rules:
+- Use only what is in the post-mortem. Do not invent details.
+- Anonymize: no company, product or famous system names. Use generic names
+  ("our object storage service", "our chat platform", "the onboard computer").
+  Keep generic technology names (Redis, Kubernetes, Postgres, Consul, React) if the post-mortem mentions them.
+- Do not include dates (day, month, year). Times of day are fine.
+- Write in English, from the analyst's point of view ("our", "we"), DURING the incident:
+  the analyst does not know the root cause or the fix yet.
+- Everything outside "discovered_later" must be what the team could see or knew at the time:
+  no explanation of why it happened, no root cause, no fix, no lessons.
+- "already_tried" must stop before the problem was solved: whatever solved it goes only in "discovered_later".
+
+Return only JSON with these keys:
+
+{
+  "visible_during_incident": {
+    "symptoms": ["observable problems: errors, metrics, behavior"],
+    "affected_service": "generic name of the service that failed",
+    "dependent_impact": "what else failed because of it, or null",
+    "scope": "who and how much was affected (regions, % of users), or null",
+    "timing": "when it started (time of day, no date), sudden or gradual, or null",
+    "trigger": "what happened right before that the operators knew about (a deploy, a command, a config or data change), or null",
+    "environment": ["technologies the analyst would know are involved"],
+    "already_tried": ["what the team tried during the incident and the result, before the problem was solved"],
+    "misleading_signals": ["signals that pointed to a wrong cause, if the post-mortem mentions any"]
+  },
+
+  "complete_message": "ONE message, 2 to 4 sentences, as a good analyst would write it at the start: symptoms, affected service, scope, timing and trigger. NO root cause, NO fix, NO lessons, NO dates.",
+
+  "conversation": [
+    {"analyst": "first message: short and incomplete (one symptom, no service name, no trigger)"},
+    {"if_asked_about": "the affected service", "analyst": "the answer, in one or two sentences"},
+    {"if_asked_about": "what changed right before / the trigger", "analyst": "..."},
+    {"if_asked_about": "when it started and who is affected", "analyst": "..."},
+    {"if_asked_about": "the errors or symptoms seen", "analyst": "..."}
+  ],
+  (the conversation must have exactly these 5 items, in this order)
+
+  "discovered_later": {
+    "root_cause": "the real cause, found after the incident",
+    "fix": ["steps that fixed it"],
+    "prevention": ["changes to stop it from happening again"],
+    "changes": "code or configuration that was changed, or null"
+  }
+}
+
+POST-MORTEM:
+
+Title: Summary of June 8 outage | Fastly
+Company: Fastly
+Source: https://www.fastly.com/blog/summary-of-june-8-outage
+Catalog ID: DAN-154 (text source: extracted)
+
+We experienced a global outage due to an undiscovered software bug that surfaced on June 8 when it was triggered by a valid customer configuration change. We detected the disruption within one minute, then identified and isolated the cause, and disabled the configuration. Within 49 minutes, 95% of our network was operating as normal.
+
+This outage was broad and severe, and we’re truly sorry for the impact to our customers and everyone who relies on them.
+
+### **What happened?**
+
+On May 12, we began a software deployment that introduced a bug that could be triggered by a specific customer configuration under specific circumstances.
+
+Early June 8, a customer pushed a valid configuration change that included the specific circumstances that triggered the bug, which caused 85% of our network to return errors.
+
+Here’s a timeline of the day’s activity (all times are in UTC):
+
+**09:47** Initial onset of global disruption
+
+**09:48** Global disruption identified by Fastly monitoring
+
+**09:58** <u>Status post</u> is published
+
+**10:27** Fastly Engineering identified the customer configuration
+
+**10:36** Impacted services began to recover
+
+**11:00** Majority of services recovered
+
+**12:35** Incident mitigated
+
+**12:44** Status post resolved
+
+**17:25** Bug fix deployment began
+
+Once the immediate effects were mitigated, we turned our attention to fixing the bug and communicating with our customers. We created a permanent fix for the bug and began deploying it at 17:25.
+
+### **Where do we go from here?** 
+
+In the short term:
+
+- We’re deploying the bug fix across our network as quickly and safely as possible.
+- We are conducting a complete post mortem of the processes and practices we followed during this incident.
+- We’ll figure out why we didn’t detect the bug during our software quality assurance and testing processes.
+- We’ll evaluate ways to improve our remediation time.
+
+We have been — and will continue to — innovate and invest in fundamental changes to the safety of our underlying platforms. Broadly, this means fully leveraging the isolation capabilities of WebAssembly and Compute@Edge to build greater resiliency from the ground up. We’ll continue to update our community as we make progress toward this goal.
+
+### **Conclusion**
+
+Even though there were specific conditions that triggered this outage, we should have anticipated it. We provide mission critical services, and we treat any action that can cause service issues with the utmost sensitivity and priority. We apologize to our customers and those who rely on them for the outage and sincerely thank the community for its support. Customers should always feel free to email support@fastly.com for more information.

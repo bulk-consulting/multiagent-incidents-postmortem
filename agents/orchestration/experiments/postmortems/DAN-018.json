@@ -1,0 +1,74 @@
+
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Our dashboard availability dropped sharply and remained severely degraded.",
+      "Many of our APIs were returning HTTP 5xx errors.",
+      "Our tenant API service showed unusually high request volume and became overloaded.",
+      "After we increased the tenant service's resources, overall API availability improved to approximately 98%, but our dashboard did not recover.",
+      "The tenant service began reporting healthy again, yet we continued to observe a considerable number of errors.",
+      "API availability deteriorated again after we deployed a patch intended to address the remaining errors."
+    ],
+    "affected_service": "Our tenant API service, which participates in API request authorization.",
+    "dependent_impact": "Our dashboard and many other APIs experienced failures because API authorization requests could not be evaluated while the tenant service was unavailable.",
+    "scope": "A broad control-plane outage affecting dashboard users and users making configuration changes through our APIs. Dashboard availability was severely impacted throughout the incident, while API availability was severely impacted during two periods. Most users not interacting with the dashboard or making configuration changes were unaffected. Our data-plane services continued operating normally. No exact percentage of affected users or geographic breakdown was provided.",
+    "timing": "The impact began at approximately 17:57 UTC, with a sharp drop in dashboard availability shortly after a tenant service deployment. API availability partially recovered around 18:17 UTC, deteriorated again around 18:58 UTC, and dashboard availability returned to 100% around 19:12 UTC.",
+    "trigger": "We released a new dashboard version at approximately 16:32 UTC and deployed a new version of our tenant API service at approximately 17:50 UTC. The service became overloaded while the new versions were deploying.",
+    "environment": [
+      "React-based dashboard",
+      "Tenant API service implemented in Go",
+      "Kubernetes deployment across a subset of our datacenters",
+      "API request authorization dependent on the tenant service",
+      "Separate control-plane and data-plane systems"
+    ],
+    "already_tried": [
+      "We investigated the unusually high request volume against our tenant API service while working to reduce the load.",
+      "We increased the number of Kubernetes pods available to the tenant service. Overall API availability improved to approximately 98%, but the dashboard remained degraded.",
+      "We introduced a temporary global rate limit on the tenant service to regulate incoming traffic.",
+      "After observing continued errors despite the service reporting healthy, we removed some erroring codepaths and deployed a patched version of the tenant service. The change made availability worse and triggered another period of API impact."
+    ],
+    "misleading_signals": [
+      "The tenant service began reporting healthy after additional resources were allocated, but dashboard availability remained severely degraded.",
+      "Continued errors from the tenant service led us to suspect that specific erroring codepaths were responsible for the dashboard's failure to recover.",
+      "We could observe increased API usage but could not easily distinguish retries from new requests, making the unusual traffic pattern harder to understand."
+    ]
+  },
+  "complete_message": "We're experiencing a major control-plane incident: our dashboard availability dropped sharply around 17:57 UTC, many APIs are returning 5xx errors, and our tenant API service is showing unusually high traffic and becoming overloaded. Dashboard users and people making configuration changes are affected, while our data-plane services appear unaffected. We released a new dashboard version at 16:32 UTC and deployed a new tenant service version at 17:50 UTC, shortly before the degradation began.",
+  "conversation": [
+    {
+      "analyst": "We're seeing a sharp drop in availability, and users are having trouble accessing functionality that normally works."
+    },
+    {
+      "if_asked_about": "the affected service",
+      "analyst": "Our tenant API service is experiencing problems. Our dashboard and several other APIs are also affected because they depend on that service for request authorization."
+    },
+    {
+      "if_asked_about": "what changed right before / the trigger",
+      "analyst": "We released a new version of our dashboard at 16:32 UTC and deployed a new version of the tenant API service at 17:50 UTC. The availability problems started shortly after the tenant service deployment."
+    },
+    {
+      "if_asked_about": "when it started and who is affected",
+      "analyst": "The impact began around 17:57 UTC. Dashboard users and people making configuration changes through our APIs are affected, but our data-plane services appear to be operating normally."
+    },
+    {
+      "if_asked_about": "the errors or symptoms seen",
+      "analyst": "We're seeing HTTP 5xx responses across many APIs, severely reduced dashboard availability, and unusually high request volume against our tenant service. We increased the number of Kubernetes pods, which helped overall API availability reach approximately 98%, but the dashboard is still degraded and we're continuing to see service errors."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "A bug introduced in the React dashboard caused excessive, unnecessary requests to the tenant API service. A React useEffect hook included an object in its dependency array that was recreated whenever component state or props changed. React therefore treated the object as a new dependency and repeatedly executed the effect, causing multiple requests to the /organizations endpoint during a single dashboard render instead of one. This behavior, combined with a concurrent tenant service update and insufficient capacity to handle traffic spikes, overwhelmed the tenant service. Because the tenant service participated in API authorization, its failure prevented authorization evaluation and caused widespread HTTP 5xx responses. Service restarts also triggered a thundering-herd pattern, with dashboards attempting to re-authenticate simultaneously, further amplified by the request-loop bug. During recovery, a patch intended to eliminate remaining service errors worsened availability and caused a second period of API impact.",
+    "fix": [
+      "Reverted the problematic tenant service changes introduced during the later patch, restoring dashboard availability to 100%.",
+      "Released a dashboard hotfix correcting the repeated API-call behavior shortly after the incident ended."
+    ],
+    "prevention": [
+      "Prioritize migrating the tenant service to an automated rollout system that monitors deployments for errors and automatically rolls back unhealthy releases.",
+      "Introduce randomized delays into dashboard retry behavior to spread requests over time and reduce thundering-herd contention.",
+      "Allocate substantially more resources to the tenant service to improve its ability to withstand traffic spikes.",
+      "Improve capacity monitoring and proactive alerting so the team receives warnings before the tenant service reaches its capacity limits.",
+      "Add metadata to dashboard API requests identifying whether each request is a new request or a retry, making abnormal request patterns easier to diagnose.",
+      "Correct the dashboard's React effect logic to prevent unnecessary repeated requests to the tenant API service."
+    ],
+    "changes": "The team increased Kubernetes pod capacity for the tenant service and introduced temporary global rate limiting during mitigation. A subsequent tenant service patch removed some erroring codepaths but worsened availability, so those changes were reverted. After the incident, a dashboard hotfix corrected the repeated API requests caused by the React useEffect dependency behavior. Additional planned changes included randomized retry delays, request metadata distinguishing new requests from retries, increased tenant service capacity, improved capacity monitoring, and automated deployment rollback support."
+  }
+}

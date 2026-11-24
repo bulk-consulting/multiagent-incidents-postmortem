@@ -1,0 +1,75 @@
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "We are losing groups of advertising servers within moments of one another.",
+      "Our platform is no longer delivering any advertisements.",
+      "Requests for ads are going unhandled, bidding rounds are failing to finish, and selected advertisements never reach their destinations.",
+      "Neither our direct business nor requests coming through third-party exchanges are working."
+    ],
+    "affected_service": "Our advertising gateway handles requests, runs competitive bidding and delivers the selected creative.",
+    "dependent_impact": "The whole advertising platform is down because this gateway handles its incoming traffic. Pages may fail to render properly when direct requests fail, and we cannot bid on opportunities coming through outside exchanges.",
+    "scope": "Every instance in our worldwide fleet of nearly a thousand servers has gone down within a very narrow interval, spanning roughly half a dozen facilities. No region is delivering ads.",
+    "timing": "The failures came without warning in the early evening UTC, around midafternoon on the US East Coast, with multiple groups of machines going down together.",
+    "trigger": "Just before the failures, a change to our internal data store cleared the live-environment checks and was rolling out to nearly a thousand machines around the globe.",
+    "environment": [
+      "Our internal data store pushes changes out to live machines.",
+      "A global fleet of nearly a thousand instances handles advertising bids and delivery.",
+      "Roughly half a dozen live hosting facilities.",
+      "Pre-distribution checks for changes destined for live systems.",
+      "Our gateway accepts advertising requests, runs bidding rounds and delivers the selected creative.",
+      "Requests from direct deals as well as third-party advertising exchanges."
+    ],
+    "already_tried": [
+      "A few minutes after everything went down, we mobilized separate engineering groups to examine the failures and try bringing machines back online around the globe."
+    ],
+    "misleading_signals": [
+      "The data-store change cleared every required live-environment check before the rollout began."
+    ]
+  },
+  "complete_message": "Our advertising gateway went down abruptly in the early evening UTC. Nearly a thousand instances spanning roughly half a dozen sites failed within moments of one another, leaving us unable to deliver ads anywhere, whether through direct deals or outside exchanges. Just beforehand, a change from our internal data store cleared the live-environment checks and began rolling out globally. Engineering is looking into the failures and trying to bring the machines back online.",
+  "conversation": [
+    {
+      "analyst": "Groups of servers are dropping together."
+    },
+    {
+      "if_asked_about": "Which system is down?",
+      "analyst": "Our advertising gateway is down: it accepts requests, handles competitive bidding and delivers the selected creative. All traffic entering our advertising platform goes through it."
+    },
+    {
+      "if_asked_about": "Any preceding change or possible trigger?",
+      "analyst": "We had started pushing a change from our internal data store to machines around the globe after it cleared the live-environment checks. We do not yet know whether that change explains the failures."
+    },
+    {
+      "if_asked_about": "Onset and extent of impact",
+      "analyst": "It came on abruptly in the early evening UTC. Nearly a thousand instances at roughly half a dozen sites went down together; neither direct deals nor outside exchanges are getting ads delivered anywhere."
+    },
+    {
+      "if_asked_about": "Observed failure behavior",
+      "analyst": "Groups of machines are going down, requests go unhandled, bidding rounds fail to finish and selected ads never get delivered. Pages using direct requests may render incorrectly, and we cannot bid through third-party exchanges."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "An old double-free bug in the ad auction and serving service was triggered by an internal database update that deleted a rarely changed in-memory object. The service used time-based memory reclamation, which deferred freeing the object's memory until a later time. A defect caused the object to be deleted twice, resulting in a crash when the deferred deletion executed. The production validation systems initially accepted the update because the deletion had been scheduled but had not yet executed. The validation process did not wait for the deferred deletion window to pass before authorizing distribution, so the faulty update reached the production servers worldwide before the delayed crashes became visible. Test coverage for this rarely changed portion of the data model was also incomplete.",
+    "fix": [
+      "Engineers used a newly generated internal database snapshot that had been tested and confirmed not to trigger the bug to restore service in one data center.",
+      "By 18:30 UTC, the first data center had recovered enough capacity to process approximately 50% of its normal direct transaction volume.",
+      "Engineers worked on generating new database snapshots for the other five data centers to support recovery.",
+      "A second engineering team identified the double-free bug and created and tested a software fix by 18:47 UTC.",
+      "The team initiated a worldwide deployment of the updated ad auction and serving service containing the fix.",
+      "The global deployment failed because the deployment infrastructure lacked sufficient capacity for a simultaneous rollout across all six data centers.",
+      "Engineers converted the failed global deployment into a rolling deployment.",
+      "By 20:00 UTC, the updated service was deployed and processing 100% of direct transaction traffic worldwide.",
+      "The remaining external exchange supply traffic was restored over approximately the following hour."
+    ],
+    "prevention": [
+      "Planned: Modify production validation systems to approve data changes only after the deferred memory deletion window has passed, allowing delayed failures to become visible before distribution.",
+      "Planned: Add a second validation tier that tests incoming data changes under real production request traffic conditions.",
+      "Planned: Require data changes to pass both validation tiers before distribution to the rest of the production systems.",
+      "Planned: Review and expand software testing to cover rarely changed data model components and edge cases that existing tests missed.",
+      "Planned: Introduce additional types of tests to improve detection of defects that occur under unusual conditions.",
+      "Planned: Re-engineer emergency recovery procedures to provide a clear, predictable way to return production systems to a known-good state after problematic data or configuration changes.",
+      "Planned: Improve and test deployment infrastructure to ensure it can handle emergency deployments across all production data centers."
+    ],
+    "changes": "A software fix for the double-free bug was created, tested, and deployed in an updated version of the ad auction and serving service. The exact code modification is not specified in the post-mortem. Additional changes to validation configuration, testing, recovery procedures, and deployment infrastructure were proposed but were not reported as completed."
+  }
+}

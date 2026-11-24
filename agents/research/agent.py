@@ -62,6 +62,9 @@ MAX_LLM_CALLS = 2          # per run of the agent
 AGENTIC_MODE = False
 MAX_LLM_CALLS_AGENTIC = 4
 N_DOCS_FIND_AGENTIC = 10   # incidents that find_similar_incidents returns in agentic mode (like the 10 candidates)
+# Experiment (2026-11-24): in agentic/hybrid mode, give the LLM the whole structured Triage output (state["triage"])
+# and the guidance on how to use it in its queries (prompts.TRIAGE_GUIDANCE).
+TRIAGE_CONTEXT = False
 
 
 class ResearchState(TypedDict, total=False):
@@ -69,6 +72,7 @@ class ResearchState(TypedDict, total=False):
     description: str
     symptoms: list[str]
     search_request: str                               # from the Diagnosis agent; empty in the first round
+    triage: dict                                      # experiment (TRIAGE_CONTEXT): trigger, affected_service, category, symptoms
     candidates: list[dict]                            # incidents found (in a refinement: the previous findings)
     seen_ids: list[str]
     no_llm: bool                                      # tests: fixed call, without NIM
@@ -112,7 +116,11 @@ def _merge_by_incident(lists: list[list[dict]]) -> list[dict]:
 def initial_search(state: ResearchState) -> dict:
     start = time.time()
     lists, log = [], []
-    for query in [state["description"], *state.get("symptoms", [])]:
+    if tools.SYMPTOMS_IN_ONE_QUERY:  # experiment: description + symptoms in one search text
+        queries = [tools.description_query(state)]
+    else:  # the description and one search per symptom
+        queries = [state["description"], *state.get("symptoms", [])]
+    for query in queries:
         found = _tag_origin(tools.search_incidents(query, N_DOCS, N_SIMILAR_PASSAGES), query)
         lists.append(found)
         log.append({"step": "initial_search", "query": query, "filter": None, "ids": [r["incident_id"] for r in found]})
@@ -275,15 +283,17 @@ def _system_prompt() -> str:
     if not AGENTIC_MODE:
         return prompts.SYSTEM_PROMPT
     hybrid = prompts.HYBRID_NOTE if tools.INCLUDE_DESCRIPTION_IN_FIRST_SEARCH else ""
-    return prompts.AGENTIC_SYSTEM_PROMPT + hybrid
+    guidance = prompts.TRIAGE_GUIDANCE if TRIAGE_CONTEXT else ""
+    return prompts.AGENTIC_SYSTEM_PROMPT + hybrid + guidance
 
 
 def agent(state: ResearchState) -> dict:
     new = []
     agentic = AGENTIC_MODE and not state.get("candidates")
     if not state.get("messages") and agentic:  # first call, agentic mode: no incidents yet; the LLM searches
+        triage = state.get("triage") if TRIAGE_CONTEXT else None
         new.append(HumanMessage(prompts.agentic_user_message(state["description"], state.get("symptoms", []),
-                                                             state.get("search_request", ""))))
+                                                             state.get("search_request", ""), triage)))
     elif not state.get("messages"):  # first call: the message with the incidents found
         candidates_text = build_summary_list(state.get("candidates", []))
         new.append(HumanMessage(prompts.user_message(state["description"], state.get("symptoms", []),
@@ -483,9 +493,11 @@ def _show(node: str, delta: dict) -> None:
 
 
 def research(description: str, symptoms: list[str] | None = None, request: str = "", previous: dict | None = None,
-             no_llm: bool = False, show=None) -> dict:
+             no_llm: bool = False, show=None, triage: dict | None = None) -> dict:
     """Runs the agent once and returns its final state (the output is in state["findings"])."""
     entry: dict = {"description": description, "symptoms": symptoms or [], "search_request": request, "no_llm": no_llm}
+    if triage:
+        entry["triage"] = triage
     if previous:
         entry.update({"candidates": previous["findings"], "seen_ids": previous.get("seen_ids", [])})
     state: dict = {}

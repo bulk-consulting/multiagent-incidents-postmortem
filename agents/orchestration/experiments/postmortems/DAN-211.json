@@ -1,0 +1,106 @@
+
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Our secrets-management service is experiencing degraded performance.",
+      "One server in our Consul cluster is showing unusually high CPU usage.",
+      "Consul KV write latency has increased significantly. The 50th percentile is around 2 seconds, compared with a normal value below 300 milliseconds.",
+      "At 16:35, the number of online players dropped to 50% of normal.",
+      "Our online platform subsequently experienced a complete outage.",
+      "A majority of Consul nodes are reporting that they cannot keep up with writes.",
+      "The Consul leader is repeatedly becoming out of sync with other voting nodes.",
+      "Some services that depend on Consul are marking themselves unhealthy.",
+      "Consul performance continues to degrade even when no user-generated traffic is reaching the system.",
+      "Debug logs and operating-system metrics show Consul KV writes being blocked for extended periods."
+    ],
+    "affected_service": "Our Consul-based service discovery and distributed configuration cluster.",
+    "dependent_impact": "Our secrets-management service is degraded. Other internal services are having difficulty discovering and connecting to their dependencies. Container scheduling and production-secret retrieval are disrupted, and dependent services are becoming unhealthy. Our online platform becomes unavailable to players. The caching system is also unhealthy during recovery.",
+    "scope": "The incident affects a shared Consul cluster supporting multiple internal workloads. Initially, players are unaffected. By 16:35, the online player count has fallen to 50% of normal, and the incident subsequently develops into a complete platform outage. Our infrastructure includes more than 18,000 servers and 170,000 containers.",
+    "timing": "The first signs of degradation appear at approximately 13:37. Player impact becomes visible by 16:35. The incident progresses from degraded internal services to a complete platform outage.",
+    "trigger": "At approximately 14:00 on the previous afternoon, we enabled Consul's streaming feature on a backend service responsible for traffic routing. As part of the same rollout, we increased the number of traffic-routing nodes by 50%. The system operated normally for approximately a day after these changes, and we do not yet know whether they are related to the incident.",
+    "environment": [
+      "On-premises data centers with self-managed compute, storage, and networking infrastructure.",
+      "More than 18,000 servers and 170,000 containers.",
+      "Consul for service discovery, health checks, session locking, and key-value storage.",
+      "A Consul cluster with five voting nodes and five non-voting read replicas.",
+      "Raft for Consul leader election and state replication.",
+      "Nomad for container scheduling and health validation.",
+      "Vault for secrets management.",
+      "Multiple backend services sharing the same Consul cluster.",
+      "A recently adopted Consul streaming feature, introduced during an upgrade from version 1.9 to 1.10.",
+      "Traffic-routing backend services using Consul.",
+      "Internal services generating service-discovery reads, writes, and health-check updates."
+    ],
+    "already_tried": [
+      "We suspected degraded hardware and replaced one Consul cluster node, but performance did not improve.",
+      "We migrated most of the Consul cluster to more powerful machines with 128 CPU cores and faster NVMe SSDs. The cluster remained unhealthy, with median KV write latency near 2 seconds.",
+      "We shut down the Consul cluster and restored its state from an earlier snapshot. We temporarily blocked access using iptables to control the load during startup. Initial metrics looked healthy, but performance degraded again when we restored access.",
+      "We blocked remaining external traffic and prepared configuration changes to disable non-essential Consul usage.",
+      "We reduced services that normally run hundreds of instances to single-digit instance counts.",
+      "We decreased health-check frequency from every 60 seconds to every 10 minutes. Despite the reduced load, the cluster became unhealthy again.",
+      "We examined debugging logs, operating-system metrics, htop output, and performance data, finding that KV writes were being blocked for long periods.",
+      "We suspected that the newer 128-core servers might be aggravating the performance problem. We moved the cluster back to 64-core servers, but performance did not improve."
+    ],
+    "misleading_signals": [
+      "The high CPU usage on one Consul server and elevated KV write latency initially suggested a hardware-performance problem. Replacing hardware did not resolve the issue.",
+      "The severity of the outage suggested that the cluster might have reached its processing capacity. Upgrading to more powerful hardware did not restore healthy performance.",
+      "The restored Consul snapshot initially produced healthy metrics, but performance degraded again after internal services reconnected.",
+      "The volume of internal service-discovery requests and health checks appeared to be the main problem. However, the cluster became unhealthy again even after substantial load reductions.",
+      "The 128-core servers appeared to be a possible contributor to contention, but returning to 64-core servers did not eliminate the problem."
+    ]
+  },
+  "complete_message": "We're seeing serious performance degradation in our Consul service-discovery cluster: median KV write latency has increased from under 300 milliseconds to around 2 seconds, one server has unusually high CPU usage, and our secrets-management service is degraded. We first noticed the problem around 13:37, and by 16:35 our online player count had dropped to half its normal level. Yesterday afternoon, we enabled Consul streaming for a traffic-routing backend and increased its node count by 50%, but we haven't established whether those changes are connected.",
+  "conversation": [
+    {
+      "analyst": "We're seeing unusually high latency on internal key-value writes."
+    },
+    {
+      "if_asked_about": "the affected service",
+      "analyst": "Our Consul service-discovery cluster is unhealthy. Our secrets-management service is also degraded, and several internal services depend on this cluster."
+    },
+    {
+      "if_asked_about": "what changed right before / the trigger",
+      "analyst": "Yesterday afternoon, around 14:00, we enabled Consul's streaming feature for a traffic-routing backend service and increased its node count by 50%. Everything appeared to work normally afterward, so we're not sure whether the rollout is related."
+    },
+    {
+      "if_asked_about": "when it started and who is affected",
+      "analyst": "We first detected the degradation around 13:37, when players were still unaffected. By 16:35, the number of online players had dropped to about half of normal, and the situation has continued to deteriorate."
+    },
+    {
+      "if_asked_about": "the errors or symptoms seen",
+      "analyst": "Our median Consul KV write latency is around 2 seconds instead of the usual 300 milliseconds or less, and one cluster server has high CPU usage. We're also seeing nodes unable to keep up with writes, the leader becoming out of sync with other voters, and dependent services becoming unhealthy."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "The outage resulted from two primarily independent performance problems within Consul. First, the recently enabled streaming implementation suffered excessive contention under the combination of very high read and write loads. The streaming implementation used fewer Go channels for concurrency control than the previous long-polling approach. At this workload scale, contention on a shared channel blocked writes, increased CPU usage, and severely degraded Consul performance. The 128-core replacement servers, which used a dual-socket NUMA architecture, aggravated contention on shared resources. Second, the workload exposed a pathological BoltDB performance problem affecting Consul's Raft log persistence. BoltDB retained free pages from deleted log entries in an increasingly large freelist. The database contained approximately 3.8 GB of unused space and a 7.8 MB freelist, which was rewritten during small log appends, causing excessive write latency. Backpressure and full TCP buffers contributed to write times of 2 to 3 seconds on unhealthy leaders. Both problems affected a single shared Consul cluster that supported numerous critical services, amplifying the outage. Monitoring systems also depended on Consul, reducing visibility during diagnosis.",
+    "fix": [
+      "Disabled the Consul streaming feature across all services, including traffic-routing nodes. When the configuration finished propagating at 15:51, median KV write latency dropped to approximately 300 milliseconds.",
+      "Implemented a workaround to prevent Consul leaders exhibiting excessive latency from remaining elected, allowing the cluster to operate consistently while the remaining performance issue was investigated.",
+      "With Consul stable, began restoring dependent services, starting with the caching infrastructure.",
+      "Redeployed the caching system, addressing incorrect scheduling metadata, an unhealthy node that the scheduler incorrectly considered available, and difficulties bootstrapping large cache deployments.",
+      "Verified the health and correctness of the restored caching system and the Consul cluster.",
+      "Restarted the remaining internal services at appropriate capacity levels and verified their operation.",
+      "Used DNS steering to gradually reintroduce player traffic, increasing access in approximately 10% increments while checking database load, cache performance, and overall stability.",
+      "Restored full player access after successfully validating the system under increasing traffic.",
+      "After the outage, developed and deployed a BoltDB compaction process using existing tooling to address the underlying database performance issue."
+    ],
+    "prevention": [
+      "Removed the circular dependency between telemetry systems and Consul so monitoring remains available when the monitored infrastructure fails.",
+      "Extended monitoring to provide deeper visibility into Consul and BoltDB performance, including targeted alerts for conditions associated with the outage.",
+      "Improved monitoring of traffic patterns between internal services and Consul.",
+      "Built infrastructure for an additional geographically distinct data center and began efforts to distribute services across multiple availability zones and data centers.",
+      "Separated some critical services into dedicated Consul clusters to reduce the load and failure impact on the central cluster.",
+      "Began migrating data stored directly in Consul's KV store to more appropriate storage systems.",
+      "Deleted obsolete Consul KV data, improving cluster performance.",
+      "Began testing a Consul upgrade that replaces BoltDB with bbolt, addressing the unbounded freelist growth issue.",
+      "Developed and deployed a database-compaction process to address BoltDB performance degradation.",
+      "Started developing redesigned caching deployment mechanisms to support faster, more reliable recovery from a completely stopped state.",
+      "Identified Nomad improvements to make restarting large jobs easier after extended unavailability, with deployment planned for a future upgrade.",
+      "Developed and deployed mechanisms for faster machine configuration changes.",
+      "Began developing new streaming benchmarks and additional scale tests reproducing the combination of a large number of streams and high update churn.",
+      "Began improving the Consul streaming implementation to avoid excessive contention under extreme workloads.",
+      "Planned to reintroduce streaming only after a revised implementation had been tested against the actual workload at the required scale."
+    ],
+    "changes": "During recovery, Consul streaming was disabled across all affected services. Temporary configuration changes included restricting cluster access with iptables, disabling non-essential Consul usage, reducing service instance counts, and increasing health-check intervals from 60 seconds to 10 minutes. Traffic access was subsequently controlled through DNS steering. After the incident, the team removed monitoring dependencies on Consul, expanded telemetry and alerting, placed some critical services into dedicated Consul clusters, deleted obsolete KV data, and deployed a BoltDB compaction process. Additional changes, including replacement of BoltDB with bbolt, redesigned cache bootstrapping, streaming improvements, and broader infrastructure distribution, were in progress or planned rather than fully completed at the time of the report."
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Our automated probes sometimes cannot provision a new container in the hosted database.",
+      "Requests to provision containers are rejected on the grounds that a parameter is unacceptable.",
+      "After the initial rejection, roughly three quarters of checks were unsuccessful; the remainder passed.",
+      "In the US East location, the proportion of unsuccessful checks eventually approached nine out of ten, out of well over a hundred probes per day.",
+      "The problem then surfaced in US Central, where sporadic passes gave way to universal failure.",
+      "Ultimately none of the US East probes passed either."
+    ],
+    "affected_service": "Our synthetic monitoring for hosted databases, particularly the probe that provisions containers.",
+    "dependent_impact": "Customers saw a degraded availability indication on our monitoring system because the end-to-end probes were unreliable.",
+    "scope": "US East was hit first: roughly three quarters of probes failed, then nearly all, and finally none passed. US Central followed the same pattern until every probe there failed as well. Locations elsewhere remained healthy.",
+    "timing": "We noticed the initial rejection in the early evening UTC and marked availability as degraded roughly half an hour afterward. Sporadic errors became increasingly frequent over the next few days and reached a second location.",
+    "trigger": null,
+    "environment": [
+      "Hosted database offering",
+      "Provider interface for administering databases",
+      "Client library for database administration",
+      "Automated end-to-end health probes",
+      "SQL databases with container resources",
+      "Requests that provision new containers",
+      "Provisioned database capacity settings"
+    ],
+    "already_tried": [
+      "We examined probe diagnostics and found recurring parameter validation rejections during provisioning.",
+      "We checked the provisioning implementation and found no edits for months.",
+      "We upgraded our older client library without eliminating the failures.",
+      "We looked into possible changes to accepted capacity settings without finding a remedy.",
+      "We adjusted the provisioned capacity from its original setting of a few hundred units, but requests still failed.",
+      "We explored whether provisioning new containers was still possible, without resolving the problem.",
+      "We consulted the cloud vendor’s health dashboard and found no listed disruption."
+    ],
+    "misleading_signals": [
+      "At first the problem was confined to a single location, much like earlier regional resource shortages we had seen.",
+      "A portion of probes still passed between errors.",
+      "Locations elsewhere remained healthy.",
+      "The vendor dashboard indicated normal availability.",
+      "Our provisioning logic had been untouched for months and a review revealed no apparent defect."
+    ]
+  },
+  "complete_message": "Our hosted database probes in US East began failing sporadically in the early evening UTC, and we marked availability as degraded roughly half an hour later. About three quarters of checks get rejected during container provisioning because the request apparently contains an unacceptable parameter, yet the remaining probes pass. Our provisioning logic has been untouched for months, locations elsewhere look healthy, and the vendor dashboard lists no disruption.",
+  "conversation": [
+    {
+      "analyst": "Our automated checks are failing sporadically."
+    },
+    {
+      "if_asked_about": "which system is involved",
+      "analyst": "We monitor a hosted database offering, and the failing step is the probe that provisions a new container."
+    },
+    {
+      "if_asked_about": "recent modifications or possible initiating event",
+      "analyst": "Our provisioning logic and request method have been unchanged for months. We are unaware of anything changing just before the errors appeared."
+    },
+    {
+      "if_asked_about": "onset and geographical extent",
+      "analyst": "We noticed the first rejection in the early evening UTC and marked availability as degraded roughly half an hour afterward. US East was hit first, with roughly three quarters of probes unsuccessful; locations elsewhere remained healthy."
+    },
+    {
+      "if_asked_about": "observed failure details",
+      "analyst": "Requests to provision containers keep getting rejected because a parameter is deemed unacceptable. Some attempts pass, and the diagnostics do not tell us which parameter caused the rejection."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "The cloud database provider introduced an unannounced breaking change to its API contract. A partition key field that had previously been optional became mandatory when creating database containers. Our existing SDK-based implementation did not explicitly supply this field, causing container creation requests to fail as the change progressively affected different regions.",
+    "fix": [
+      "Investigated container creation through the provider's web console and discovered that the Partition Key field was required, with '/id' as its default value.",
+      "Explicitly supplied the partition key in the container creation code using .WithPartitionKey(\"/id\").",
+      "Applied similar changes to the InsertItem and DeleteItem monitoring checks.",
+      "Updated the affected monitoring operations so their requests matched the provider's new requirements."
+    ],
+    "prevention": [
+      "The post-mortem recommends following cloud providers' best practices and configuration recommendations.",
+      "The post-mortem recommends obtaining alerts about upcoming provider changes to reduce the risk of unexpected API compatibility failures.",
+      "No additional implemented preventive measures are documented."
+    ],
+    "changes": "Modified the database container creation code to explicitly include .WithPartitionKey(\"/id\") rather than relying on the previously optional partition key behavior. Similar changes were applied to the InsertItem and DeleteItem checks."
+  }
+}
