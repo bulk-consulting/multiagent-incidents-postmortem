@@ -212,3 +212,20 @@ Por caso (D aprofundado, f encontrado sem aprofundar, - não encontrado):
 respostas do analista, sem reescrita) como texto de busca; `symptoms`, `trigger`, `affected_service` e `category`
 vão como contexto para o LLM do Pesquisa e para o Diagnóstico. A pergunta do gatilho continua essencial: é ela que
 faz o gatilho aparecer na conversa colada.
+
+## 8. Ideias para depois (anotadas em 2026-11-24)
+
+Usar a saída do Triagem na busca deu pouco ganho em todos os testes: ela só reorganiza o texto do analista. O ganho
+vem de **trazer informação nova** (perguntas do Triagem) ou de **melhorar o próprio Pesquisa**.
+
+| Ideia | Onde | Custo | Por quê |
+|---|---|---|---|
+| Perguntar, na mesma rodada do serviço e do gatilho, a mensagem ou código de erro, os componentes envolvidos (banco, cache, fila, provedor externo), súbito × gradual e total × parcial, sem repetir o que já foi dito | Triagem (Mari) | médio (regra nova + roteiro do analista simulado ampliado) | detalhes concretos distinguem incidentes parecidos (ex.: o erro "parâmetro inválido" no DAN-197) |
+| 20 candidatos na busca inicial | Pesquisa | baixo (`--candidates 20`) | na E4, 135/137 contra 131/137 |
+| Busca garantida extra só com o texto do gatilho, no híbrido | Pesquisa | baixo (teste só da busca em segundos) | traz casos com o mesmo tipo de gatilho, mesmo com sintomas diferentes |
+| Rerank dos 30–50 primeiros com um modelo de reordenação | Pesquisa | alto (modelo novo) | casos em que o certo existe mas fica abaixo do 20º (DAN-125) |
+| Busca por palavras (full-text do Postgres / BM25) junto com a vetorial | Pesquisa | médio (índice no banco) | cobre termos iguais que a busca por significado perde |
+| Etapa de escolha: aprofundar mais incidentes ou deixar o Diagnóstico pedir aprofundamento (`refine_search`) | Pesquisa / Diagnóstico | baixo a médio | no DAN-197 o certo é encontrado e o LLM escolhe outro |
+
+Casos que ainda falham no híbrido (casos reescritos, 32/36): DAN-125 (a busca não acha), DAN-197 (escolha), DAN-018
+(às vezes não acha).
