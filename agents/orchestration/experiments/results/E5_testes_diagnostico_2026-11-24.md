@@ -264,3 +264,33 @@ vivo + laço):
 - A hipótese certa do DAN-018 ("o console fez chamadas demais ao backend") agora aparece nas 3 execuções (antes,
   às vezes nem aparecia), mas o modelo ainda prefere a mudança mais recente. Melhorou, não resolveu.
 - Os pedidos de busca das rodadas 2 e 3 vieram diferentes; nenhuma regressão nos outros casos.
+
+## 15. Quando perguntar sobre mudanças: política A × B (25/11)
+
+O Triagem com a pergunta do gatilho (seção 14) quebrou 3 cenários da Mari: mensagens que já dizem o que falha e onde,
+mas não falam de mudanças, passaram a gerar a pergunta. Duas políticas, pelo grafo inteiro (Triagem → Pesquisa →
+Diagnóstico com o laço; relatório em código), nos 12 casos, com uma 1ª mensagem que diz o que falha e onde, sem
+mudança, e um analista simulado (`run_trigger_policy.py`, `trigger_policy_<A|B>_2026-11-25_*.json`):
+
+- **A:** perguntar uma vez sempre que nenhuma mensagem fala de mudanças;
+- **B:** perguntar sobre mudanças só junto com outra pergunta (falta o sintoma ou o serviço).
+
+| | A | B |
+|---|---|---|
+| Hipótese principal veio do post-mortem certo (3 repetições) | 28/35 (80%) | 28/36 (78%) |
+| Perguntas ao analista | 16 | 11 |
+| Rodadas de busca | 75 | 96 |
+| Tempo médio por investigação | ~1min40 | ~1min40 |
+| Cenários do Triagem da Mari | 12/18 | 18/18 |
+
+- **Mesma qualidade.** Os erros mudam de caso a cada repetição (o Pesquisa varia); nenhum caso favoreceu sempre a
+  mesma política (o DAN-125, que parecia favorecer a A nas 2 primeiras repetições, errou na A na 3ª).
+- **A A é aplicada de forma inconsistente:** com a mensagem que já diz o que falha e onde, o modelo perguntou em só
+  3 a 6 dos 12 casos.
+- **Na B, quem pergunta é o Diagnóstico**, quando a busca não acha evidência boa (DAN-164, 154, 197): o analista só é
+  interrompido quando falta informação de verdade.
+- Uma execução da A caiu por falha do NIM no Triagem (DAN-116, 3ª repetição) e ficou fora da conta.
+
+**Decisão:** política B como padrão (`TRIGGER_POLICY = "B"` em `agents/triage/prompts.py`); a A ficou guardada
+(`TRIGGER_RULES["A"]`, `set_trigger_policy("A")` em `agents/triage/agent.py`) para testar de novo.
+

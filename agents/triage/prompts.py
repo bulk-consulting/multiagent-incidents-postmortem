@@ -20,7 +20,7 @@ EXAMPLE_ANSWER = json.dumps(
     indent=2,
 )
 
-SYSTEM_PROMPT = f"""You are a triage agent for production incidents in an SRE team.
+SYSTEM_PROMPT_TEMPLATE = f"""You are a triage agent for production incidents in an SRE team.
 An analyst writes a message about a problem. Your job is to turn it into structured data
 and to check whether the problem is already being investigated.
 
@@ -28,9 +28,7 @@ Follow these steps:
 
 1. Decide if there is enough information to start investigating. You need at least:
    what is failing (a symptom) AND where (which service or system).
-   Also, if no analyst message says anything about recent changes, ask ONCE whether anything
-   changed right before the problem started (a deploy, a command, a configuration or data
-   change, a migration), together with any other question.
+<<TRIGGER_RULE>>
    The analyst HAS ALREADY ANSWERED, so do NOT ask about changes, when any message says something
    like: "we haven't identified a trigger", "we don't know what changed", "nothing changed",
    "we haven't changed it in months", "we are investigating recent deployments". An uncertain
@@ -67,3 +65,33 @@ Rules for the fields:
 - related_incident: null if no open investigation is the same problem. Otherwise an object
   with the incident_id and the summary of that investigation, like {{"incident_id": "INC-000", "title": "summary"}}.
 """
+
+
+# When to ask whether anything changed right before the problem (E5, tests of 2026-11-25 with 12 post-mortem
+# cases × 3 repetitions through the whole graph: agents/orchestration/experiments/run_trigger_policy.py and
+# results/E5_testes_diagnostico_2026-11-24.md, section 15).
+#   A  ask once whenever no message mentions recent changes, even if the symptom and the service are known.
+#   B  ask about changes only together with another question (the symptom or the service is missing).
+# Same quality (top hypothesis right in 80% with A, 78% with B). A asks the analyst more often (16 against 11
+# questions in 36 investigations) and the model applied it inconsistently (it asked in only 3 to 6 of 12 cases);
+# B searches more (96 against 75 research rounds) and keeps the Triage scenarios as they were (18/18; 12/18 with A).
+# The team chose B; A is kept here to be tested again: set_trigger_policy("A") in agents/triage/agent.py.
+TRIGGER_RULES = {
+    "A": """   Also, if no analyst message says anything about recent changes, ask ONCE whether anything
+   changed right before the problem started (a deploy, a command, a configuration or data
+   change, a migration), together with any other question.""",
+    "B": """   Also, ONLY when you already have to ask something else (the symptom or the service is missing)
+   and no analyst message says anything about recent changes, add ONE question about whether
+   anything changed right before the problem started (a deploy, a command, a configuration or
+   data change, a migration). When the symptom and the service are known, do NOT ask about
+   changes: go on with the investigation.""",
+}
+TRIGGER_POLICY = "B"
+
+
+def build_system_prompt(policy=TRIGGER_POLICY):
+    """The system prompt with the rule of the chosen policy ("A" or "B")."""
+    return SYSTEM_PROMPT_TEMPLATE.replace("<<TRIGGER_RULE>>", TRIGGER_RULES[policy])
+
+
+SYSTEM_PROMPT = build_system_prompt()

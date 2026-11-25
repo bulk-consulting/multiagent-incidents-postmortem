@@ -7,11 +7,17 @@ run_agent(user_message) returns two things:
 import json
 
 from agents.triage.llm import chat
-from agents.triage.prompts import SYSTEM_PROMPT
+from agents.triage.prompts import SYSTEM_PROMPT, build_system_prompt
 from agents.triage.schema import parse_triage_answer
 from agents.triage.tools import TOOLS, clean_tool_name, run_tool
 
 MAX_TURNS = 5  # the code, not the model, decides the maximum number of loops
+
+
+def set_trigger_policy(policy):
+    """Choose when the agent asks about recent changes: "B" (default) or "A" (see agents/triage/prompts.py)."""
+    global SYSTEM_PROMPT
+    SYSTEM_PROMPT = build_system_prompt(policy)
 
 
 def open_investigation_ids(messages):

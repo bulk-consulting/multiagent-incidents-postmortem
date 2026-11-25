@@ -47,7 +47,7 @@ e escrevem o mesmo estado, salvo por `incident_id`.
 
 | Nó | Tipo | Dono | O que faz |
 |---|---|---|---|
-| `triage` | agente | Mari | o `triage_node` (`agents/triage/node.py`), com os nomes do estado; desde 25/11 pergunta uma vez se algo mudou antes do problema e devolve todas as mudanças citadas em `triggers` |
+| `triage` | agente | Mari | o `triage_node` (`agents/triage/node.py`), com os nomes do estado; desde 25/11 devolve todas as mudanças citadas em `triggers` e, quando já precisa perguntar o sintoma ou o serviço, pergunta junto se algo mudou antes do problema (política B; a A, perguntar sempre, ficou guardada para testes) |
 | `related_incident` | código | Mari | `agents/reporting/related.py`: a resposta "já existe a investigação X", sem LLM, com a `message` em Markdown no idioma do analista |
 | `research` | agente | André | chama o subgrafo do Agente Pesquisa com `description`, `symptoms` e, no refinamento, `search_request` e os achados anteriores |
 | `diagnosis` | agente | André | lê os achados e escreve o `DiagnosisResult` |

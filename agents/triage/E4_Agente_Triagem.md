@@ -18,7 +18,7 @@ trabalho dos agentes seguintes.
 |---|---|
 | Extrair os sintomas e o serviço afetado | o LLM lê a mensagem e preenche `symptoms` e `affected_service` |
 | Decidir se a informação basta | o LLM preenche `enough_information`; precisa de um sintoma **e** de onde ocorre |
-| Pedir o que falta | `missing_information`, com perguntas no idioma do analista; inclui, uma única vez, se algo mudou logo antes do problema (E5) |
+| Pedir o que falta | `missing_information`, com perguntas no idioma do analista; quando já precisa perguntar o sintoma ou o serviço, pergunta junto, uma única vez, se algo mudou logo antes do problema (E5, política B; a política A, perguntar sempre, fica em `prompts.py` com `set_trigger_policy("A")`) |
 | Registrar as mudanças citadas | `triggers` (E5): cada mudança que o analista citou (deploy, comando, configuração...), todas, não só a mais recente |
 | Evitar investigação duplicada | consulta `list_investigations` e preenche `related_incident` se achar a mesma |
 | Dar uma pista de categoria | `category` (opcional), só quando a mensagem deixa claro; ajuda a pesquisa depois |
