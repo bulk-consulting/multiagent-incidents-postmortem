@@ -1,8 +1,8 @@
 # E5 — Esboço do estado compartilhado e dos formatos dos agentes
 
 **Situação (25/11):** estado, Diagnóstico e grafo implementados (`agents/orchestration/graph.py`, com demo e testes
-de integração — ver `agents/orchestration/README.md`); Relatório, validação e incidente duplicado ainda em versões
-provisórias no grafo, até os nós da Mari ficarem prontos. Começou como proposta para a equipe revisar. Os nomes de código estão
+de integração — ver `agents/orchestration/README.md`); o Relatório da Mari (`agents/reporting`) está ligado ao grafo
+e faz a própria validação; o incidente duplicado ainda é provisório. Começou como proposta para a equipe revisar. Os nomes de código estão
 em inglês, como nos agentes Triagem e Pesquisa; o texto do documento, em português.
 
 **Objetivo:** fixar o que cada agente lê e escreve, para que o Diagnóstico, o Relatório e o grafo possam ser
@@ -34,8 +34,8 @@ START → triage ─┬─ ask_user ──────────────�
                                                └────────────────────┤
                                                                     ├─ faltam dados do incidente ────► ask_analyst
                                                                     └─ refinar, sem tentativa ───────► report (inconclusivo)
-report → validate_report (código) ─┬─ ok ──────────────────────────► END
-                                   └─ falhou, até 2 vezes ─────────► report
+report ──► END   (desde 25/11: o agente da Mari valida e corrige o próprio relatório, até 3 tentativas;
+                 o nó validate_report separado é opcional)
 ```
 
 ![Grafo principal da E5](e5_grafo_principal.svg)
@@ -52,8 +52,8 @@ e escrevem o mesmo estado, salvo por `incident_id`.
 | `research` | agente | André | chama o subgrafo do Agente Pesquisa com `description`, `symptoms` e, no refinamento, `search_request` e os achados anteriores |
 | `diagnosis` | agente | André | lê os achados e escreve o `DiagnosisResult` |
 | `ask_analyst` | código + `interrupt()` | André | pausa com as perguntas pendentes; ao retomar, junta a resposta à descrição e volta ao `triage` |
-| `report` | agente | Mari | escreve o `Report` (diagnóstico ou inconclusivo) |
-| `validate_report` | código | Mari | confere campos e fontes; se falhar, volta ao `report` com os erros |
+| `report` | agente | Mari | `agents/reporting/node.py`: escreve o `Report` (diagnóstico ou inconclusivo, com a `message` em Markdown para o chat) e o valida por dentro, corrigindo até 3 vezes; sem diagnóstico (agente anterior falhou), o grafo usa o relatório inconclusivo em código |
+| `validate_report` | código | — | **opcional** desde 25/11: a validação ficou dentro do agente da Mari (`agents/reporting/validation.py`); o nó separado continua disponível em `build_graph(validate_report=...)` |
 
 **Quem escreve as perguntas ao analista:** o agente que percebeu a falta.
 - **Triagem** (falta informação para começar: o serviço, o gatilho): já é assim hoje. O agente da Mari escreve as
@@ -315,7 +315,7 @@ agents/
   triage/          (existe)  node.py (ainda com descricao/sintomas; o grafo traduz)
   research/        (existe)  o subgrafo; o nó research fica em orchestration/graph.py
   diagnosis/       (feito)   agent.py, prompts.py, schema.py, tests/ (o nó diagnosis fica em graph.py)
-  report/          (Mari)    agent.py, prompts.py, schema.py, validate.py, node.py, tests/, doc
+  reporting/       (Mari)    agent.py, prompts.py, schema.py, validation.py, node.py, tests/, README.md
   orchestration/   (feito)   state.py, graph.py, run.py (demonstração), tests/ (estado e integração),
                              experiments/ (testes com o modelo real), README.md
 ```
@@ -326,7 +326,9 @@ Com `InMemorySaver` e, quando possível, agentes falsos (como o `agents/triage/t
 algumas rodadas com o modelo real. **Situação (25/11):** os 8 cenários estão em
 `agents/orchestration/tests/test_graph.py` com agentes falsos (33 verificações, todas passando; o 6 com o mesmo
 `InMemorySaver` e um grafo novo); com o modelo real e o Postgres, a demo rodou o 2 + 6 (pausa e retomada em outra
-execução) e o 4 (fora do corpus → 3 rodadas → pergunta ao analista). O 8 depende do Relatório da Mari.
+execução) e o 4 (fora do corpus → 3 rodadas → pergunta ao analista → retomada → relatório inconclusivo); com o
+Relatório da Mari, o 1 (DAN-104 → relatório de diagnóstico válido na 1ª tentativa). O 8 é coberto pelos testes do
+próprio agente (`agents/reporting/tests/test_validation.py`) e, no grafo, com o nó de validação opcional.
 
 1. problema novo com caso parecido no corpus → relatório de diagnóstico com fontes válidas;
 2. mensagem vaga → pausa com perguntas; retomada com a resposta → segue até o relatório;

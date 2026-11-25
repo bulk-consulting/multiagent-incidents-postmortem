@@ -53,7 +53,7 @@ class InvestigationState(TypedDict, total=False):
     pending_questions: list[str]         # questions sent to the analyst
 
     # Report agent
-    report: Any                          # agents.report.schema.Report (Mari's agent)
+    report: Any                          # agents.reporting.schema.Report (Mari's agent), or a dict (code)
     report_problems: list[str]           # what the validation found wrong; goes back to the Report agent
     report_attempts: int                 # limit: MAX_REPORT_FIXES
 
@@ -66,12 +66,15 @@ class InvestigationState(TypedDict, total=False):
 # The checkpointer saves the state with msgpack. Reading our Pydantic classes back from a checkpoint works
 # today with a warning, and LangGraph says it will be blocked in a future version unless the classes are on
 # an allowlist (a safety measure: whoever can write to the checkpoint database could make it build any class).
-# Every Pydantic class that goes into the state must be listed here. Mari: add the Report classes.
+# Every Pydantic class that goes into the state must be listed here.
 STATE_CLASSES = [
     ("agents.triage.schema", "TriageResult"),
     ("agents.triage.schema", "RelatedIncident"),
     ("agents.diagnosis.schema", "DiagnosisResult"),
     ("agents.diagnosis.schema", "Hypothesis"),
+    ("agents.reporting.schema", "Report"),
+    ("agents.reporting.schema", "ReportCause"),
+    ("agents.reporting.schema", "Source"),
 ]
 
 

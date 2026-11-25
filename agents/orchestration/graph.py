@@ -9,19 +9,20 @@
                     │                                                   ├─ data from the analyst ───► ask_analyst
                     │                                                   └─ otherwise / error ───────► report (inconclusive)
                     └─ error ─────────────────► report (inconclusive)
-    report → validate_report ─┬─ ok, or fixes used up ─► END
-                              └─ problems ─────────────► report (at most MAX_REPORT_FIXES times)
+    report ──► END        (Mari's Reporting agent validates its own report and fixes it, up to 3 attempts)
 
 The contract (state keys, formats, who owns each node) is docs/E5_Estado_e_Formatos.md; the state is
 agents/orchestration/state.py.
 
 The agents are not rewritten: each node calls an agent and writes its result into the state. The agents are reached
-through the module variables run_triage, run_research and run_diagnosis, so the integration tests can replace them
-with fake ones (no model call).
+through the module variables run_triage, run_research, run_diagnosis and run_reporting, so the integration tests can
+replace them with fake ones (no model call).
 
-The Report agent and its validation belong to Mari (agents/report). Until they exist, report_node and
-validate_report_node below are provisional versions in code: build_graph(report=..., validate_report=...) takes the
-real ones.
+The report is written by Mari's Reporting agent (agents/reporting/node.py), which also validates it (sources and links
+in the findings, causes = the diagnosis hypotheses) and fixes it. When there is no diagnosis (an agent failed before
+it), the report is the inconclusive one built in code (code_report_node), because the Reporting agent needs the
+diagnosis. A separate validation node (validate_report_node, the first design of the contract) can still be added
+with build_graph(validate_report=...). The related-incident answer is still provisional (related_incident_node).
 
 Errors: when an agent fails (after its own retries), the node writes the error in `errors` and the routing goes to
 the report, which comes out inconclusive. An investigation always ends with an answer.
@@ -40,6 +41,7 @@ from langgraph.types import interrupt
 
 from agents.diagnosis import agent as diagnosis_agent
 from agents.orchestration.state import MAX_REPORT_FIXES, MAX_RESEARCH_ROUNDS, InvestigationState
+from agents.reporting.node import reporting_node
 from agents.research import agent as research_agent
 from agents.triage import node as triage_node_module
 from agents.triage.routing import ASK_USER, GO_TO_RESEARCH, TELL_RELATED_INCIDENT
@@ -70,6 +72,7 @@ def _run_diagnosis(description, triage: dict, findings, research_round: int, max
 run_triage = _run_triage
 run_research = _run_research
 run_diagnosis = _run_diagnosis
+run_reporting = reporting_node  # Mari's node: report, report_attempts, report_problems, errors
 
 
 def _step(node: str, start: float, summary: str) -> dict:
@@ -164,9 +167,22 @@ def ask_analyst_node(state: InvestigationState) -> dict:
 
 
 def report_node(state: InvestigationState) -> dict:
-    """Provisional (Mari's Report agent): builds the report in code from the diagnosis and the findings, in the
-    format of the contract (section 6), without the LLM. Inconclusive when the evidence is not enough or something
-    failed."""
+    """The Reporting agent (Mari's) when there is a diagnosis; the inconclusive report built in code otherwise."""
+    if state.get("diagnosis") is None or state.get("triage_result") is None:
+        return code_report_node(state)
+    start = time.time()
+    out = run_reporting(state)
+    report = out.get("report")
+    report = (report.model_dump() if hasattr(report, "model_dump") else report) or {}
+    summary = f"{report.get('kind')}, {len(report.get('causes', []))} causes, attempts: {out.get('report_attempts')}"
+    if out.get("report_problems"):
+        summary += f"; fallback after problems: {len(out['report_problems'])}"
+    return {**out, **_step("report", start, summary)}
+
+
+def code_report_node(state: InvestigationState) -> dict:
+    """The report built in code from the diagnosis and the findings, in the format of the contract (section 6),
+    without the LLM. Used when there is no diagnosis (inconclusive), and by the tests as a fake Reporting agent."""
     start = time.time()
     d = state.get("diagnosis")
     by_id = {r["incident_id"]: r for r in state.get("findings", [])}
@@ -264,8 +280,8 @@ def route_after_validation(state: InvestigationState) -> Literal["report", "__en
 
 def build_graph(checkpointer=None, report=None, validate_report=None, related_incident=None):
     """The compiled main graph. checkpointer: InMemorySaver in the tests, PostgresSaver in the demo (needed for the
-    pause: interrupt). report / validate_report / related_incident: Mari's nodes; the provisional ones are used
-    while they do not exist."""
+    pause: interrupt). report: replaces report_node (Reporting agent + code fallback). validate_report: an optional
+    validation node after the report (e.g. validate_report_node). related_incident: replaces the provisional node."""
     g = StateGraph(InvestigationState)
     g.add_node("triage", triage_node)
     g.add_node("related_incident", related_incident or related_incident_node)
@@ -273,13 +289,17 @@ def build_graph(checkpointer=None, report=None, validate_report=None, related_in
     g.add_node("diagnosis", diagnosis_node)
     g.add_node("ask_analyst", ask_analyst_node)
     g.add_node("report", report or report_node)
-    g.add_node("validate_report", validate_report or validate_report_node)
+    if validate_report:
+        g.add_node("validate_report", validate_report)
     g.add_edge(START, "triage")
     g.add_conditional_edges("triage", route_after_triage)
     g.add_edge("related_incident", END)
     g.add_conditional_edges("research", route_after_research)
     g.add_conditional_edges("diagnosis", route_after_diagnosis)
     g.add_edge("ask_analyst", "triage")
-    g.add_edge("report", "validate_report")
-    g.add_conditional_edges("validate_report", route_after_validation)
+    if validate_report:  # optional: Mari's Reporting agent already validates its own report
+        g.add_edge("report", "validate_report")
+        g.add_conditional_edges("validate_report", route_after_validation)
+    else:
+        g.add_edge("report", END)
     return g.compile(checkpointer=checkpointer)

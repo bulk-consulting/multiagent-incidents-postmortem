@@ -14,7 +14,7 @@ em [`docs/E5_Estado_e_Formatos.md`](../../docs/E5_Estado_e_Formatos.md).
 | `graph.py` | os nós, o roteamento e `build_graph()` |
 | `run.py` | a demonstração no terminal, com o estado salvo no Postgres |
 | `tests/test_state.py` | o estado passa pelo checkpointer (pausa, retomada, classes Pydantic) |
-| `tests/test_graph.py` | os 8 cenários do contrato com agentes falsos (sem modelo, sem banco) |
+| `tests/test_graph.py` | os 8 cenários do contrato com agentes falsos (sem modelo, sem banco) e o Relatório da Mari com um modelo falso |
 | `experiments/` | testes com o modelo real (Triagem → Pesquisa → Diagnóstico) e os relatórios em `experiments/results/` |
 
 ## Como o grafo funciona
@@ -28,8 +28,7 @@ START → triage ─┬─ falta informação ───► ask_analyst (pausa) �
                                             └────────────────────┤
                                                                  ├─ faltam dados ─────────────► ask_analyst
                                                                  └─ limite ou erro ───────────► report (inconclusivo)
-report → validate_report ─┬─ ok ─────────────────► END
-                          └─ problemas (até 2x) ─► report
+report ──► END   (o Relatório valida e corrige o próprio texto)
 ```
 
 - **Os agentes não conversam entre si.** Cada nó lê o que precisa do estado, chama o seu agente e escreve o resultado
@@ -74,32 +73,33 @@ Exemplos (25/11):
 ## Rodar os testes
 
 ```bash
-PYTHONPATH=. multiagent_env/bin/python -m agents.orchestration.tests.test_graph   # 33 verificações, segundos
+PYTHONPATH=. multiagent_env/bin/python -m agents.orchestration.tests.test_graph   # 37 verificações, segundos
 PYTHONPATH=. multiagent_env/bin/python -m agents.orchestration.tests.test_state   # 10 verificações
 ```
 
-Os agentes são chamados pelas variáveis `graph.run_triage`, `graph.run_research` e `graph.run_diagnosis`; os testes
+Os agentes são chamados pelas variáveis `graph.run_triage`, `graph.run_research`, `graph.run_diagnosis` e
+`graph.run_reporting`; os testes
 trocam essas variáveis por agentes falsos com respostas prontas.
 
-## Para a Mari: ligar o Relatório e a validação
+## O Relatório (agente da Mari)
 
-Enquanto o `agents/report` não existe, o grafo usa versões provisórias em código (`report_node`,
-`validate_report_node` e `related_incident_node` em `graph.py`): o relatório é montado a partir das hipóteses do
-Diagnóstico, sem LLM, no formato da seção 6 do contrato. Para usar os nós de verdade:
+O nó `report` chama o `reporting_node` da Mari (`agents/reporting/node.py`), que escreve o relatório com o LLM,
+**valida o próprio relatório** (tipo segundo o Diagnóstico, fontes e links nos `findings`, causas = hipóteses do
+Diagnóstico, links da mensagem) e corrige até 3 vezes; se não conseguir, monta um relatório inconclusivo em código.
+Por isso o fluxo padrão é `report → END`, sem o nó separado `validate_report` do primeiro desenho do contrato.
 
-```python
-from agents.orchestration.graph import build_graph
-from agents.report.node import report_node, validate_report_node   # os nós da Mari
-
-graph = build_graph(checkpointer, report=report_node, validate_report=validate_report_node)
-```
-
-O que os nós precisam respeitar:
-- **`report`** lê `diagnosis`, `findings`, `errors`, `report_problems` (os problemas da validação anterior, quando
-  houver) e escreve `report`. Com `diagnosis` ausente ou `evidence_sufficient = False`, o relatório é inconclusivo.
-- **`validate_report`** escreve `report_problems` (lista vazia quando está tudo certo) e soma 1 em `report_attempts`
-  quando há problemas. O roteamento volta ao `report` até `MAX_REPORT_FIXES` vezes.
-- As classes Pydantic do relatório entram em `STATE_CLASSES` (`state.py`), senão o checkpointer não as lê de volta.
-- O nó `related_incident` também é provisório: `build_graph(..., related_incident=seu_no)`.
+- **Quando não há diagnóstico** (o Triagem, o Pesquisa ou o Diagnóstico falhou), o grafo usa o relatório
+  inconclusivo em código (`code_report_node`), porque o agente da Mari precisa do diagnóstico.
+- **Validação separada (opcional):** `build_graph(checkpointer, validate_report=validate_report_node)` acrescenta o
+  nó de validação depois do relatório, com até `MAX_REPORT_FIXES` voltas (usado no cenário 8 dos testes).
+- **Incidente duplicado:** ainda provisório (`related_incident_node`); para trocar,
+  `build_graph(..., related_incident=outro_no)`.
+- As classes do relatório (`Report`, `ReportCause`, `Source`) estão em `STATE_CLASSES` (`state.py`).
 - Quando o `agents/triage/node.py` passar a usar `description` e `symptoms`, o adaptador `_run_triage` em `graph.py`
   pode chamar o nó direto.
+
+Exemplos com o Relatório de verdade (25/11):
+- `DEMO-104B` (conversa completa do DAN-104): diagnóstico `high`, relatório válido na 1ª tentativa, com correção,
+  checklist de prevenção e o link do post-mortem; ~1min30.
+- `DEMO-NEW` retomado com a resposta do analista: 3 rodadas sem caso parecido → relatório inconclusivo explicando por
+  que o caso mais próximo não serve e o que verificar agora.

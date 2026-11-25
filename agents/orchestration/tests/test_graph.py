@@ -12,7 +12,8 @@ Scenarios (docs/E5_Estado_e_Formatos.md, section 10):
     5. refinement that improves the evidence → diagnosis in the 2nd round
     6. resume in another run (same checkpointer, new graph object)
     7. an agent fails → inconclusive report, the flow does not break
-    8. report with an invented link → the validation rejects it and the report is fixed
+    8. report with an invented link → the validation rejects it and the report is fixed (with the optional
+       validation node; Mari's Reporting agent does the same inside itself: agents/reporting/tests/test_validation.py)
     plus: the Diagnosis agent asks the analyst (the investigation starts again) and the limit of answers.
 
 Run from the repository root:
@@ -40,7 +41,7 @@ RELATED_TRIAGE = TriageResult(enough_information=True, symptoms=["login 500"], a
 
 
 def finding(i, deepened=True):
-    return {"incident_id": i, "title": f"title {i}", "url": f"https://example.com/{i}", "summary": "s",
+    return {"incident_id": i, "company": "Acme", "title": f"title {i}", "url": f"https://example.com/{i}", "summary": "s",
             "deepened": deepened, "passages": [{"section": "Root cause", "content": "c", "query_source": "cause"}]}
 
 
@@ -64,6 +65,7 @@ class Fakes:
         self.triage, self.research, self.diagnosis = triage or [], research or [], diagnosis or []
         self.calls = {"triage": [], "research": [], "diagnosis": []}
         graph.run_triage, graph.run_research, graph.run_diagnosis = self.run_triage, self.run_research, self.run_diagnosis
+        graph.run_reporting = graph.code_report_node  # the report built in code, instead of the LLM
 
     @staticmethod
     def _next(items, k):
@@ -106,7 +108,7 @@ checker.check("the source has the url of the findings",
 checker.check("one round of each agent", [len(f.calls[k]) for k in ("triage", "research", "diagnosis")] == [1, 1, 1])
 checker.check("the validation found no problem", out["report_problems"] == [])
 checker.check("the trace has every node in order",
-              [t["node"] for t in out["trace"]] == ["triage", "research", "diagnosis", "report", "validate_report"])
+              [t["node"] for t in out["trace"]] == ["triage", "research", "diagnosis", "report"])
 
 print("\n2. Vague message: pause and resume")
 f = Fakes([VAGUE_TRIAGE, GOOD_TRIAGE], [[finding("DAN-104")]], [SUFFICIENT("DAN-104")])
@@ -191,7 +193,8 @@ def report_with_bad_link_once(state):
 
 
 f = Fakes([GOOD_TRIAGE], [[finding("DAN-104")]], [SUFFICIENT("DAN-104")])
-out, _ = run(new_graph(report=report_with_bad_link_once), "INC-8", "Our object store is down.")
+out, _ = run(new_graph(report=report_with_bad_link_once, validate_report=graph.validate_report_node), "INC-8",
+             "Our object store is down.")
 checker.check("the report is written again with the problems", len(calls) == 2 and "url" in calls[1][0])
 checker.check("the fixed report passes", out["report_problems"] == [])
 
@@ -204,7 +207,8 @@ def always_bad(state):
 
 
 f = Fakes([GOOD_TRIAGE], [[finding("DAN-104")]], [SUFFICIENT("DAN-104")])
-out, _ = run(new_graph(report=always_bad), "INC-8b", "Our object store is down.")
+out, _ = run(new_graph(report=always_bad, validate_report=graph.validate_report_node), "INC-8b",
+             "Our object store is down.")
 checker.check(f"a report that never passes stops after {MAX_REPORT_FIXES} fixes", len(calls) == MAX_REPORT_FIXES + 1)
 
 print("\nThe Diagnosis agent asks the analyst")
@@ -227,5 +231,47 @@ for k in range(graph.MAX_ANALYST_ROUNDS):
     out = g.invoke(Command(resume=f"answer {k}"), config)
 checker.check(f"after {graph.MAX_ANALYST_ROUNDS} answers, an inconclusive report instead of another question",
               "__interrupt__" not in out and out["report"]["kind"] == "inconclusive")
+
+print("\nMari's Reporting agent inside the graph (fake model)")
+import json  # noqa: E402
+
+import agents.reporting.agent as reporting_agent  # noqa: E402
+from agents.reporting.node import reporting_node  # noqa: E402
+from agents.reporting.schema import Report  # noqa: E402
+
+model_calls = []
+VALID_REPORT = json.dumps({
+    "kind": "diagnosis", "summary": "Too much capacity was removed.",
+    "message": "Most likely cause: too much capacity removed. Source: https://example.com/DAN-104",
+    "causes": [{"root_cause": "cause from DAN-104", "remediation_steps": [], "prevention_checklist": [],
+                "sources": [{"incident_id": "DAN-104", "title": "title DAN-104", "url": "https://example.com/DAN-104"}],
+                "confidence": "high"}],
+    "gaps": [], "suggested_checks": []})
+
+
+def fake_model(messages, max_tokens=None, **kw):
+    model_calls.append(messages)
+    return {"content": VALID_REPORT}
+
+
+reporting_agent.chat = fake_model
+f = Fakes([GOOD_TRIAGE], [[finding("DAN-104")]], [SUFFICIENT("DAN-104")])
+graph.run_reporting = reporting_node  # the real node, with the fake model
+g = new_graph()
+out, config = run(g, "INC-11", "Our object store is down.")
+checker.check("the Reporting agent writes a Report (Pydantic) with the incident id",
+              isinstance(out["report"], Report) and out["report"].kind == "diagnosis"
+              and out["report"].incident_id == "INC-11")
+checker.check("its own validation passed at the first attempt",
+              out["report_attempts"] == 1 and out["report_problems"] == [] and len(model_calls) == 1)
+checker.check("the Report survives the checkpoint (strict mode)",
+              isinstance(g.get_state(config).values["report"], Report))
+
+model_calls.clear()
+f = Fakes([GOOD_TRIAGE], [[finding("DAN-104")]], [RuntimeError("invalid answers")])
+graph.run_reporting = reporting_node
+out, _ = run(new_graph(), "INC-12", "Our object store is down.")
+checker.check("no diagnosis (the agent failed): inconclusive report in code, the model is not called",
+              out["report"]["kind"] == "inconclusive" and model_calls == [])
 
 checker.finish()
