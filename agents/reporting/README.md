@@ -37,6 +37,19 @@ código Python. A caixa "Tools" tracejada ainda não existe: o agente não usa f
 | em um diagnóstico, as causas são as hipóteses do Diagnóstico: mesmo número, mesma ordem, mesma confiança, e cada uma cita os incidentes em que se baseia | o Reporting mudar o ranking ou a confiança |
 | a mensagem só tem links dos `findings` e mostra o link de cada fonte | links falsos ou fontes escondidas |
 
+## Incidente duplicado (`related.py`)
+
+Quando o Triagem encontra uma investigação aberta com o mesmo problema, o grafo não chama o LLM: `related_incident_node`
+monta em código a resposta "já em investigação", no mesmo formato dos outros relatórios (`summary` + `message` em
+Markdown), no idioma do analista (português ou inglês, pelas palavras da mensagem), com o serviço, os sintomas e o que
+fazer se não for o mesmo problema. Testes: `tests/test_related.py`.
+
+## Estado incompleto
+
+O agente tolera chaves ausentes no estado (um agente anterior falhou): sem `diagnosis`, devolve o relatório
+inconclusivo em código sem chamar o modelo; `findings`, `triage_result` e campos dos achados ausentes contam como
+vazios. Teste: caso 4 de `tests/test_node.py`.
+
 ## Entrada e saída
 
 **Entrada:** o estado compartilhado, com as chaves `incident_id`, `description`, `triage_result`, `findings`
@@ -66,6 +79,7 @@ corrigido, o agente deve dizer isso e não inventar.
 | `prompts.py` | as instruções do agente e a montagem do texto que o modelo lê |
 | `agent.py` | `run_reporting_agent`: o laço com validação |
 | `node.py` | `reporting_node`: o agente como nó do LangGraph |
+| `related.py` | `related_incident_node`: a resposta para um incidente já em investigação (código) |
 | `llm.py` | o cliente do modelo (o mesmo do Triagem; o modelo vem de `LLM_MODEL` no `.env`) |
 | `tests/` | testes e entradas simuladas |
 

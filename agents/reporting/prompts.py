@@ -5,6 +5,8 @@ build_user_message(state)   turns the shared state (description, triage, finding
 """
 import json
 
+from agents.reporting.validation import _as_dict
+
 # The model must not copy this example. The incident, id and link are invented on purpose.
 EXAMPLE_ANSWER = json.dumps(
     {
@@ -102,48 +104,50 @@ MAX_PASSAGE_CHARS = 1200
 
 
 def build_user_message(state):
-    """Write the input of the model as plain text, from the shared state."""
-    triage = state["triage_result"]
+    """Write the input of the model as plain text, from the shared state.
+    Missing keys are tolerated (e.g. an agent before failed): they count as empty."""
+    triage = state.get("triage_result") or {}
     triage = triage.model_dump() if hasattr(triage, "model_dump") else triage
-    diagnosis = state["diagnosis"]
-    diagnosis = diagnosis.model_dump() if hasattr(diagnosis, "model_dump") else diagnosis
+    diagnosis = _as_dict(state.get("diagnosis"))
 
-    kind = "diagnosis" if diagnosis["evidence_sufficient"] else "inconclusive"
+    kind = "diagnosis" if diagnosis.get("evidence_sufficient") else "inconclusive"
     lines = [
         "CURRENT INCIDENT (the analyst's message):",
-        state["description"],
+        state.get("description", ""),
         "",
-        "SYMPTOMS (from triage): " + (", ".join(triage["symptoms"]) or "none"),
-        "AFFECTED SERVICE: " + (triage["affected_service"] or "unknown"),
+        "SYMPTOMS (from triage): " + (", ".join(triage.get("symptoms") or []) or "none"),
+        "AFFECTED SERVICE: " + (triage.get("affected_service") or "unknown"),
         "",
         f'KIND OF REPORT TO WRITE: "{kind}"',
         "",
         "DIAGNOSIS (from the Diagnosis agent):",
     ]
-    if not diagnosis["hypotheses"]:
+    hypotheses = diagnosis.get("hypotheses") or []
+    if not hypotheses:
         lines.append("There is no hypothesis. Nothing in the past incidents explains the current one.")
-    for number, hypothesis in enumerate(diagnosis["hypotheses"], 1):
+    for number, hypothesis in enumerate(hypotheses, 1):
         lines += [
-            f"Hypothesis {number} (confidence: {hypothesis['confidence']})",
-            f"  cause: {hypothesis['cause']}",
-            f"  based on: {', '.join(hypothesis['based_on'])}",
-            f"  matches: {hypothesis['matches']}",
-            f"  differs: {hypothesis['differs']}",
+            f"Hypothesis {number} (confidence: {hypothesis.get('confidence')})",
+            f"  cause: {hypothesis.get('cause', '')}",
+            f"  based on: {', '.join(hypothesis.get('based_on') or [])}",
+            f"  matches: {hypothesis.get('matches', '')}",
+            f"  differs: {hypothesis.get('differs', '')}",
         ]
-    lines.append("Evidence sufficient: " + ("yes" if diagnosis["evidence_sufficient"] else "no"))
-    if diagnosis["gaps"]:
+    lines.append("Evidence sufficient: " + ("yes" if diagnosis.get("evidence_sufficient") else "no"))
+    if diagnosis.get("gaps"):
         lines.append("Gaps: " + " | ".join(diagnosis["gaps"]))
 
     lines += ["", "PAST INCIDENTS (use only these ids and links):"]
-    for finding in state["findings"]:
+    for finding in state.get("findings") or []:
         lines += [
             "",
-            f"### {finding['incident_id']} - {finding['company']} - {finding['title']}",
-            f"Link: {finding['url']}",
-            f"Summary: {finding['summary']}",
+            f"### {finding.get('incident_id', '?')} - {finding.get('company', '')} - {finding.get('title', '')}",
+            f"Link: {finding.get('url', '')}",
+            f"Summary: {finding.get('summary', '')}",
         ]
-        for passage in finding["passages"]:
-            lines.append(f"Passage ({passage['section']}): {passage['content'][:MAX_PASSAGE_CHARS]}")
-        if not finding["passages"]:
+        passages = finding.get("passages") or []
+        for passage in passages:
+            lines.append(f"Passage ({passage.get('section', '')}): {passage.get('content', '')[:MAX_PASSAGE_CHARS]}")
+        if not passages:
             lines.append("(no passages: only the summary is available)")
     return "\n".join(lines)

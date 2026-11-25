@@ -21,13 +21,16 @@ def _urls_in(text):
 
 
 def _as_dict(value):
-    """The diagnosis can arrive as a Pydantic object (inside the graph) or as a dict (in the tests)."""
+    """The diagnosis can arrive as a Pydantic object (inside the graph), as a dict (in the tests), or be missing
+    (an agent before failed): then it counts as an empty diagnosis, which asks for an inconclusive report."""
+    if value is None:
+        return {"hypotheses": [], "evidence_sufficient": False, "gaps": []}
     return value.model_dump() if hasattr(value, "model_dump") else value
 
 
 def expected_kind(diagnosis):
     """The kind of report is decided by code, not by the model: enough evidence means a diagnosis."""
-    return "diagnosis" if _as_dict(diagnosis)["evidence_sufficient"] else "inconclusive"
+    return "diagnosis" if _as_dict(diagnosis).get("evidence_sufficient") else "inconclusive"
 
 
 def validate_report(report, findings, diagnosis):
@@ -42,7 +45,7 @@ def validate_report(report, findings, diagnosis):
                         f'but the report says "{report.kind}".')
 
     # 2) Every source must be a real finding, with exactly its url.
-    url_of = {f["incident_id"]: f["url"] for f in findings}
+    url_of = {f["incident_id"]: f.get("url", "") for f in findings or []}
     for number, cause in enumerate(report.causes, 1):
         for source in cause.sources:
             if source.incident_id not in url_of:

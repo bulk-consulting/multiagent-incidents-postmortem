@@ -84,8 +84,9 @@ class Fakes:
         seen = sorted({r["incident_id"] for r in findings} | set((previous or {}).get("seen_ids", [])))
         return {"findings": findings, "seen_ids": seen}
 
-    def run_diagnosis(self, description, triage, findings, research_round, max_rounds):
-        self.calls["diagnosis"].append({"round": research_round, "ids": [r["incident_id"] for r in findings]})
+    def run_diagnosis(self, description, triage, findings, research_round, max_rounds, previous_requests):
+        self.calls["diagnosis"].append({"round": research_round, "ids": [r["incident_id"] for r in findings],
+                                        "previous": previous_requests, "triage": triage})
         return self._next(self.diagnosis, len(self.calls["diagnosis"]) - 1)
 
 
@@ -130,6 +131,7 @@ out, _ = run(new_graph(), "INC-3", "Login returns 500.")
 checker.check("answers with the related incident", out["report"]["kind"] == "related_incident"
               and out["report"]["related_incident"]["incident_id"] == "INC-042")
 checker.check("the Research agent is not called", f.calls["research"] == [])
+checker.check("the answer has a message for the chat (Mari's node)", "INC-042" in out["report"]["message"])
 
 print("\n4. Out of the corpus: refinement up to the limit")
 f = Fakes([GOOD_TRIAGE], [[finding("DAN-001")], [finding("DAN-002")], [finding("DAN-003")]],
@@ -142,12 +144,21 @@ checker.check("the refinement passes the request and the earlier findings",
 checker.check("the 1st round is not a refinement", f.calls["research"][0]["previous"] is None
               and f.calls["research"][0]["request"] == "")
 checker.check("the Diagnosis agent knows the round", [c["round"] for c in f.calls["diagnosis"]] == [1, 2, 3])
+checker.check("from the 2nd round, it knows the request already made",
+              f.calls["diagnosis"][0]["previous"] == [] and f.calls["diagnosis"][1]["previous"] == ["other kind of incident"])
 checker.check("ends with an inconclusive report", out["report"]["kind"] == "inconclusive" and out["report"]["gaps"])
 
 f = Fakes([GOOD_TRIAGE], [[finding("DAN-001")]], [REFINE])  # a Diagnosis agent that always asks to refine
 out, _ = run(new_graph(), "INC-4b", "Something new.")
 checker.check("even if the Diagnosis agent keeps asking, the loop stops at the limit",
               len(f.calls["research"]) == MAX_RESEARCH_ROUNDS and out["report"]["kind"] == "inconclusive")
+
+TRIGGERS_TRIAGE = TriageResult(enough_information=True, symptoms=["console fails"], affected_service="console",
+                               triggers=["a console update", "an account backend revision"])
+f = Fakes([TRIGGERS_TRIAGE], [[finding("DAN-018")]], [SUFFICIENT("DAN-018")])
+run(new_graph(), "INC-4c", "The console fails.")
+checker.check("the Diagnosis agent receives all the changes the analyst mentioned",
+              f.calls["diagnosis"][0]["triage"]["triggers"] == ["a console update", "an account backend revision"])
 
 print("\n5. The refinement improves the evidence")
 f = Fakes([GOOD_TRIAGE], [[finding("DAN-001")], [finding("DAN-104"), finding("DAN-001")]],

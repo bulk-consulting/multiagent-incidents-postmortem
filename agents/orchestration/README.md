@@ -73,7 +73,7 @@ Exemplos (25/11):
 ## Rodar os testes
 
 ```bash
-PYTHONPATH=. multiagent_env/bin/python -m agents.orchestration.tests.test_graph   # 37 verificações, segundos
+PYTHONPATH=. multiagent_env/bin/python -m agents.orchestration.tests.test_graph   # 40 verificações, segundos
 PYTHONPATH=. multiagent_env/bin/python -m agents.orchestration.tests.test_state   # 10 verificações
 ```
 
@@ -92,11 +92,9 @@ Por isso o fluxo padrão é `report → END`, sem o nó separado `validate_repor
   inconclusivo em código (`code_report_node`), porque o agente da Mari precisa do diagnóstico.
 - **Validação separada (opcional):** `build_graph(checkpointer, validate_report=validate_report_node)` acrescenta o
   nó de validação depois do relatório, com até `MAX_REPORT_FIXES` voltas (usado no cenário 8 dos testes).
-- **Incidente duplicado:** ainda provisório (`related_incident_node`); para trocar,
-  `build_graph(..., related_incident=outro_no)`.
+- **Incidente duplicado:** também da Mari (`agents/reporting/related.py`), sem LLM, com a mensagem no idioma do
+  analista; para trocar, `build_graph(..., related_incident=outro_no)`.
 - As classes do relatório (`Report`, `ReportCause`, `Source`) estão em `STATE_CLASSES` (`state.py`).
-- Quando o `agents/triage/node.py` passar a usar `description` e `symptoms`, o adaptador `_run_triage` em `graph.py`
-  pode chamar o nó direto.
 
 Exemplos com o Relatório de verdade (25/11):
 - `DEMO-104B` (conversa completa do DAN-104): diagnóstico `high`, relatório válido na 1ª tentativa, com correção,

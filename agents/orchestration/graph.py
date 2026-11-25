@@ -22,7 +22,7 @@ The report is written by Mari's Reporting agent (agents/reporting/node.py), whic
 in the findings, causes = the diagnosis hypotheses) and fixes it. When there is no diagnosis (an agent failed before
 it), the report is the inconclusive one built in code (code_report_node), because the Reporting agent needs the
 diagnosis. A separate validation node (validate_report_node, the first design of the contract) can still be added
-with build_graph(validate_report=...). The related-incident answer is still provisional (related_incident_node).
+with build_graph(validate_report=...). The related-incident answer is Mari's too (agents/reporting/related.py, built in code).
 
 Errors: when an agent fails (after its own retries), the node writes the error in `errors` and the routing goes to
 the report, which comes out inconclusive. An investigation always ends with an answer.
@@ -42,6 +42,7 @@ from langgraph.types import interrupt
 from agents.diagnosis import agent as diagnosis_agent
 from agents.orchestration.state import MAX_REPORT_FIXES, MAX_RESEARCH_ROUNDS, InvestigationState
 from agents.reporting.node import reporting_node
+from agents.reporting.related import related_incident_node as reporting_related_node
 from agents.research import agent as research_agent
 from agents.triage import node as triage_node_module
 from agents.triage.routing import ASK_USER, GO_TO_RESEARCH, TELL_RELATED_INCIDENT
@@ -53,9 +54,8 @@ ANSWER_PREFIX = "\n\nAnalyst answer: "  # how an answer is joined to the descrip
 # ---------------------------------------------------------------- the agents (replaced by fakes in the tests)
 
 def _run_triage(description: str):
-    """Mari's Triage node, with the state names it still uses (descricao/sintomas) translated."""
-    out = triage_node_module.triage_node({"descricao": description})
-    return out["triage_result"]
+    """Mari's Triage node (agents/triage/node.py)."""
+    return triage_node_module.triage_node({"description": description})["triage_result"]
 
 
 def _run_research(description: str, symptoms: list[str], request: str, previous: dict | None) -> dict:
@@ -64,8 +64,10 @@ def _run_research(description: str, symptoms: list[str], request: str, previous:
     return research_agent.research(description, symptoms, request=request, previous=previous)
 
 
-def _run_diagnosis(description, triage: dict, findings, research_round: int, max_rounds: int):
-    result, _messages = diagnosis_agent.run_agent(description, triage, findings, research_round, max_rounds)
+def _run_diagnosis(description, triage: dict, findings, research_round: int, max_rounds: int,
+                   previous_requests: list[str]):
+    result, _messages = diagnosis_agent.run_agent(description, triage, findings, research_round, max_rounds,
+                                                  previous_requests)
     return result
 
 
@@ -99,17 +101,6 @@ def triage_node(state: InvestigationState) -> dict:
                                                f"symptoms: {len(result.symptoms)}")}
 
 
-def related_incident_node(state: InvestigationState) -> dict:
-    """Provisional (Mari's node): the answer "this is already being investigated", without the LLM."""
-    start = time.time()
-    related = state["triage_result"].related_incident
-    report = {"incident_id": state.get("incident_id"), "kind": "related_incident",
-              "related_incident": {"incident_id": related.incident_id, "title": related.title},
-              "summary": f"This looks like an incident already under investigation: {related.incident_id} "
-                         f"({related.title})."}
-    return {"report": report, **_step("related_incident", start, related.incident_id)}
-
-
 def research_node(state: InvestigationState) -> dict:
     start = time.time()
     rounds = state.get("research_rounds", 0)
@@ -133,8 +124,8 @@ def _triage_for_diagnosis(triage_result) -> dict:
         return {}
     triage = {"affected_service": triage_result.affected_service, "symptoms": list(triage_result.symptoms),
               "category": triage_result.category}
-    if hasattr(triage_result, "trigger"):  # only if the Triage agent extracts it (proposed to Mari in the E5 tests)
-        triage["trigger"] = triage_result.trigger
+    if hasattr(triage_result, "triggers"):  # the changes the analyst mentioned (all of them, not only the latest)
+        triage["triggers"] = list(triage_result.triggers)
     return triage
 
 
@@ -142,8 +133,10 @@ def diagnosis_node(state: InvestigationState) -> dict:
     start = time.time()
     rounds = state.get("research_rounds", 1)
     try:
+        # the request that led to this round's search (a new request must not repeat it)
+        previous = [state["search_request"]] if rounds > 1 and state.get("search_request") else []
         result = run_diagnosis(state["description"], _triage_for_diagnosis(state.get("triage_result")),
-                               state.get("findings", []), rounds, MAX_RESEARCH_ROUNDS)
+                               state.get("findings", []), rounds, MAX_RESEARCH_ROUNDS, previous)
     except Exception as e:
         return {"diagnosis": None, **_error("diagnosis", start, e)}
     update = {"diagnosis": result, "search_request": result.search_request,
@@ -281,10 +274,18 @@ def route_after_validation(state: InvestigationState) -> Literal["report", "__en
 def build_graph(checkpointer=None, report=None, validate_report=None, related_incident=None):
     """The compiled main graph. checkpointer: InMemorySaver in the tests, PostgresSaver in the demo (needed for the
     pause: interrupt). report: replaces report_node (Reporting agent + code fallback). validate_report: an optional
-    validation node after the report (e.g. validate_report_node). related_incident: replaces the provisional node."""
+    validation node after the report (e.g. validate_report_node). related_incident: replaces Mari's node."""
     g = StateGraph(InvestigationState)
     g.add_node("triage", triage_node)
-    g.add_node("related_incident", related_incident or related_incident_node)
+    related = related_incident or reporting_related_node
+
+    def related_incident_step(state):  # Mari's node + one line in the trace
+        start = time.time()
+        out = related(state)
+        rid = ((out.get("report") or {}).get("related_incident") or {}).get("incident_id")
+        return {**out, **_step("related_incident", start, f"already under investigation: {rid}")}
+
+    g.add_node("related_incident", related_incident_step)
     g.add_node("research", research_node)
     g.add_node("diagnosis", diagnosis_node)
     g.add_node("ask_analyst", ask_analyst_node)

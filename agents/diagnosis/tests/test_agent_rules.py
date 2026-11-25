@@ -33,7 +33,7 @@ WEAK = {"hypotheses": [{**HYP, "based_on": ["DAN-189"], "same_component": "no"}]
         "search_request": "capacity removal storage outage", "questions_for_analyst": ["Which command was run?"]}
 
 
-def run_with(answers, research_round=1):
+def run_with(answers, research_round=1, previous_requests=None):
     """Run the agent with a fake model that returns `answers` in order. Returns (result or error, calls)."""
     replies = iter(answers)
     calls = []
@@ -44,7 +44,7 @@ def run_with(answers, research_round=1):
 
     agent._chat = fake_chat
     try:
-        result, _ = agent.run_agent("Our object store is down.", TRIAGE, FINDINGS, research_round, 3)
+        result, _ = agent.run_agent("Our object store is down.", TRIAGE, FINDINGS, research_round, 3, previous_requests)
         return result, calls
     except RuntimeError as error:
         return error, calls
@@ -79,6 +79,28 @@ checker.check("weak evidence in an earlier round: code asks for a new search", l
 
 result, calls = run_with([json.dumps(WEAK)], research_round=3)
 checker.check("weak evidence in the last round: code asks the analyst", result.next_step == "ask_analyst")
+
+print("\nSearch requests already made (no repeats)")
+REPEAT = {**WEAK, "search_request": "Capacity removal storage outage."}
+OTHER = {**WEAK, "search_request": "operator command removed too many servers from the index subsystem"}
+result, calls = run_with([json.dumps(REPEAT), json.dumps(OTHER)], 2, ["capacity removal storage outage"])
+checker.check("a repeated request is sent back once and rewritten", len(calls) == 2
+              and "repeats a search" in calls[1][-1]["content"] and result.search_request == OTHER["search_request"])
+result, calls = run_with([json.dumps(REPEAT), json.dumps(REPEAT)], 2, ["capacity removal storage outage"])
+checker.check("if it insists, the repeated request is accepted (no failure)", len(calls) == 2
+              and result.next_step == "refine_search")
+result, calls = run_with([json.dumps(OTHER)], 2, ["capacity removal storage outage"])
+checker.check("a different request passes at once", len(calls) == 1)
+checker.check("the earlier requests are in the message", "SEARCHES ALREADY REQUESTED" in
+              user_message("x", TRIAGE, FINDINGS, 2, 3, ["capacity removal storage outage"]))
+
+print("\nSeveral changes mentioned by the analyst")
+text = user_message("x", {**TRIAGE, "triggers": ["a console update", "an account backend revision"]}, FINDINGS)
+checker.check("all the triggers of the Triage agent are shown",
+              "a console update; an account backend revision" in text)
+checker.check("no triggers mentioned", "none mentioned" in user_message("x", {"triggers": []}, FINDINGS))
+checker.check("Triage without the field: read the analyst's words",
+              "not extracted by the triage" in user_message("x", {"symptoms": ["x"]}, FINDINGS))
 
 result, calls = run_with(["no json"] * 3)
 checker.check("after 3 invalid answers the agent gives up with an error", isinstance(result, RuntimeError))

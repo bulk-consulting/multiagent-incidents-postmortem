@@ -51,14 +51,21 @@ def main() -> None:
     ap.add_argument("--hide-right", action="store_true",
                     help="hide the right post-mortem from every search (a new problem, outside the corpus)")
     ap.add_argument("--loop", action="store_true", help="refinement loop up to MAX_RESEARCH_ROUNDS")
+    ap.add_argument("--live-triage", action="store_true",
+                    help="run the current Triage agent on the conversation (triggers list) instead of the saved output")
     a = ap.parse_args()
     research.enable_hybrid_mode()
-    tag = ("_hidden" if a.hide_right else "") + ("_loop" if a.loop else "")
+    tag = ("_hidden" if a.hide_right else "") + ("_loop" if a.loop else "") + ("_livetriage" if a.live_triage else "")
     out = HERE / "results" / f"diagnosis_cases_{datetime.now():%Y-%m-%d_%H%M}{tag}.json"
     results = []
     for case_id in a.cases.split(","):
         t0 = time.time()
         description, triage = triage_output(case_id, a.round)
+        if a.live_triage:  # the current Triage agent (with the triggers list), on the same conversation
+            from agents.triage.agent import run_agent as run_triage
+            live, _ = run_triage(description)
+            triage = {"affected_service": live.affected_service, "triggers": list(live.triggers),
+                      "symptoms": list(live.symptoms), "category": live.category}
         tools.HIDDEN_IDS = {case_id} if a.hide_right else set()
         row = {"case": case_id, "round": a.round, "hidden": sorted(tools.HIDDEN_IDS), "description": description,
                "triage": triage,
@@ -69,7 +76,8 @@ def main() -> None:
             for rnd in range(1, max_rounds + 1):
                 state = research.research(description, triage["symptoms"], request=request, previous=state)
                 findings = state["findings"]
-                result, messages = diagnosis.run_agent(description, triage, findings, rnd, MAX_RESEARCH_ROUNDS)
+                result, messages = diagnosis.run_agent(description, triage, findings, rnd, MAX_RESEARCH_ROUNDS,
+                                                       [request] if request else [])
                 draft = parse_diagnosis_answer(messages[-1]["content"])
                 rounds.append({
                     "research_round": rnd, "request": request,

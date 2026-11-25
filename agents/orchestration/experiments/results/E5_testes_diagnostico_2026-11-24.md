@@ -240,3 +240,27 @@ analista, 6/12 deram "basta" com resposta aceitável, 1/12 (DAN-004) deu "basta"
 
 Os resultados avulsos das conferências (duas execuções isoladas do DAN-104 e uma da opção `--hide-right`) foram
 apagados em 25/11.
+
+## 14. Acabamentos (25/11, branch `e5-acabamentos`)
+
+**Pergunta do gatilho no Triagem de verdade** (`run_triage_trigger_check.py`,
+`triage_trigger_check_2026-11-25_0903.json`): com só a primeira mensagem, o Triagem perguntou se algo mudou antes do
+problema em 12/12 casos (junto com a pergunta do serviço); com a conversa completa, não perguntou de novo em 12/12 —
+inclusive nos 4 casos em que o analista diz não saber o que mudou (DAN-004, 121, 154, 197: `triggers` vazio). O
+campo `triggers` trouxe todas as mudanças citadas: DAN-018 com as duas (o console e a revisão do backend), DAN-211,
+125 e 164 com duas ou três.
+
+**Várias mudanças e pedidos de busca** (`diagnosis_cases_2026-11-25_0909_loop_livetriage.json`, Triagem novo ao
+vivo + laço):
+
+| Execução | Final | Avaliação |
+|---|---|---|
+| DAN-018 nº 1 | 3 rodadas (a 3ª busca explorou a outra mudança: "console frontend update caused excessive backend API calls") → pergunta ao analista | ✅ não afirmou causa errada |
+| DAN-018 nº 2 | basta, `high` na revisão do backend; a do console em 2º | ❌ |
+| DAN-018 nº 3 | basta, `high` na revisão do backend; a do console em 2º | ❌ |
+| DAN-104, 211, 164, 197 | 1 rodada, `high`, causa certa | ✅ |
+| DAN-154 | 2 rodadas, `medium`, causa certa | ✅ |
+
+- A hipótese certa do DAN-018 ("o console fez chamadas demais ao backend") agora aparece nas 3 execuções (antes,
+  às vezes nem aparecia), mas o modelo ainda prefere a mudança mais recente. Melhorou, não resolveu.
+- Os pedidos de busca das rodadas 2 e 3 vieram diferentes; nenhuma regressão nos outros casos.

@@ -2,7 +2,7 @@
 
 **Situação (25/11):** estado, Diagnóstico e grafo implementados (`agents/orchestration/graph.py`, com demo e testes
 de integração — ver `agents/orchestration/README.md`); o Relatório da Mari (`agents/reporting`) está ligado ao grafo
-e faz a própria validação; o incidente duplicado ainda é provisório. Começou como proposta para a equipe revisar. Os nomes de código estão
+e faz a própria validação; o incidente duplicado também é dela (`agents/reporting/related.py`). Começou como proposta para a equipe revisar. Os nomes de código estão
 em inglês, como nos agentes Triagem e Pesquisa; o texto do documento, em português.
 
 **Objetivo:** fixar o que cada agente lê e escreve, para que o Diagnóstico, o Relatório e o grafo possam ser
@@ -47,8 +47,8 @@ e escrevem o mesmo estado, salvo por `incident_id`.
 
 | Nó | Tipo | Dono | O que faz |
 |---|---|---|---|
-| `triage` | agente | Mari | o `triage_node` atual; no grafo, um adaptador traduz `description` → `descricao` e `sintomas` → `symptoms` até o `node.py` usar os nomes do estado |
-| `related_incident` | código | Mari | monta a resposta "já existe a investigação X", sem LLM |
+| `triage` | agente | Mari | o `triage_node` (`agents/triage/node.py`), com os nomes do estado; desde 25/11 pergunta uma vez se algo mudou antes do problema e devolve todas as mudanças citadas em `triggers` |
+| `related_incident` | código | Mari | `agents/reporting/related.py`: a resposta "já existe a investigação X", sem LLM, com a `message` em Markdown no idioma do analista |
 | `research` | agente | André | chama o subgrafo do Agente Pesquisa com `description`, `symptoms` e, no refinamento, `search_request` e os achados anteriores |
 | `diagnosis` | agente | André | lê os achados e escreve o `DiagnosisResult` |
 | `ask_analyst` | código + `interrupt()` | André | pausa com as perguntas pendentes; ao retomar, junta a resposta à descrição e volta ao `triage` |
@@ -191,6 +191,11 @@ configurações × 6 casos × 3 repetições sobre os mesmos achados, foi a mais
 contra 52–74 s), sem respostas inválidas, e a única que não aceitou uma causa errada no caso mais difícil. Com o
 raciocínio ligado e 4096 tokens, o raciocínio às vezes gastava o limite e a resposta vinha vazia.
 
+**Várias mudanças e pedidos repetidos (25/11):** o Diagnóstico recebe todas as mudanças citadas (`triggers` do
+Triagem) e escreve uma hipótese por mudança quando os casos passados apoiam mudanças diferentes, sem supor que a mais
+recente é a causa. Ele também recebe o pedido de busca anterior e não deve repeti-lo; se repetir, recebe uma chance de
+reescrever (se insistir, o pedido é aceito: o Pesquisa já exclui os incidentes vistos).
+
 **Refinamento no Pesquisa:** numa nova rodada, o código busca com o `search_request` e com a `description`,
 **excluindo todos os incidentes já vistos** (`seen_ids`); o LLM do Pesquisa escolhe só entre os novos; os
 incidentes aprofundados nas rodadas anteriores voltam aos `findings`, depois dos novos aprofundados. Antes, o LLM
@@ -312,7 +317,7 @@ def ask_analyst(state):
 
 ```
 agents/
-  triage/          (existe)  node.py (ainda com descricao/sintomas; o grafo traduz)
+  triage/          (existe)  node.py com os nomes do estado (description, symptoms)
   research/        (existe)  o subgrafo; o nó research fica em orchestration/graph.py
   diagnosis/       (feito)   agent.py, prompts.py, schema.py, tests/ (o nó diagnosis fica em graph.py)
   reporting/       (Mari)    agent.py, prompts.py, schema.py, validation.py, node.py, tests/, README.md

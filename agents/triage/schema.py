@@ -35,6 +35,11 @@ class TriageResult(BaseModel):
     # Which service or product is affected ("checkout"), or None if the message does not say.
     affected_service: Optional[str] = None
 
+    # What changed right before the problem, as the analyst said it, in English: a deploy, a command someone ran,
+    # a configuration or data change, a migration... One item per change (the analyst may mention more than one:
+    # the Diagnosis agent must consider all of them). Empty if the analyst did not mention any.
+    triggers: list[str] = Field(default_factory=list)
+
     # Type of cause, only if the analyst gave a clear hint. Usually None.
     category: Optional[Category] = None
 

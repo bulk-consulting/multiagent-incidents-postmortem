@@ -52,6 +52,10 @@ How to work:
 1. Compare the current incident with each past incident: the kind of trigger, the kind of component, the
    symptoms, the timing and how far it spread. The past incidents come from other companies: match the KIND of
    failure, not the names.
+   If the analyst mentions more than one change before the problem (TRIAGE may list several triggers), consider
+   each one as a possible trigger: do not assume that the most recent change is the cause. When the past
+   incidents support different changes, write one hypothesis per change, and say in "matches" which change the
+   hypothesis blames.
 2. Write up to {MAX_HYPOTHESES} hypotheses, from the most to the least likely. Each one says the probable cause of
    the CURRENT incident in 1 or 2 sentences, lists the past incidents it is based on (only IDs from PAST
    INCIDENTS), what matches and what differs.
@@ -71,6 +75,8 @@ How to work:
 5. Always write search_request: if a new search were needed, what kind of incident to look for, as keywords in
    English that describe the CURRENT incident's trigger, component and symptoms (for example "configuration
    change rolled out globally crashed edge servers"). Do not use the names of the past incidents already found.
+   If the input lists SEARCHES ALREADY REQUESTED, do not repeat them: ask for another angle (another kind of
+   trigger, component or symptom of the current incident).
 6. Write in questions_for_analyst up to 3 questions about the CURRENT incident whose answers would decide between
    your hypotheses (an error message, a recent change, which component), in the same language as the analyst's
    messages. Leave it empty if nothing would help.
@@ -120,17 +126,27 @@ def findings_text(findings):
     return "\n\n".join(blocks) if blocks else "(the research agent found no past incident)"
 
 
-def user_message(description, triage, findings, research_round=1, max_rounds=3):
+def _triggers_line(triage):
+    """What changed right before: the list of the Triage agent (triggers), the single field of the E5 experiments
+    (trigger), or nothing when the Triage agent does not extract it."""
+    if "triggers" in triage:
+        return "; ".join(triage["triggers"] or []) or "none mentioned"
+    if "trigger" in triage:
+        return triage.get("trigger") or "none known"
+    return "not extracted by the triage (read the CURRENT INCIDENT)"
+
+
+def user_message(description, triage, findings, research_round=1, max_rounds=3, previous_requests=None):
     """The message with everything the agent needs for one diagnosis."""
     triage = triage or {}
     tri = [f"- affected service: {triage.get('affected_service') or 'unknown'}",
-           "- what changed right before (trigger): " + (
-               (triage.get("trigger") or "none known") if "trigger" in triage
-               else "not extracted by the triage (read the CURRENT INCIDENT)"),
+           f"- what changed right before (triggers): {_triggers_line(triage)}",
            "- symptoms: " + ("; ".join(triage.get("symptoms") or []) or "none listed"),
            f"- category hint: {triage.get('category') or 'none'}"]
     last = " This is the LAST research round." if research_round >= max_rounds else ""
     parts = [f"CURRENT INCIDENT:\n{description}",
-             "TRIAGE:\n" + "\n".join(tri),
-             f"PAST INCIDENTS (research round {research_round} of {max_rounds}):{last}\n\n{findings_text(findings)}"]
+             "TRIAGE:\n" + "\n".join(tri)]
+    if previous_requests:
+        parts.append("SEARCHES ALREADY REQUESTED (do not repeat them):\n" + "\n".join(f"- {r}" for r in previous_requests))
+    parts.append(f"PAST INCIDENTS (research round {research_round} of {max_rounds}):{last}\n\n{findings_text(findings)}")
     return "\n\n---\n\n".join(parts)

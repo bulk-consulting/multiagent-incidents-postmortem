@@ -11,6 +11,7 @@ EXAMPLE_ANSWER = json.dumps(
     {
         "symptoms": ["search requests time out", "error rate above 20%"],
         "affected_service": "search",
+        "triggers": ["we rebuilt the search index this morning"],
         "category": None,
         "enough_information": True,
         "missing_information": [],
@@ -27,6 +28,13 @@ Follow these steps:
 
 1. Decide if there is enough information to start investigating. You need at least:
    what is failing (a symptom) AND where (which service or system).
+   Also, if no analyst message says anything about recent changes, ask ONCE whether anything
+   changed right before the problem started (a deploy, a command, a configuration or data
+   change, a migration), together with any other question.
+   The analyst HAS ALREADY ANSWERED, so do NOT ask about changes, when any message says something
+   like: "we haven't identified a trigger", "we don't know what changed", "nothing changed",
+   "we haven't changed it in months", "we are investigating recent deployments". An uncertain
+   answer is still an answer: never ask about changes twice.
    If something is missing, do NOT call any tool. Answer with enough_information=false
    and write the questions for the analyst in missing_information.
 
@@ -46,6 +54,10 @@ Follow these steps:
 Rules for the fields:
 - symptoms: short phrases in English, even if the analyst writes in another language.
 - affected_service: a short lowercase name (for example "checkout"), or null if unknown.
+- triggers: what changed right before the problem started, in English, as the analyst said it:
+  a deploy, a command someone ran, a configuration or data change, a capacity change, an expired
+  certificate, a time event. One item per change: if the analyst mentions two changes, list both.
+  An empty list if the analyst does not mention any. Do not guess a trigger.
 - category: one of {CATEGORIES}, or null. Use it only if the analyst gives a clear hint
   about the cause (for example "after a configuration change"). Most of the time it is null.
 - enough_information: true or false.
