@@ -1,0 +1,370 @@
+{
+ "case": "DAN-018",
+ "hidden": true,
+ "description": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access checks means that the management console and numerous API operations are failing too. We shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared. Things went downhill late in the UTC afternoon. People opening the console or updating settings programmatically are having trouble, whereas our production traffic handling still seems normal.",
+ "triage": {
+  "affected_service": "account",
+  "trigger": "we shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared",
+  "symptoms": [
+   "availability plummeted",
+   "management console failing",
+   "numerous API operations failing"
+  ],
+  "category": null
+ },
+ "warnings": [],
+ "findings": [
+  {
+   "incident_id": "DAN-221",
+   "company": "Square",
+   "title": "Incident Summary: 2017–03–16. Authors: Erik Bourget, Toby Reyelts… | by Square Engineering | Square Corner Blog | Medium",
+   "url": "https://web.archive.org/web/20210818034431/https://medium.com/square-corner-blog/incident-summary-2017-03-16-2f65be39297",
+   "summary": "A cascading error from an adjacent service lead to merchant authentication service being overloaded. This impacted merchants for ~2 hours.",
+   "similarity": 0.6379609029153516,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "A cascading error from an adjacent service lead to merchant authentication service being overloaded. This impacted merchants for ~2 hours."
+   },
+   "passages": [
+    {
+     "section": "Timeline (Pacific)",
+     "content": "## Timeline (Pacific)\n\n**10:23** Roster completed rollback. We believed that this would have a high probability of resolving the outage, as Multipass has a dependency on Roster and the timing of the Roster deployment lined up with the beginning of issues in Multipass. Unfortunately, this did not resolve the outage. Looking at the data in retrospect, Roster continued to be available for the duration, serving out of other datacenters, as designed.\n\n**10:25** We shut Multipass off and turned it back on. Our theory was that Roster put Multipass into a bad state and that restarting it would restore service. This theory was proven false.\n\n\\[Support\\] **11:10** We noticed our status page was loading slowly, and immediately contacted our status page vendor. They updated their status page to explain that their databases were under heavy load, and were actively working on a resolution.\n\n\\[Engineering\\] **10:30–11:30** We split into a few workstreams of diagnosis, testing theories, and tweaking tunables in our systems. Our engineers discovered that Multipass’s Redis database had peaked out on capacity — suddenly and unexpectedly:\n\nWe used both Redis SLOWLOG and MONITOR to determine what operations were hitting Redis hardest. We then traced them back to a specific code path in Multipass which retries a Redis optimistic transaction. We determined the retries had a high upper bound (500) and no backoff causing a harmful feedback loop, and started working on a fix.",
+     "similarity": 0.512076219169555,
+     "origin": "deep_search",
+     "query": "what was the root cause of the failure",
+     "query_source": "cause"
+    },
+    {
+     "section": "**Action Items**",
+     "content": "# **Action Items**\n\nMerchant Identity team:\n\n- **Determine if the single datacenter Roster outage exacerbated Multipass-Redis retries and if there are additional dependencies we need to break between Multipass and Roster.**\n- **Identify other areas where retry logic is used and audit them to ensure that they aren’t vulnerable to the same flaw.**\n- Audit cgroup constraints to ensure that the limits we place on our applications are correct and reasonable.\n\nPayments team:\n\n- Meet with adjacent teams to re-affirm SLAs between services.\n- Meet with iOS/Android Point of Sale teams to discuss more effective in-app messaging of outages.\n\nInfrastructure team:\n\n- Write a redis runbook based on outage to guide redis troubleshooting. We learned some lessons about apps interacting with Redis during the outage and recording this will increase knowledge across engineering.\n- Set up second postmortem for SMS issues. We feel that there is more to explore and learn here.\n- Stock Operations Center conference room with readily-available testing equipment so customer experience can be more easily evaluated from the Operations Center during an outage. Our standard operating procedure of engineers using their own devices to test during an outage was stretched during this one. Dedicated test stations will make debugging and verifying progress simpler.\n\nSupport team:\n\n- Follow up with status page vendor to improve issquareup.com reliability.",
+     "similarity": 0.48392780134503854,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Timeline (Pacific)",
+     "content": "## Timeline (Pacific)\n\nAt this point, we began exercising all of our systems to validate that service had truly restored. We discovered that one issue remained — over the course of testing our signout/sign-in flow, we realized that two-factor authentication codes were not being sent to customers who had enabled 2FA. This was the result of a rush of SMS messages caused by the sudden rush of logins to our system. We contacted our SMS vendor and worked to remove the bottleneck in sending SMS. With them, we determined that a rebalancing of our outbound SMS phone numbers would increase capacity here.\n\n**12:32** We began adding new SMS numbers to the pool.\n\n**12:42** We cleared old numbers from the pool.\n\n**12:46** During testing, an engineer received new 2FA code in \\~10s. Recovery is underway.\n\n**13:12** SMS 2FA codes began working for everyone.\n\nWe gathered information until 4:30PM, at which point we held a post-mortem meeting and discussed what went well and poorly in our response. Overall, our processes for triaging the issue worked as intended, but the thorny nature of this problem meant that they did not drive the quick resolution that we are used to. We feel that improvement in in-app messaging would have benefited our customers. We experienced some small delays in triage due to the current setup in our workroom. We took several action items, listed below, that we believe will address these issues. Bolded items directly remediate the technical root cause of the outage. Items not in bold are opportunities that we identified to improve the resilience of our systems and efficacy of our processes.",
+     "similarity": 0.45077971035724507,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Incident Summary: 2017–03–16 ALERT-2791 Widespread Service Outage",
+     "content": "## Incident Summary: 2017–03–16 ALERT-2791 Widespread Service Outage\n\nRoot Cause: Merchant authentication service unrecoverably overloaded due to bug in adjacent service\n\nImpact: Service outage for all merchants between 10:02AM-11:55AM; 2FA outage until 1:12PM",
+     "similarity": 0.6030148585388191,
+     "origin": "similar",
+     "query": "auth account service access check failure cascades to console and API after deployment"
+    },
+    {
+     "section": "Timeline (Pacific)",
+     "content": "## Timeline (Pacific)\n\n*What happened?*\n\n**9:55** We began rolling out changes to “Roster,” the service that handles customer identity, in a single datacenter.\n\nRoster (and our other critical systems) are active-active in multiple datacenters. It is normal procedure for us to deploy continuously throughout the day, and overall we deploy our various services over 250 times per day to production.\n\n10:02 “Multipass”, our customer authentication service, began reporting timeouts to oncall engineers. This backend service is critical to most of Square’s core product services.\n\n**10:02 Beginning of impact**\n\n**10:06** Roster paged an oncall engineer.\n\n**10:08** Our external monitoring notified us that api.squareup.com was down.\n\n**10:08 Severe impact began**\n\n**10:10** Engineers from across Square began reporting that services depending on merchant identity were experiencing failures. It was clear to us at this point that this was a major outage. We executed a few standard operating procedures:\n\n1. We conferenced engineers across offices.\n2. We rolled back all software changes that happened leading up to the incident. This is a non-negotiable response to any customer-impacting event; our engineers are trained to undo any change that happened before an incident regardless of how plausible it is that the change caused the issue.\n3. We activated our “Crisis team” — a cross-functional group of leaders — to ensure that our complete disaster response plan was followed.\n4. We updated issquareup.com to notify sellers of the disruption, and continued to update the site every 15 minutes until we reached full resolution",
+     "similarity": 0.5602956435473019,
+     "origin": "similar",
+     "query": "auth account service access check failure cascades to console and API after deployment"
+    }
+   ],
+   "found_by": "llm_query",
+   "deepened": true,
+   "why": "Square incident involved merchant authentication service being overloaded due to cascading error from adjacent service - similar to account backend struggling and affecting access checks"
+  },
+  {
+   "incident_id": "DAN-017",
+   "company": "Cloudflare",
+   "title": "Cloudflare incident on October 30, 2023 | Cloudflare Blog",
+   "url": "https://blog.cloudflare.com/cloudflare-incident-on-october-30-2023/",
+   "summary": "A deployment tool bug caused the production environment to reference a staging build version, routing traffic to an unauthorized endpoint returning HTTP 401 errors, cascading failures across Workers KV, Pages, Access, and Turnstile.",
+   "similarity": 0.6192969449549341,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "A deployment tool bug caused the production environment to reference a staging build version, routing traffic to an unauthorized endpoint returning HTTP 401 errors, cascading failures across Workers KV, Pages, Access, and Turnstile."
+   },
+   "passages": [
+    {
+     "section": "Analysis",
+     "content": "### Analysis\n\nAlthough automated alerting detected the issue immediately, there was a delay between the time we realized we were having an issue and the time we were actually able to perform the roll back. This was caused by the fact that multiple tools within Cloudflare rely on Workers KV including Cloudflare Access. Access uses Workers KV as part of the verification process for user JWTs (JSON Web Tokens).\n\nThese tools include the dashboard which was used to revert the change, and the authentication mechanism to access our continuous integration (CI) system. As Workers KV was down, so too were these services. Automatic rollbacks via our CI system had been successfully tested previously, but the authentication issues (Access relies on KV) due to the incident made accessing the necessary secrets to roll back the deploy impossible.\n\nThe fix ultimately was a manual change of the production build path to a previous and known good state. This path was known to have been deployed and was the previous production build before the attempted deployment.",
+     "similarity": 0.6112703297197313,
+     "origin": "deep_search",
+     "query": "root cause deployment tool bug production staging build 401 errors access fix rollback",
+     "query_source": "llm"
+    },
+    {
+     "section": "Timeline",
+     "content": "### Timeline\n\n*All timestamps referenced are in Coordinated Universal Time (UTC).*\n\n| Time | Description |\n|---|---|\n| 2023-10-30 18:58 UTC | The Workers KV team began a progressive deployment of a new KV build to production. |\n| 2023-10-30 19:29 UTC | The internal progressive deployment API returns staging build GUID to a call to list production builds. |\n| 2023-10-30 19:40 UTC | The progressive deployment API was used to continue rolling out the release. This routed a percentage of traffic to the wrong destination, triggering alerting and leading to the decision to roll back. |\n| 2023-10-30 19:54 UTC | Rollback via progressive deployment API attempted, traffic starts to fail at scale. — IMPACT START — |\n| 2023-10-30 20:15 UTC | Cloudflare engineers manually edit (via break glass mechanisms) deployment routes to revert to last known good build for the majority of traffic. |\n| 2023-10-30 20:29 UTC | Workers KV error rates return to normal pre-incident levels, and impacted services recover within the following minute. |\n| 2023-10-30 20:31 UTC | Impact resolved — IMPACT END — |\n\nAs shown in the above timeline, there was a delay between the time we realized we were having an issue at 19:54 UTC and the time we were actually able to perform the rollback at 20:15 UTC.",
+     "similarity": 0.5737112486371219,
+     "origin": "deep_search",
+     "query": "root cause deployment tool bug production staging build 401 errors access fix rollback",
+     "query_source": "llm"
+    },
+    {
+     "section": "Resolution",
+     "content": "### Resolution\n\nCloudflare engineers manually switched (via break glass mechanism) the production route to the previous working version of Workers KV, which immediately eliminated the failing request path and subsequently resolved the issue with the Workers KV deployment.",
+     "similarity": 0.41648443324760986,
+     "origin": "deep_search",
+     "query": "what was the root cause of the failure",
+     "query_source": "cause"
+    },
+    {
+     "section": "Next steps",
+     "content": "### Next steps\n\nAs more teams at Cloudflare have built on Workers, we have \"organically\" ended up in a place where Workers KV now underpins a tremendous amount of our products and services. This incident has continued to reinforce the need for us to revisit how we can reduce the blast radius of critical dependencies, which includes improving the sophistication of our deployment tooling, its ease-of-use for our internal teams, and product-level controls for these dependencies. We’re prioritizing these efforts to ensure that there is not a repeat of this incident.\n\nThis also reinforces the need for Cloudflare to improve the tooling, and the safety of said tooling, around progressive deployments of Workers applications internally and for customers.\n\nThis includes (but is not limited) to the below list of key follow-up actions (in no specific order) this quarter:\n\n1. Onboard KV deployments to standardized Workers deployment models which use automated systems for impact detection and recovery.\n2. Ensure that the rollback process has access to a known good deployment identifier and that it works when Cloudflare Access is down.\n3. Add pre-checks to deployments which will validate input parameters to ensure version mismatches don't propagate to production environments.\n4. Harden the progressive deployment tooling to operate in a way that is designed for multi-tenancy. The current design assumes a single-tenant model.\n5. Add additional validation to progressive deployment scripts to verify that the deployment matches the app environment (production, staging, etc.).\n\nAgain, we’re extremely sorry this incident occurred, and take the impact of this incident on our customers extremely seriously.",
+     "similarity": 0.4553444524078494,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Timeline",
+     "content": "### Timeline\n\nThis was caused by the fact that multiple tools within Cloudflare rely on Workers KV including Cloudflare Access. Access leverages Workers KV as part of its request verification process. Due to this, we were unable to leverage our internal tooling and had to use break-glass mechanisms to bypass the normal tooling. As described below, we had not spent sufficient time testing the rollback mechanisms. We plan to harden this moving forward.",
+     "similarity": 0.5296612148025409,
+     "origin": "similar",
+     "query": "auth account service access check failure cascades to console and API after deployment"
+    },
+    {
+     "section": "What was impacted",
+     "content": "### What was impacted\n\n| Product | Impact |\n|---|---|\n| Workers KV | Customers with applications leveraging KV saw those applications fail during the duration of this incident, including both the KV API within Workers, and the REST API. Workers applications not using KV were not impacted. |\n| Pages | Applications hosted on Pages were unreachable for the duration of the incident and returned HTTP 500 errors to users. New Pages deployments also returned HTTP 500 errors to users for the duration. |\n| Access | Users who were unauthenticated could not log in; any origin attempting to validate the JWT using the /certs endpoint would fail; any application with a device posture policy failed for all users. Existing logged-in sessions that did not use the /certs endpoint or posture checks were unaffected. Overall, a large percentage of existing sessions were still affected. |\n| WARP / Zero Trust | Users were unable to register new devices or connect to resources subject to policies that enforce Device Posture checks or WARP Session timeouts. Devices already enrolled, resources not relying on device posture, or that had re-authorized outside of this window were unaffected. |\n| Images | The Images API returned errors during the incident. Existing image delivery was not impacted. |\n| Cache Purge (single file) | Single file purge was partially unavailable for the duration of the incident as some data centers could not access configuration data in KV. Data centers that had existing configuration data locally cached were unaffected.",
+     "similarity": 0.5276642783047146,
+     "origin": "similar",
+     "query": "auth account service access check failure cascades to console and API after deployment"
+    }
+   ],
+   "found_by": "llm_query",
+   "deepened": true,
+   "why": "Cloudflare incident involved deployment causing auth/access failures (401) across multiple services - similar to console update causing access check failures"
+  },
+  {
+   "incident_id": "DAN-009",
+   "company": "Cloudflare",
+   "title": "Cloudflare incident on January 24, 2023 | Cloudflare Blog",
+   "url": "https://blog.cloudflare.com/cloudflare-incident-on-january-24th-2023/",
+   "summary": "Several Cloudflare services became unavailable for 121 minutes on January 24, 2023 due to an error releasing code that manages service tokens. The incident degraded a wide range of Cloudflare products including aspects of our Workers platform, our Zero Trust solution, and control plane functions in our content delivery network (CDN).",
+   "similarity": 0.6241098958221979,
+   "best_chunk": {
+    "type": "text",
+    "section": "Why did this impact other Cloudflare services?",
+    "content": "### Why did this impact other Cloudflare services?\n\nService tokens impact the ability for accounts to authenticate. Two of the impacted accounts power multiple Cloudflare services. When these accounts’ services tokens were overwritten, the services that run on these accounts began to experience failed requests and other unexpected errors."
+   },
+   "passages": [
+    {
+     "section": "How did we fix the issue?",
+     "content": "### How did we fix the issue?\n\nAs a temporary solution, we were able to manually restore the correct service token values for the accounts with overwritten service tokens. This stopped the immediate impact across the affected Cloudflare services.\n\nThe database team was then able to implement a solution to restore the service tokens of all impacted accounts from an older database copy. This concluded any impact from this incident.",
+     "similarity": 0.6615668702679414,
+     "origin": "deep_search",
+     "query": "root cause service token management code error degradation fix rollback",
+     "query_source": "llm"
+    },
+    {
+     "section": "What are we doing to prevent this from happening again?",
+     "content": "### What are we doing to prevent this from happening again?\n\nWe take incidents like this seriously and recognize the impact it had. We have identified several steps we can take to address the risk of a similar problem occurring in the future. We are implementing the following remediation plan as a result of this incident:\n\n**Test:** The Access engineering team will add unit tests that would automatically catch any similar issues with service token overwrites before any new features are launched.\n\n**Alert:** The Access team will implement an automatic alert for any dramatic increase in failed service token authentication requests to catch issues before they are fully launched.\n\n**Process:** The Access team has identified process improvements to allow for faster rollbacks for specific database tables.\n\n**Implementation:** All relevant database fields will be updated to include checks for empty strings on top of existing “not null checks”\n\nWe are sorry for the disruption this caused for our customers across a number of Cloudflare services. We are actively making these improvements to ensure improved stability moving forward and that this problem will not happen again.",
+     "similarity": 0.6551966009839706,
+     "origin": "deep_search",
+     "query": "root cause service token management code error degradation fix rollback",
+     "query_source": "llm"
+    },
+    {
+     "section": "Cloudflare R2 Storage and Cache Reserve",
+     "content": "### Cloudflare R2 Storage and Cache Reserve\n\nCloudflare R2 Storage allows developers to store large amounts of unstructured data without the costly egress bandwidth fees associated with typical cloud storage services.\n\nDuring the incident, the R2 service was unable to make outbound API requests to other parts of the Cloudflare infrastructure. As a result, R2 users saw elevated request failure rates when making requests to R2.\n\nMany Cloudflare products also depend on R2 for data storage and were also affected. For example, Cache Reserve users were impacted during this window and saw increased origin load for any items not in the primary cache. The majority of read and write operations to the Cache Reserve service were impacted during this incident causing entries into and out of Cache Reserve to fail. However, when Cache Reserve sees an R2 error, it falls back to the customer origin, so user traffic was still serviced during this period.",
+     "similarity": 0.368336541882867,
+     "origin": "deep_search",
+     "query": "what was the root cause of the failure",
+     "query_source": "cause"
+    },
+    {
+     "section": "Incident Timeline",
+     "content": "### Incident Timeline\n\nAt 2023-01-24 18:56 The same solution was implemented on the Cloudflare API account, impacting Cache Purge, Cache Reserve, Images and R2. **Impact ended for Cache Purge, Cache Reserve, Images and R2.**\n\nAt 2023-01-24 19:00 An update was made to the Cloudflare API account which incorrectly overwrote the Cloudflare API account. **Impact restarted for Cache Purge, Cache Reserve, Images and R2.** All internal Cloudflare account changes were then locked until incident resolution.\n\nAt 2023-01-24 19:07 the Cloudflare API was updated to include the correct service token value. **Impact ended for Cache Purge, Cache Reserve, Images and R2.**\n\nAt 2023-01-24 19:51 all affected accounts had their service tokens restored from a database backup. **Incident Ends.**",
+     "similarity": 0.4241927829315175,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Incident Timeline",
+     "content": "### Incident Timeline\n\n*All Timestamps are UTC*\n\nAt 2023-01-24 16:55 the Access engineering team initiated the release that inadvertently began to overwrite service token metadata, causing the incident.\n\nAt 2023-01-24 17:05 a member of the Access engineering team noticed an unrelated issue and rolled back the release which stopped any further overwrites of service token metadata.\n\nService token values are not updated across Cloudflare’s network until the service token itself is updated (more details below). This caused a staggered impact of the service token’s that had their metadata overwritten.\n\n2023-01-24 17:50: The first invalid service token for Cloudflare WARP was synced to our global network. **Impact began for WARP and Zero Trust users.**\n\nWARP device posture uploads dropped to zero which raised an internal alert\n\nAt 2023-01-24 18:12 an incident was declared due to the large drop in successful WARP device posture uploads.\n\n2023-01-24 18:19: The first invalid service token for the Cloudflare API was synced to our global network. **Impact began for Cache Purge, Cache Reserve, Images and R2.** Alerts were triggered for these products which identified a larger scope of the incident.\n\nAt 2023-01-24 18:21 the overwritten services tokens were discovered during the initial investigation.\n\nAt 2023-01-24 18:28 the incident was elevated to include all impacted products.\n\nAt 2023-01-24 18:51 An initial solution was identified and implemented to revert the service token to its original value for the Cloudflare WARP account, impacting WARP and Zero Trust. **Impact ended for WARP and Zero Trust.**",
+     "similarity": 0.40285343104199733,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Why did this impact other Cloudflare services?",
+     "content": "### Why did this impact other Cloudflare services?\n\nService tokens impact the ability for accounts to authenticate. Two of the impacted accounts power multiple Cloudflare services. When these accounts’ services tokens were overwritten, the services that run on these accounts began to experience failed requests and other unexpected errors.",
+     "similarity": 0.6241098958221979,
+     "origin": "similar",
+     "query": "auth account service access check failure cascades to console and API after deployment"
+    },
+    {
+     "section": "What went wrong?",
+     "content": "### What went wrong?\n\nAs a result of the bug, any Cloudflare account that used a service token to authenticate during the 10 minutes “last seen at” release was out would have its “client secret” value set to an empty string. The service token then needed to be modified in order for the empty “client secret” to be used for authentication. There were a total of 4 accounts in this state, all of which are internal to Cloudflare.",
+     "similarity": 0.5900266473627706,
+     "origin": "similar",
+     "query": "auth account service access check failure cascades to console and API after deployment"
+    }
+   ],
+   "found_by": "llm_query",
+   "deepened": true,
+   "why": "Cloudflare incident about error releasing code managing service tokens causing widespread product degradation - similar to account backend revision causing console/API failures"
+  },
+  {
+   "incident_id": "DAN-066",
+   "company": "Cloudflare",
+   "title": "A Byzantine failure in the real world",
+   "url": "https://web.archive.org/web/20211015231917/https://blog.cloudflare.com/a-byzantine-failure-in-the-real-world/",
+   "summary": "A partial switch misbehavior caused a cascading Byzantine failure which impacted the availability of the API and dashboard for six hours and 33 minutes.",
+   "similarity": 0.7028174958218836,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "A partial switch misbehavior caused a cascading Byzantine failure which impacted the availability of the API and dashboard for six hours and 33 minutes."
+   },
+   "passages": [
+    {
+     "section": "The Dashboard",
+     "content": "### The Dashboard\n\nThe Cloudflare dashboard, like most web applications, has the notion of a user session. When user sessions are created (each time a user logs in) we perform some database operations and keep data in a Redis cluster for the duration of that user’s session. Unlike our API calls, our user sessions cannot currently be moved across the ocean without disruption. As we took actions to improve the availability of our API calls, we were unfortunately making the user experience on the dashboard worse.\n\nThis is an area of the system that is currently designed to be able to fail over across data centers in the event of a disaster, but has not yet been designed to work in both data centers at the same time. After a first period in which users on the dashboard became increasingly frustrated, we failed the authentication calls fully back to our primary data center, and kept working on our primary database to ensure we could provide the best service levels possible in that degraded state.",
+     "similarity": 0.6422047448128929,
+     "origin": "similar",
+     "query": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access checks means that the management console and numerous API operations are failing too. We shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared. Things went downhill late in the UTC afternoon. People opening the console or updating settings programmatically are having trouble, whereas our production traffic handling still seems normal."
+    },
+    {
+     "section": "2020-11-02 21:20 UTC Database Replica Rebuilt",
+     "content": "### 2020-11-02 21:20 UTC Database Replica Rebuilt\n\nThe instant the first database replica rebuilt, it put itself back into service, and performance resumed to normal levels. We re-ramped all of the services that had been turned down, so all asynchronous processing could catch up, and after a period of monitoring marked the end of the incident.",
+     "similarity": 0.5989282374019664,
+     "origin": "similar",
+     "query": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access checks means that the management console and numerous API operations are failing too. We shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared. Things went downhill late in the UTC afternoon. People opening the console or updating settings programmatically are having trouble, whereas our production traffic handling still seems normal."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-129",
+   "company": "Chef.io",
+   "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef",
+   "url": "https://www.chef.io/blog/2014/07/10/supermarket-intermittent-unresponsiveness-postmortem/",
+   "summary": "The recipe community site Supermarket crashed two hours after launch due to intermittent unresponsiveness and increased latency. One of the main reasons for failure identified in the post mortem was very low health check timeouts.",
+   "similarity": 0.6892594271031598,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "The recipe community site Supermarket crashed two hours after launch due to intermittent unresponsiveness and increased latency. One of the main reasons for failure identified in the post mortem was very low health check timeouts."
+   },
+   "passages": [
+    {
+     "section": "",
+     "content": "Approximately two hours after Supermarket became the official community site it started to experience increased latency and intermittent unresponsiveness. This made downloading cookbooks problematic and effected various sites including supermarket.getchef.com, community.opscode.com, cookbooks.opscode.com, and api.berkshelf.com. We are sorry for the problems this caused.\n\nIn this post, I will explain what happened and what we are doing to make sure this doesn’t happen in the future.\n\nThis unresponsiveness caused a number of issues including:\n\n- Berkshelf v3.x was unable to connect to api.berkshelf.com to get a list of cookbooks and versions needed for depsolving\n- An inability to browse cookbooks\n- Uploading and downloading of cookbooks either broken or extremely latent\n- The Supermarket API was inaccessible",
+     "similarity": 0.6116102987934581,
+     "origin": "similar",
+     "query": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access checks means that the management console and numerous API operations are failing too. We shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared. Things went downhill late in the UTC afternoon. People opening the console or updating settings programmatically are having trouble, whereas our production traffic handling still seems normal."
+    },
+    {
+     "section": "Conclusion",
+     "content": "## Conclusion\n\nWe are sorry about the issues with Supermarket, especially so soon after launch. We know that the community depends on these services to be reliable and will work hard to prevent these issues in the future.\n\nThank you!",
+     "similarity": 0.5987265512843482,
+     "origin": "similar",
+     "query": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access checks means that the management console and numerous API operations are failing too. We shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared. Things went downhill late in the UTC afternoon. People opening the console or updating settings programmatically are having trouble, whereas our production traffic handling still seems normal."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-209",
+   "company": "Reddit",
+   "title": "Why Reddit was down on Aug 11 : announcements",
+   "url": "https://web.archive.org/web/20221029203405/https://www.reddit.com/r/announcements/comments/4y0m56/why_reddit_was_down_on_aug_11/",
+   "summary": "Experienced an outage for 1.5 hours, followed by another 1.5 hours of degraded performance on Thursday August 11 2016. This was due to an error during a migration of a critical backend system.",
+   "similarity": 0.6870060246444053,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "Experienced an outage for 1.5 hours, followed by another 1.5 hours of degraded performance on Thursday August 11 2016. This was due to an error during a migration of a critical backend system."
+   },
+   "passages": [
+    {
+     "section": "",
+     "content": "tl;dr\n\nOn Thursday, August 11, Reddit was down and unreachable across all platforms for about 1.5 hours, and slow to respond for an additional 1.5 hours. We apologize for the downtime and want to let you know steps we are taking to prevent it from happening again.\n\nThank you all for contributions to r/downtimebananas.\n\nImpact\n\nOn Aug 11, Reddit was down from 15:24PDT to 16:52PDT, and was degraded from 16:52PDT to 18:19PDT. This affected all official Reddit platforms and the API serving third party applications. The downtime was due to an error during a migration of a critical backend system.\n\nNo data was lost.\n\nCause and Remedy\n\nWe use a system called Zookeeper to keep track of most of our servers and their health. We also use an autoscaler system to maintain the required number of servers based on system load.\n\nPart of our infrastructure upgrades included migrating Zookeeper to a new, more modern, infrastructure inside the Amazon cloud. Since autoscaler reads from Zookeeper, we shut it off manually during the migration so it wouldn’t get confused about which servers should be available. It unexpectedly turned back on at 15:23PDT because our package management system noticed a manual change and reverted it. Autoscaler read the partially migrated Zookeeper data and terminated many of our application servers, which serve our website and API, and our caching servers, in 16 seconds.\n\nAt 15:24PDT, we noticed servers being shut down, and at 15:47PDT, we set the site to “down mode” while we restored the servers. By 16:42PDT, all servers were restored. However, at that point our new caches were still empty, leading to increased load on our databases, which in turn led to degraded performance. By 18:19PDT, latency returned to normal, and all systems were operating normally.\n\nPrevention",
+     "similarity": 0.5893288189718116,
+     "origin": "similar",
+     "query": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access checks means that the management console and numerous API operations are failing too. We shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared. Things went downhill late in the UTC afternoon. People opening the console or updating settings programmatically are having trouble, whereas our production traffic handling still seems normal."
+    },
+    {
+     "section": "",
+     "content": "As we modernize our infrastructure, we may continue to perform different types of server migrations. Since this was due to a unique and risky migration that is now complete, we don’t expect this exact combination of failures to occur again. However, we have identified several improvements that will increase our overall tolerance to mistakes that can occur during risky migrations.\n\n- Make our autoscaler less aggressive by putting limits to how many servers can be shut down at once.\n\n- Improve our migration process by having two engineers pair during risky parts of migrations.\n\n- Properly disable package management systems during migrations so they don’t affect systems unexpectedly.\n\nLast Thoughts\n\nWe take downtime seriously, and are sorry for any inconvenience that we caused. The silver lining is that in the process of restoring our systems, we completed a big milestone in our operations modernization that will help make development a lot faster and easier at Reddit.",
+     "similarity": 0.5474704697028063,
+     "origin": "similar",
+     "query": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access checks means that the management console and numerous API operations are failing too. We shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared. Things went downhill late in the UTC afternoon. People opening the console or updating settings programmatically are having trouble, whereas our production traffic handling still seems normal."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-029",
+   "company": "GoCardless",
+   "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless",
+   "url": "https://gocardless.com/blog/incident-review-api-and-dashboard-outage-on-10th-october/",
+   "summary": "A bad config combined with an uncommon set of failures led to an outage of a database cluster, taking the API and Dashboard offline.",
+   "similarity": 0.6817967639454628,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "A bad config combined with an uncommon set of failures led to an outage of a database cluster, taking the API and Dashboard offline."
+   },
+   "passages": [
+    {
+     "section": "Summary",
+     "content": "## Summary\n\nOn the afternoon of 10 October 2017, we experienced an outage of our API and Dashboard, lasting 1 hour and 50 minutes. Any requests made during that time failed, and returned an error.\n\nThe cause of the incident was a hardware failure on our primary database node, combined with unusual circumstances that prevented our database cluster automation from promoting one of the replica database nodes to act as the new primary.\n\nThis failure to promote a new primary database node extended an outage that would normally last 1 or 2 minutes to one that lasted almost 2 hours.",
+     "similarity": 0.6436615297674447,
+     "origin": "similar",
+     "query": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access checks means that the management console and numerous API operations are failing too. We shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared. Things went downhill late in the UTC afternoon. People opening the console or updating settings programmatically are having trouble, whereas our production traffic handling still seems normal."
+    },
+    {
+     "section": "Moving to a new database cluster",
+     "content": "### Moving to a new database cluster\n\nThe subteam responsible for getting us into a new cluster spent the next couple of weeks making those adjustments and performing practice runs. Once they were totally comfortable, we put together a plan to do it in production.",
+     "similarity": 0.640092963489272,
+     "origin": "similar",
+     "query": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access checks means that the management console and numerous API operations are failing too. We shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared. Things went downhill late in the UTC afternoon. People opening the console or updating settings programmatically are having trouble, whereas our production traffic handling still seems normal."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-154",
+   "company": "Fastly",
+   "title": "Summary of June 8 outage | Fastly",
+   "url": "https://www.fastly.com/blog/summary-of-june-8-outage",
+   "summary": "Global outage due to an undiscovered software bug that surfaced on June 8 when it was triggered by a valid customer configuration change.",
+   "similarity": 0.6802059309630052,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "Global outage due to an undiscovered software bug that surfaced on June 8 when it was triggered by a valid customer configuration change."
+   },
+   "passages": [
+    {
+     "section": "**What happened?**",
+     "content": "### **What happened?**\n\nOn May 12, we began a software deployment that introduced a bug that could be triggered by a specific customer configuration under specific circumstances.\n\nEarly June 8, a customer pushed a valid configuration change that included the specific circumstances that triggered the bug, which caused 85% of our network to return errors.\n\nHere’s a timeline of the day’s activity (all times are in UTC):\n\n**09:47** Initial onset of global disruption\n\n**09:48** Global disruption identified by Fastly monitoring\n\n**09:58** <u>Status post</u> is published\n\n**10:27** Fastly Engineering identified the customer configuration\n\n**10:36** Impacted services began to recover\n\n**11:00** Majority of services recovered\n\n**12:35** Incident mitigated\n\n**12:44** Status post resolved\n\n**17:25** Bug fix deployment began\n\nOnce the immediate effects were mitigated, we turned our attention to fixing the bug and communicating with our customers. We created a permanent fix for the bug and began deploying it at 17:25.",
+     "similarity": 0.5822186286989284,
+     "origin": "similar",
+     "query": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access checks means that the management console and numerous API operations are failing too. We shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared. Things went downhill late in the UTC afternoon. People opening the console or updating settings programmatically are having trouble, whereas our production traffic handling still seems normal."
+    },
+    {
+     "section": "",
+     "content": "We experienced a global outage due to an undiscovered software bug that surfaced on June 8 when it was triggered by a valid customer configuration change. We detected the disruption within one minute, then identified and isolated the cause, and disabled the configuration. Within 49 minutes, 95% of our network was operating as normal.\n\nThis outage was broad and severe, and we’re truly sorry for the impact to our customers and everyone who relies on them.",
+     "similarity": 0.55143035126006,
+     "origin": "similar",
+     "query": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access checks means that the management console and numerous API operations are failing too. We shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared. Things went downhill late in the UTC afternoon. People opening the console or updating settings programmatically are having trouble, whereas our production traffic handling still seems normal."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  }
+ ]
+}

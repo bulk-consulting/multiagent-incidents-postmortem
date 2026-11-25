@@ -229,3 +229,12 @@ vem de **trazer informação nova** (perguntas do Triagem) ou de **melhorar o pr
 
 Casos que ainda falham no híbrido (casos reescritos, 32/36): DAN-125 (a busca não acha), DAN-197 (escolha), DAN-018
 (às vezes não acha).
+
+**Diagnóstico (anotadas em 2026-11-24, depois do teste com o post-mortem certo escondido,
+`diagnosis_cases_2026-11-24_1508_hidden.json`):** sem o caso certo, 6/12 pediram nova busca, 2/12 deram "basta"
+com resposta aceitável e 4/12 deram "basta" com resposta errada ou só parecida (2 com `high`).
+
+| Ideia | Custo | Por quê |
+|---|---|---|
+| Terceira comparação por hipótese: "o mecanismo da falha é o mesmo?" (`same_mechanism`), exigida para `high` e para "basta" | baixo (prompt + `decide()`) | o modelo marca gatilho e componente "iguais" com generosidade quando o tipo geral bate (DAN-018: token sobrescrito × bug no frontend; DAN-116: configuração propagada × double free) |
+| Gatilho desconhecido não conta como "basta" na 1ª rodada (pede uma nova busca antes) | baixo (`decide()`), mas gasta uma rodada a mais também nos casos certos | com gatilho desconhecido, qualquer caso do mesmo tipo de componente com `medium` passa (DAN-004, DAN-154) |

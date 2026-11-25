@@ -36,6 +36,9 @@ EXTRA_FROM_LLM = 5         # hybrid mode: new incidents from the LLM queries add
 # Experiment (2026-11-23): the description and the Triage symptoms in ONE search text, instead of one search
 # per symptom (normal mode) or the description alone (hybrid's guaranteed search). See description_query().
 SYMPTOMS_IN_ONE_QUERY = False
+# Experiments: incidents treated as if they were not in the corpus (no search returns them). Used to test a new
+# problem whose right post-mortem does not exist (agents/orchestration/experiments/run_diagnosis_cases.py --hide-right).
+HIDDEN_IDS: set[str] = set()
 MIN_PASSAGE_CHARS = 200    # shorter passages are almost always just a title ("Further details here.")
 PASSAGE_CHARS_FOR_LLM = 700
 # Fixed queries added to the LLM's query in every search inside an incident (the LLM sometimes writes a
@@ -61,6 +64,7 @@ def _passage(d: dict) -> dict:
 def search_incidents(query: str, n_docs: int, n_passages: int, exclude: list[str] | None = None) -> list[dict]:
     """Incidents similar to the query (two-step search in pgvector), with English keys."""
     incidents = []
+    exclude = sorted(set(exclude or []) | HIDDEN_IDS)
     for r in busca.buscar(query, n_docs, n_passages, excluir=exclude):
         best = r.get("melhor_chunk") or {}
         incidents.append({

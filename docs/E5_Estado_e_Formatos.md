@@ -148,6 +148,7 @@ class Hypothesis(BaseModel):
     differs: str                         # o que não bate
     same_trigger: Literal["yes", "no", "unknown"]  # o gatilho do caso passado é do mesmo TIPO? (unknown: gatilho atual desconhecido)
     same_component: Literal["yes", "no"]           # o componente que falhou é do mesmo TIPO?
+    same_mechanism: Literal["yes", "no"]           # o que quebrou, e como se espalhou, explica os sintomas atuais?
     confidence: Literal["high", "medium", "low"]   # já com o teto aplicado pelo código
 
 class DiagnosisResult(BaseModel):
@@ -160,14 +161,16 @@ class DiagnosisResult(BaseModel):
 ```
 
 **Quem decide o quê (mudança de 24/11).** O modelo escreve um rascunho (`DiagnosisDraft`): as hipóteses, com as
-duas comparações (`same_trigger`, `same_component`), as lacunas, uma busca sugerida (sempre, em inglês) e até 3
+três comparações (`same_trigger`, `same_component`, `same_mechanism`), as lacunas, uma busca sugerida (sempre, em inglês) e até 3
 perguntas ao analista (opcional). O **código** (`decide()` em `agents/diagnosis/schema.py`) transforma o rascunho
 no `DiagnosisResult`:
 
-1. **Teto da confiança:** `high` só com mesmo tipo de gatilho **e** de componente; com um dos dois diferente ou
-   desconhecido, no máximo `medium`; com os dois diferentes, `low`.
-2. **Evidência suficiente:** alguma hipótese `high` ou `medium`, com o mesmo tipo de componente, gatilho que não
-   seja diferente (igual ou desconhecido) e baseada em pelo menos um incidente **aprofundado** (com trechos).
+1. **Teto da confiança:** `high` só com mesmo tipo de gatilho, de componente **e** mesmo mecanismo; senão, no
+   máximo `medium`; com gatilho e componente diferentes, `low`.
+2. **Evidência suficiente:** alguma hipótese `high` ou `medium`, com o mesmo tipo de componente, o mesmo mecanismo,
+   baseada em pelo menos um incidente **aprofundado** (com trechos) e com o gatilho igual — ou desconhecido, a
+   partir da 2ª rodada (com gatilho desconhecido, na 1ª rodada qualquer caso do mesmo tipo de componente passava;
+   uma nova busca é tentada antes).
 3. **Próximo passo:** basta → `report`; não basta → `refine_search` enquanto houver rodadas (e uma busca
    sugerida); senão `ask_analyst`, se houver perguntas; senão `report` (inconclusivo).
 
@@ -176,7 +179,18 @@ mesmo quando o próprio campo `differs` dizia que o caso passado era outro tipo 
 proxy contra Postgres reduzido); `refine_search` nunca foi escolhido. Pedir um aviso mais rígido no prompt não
 resolveu. Com as duas comparações e a decisão no código, nos casos em que o Pesquisa não trouxe o incidente certo,
 o Diagnóstico passou a pedir nova busca, e os casos que acertavam continuaram certos (resultados em
-`agents/orchestration/experiments/results/diagnosis_cases_2026-11-24_*.json`).
+`agents/orchestration/experiments/results/diagnosis_cases_2026-11-24_*.json`; análise completa em
+`results/E5_testes_diagnostico_2026-11-24.md`).
+
+**Modelo do Diagnóstico:** raciocínio desligado e temperatura 0 (`agents/diagnosis/agent.py`). Num teste de 7
+configurações × 6 casos × 3 repetições sobre os mesmos achados, foi a mais rápida das estáveis (29 s por chamada
+contra 52–74 s), sem respostas inválidas, e a única que não aceitou uma causa errada no caso mais difícil. Com o
+raciocínio ligado e 4096 tokens, o raciocínio às vezes gastava o limite e a resposta vinha vazia.
+
+**Refinamento no Pesquisa:** numa nova rodada, o código busca com o `search_request` e com a `description`,
+**excluindo todos os incidentes já vistos** (`seen_ids`); o LLM do Pesquisa escolhe só entre os novos; os
+incidentes aprofundados nas rodadas anteriores voltam aos `findings`, depois dos novos aprofundados. Antes, o LLM
+recebia os achados antigos como lista principal e o refinamento trazia os mesmos 8 incidentes.
 
 **Regras de consistência** (no esquema, como no `TriageResult`):
 - `evidence_sufficient` verdadeiro → `next_step == "report"` e pelo menos 1 hipótese;
@@ -319,9 +333,11 @@ algumas rodadas com o modelo real:
 1. O Diagnóstico escreve as próprias perguntas ao analista, sem passar pelo Relatório, como o Triagem já faz
    (seção 2; mudança em relação à E1.2).
 2. Os nomes do estado (seção 3): o `node.py` do Triagem passa a usar `description` e `symptoms`.
-3. A hipótese do Diagnóstico ganhou `same_trigger` e `same_component`, e `evidence_sufficient` e `next_step`
-   passaram a ser decididos pelo código (seção 5). O formato do `DiagnosisResult` é o mesmo; o Relatório pode
-   ignorar os dois campos novos ou usá-los para explicar a confiança.
+3. A hipótese do Diagnóstico ganhou `same_trigger`, `same_component` e `same_mechanism`, e `evidence_sufficient` e
+   `next_step` passaram a ser decididos pelo código (seção 5). O formato do `DiagnosisResult` é o mesmo; o
+   Relatório pode ignorar os campos novos ou usá-los para explicar a confiança.
+4. `chat()` em `agents/triage/llm.py` ganhou `temperature` e opções extras para o NIM (usadas pelo Diagnóstico); sem
+   elas o comportamento é o de antes, e o Triagem não mudou.
 
 ## 12. Resumo simples
 
@@ -354,4 +370,4 @@ fica sem resposta.
 **Quem faz o quê:** André faz o Diagnóstico, o estado e o grafo; Mari faz o Relatório com a validação e liga o
 Triagem ao grafo; os dois fazem juntos os testes de integração e a demonstração.
 
-**O que falta combinar:** os 3 pontos da seção 11 que dependem da Mari.
+**O que falta combinar:** os 4 pontos da seção 11 que dependem da Mari.

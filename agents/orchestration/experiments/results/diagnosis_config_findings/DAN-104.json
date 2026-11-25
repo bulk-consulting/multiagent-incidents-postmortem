@@ -1,0 +1,373 @@
+{
+ "case": "DAN-104",
+ "hidden": false,
+ "description": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either.",
+ "triage": {
+  "affected_service": "cloud object store",
+  "trigger": "An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting the billing process",
+  "symptoms": [
+   "cannot read, enumerate, write or erase objects through APIs",
+   "virtual machine provisioning failing",
+   "disk volumes fetching snapshot contents failing",
+   "on-demand function execution failing",
+   "storage control panel failing",
+   "status page controls cannot post product-specific notices"
+  ],
+  "category": null
+ },
+ "warnings": [],
+ "findings": [
+  {
+   "incident_id": "DAN-104",
+   "company": "Amazon",
+   "title": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+   "url": "https://aws.amazon.com/message/41926/",
+   "summary": "Human error. On February 28th 2017 9:37AM PST, the Amazon S3 team was debugging a minor issue. Despite using an established playbook, one of the commands intending to remove a small number of servers was issued with a typo, inadvertently causing a larger set of servers to be removed. These servers supported critical S3 systems. As a result, dependent systems required a full restart to correctly operate, and the system underwent widespread outages for US-EAST-1 (Northern Virginia) until final resolution at 1:54PM PST. Since Amazon's own services such as EC2 and EBS rely on S3 as well, it caused a vast cascading failure which affected hundreds of companies.",
+   "similarity": 0.663209015459262,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "Human error. On February 28th 2017 9:37AM PST, the Amazon S3 team was debugging a minor issue. Despite using an established playbook, one of the commands intending to remove a small number of servers was issued with a typo, inadvertently causing a larger set of servers to be removed. These servers supported critical S3 systems. As a result, dependent systems required a full restart to correctly operate, and the system underwent widespread outages for US-EAST-1 (Northern Virginia) until final resolution at 1:54PM PST. Since Amazon's own services such as EC2 and EBS rely on S3 as well, it caused a vast cascading failure which affected hundreds of companies."
+   },
+   "passages": [
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "content": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nWe are making several changes as a result of this operational event. While removal of capacity is a key operational practice, in this instance, the tool used allowed too much capacity to be removed too quickly. We have modified this tool to remove capacity more slowly and added safeguards to prevent capacity from being removed when it will take any subsystem below its minimum required capacity level. This will prevent an incorrect input from triggering a similar event in the future. We are also auditing our other operational tools to ensure we have similar safety checks. We will also make changes to improve the recovery time of key S3 subsystems. We employ multiple techniques to allow our services to recover from any failure quickly. One of the most important involves breaking services into small partitions which we call cells. By factoring services into cells, engineering teams can assess and thoroughly test recovery processes of even the largest service or subsystem. As S3 has scaled, the team has done considerable work to refactor parts of the service into smaller cells to reduce blast radius and improve recovery. During this event, the recovery time of the index subsystem still took longer than we expected. The S3 team had planned further partitioning of the index subsystem later this year. We are reprioritizing that work to begin immediately.",
+     "similarity": 0.5960719723461736,
+     "origin": "deep_search",
+     "query": "root cause human error command typo remove servers S3 outage fix recovery",
+     "query_source": "llm"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "content": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nS3 subsystems are designed to support the removal or failure of significant capacity with little or no customer impact. We build our systems with the assumption that things will occasionally fail, and we rely on the ability to remove and replace capacity as one of our core operational processes. While this is an operation that we have relied on to maintain our systems since the launch of S3, we have not completely restarted the index subsystem or the placement subsystem in our larger regions for many years. S3 has experienced massive growth over the last several years and the process of restarting these services and running the necessary safety checks to validate the integrity of the metadata took longer than expected. The index subsystem was the first of the two affected subsystems that needed to be restarted. By 12:26PM PST, the index subsystem had activated enough capacity to begin servicing S3 GET, LIST, and DELETE requests. By 1:18PM PST, the index subsystem was fully recovered and GET, LIST, and DELETE APIs were functioning normally. The S3 PUT API also required the placement subsystem. The placement subsystem began recovery when the index subsystem was functional and finished recovery at 1:54PM PST. At this point, S3 was operating normally. Other AWS services that were impacted by this event began recovering. Some of these services had accumulated a backlog of work during the S3 disruption and required additional time to fully recover.",
+     "similarity": 0.3118149747824748,
+     "origin": "deep_search",
+     "query": "what was the root cause of the failure",
+     "query_source": "cause"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "content": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nFrom the beginning of this event until 11:37AM PST, we were unable to update the individual services’ status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console has on Amazon S3. Instead, we used the AWS Twitter feed (@AWSCloud) and SHD banner text to communicate status until we were able to update the individual services’ status on the SHD. We understand that the SHD provides important visibility to our customers during operational events and we have changed the SHD administration console to run across multiple AWS regions.\n\nFinally, we want to apologize for the impact this event caused for our customers. While we are proud of our long track record of availability with Amazon S3, we know how critical this service is to our customers, their applications and end users, and their businesses. We will do everything we can to learn from this event and use it to improve our availability even further.",
+     "similarity": 0.3026619548252578,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "content": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nWe’d like to give you some additional information about the service disruption that occurred in the Northern Virginia (US-EAST-1) Region on the morning of February 28th, 2017. The Amazon Simple Storage Service (S3) team was debugging an issue causing the S3 billing system to progress more slowly than expected. At 9:37AM PST, an authorized S3 team member using an established playbook executed a command which was intended to remove a small number of servers for one of the S3 subsystems that is used by the S3 billing process. Unfortunately, one of the inputs to the command was entered incorrectly and a larger set of servers was removed than intended. The servers that were inadvertently removed supported two other S3 subsystems. One of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region. This subsystem is necessary to serve all GET, LIST, PUT, and DELETE requests.",
+     "similarity": 0.632621871813907,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "content": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nOne of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region. This subsystem is necessary to serve all GET, LIST, PUT, and DELETE requests. The second subsystem, the placement subsystem, manages allocation of new storage and requires the index subsystem to be functioning properly to correctly operate. The placement subsystem is used during PUT requests to allocate storage for new objects. Removing a significant portion of the capacity caused each of these systems to require a full restart. While these subsystems were being restarted, S3 was unable to service requests. Other AWS services in the US-EAST-1 Region that rely on S3 for storage, including the S3 console, Amazon Elastic Compute Cloud (EC2) new instance launches, Amazon Elastic Block Store (EBS) volumes (when data was needed from a S3 snapshot), and AWS Lambda were also impacted while the S3 APIs were unavailable.",
+     "similarity": 0.6186218538005255,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    }
+   ],
+   "found_by": "description",
+   "deepened": true,
+   "why": "This incident matches the current one closely: cloud object store (S3) in US East region, human error during routine procedure removing servers, cascading failures to EC2/EBS and dependent services. Need root cause and fix details."
+  },
+  {
+   "incident_id": "DAN-106",
+   "company": "Amazon",
+   "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+   "url": "https://aws.amazon.com/message/65648/",
+   "summary": "Human error during a routine networking upgrade led to a resource crunch, exacerbated by software bugs, that ultimately resulted in an outage across all US East Availability Zones as well as a loss of 0.07% of volumes.",
+   "similarity": 0.6725963745244742,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "Human error during a routine networking upgrade led to a resource crunch, exacerbated by software bugs, that ultimately resulted in an outage across all US East Availability Zones as well as a loss of 0.07% of volumes."
+   },
+   "passages": [
+    {
+     "section": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "content": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nThe team faced two challenges which delayed getting capacity online. First, when a node fails, the EBS cluster does not reuse the failed node until every data replica is successfully re-mirrored. This is a conscious decision so that we can recover data if a cluster fails to behave as designed. Because we did not want to re-purpose this failed capacity until we were sure we could recover affected user volumes on the failed nodes, the team had to install a large amount of additional new capacity to replace that capacity in the cluster. This required the time-consuming process of physically relocating excess server capacity from across the US East Region and installing that capacity into the degraded EBS cluster. Second, because of the changes made to reduce the node-to-node communication used by peers to find new capacity (which is what stabilized the cluster in the step described above), the team had difficulty incorporating the new capacity into the cluster.",
+     "similarity": 0.6921399143536556,
+     "origin": "deep_search",
+     "query": "root cause human error networking upgrade resource crunch EC2 RDS US East outage fix",
+     "query_source": "llm"
+    },
+    {
+     "section": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "content": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nRDS multi-AZ deployments provide redundancy by synchronously replicating data between two database replicas in different Availability Zones. In the event of a failure on the primary replica, RDS is designed to automatically detect the disruption and fail over to the secondary replica. Of multi-AZ database instances in the US East Region, 2.5% did not automatically failover after experiencing “stuck” I/O. The primary cause was that the rapid succession of network interruption (which partitioned the primary from the secondary) and “stuck” I/O on the primary replica triggered a previously un-encountered bug. This bug left the primary replica in an isolated state where it was not safe for our monitoring agent to automatically fail over to the secondary replica without risking data loss, and manual intervention was required. We are actively working on a fix to resolve this issue.\n\n**Preventing the Event**\n\nThe trigger for this event was a network configuration change. We will audit our change process and increase the automation to prevent this mistake from happening in the future. However, we focus on building software and services to survive failures. Much of the work that will come out of this event will be to further protect the EBS service in the face of a similar failure in the future.",
+     "similarity": 0.3940503847139569,
+     "origin": "deep_search",
+     "query": "what was the root cause of the failure",
+     "query_source": "cause"
+    },
+    {
+     "section": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "content": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nIn addition to the technical insights and improvements that will result from this event, we also identified improvements that need to be made in our customer communications. We would like our communications to be more frequent and contain more information. We understand that during an outage, customers want to know as many details as possible about what’s going on, how long it will take to fix, and what we are doing so that it doesn’t happen again. Most of the AWS team, including the entire senior leadership team, was directly involved in helping to coordinate, troubleshoot and resolve the event. Initially, our primary focus was on thinking through how to solve the operational problems for customers rather than on identifying root causes. We felt that that focusing our efforts on a solution and not the problem was the right thing to do for our customers, and that it helped us to return the services and our customers back to health more quickly. We updated customers when we had new information that we felt confident was accurate and refrained from speculating, knowing that once we had returned the services back to health that we would quickly transition to the data collection and analysis stage that would drive this post mortem.\n\nThat said, we think we can improve in this area. We switched to more regular updates part of the way through this event and plan to continue with similar frequency of updates in the future. In addition, we are already working on how we can staff our developer support team more expansively in an event such as this, and organize to provide early and meaningful information, while still avoiding speculation.\n\nWe also can do a better job of making it easier for customers to tell if their resources have been impacted, and we are developing tools to allow you to see via the APIs if your instances are impaired.\n\n**Service Credit for Affected Customers**",
+     "similarity": 0.4482895601882608,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "content": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nWe will be making a number of changes to prevent a cluster from getting into a re-mirroring storm in the future. With additional excess capacity, the degraded EBS cluster would have more quickly absorbed the large number of re-mirroring requests and avoided the re-mirroring storm. We now understand the amount of capacity needed for large recovery events and will be modifying our capacity planning and alarming so that we carry the additional safety capacity that is needed for large scale failures. We have already increased our capacity buffer significantly, and expect to have the requisite new capacity in place in a few weeks. We will also modify our retry logic in the EBS server nodes to prevent a cluster from getting into a re-mirroring storm. When a large interruption occurs, our retry logic will back off more aggressively and focus on re-establishing connectivity with previous replicas rather than futilely searching for new nodes with which to re-mirror. We have begun working through these changes and are confident we can address the root cause of the re-mirroring storm by modifying this logic. Finally, we have identified the source of the race condition that led to EBS node failure. We have a fix and will be testing it and deploying it to our clusters in the next couple of weeks. These changes provide us with three separate protections against having a repeat of this event.\n\n**Impact to Multiple Availability Zones**",
+     "similarity": 0.38805291713768253,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "content": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nAfter the initial sequence of events described above, the degraded EBS cluster had an immediate impact on the EBS control plane. When the EBS cluster in the affected Availability Zone entered the re-mirroring storm and exhausted its available capacity, the cluster became unable to service “create volume” API requests. Because the EBS control plane (and the create volume API in particular) was configured with a long time-out period, these slow API calls began to back up and resulted in thread starvation in the EBS control plane. The EBS control plane has a regional pool of available threads it can use to service requests. When these threads were completely filled up by the large number of queued requests, the EBS control plane had no ability to service API requests and began to fail API requests for other Availability Zones in that Region as well. At 2:40 AM PDT on April 21st, the team deployed a change that disabled all new Create Volume requests in the affected Availability Zone, and by 2:50 AM PDT, latencies and error rates for all other EBS related APIs recovered.",
+     "similarity": 0.6533783786247533,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    },
+    {
+     "section": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "content": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nTwo factors caused the situation in this EBS cluster to degrade further during the early part of the event. First, the nodes failing to find new nodes did not back off aggressively enough when they could not find space, but instead, continued to search repeatedly. There was also a race condition in the code on the EBS nodes that, with a very low probability, caused them to fail when they were concurrently closing a large number of requests for replication. In a normally operating EBS cluster, this issue would result in very few, if any, node crashes; however, during this re-mirroring storm, the volume of connection attempts was extremely high, so it began triggering this issue more frequently. Nodes began to fail as a result of the bug, resulting in more volumes left needing to re-mirror. This created more “stuck” volumes and added more requests to the re-mirroring storm.",
+     "similarity": 0.6406779933279414,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    }
+   ],
+   "found_by": "description",
+   "deepened": true,
+   "why": "Another US East region incident caused by human error during routine upgrade, affecting multiple services. Good comparison point but less focused on object store specifically."
+  },
+  {
+   "incident_id": "DAN-037",
+   "company": "Google",
+   "title": "Google Cloud Status Dashboard — Two misconfigurations, plus a software bug, caused a massive Google Cloud Network failure on the US East Coast",
+   "url": "https://status.cloud.google.com/incident/cloud-networking/19009",
+   "summary": "Two misconfigurations, plus a software bug, caused a massive Google Cloud Network failure on the US East Coast.",
+   "similarity": 0.6665518475136527,
+   "best_chunk": {
+    "type": "text",
+    "section": "App Engine",
+    "content": "## App Engine\n\nApp Engine applications hosted in us-east4, us-west2, northamerica-northeast1 and southamerica-east1 were unavailable for the duration of the disruption. The us-central region saw a 23.2% drop in requests per second (RPS). Requests that reached App Engine executed normally, while requests that did not returned client timeout errors."
+   },
+   "passages": [
+    {
+     "section": "ROOT CAUSE AND REMEDIATION",
+     "content": "## ROOT CAUSE AND REMEDIATION\n\nAs the network control plane was rescheduled in each location, and the relevant configuration was recreated and distributed, network capacity began to come back online. Recovery of network capacity started at 15:19, and full service was resumed at 16:10 US/Pacific time.\n\nThe multiple concurrent failures which contributed to the initiation of the outage, and the prolonged duration, are the focus of a significant post-mortem process at Google which is designed to eliminate not just these specific issues, but the entire class of similar problems. Full details follow in the Prevention and Follow-Up section.",
+     "similarity": 0.855048649607089,
+     "origin": "deep_search",
+     "query": "root cause misconfiguration software bug Google Cloud Network US East Coast failure fix",
+     "query_source": "llm"
+    },
+    {
+     "section": "ROOT CAUSE AND REMEDIATION",
+     "content": "## ROOT CAUSE AND REMEDIATION\n\nGoogle engineers were alerted to the failure two minutes after it began, and rapidly engaged the incident management protocols used for the most significant of production incidents. Debugging the problem was significantly hampered by failure of tools competing over use of the now-congested network. The defense in depth philosophy means we have robust backup plans for handling failure of such tools, but use of these backup plans (including engineers travelling to secure facilities designed to withstand the most catastrophic failures, and a reduction in priority of less critical network traffic classes to reduce congestion) added to the time spent debugging. Furthermore, the scope and scale of the outage, and collateral damage to tooling as a result of network congestion, made it initially difficult to precisely identify impact and communicate accurately with customers.\n\nAs of 13:01 US/Pacific, the incident had been root-caused, and engineers halted the automation software responsible for the maintenance event. We then set about re-enabling the network control plane and its supporting infrastructure. Additional problems once again extended the recovery time: with all instances of the network control plane descheduled in several locations, configuration data had been lost and needed to be rebuilt and redistributed. Doing this during such a significant network configuration event, for multiple locations, proved to be time-consuming. The new configuration began to roll out at 14:03.\n\nIn parallel with these efforts, multiple teams within Google applied mitigations specific to their services, directing traffic away from the affected regions to allow continued serving from elsewhere.",
+     "similarity": 0.8501156206176955,
+     "origin": "deep_search",
+     "query": "root cause misconfiguration software bug Google Cloud Network US East Coast failure fix",
+     "query_source": "llm"
+    },
+    {
+     "section": "ROOT CAUSE AND REMEDIATION",
+     "content": "## ROOT CAUSE AND REMEDIATION\n\nThe outage progressed as follows: at 11:45 US/Pacific, the previously-mentioned maintenance event started in a single physical location; the automation software created a list of jobs to deschedule in that physical location, which included the logical clusters running network control jobs. Those logical clusters also included network control jobs in other physical locations. The automation then descheduled each in-scope logical cluster, including the network control jobs and their supporting infrastructure in multiple physical locations.\n\nGoogle's resilience strategy relies on the principle of defense in depth. Specifically, despite the network control infrastructure being designed to be highly resilient, the network is designed to 'fail static' and run for a period of time without the control plane being present as an additional line of defense against failure. The network ran normally for a short period - several minutes - after the control plane had been descheduled. After this period, BGP routing between specific impacted physical locations was withdrawn, resulting in the significant reduction in network capacity observed by our services and users, and the inaccessibility of some Google Cloud regions. End-user impact began to be seen in the period 11:47-11:49 US/Pacific.",
+     "similarity": 0.510275077910211,
+     "origin": "deep_search",
+     "query": "what was the root cause of the failure",
+     "query_source": "cause"
+    },
+    {
+     "section": "PREVENTION AND FOLLOW-UP",
+     "content": "## PREVENTION AND FOLLOW-UP\n\nWe have immediately halted the datacenter automation software which deschedules jobs in the face of maintenance events. We will re-enable this software only when we have ensured the appropriate safeguards are in place to avoid descheduling of jobs in multiple physical locations concurrently. Further, we will harden Google's cluster management software such that it rejects such requests regardless of origin, providing an additional layer of defense in depth and eliminating other similar classes of failure.\n\nGoogle's network control plane software and supporting infrastructure will be reconfigured such that it handles datacenter maintenance events correctly, by rejecting maintenance requests of the type implicated in this incident. Furthermore, the network control plane in any single location will be modified to persist its configuration so that the configuration does not need to be rebuilt and redistributed in the event of all jobs being descheduled. This will reduce recovery time by an order of magnitude. Finally, Google's network will be updated to continue in 'fail static' mode for a longer period in the event of loss of the control plane, to allow an adequate window for recovery with no user impact.\n\nGoogle's emergency response tooling and procedures will be reviewed, updated and tested to ensure that they are robust to network failures of this kind, including our tooling for communicating with the customer base. Furthermore, we will extend our continuous disaster recovery testing regime to include this and other similarly catastrophic failures.\n\nOur post-mortem process will be thorough and broad, and remains at a relatively early stage. Further action items may be identified as this process progresses.",
+     "similarity": 0.4346080719903329,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "ROOT CAUSE AND REMEDIATION",
+     "content": "## ROOT CAUSE AND REMEDIATION\n\nThis was a major outage, both in its scope and duration. As is always the case in such instances, multiple failures combined to amplify the impact.\n\nWithin any single physical datacenter location, Google's machines are segregated into multiple logical clusters which have their own dedicated cluster management software, providing resilience to failure of any individual cluster manager. Google's network control plane runs under the control of different instances of the same cluster management software; in any single location, again, multiple instances of that cluster management software are used, so that failure of any individual instance has no impact on network capacity.\n\nGoogle's cluster management software plays a significant role in automating datacenter maintenance events, like power infrastructure changes or network augmentation. Google's scale means that maintenance events are globally common, although rare in any single location. Jobs run by the cluster management software are labelled with an indication of how they should behave in the face of such an event: typically jobs are either moved to a machine which is not under maintenance, or stopped and rescheduled after the event.\n\nTwo normally-benign misconfigurations, and a specific software bug, combined to initiate the outage: firstly, network control plane jobs and their supporting infrastructure in the impacted regions were configured to be stopped in the face of a maintenance event. Secondly, the multiple instances of cluster management software running the network control plane were marked as eligible for inclusion in a particular, relatively rare maintenance event type. Thirdly, the software initiating maintenance events had a specific bug, allowing it to deschedule multiple independent software clusters at once, crucially even if those clusters were in different physical locations.",
+     "similarity": 0.3635150899168409,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "App Engine",
+     "content": "## App Engine\n\nApp Engine applications hosted in us-east4, us-west2, northamerica-northeast1 and southamerica-east1 were unavailable for the duration of the disruption. The us-central region saw a 23.2% drop in requests per second (RPS). Requests that reached App Engine executed normally, while requests that did not returned client timeout errors.",
+     "similarity": 0.6665518475136527,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    },
+    {
+     "section": "Cloud Console",
+     "content": "## Cloud Console\n\nCloud Console customers may have seen pages load more slowly, partially or not at all. Impact was more severe for customers who were in the eastern US as the congested links were concentrated between central US and eastern US regions for the duration of the disruption.",
+     "similarity": 0.6587571331212946,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    }
+   ],
+   "found_by": "description",
+   "deepened": true,
+   "why": "US East Coast outage caused by misconfigurations, but this is Google Cloud network not object store. Less relevant but worth checking for patterns."
+  },
+  {
+   "incident_id": "DAN-072",
+   "company": "Google",
+   "title": "Incident details | Google Cloud Service Health — On Tuesday, 19 July 2022 at 06:33 US/Pacific, a simultaneous failure of multiple, redundant cooling systems in one...",
+   "url": "https://status.cloud.google.com/incidents/fmEL9i2fArADKawkZAa2",
+   "summary": "On Tuesday, 19 July 2022 at 06:33 US/Pacific, a simultaneous failure of multiple, redundant cooling systems in one of the data centers that hosts the zone europe-west2-a impacted multiple Google Cloud services. This resulted in some customers experiencing service unavailability for impacted products.",
+   "similarity": 0.675768451678868,
+   "best_chunk": {
+    "type": "text",
+    "section": "Incident Report",
+    "content": "## Incident Report\n\n- Google Cloud Storage: On Tuesday, 19 July 2022 between 07:18 and 08:54 US/Pacific, ReadObject availability for buckets located in europe-west2 dropped to approximately 86%, and the entire region's availability to 96%. This impacted 24% of customer projects within this region. Customers would have received HTTP 500s when reading previously written data. All other operations, as well as read for new ingress, or data that was outside of the affected zones were not impacted. The total impact duration was 96 minutes. Google Cloud Storage (GCS) stores replicas in at least 2 independent colossus clusters. As a regional (not zonal) product, GCS leverages placement algorithms to ensure locations, network, and data center diversity when selecting colossus clusters [1]. There was a legacy placement algorithm isolated to just the europe-west2 region allowing for three colossus clusters in the region to be impacted by the same underlying issue relating to a single data center. In a small number of cases GCS had replicated regional data residing in two offline clusters, and subsequently some customers were unable to access and read some of their existing regional scoped data when the regional clusters were taken offline. Writes and other operations were not impacted. [1] - https://cloud.google.com/blog/products/storage-data-transfer/a-peek-behind-colossus-googles-file-system Impact Mitigation time: Tuesday, 19 July 2022 08:54 US/Pacific.\n\nOther Services"
+   },
+   "passages": [
+    {
+     "section": "Incident Report",
+     "content": "## Incident Report\n\n- Google Cloud Storage: On Tuesday, 19 July 2022 between 07:18 and 08:54 US/Pacific, ReadObject availability for buckets located in europe-west2 dropped to approximately 86%, and the entire region's availability to 96%. This impacted 24% of customer projects within this region. Customers would have received HTTP 500s when reading previously written data. All other operations, as well as read for new ingress, or data that was outside of the affected zones were not impacted. The total impact duration was 96 minutes. Google Cloud Storage (GCS) stores replicas in at least 2 independent colossus clusters. As a regional (not zonal) product, GCS leverages placement algorithms to ensure locations, network, and data center diversity when selecting colossus clusters [1]. There was a legacy placement algorithm isolated to just the europe-west2 region allowing for three colossus clusters in the region to be impacted by the same underlying issue relating to a single data center. In a small number of cases GCS had replicated regional data residing in two offline clusters, and subsequently some customers were unable to access and read some of their existing regional scoped data when the regional clusters were taken offline. Writes and other operations were not impacted. [1] - https://cloud.google.com/blog/products/storage-data-transfer/a-peek-behind-colossus-googles-file-system Impact Mitigation time: Tuesday, 19 July 2022 08:54 US/Pacific.\n\nOther Services",
+     "similarity": 0.675768451678868,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    },
+    {
+     "section": "Update — 19 Jul 2022 19:45 PDT",
+     "content": "## Update — 19 Jul 2022 19:45 PDT\n\nDescription: A cooling related failure in one of our buildings that hosts zone europe-west2-a for region europe-west2 is affecting multiple Cloud services.\n\nWe apologize to all who are affected by the disruption.\n\nProduct Impact:\n\nGoogle Cloud Storage:\n\n- Impact/Diagnosis: Customers with data in the impacted region will see elevated errors when attempting to read objects\n\n- Workaround: None at this time.\n\n- Impact Mitigation time: 08:53 US/Pacific\n\nGoogle BigQuery:\n\n- Workaround: None at this time.\n\n- Impact Mitigation time: 13:43 US/Pacific\n\nGoogle App Engine and Cloud Functions:\n\n- Workaround: Customers are advised to fail over to another region if possible.\n\n- Impact Mitigation time: 11:05 US/Pacific\n\nDataFlow:\n\n- Impact Mitigation time: 12:38 US/Pacific\n\nCloud Composer:\n\n- Workaround: None at this time.\n\nCloud Filestore:\n\n- Impact/Diagnosis: europe-west2-a is unavailable for all customers\n\nCloud SQL:\n\n- Impact/Diagnosis: 50% of non-HA instances backed by europe-west2-a are hard-down in europe-west2-a. All but 13 HA instances in europe-west2 are operational again as of 19:00 PT.\n\n- Workaround: None at this time.\n\nMemoryStore for Redis:\n\n- Impact/Diagnosis: Customers will experience timeouts for management api (create,update,delete,etc), and cache flushes\n\n- Workaround: None at this time.\n\nMemoryStore for Memcached\n\n- Workaround: None at this time.\n\nPersistent Disk:",
+     "similarity": 0.6619562967206183,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-008",
+   "company": "Cloudflare",
+   "title": "Partial Cloudflare outage on October 25, 2022",
+   "url": "https://web.archive.org/web/20221112015610/https://blog.cloudflare.com/partial-cloudflare-outage-on-october-25-2022/",
+   "summary": "A change to our Tiered Cache system caused some requests to fail for users with status code 530. The impact lasted for almost six hours in total. We estimate that about 5% of all requests failed at peak. Because of the complexity of our system and a blind spot in our tests, we did not spot this when the change was released to our test environment.",
+   "similarity": 0.665320530906434,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "A change to our Tiered Cache system caused some requests to fail for users with status code 530. The impact lasted for almost six hours in total. We estimate that about 5% of all requests failed at peak. Because of the complexity of our system and a blind spot in our tests, we did not spot this when the change was released to our test environment."
+   },
+   "passages": [
+    {
+     "section": "",
+     "content": "*This post is also available in 简体中文, 日本語, Français, Deutsch and Español.*\n\nToday, a change to our Tiered Cache system caused some requests to fail for users with status code 530. The impact lasted for almost six hours in total. We estimate that about 5% of all requests failed at peak. Because of the complexity of our system and a blind spot in our tests, we did not spot this when the change was released to our test environment.\n\nThe failures were caused by side effects of how we handle cacheable requests across locations. At first glance, the errors looked like they were caused by a different system that had started a release some time before. It took our teams a number of tries to identify exactly what was causing the problems. Once identified we expedited a rollback which completed in 87 minutes.\n\nWe’re sorry, and we’re taking steps to make sure this does not happen again.",
+     "similarity": 0.6212541780322572,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    },
+    {
+     "section": "Conclusion",
+     "content": "### Conclusion\n\nWe experienced an incident that affected a significant set of customers using Tiered Cache. After identifying the faulty component, we were able to quickly rollback and remediate the issue. We are sorry for any disruption this has caused our customers and end users trying to access services.\n\nRemediations to prevent such an incident from happening in the future will be put in place as soon as possible.",
+     "similarity": 0.5520872375642306,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-151",
+   "company": "Elastic",
+   "title": "Elastic Cloud Incident Report: February 4, 2019 | Elastic Blog",
+   "url": "https://www.elastic.co/blog/elastic-cloud-incident-report-feburary-4-2019",
+   "summary": "Elastic Cloud customers with deployments in the AWS us-east-1 region experienced degraded access to their clusters.",
+   "similarity": 0.6642222648809529,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "Elastic Cloud customers with deployments in the AWS us-east-1 region experienced degraded access to their clusters."
+   },
+   "passages": [
+    {
+     "section": "Impact",
+     "content": "## Impact\n\n### Coordination layer\n\n- 100% of customers in us-east-1\n- Inability to create, modify, or delete clusters through the customer control panel\n- ZooKeeper was unavailable between 02:50 UTC and 07:17 UTC",
+     "similarity": 0.6167469721332681,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    },
+    {
+     "section": "Kibana",
+     "content": "### Kibana\n\nThis was a result of a set of cascading failures. Access to Kibana was impacted by the aforementioned proxy layer outage.\n\n- Kibana instances were impacted between 02:50 UTC and 18:44 UTC\n- Access was initially impacted by proxy layer availability as well as service discovery issues\n- A number of hosts affected by a bug in our internal TLS proxying service triggered by extended unavailability were identified and fixed\n- A socket leak in Kibana was identified and mitigated by restarting Kibana containers\n- Other issues with Kibana that were determined to lead to request amplification are also being investigated",
+     "similarity": 0.5920054904552594,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-073",
+   "company": "PythonAnywhere",
+   "title": "Outage report 7 July 2020 - PythonAnywhere News",
+   "url": "https://blog.pythonanywhere.com/189/",
+   "summary": "A storage volume failure on one of storage servers caused a number of outages, starting with PythonAnywhere site and also with our users’ programs (including websites) that were dependent on that volume, and later spreading to other hosted sites.",
+   "similarity": 0.6641491807643454,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "A storage volume failure on one of storage servers caused a number of outages, starting with PythonAnywhere site and also with our users’ programs (including websites) that were dependent on that volume, and later spreading to other hosted sites."
+   },
+   "passages": [
+    {
+     "section": "17:04¶",
+     "content": "#### 17:04¶\n\nBy this point we had become sure that the system was getting blocked on storage IO, but the problem did not seem to be the machine itself like the original indications had suggested. However, we had checked out all of the attached storage volumes, and all of them were showing up as working OK.",
+     "similarity": 0.6413214310090538,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    },
+    {
+     "section": "The details¶",
+     "content": "### The details¶\n\nAt 16:06 UTC on 7 July 2020, a storage volume failure on one of our storage servers caused a number of outages, starting with our own site and also with our users’ programs (including websites) that were dependent on that volume, and later spreading to other hosted sites. Because all of the data that we store on behalf of our users is backed up and mirrored, no data was lost or at risk, but the outage was significantly longer than we would like.\n\nThe effects were:\n\n- Our own site was unavailable or generating an excessive number of errors from 16:06 to 18:53 UTC.\n- For accounts that were stored on the affected file storage:\n  - Websites were unavailable in general from 16:06 to 19:46 UTC, with some taking until 21:24 UTC to be fully available.\n  - Scheduled tasks did not run between 16:06 and 18:53-19:46 UTC (the precise end time depending on the account)\n  - Always-on tasks did not run between 16:06 and 18:53-19:46 UTC (the precise end time depending on the account)\n- For accounts that were not using the affected file storage\n  - Scheduled tasks, and always-on tasks were unaffected apart from a short window of about five minutes between 18:53 and 19:46 UTC.\n  - Websites were also unaffected apart from that window if they were already up and running when the problems started at 16:06 UTC. However, they could not be started up or reloaded between 16:06 and 18:53, and would have had a brief outage sometime between 18:53 and 19:46 UTC.\n  - However, of course, the problems on our own site would also have affected the owners of these accounts if they needed to log in to run or change things.\n\nThis post gives a more detailed timeline of what happened, and describes what steps we are taking to prevent a recurrence.",
+     "similarity": 0.6383676142380209,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-071",
+   "company": "Google",
+   "title": "Google Cloud Status Dashboard — Successive lightning strikes on their European datacenter (europe-west1-b) caused loss of power to Google Compute...",
+   "url": "https://status.cloud.google.com/incident/compute/15056#5719570367119360",
+   "summary": "Successive lightning strikes on their European datacenter (europe-west1-b) caused loss of power to Google Compute Engine storage systems within that region. I/O errors were observed on a subset of Standard Persistent Disks (HDDs) and permanent data loss was observed on a small fraction of those.",
+   "similarity": 0.6578613185190195,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "Successive lightning strikes on their European datacenter (europe-west1-b) caused loss of power to Google Compute Engine storage systems within that region. I/O errors were observed on a subset of Standard Persistent Disks (HDDs) and permanent data loss was observed on a small fraction of those."
+   },
+   "passages": [
+    {
+     "section": "Google Compute Engine Incident #15056",
+     "content": "# Google Compute Engine Incident #15056\n\n|\n|  | We are experiencing an issue with Google Compute Engine Persistent Disks in europe-west1-b beginning at Thursday, 2015-08-13 09:25 US/Pacific. Customers who have machines running in this zone may see read errors. For everyone who is affected, we apologize for any inconvenience you may be experiencing. We will provide an update by 12:00 US/Pacific with current details. |  |  |",
+     "similarity": 0.6166275074675722,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    },
+    {
+     "section": "Google Compute Engine Incident #15056",
+     "content": "# Google Compute Engine Incident #15056\n\n|\n|  | SUMMARY: From Thursday 13 August 2015 to Monday 17 August 2015, errors occurred on a small proportion of Google Compute Engine persistent disks in the europe-west1-b zone. The affected disks sporadically returned I/O errors to their attached GCE instances, and also typically returned errors for management operations such as snapshot creation. In a very small fraction of cases (less than 0.000001% of PD space in europe-west1-b), there was permanent data loss. Google takes availability very seriously, and the durability of storage is our highest priority. We apologise to all our customers who were affected by this exceptional incident. We have conducted a thorough analysis of the issue, in which we identified several contributory factors across the full range of our hardware and software technology stack, and we are working to improve these to maximise the reliability of GCE's whole storage layer. DETAILED DESCRIPTION OF IMPACT: From 09:19 PDT on Thursday 13 August 2015, to Monday 17 August 2015, some Standard Persistent Disks in the europe-west1-b zone began to return sporadic I/O errors to their connected GCE instances. In total, approximately 5% of the Standard Persistent Disks in the zone experienced at least one I/O read or write failure during the course of the incident. Some management operations on the affected disks also failed, such as disk snapshot creation. From the start of the incident, the number of affected disks progressively declined as Google engineers carried out data recovery operations.",
+     "similarity": 0.6141440688467094,
+     "origin": "similar",
+     "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  }
+ ]
+}

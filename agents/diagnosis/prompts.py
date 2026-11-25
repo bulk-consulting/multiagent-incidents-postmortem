@@ -1,8 +1,8 @@
 """The instructions (system prompt) of the Diagnosis agent and the text it reads.
 
 The agent reads the current incident (the analyst's own words), the Triage summary and the past incidents found by
-the Research agent, and writes a DiagnosisDraft (schema.py): the most likely causes, each with two comparisons
-(same kind of trigger? same kind of component?), what is missing, a search request and questions for the analyst.
+the Research agent, and writes a DiagnosisDraft (schema.py): the most likely causes, each with three comparisons
+(same kind of trigger? of component? same mechanism?), what is missing, a search request and questions for the analyst.
 Code turns it into the DiagnosisResult (schema.decide).
 """
 import json
@@ -27,6 +27,7 @@ EXAMPLE_ANSWER = json.dumps(
                            "which certificate is used, and no change is known before the failure.",
                 "same_trigger": "unknown",
                 "same_component": "yes",
+                "same_mechanism": "yes",
                 "confidence": "medium",
             }
         ],
@@ -54,13 +55,17 @@ How to work:
 2. Write up to {MAX_HYPOTHESES} hypotheses, from the most to the least likely. Each one says the probable cause of
    the CURRENT incident in 1 or 2 sentences, lists the past incidents it is based on (only IDs from PAST
    INCIDENTS), what matches and what differs.
-3. For each hypothesis, answer two questions about the past incident(s) it is based on, strictly:
+3. For each hypothesis, answer three questions about the past incident(s) it is based on, strictly:
    - same_trigger: was the past trigger the same KIND as the current one (for example both a routine capacity
      command, both a deploy of a new version, both a provider API change)? "yes", "no", or "unknown" if the
      current trigger is not known;
    - same_component: is the failing component the same KIND (for example both a relational database, both an
      edge/CDN network, both a coordination cluster, both a web frontend)? "yes" or "no". A different technology
-     of the same kind (PostgreSQL vs. MySQL) counts as "yes" only if the failure mechanism is the same.
+     of the same kind (PostgreSQL vs. MySQL) counts as "yes" only if the failure mechanism is the same;
+   - same_mechanism: would what broke in the past incident, and how it spread, explain the CURRENT symptoms in the
+     same way? "yes" only if a passage describes a mechanism that fits what the analyst reports; "no" if only
+     the general kind matches (for example both are "a backend change", but one corrupted tokens and the other
+     flooded a service with requests).
 4. Confidence: high = same kind of trigger, component and symptoms, and a passage states the cause; medium = the
    cause fits but part of the picture differs or is unknown; low = only a loose resemblance.
 5. Always write search_request: if a new search were needed, what kind of incident to look for, as keywords in
@@ -72,7 +77,7 @@ How to work:
 7. List in gaps what is missing to be sure.
 
 The system decides from your answer whether the evidence is enough and what happens next: be honest in
-same_trigger and same_component.
+same_trigger, same_component and same_mechanism.
 
 Rules:
 - Base every hypothesis on the past incidents given. Do not invent incidents, IDs, causes or details.

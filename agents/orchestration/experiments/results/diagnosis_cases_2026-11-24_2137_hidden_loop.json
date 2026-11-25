@@ -1,0 +1,1307 @@
+[
+ {
+  "case": "DAN-211",
+  "round": 1,
+  "hidden": [
+   "DAN-211"
+  ],
+  "description": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening.",
+  "triage": {
+   "affected_service": "service-discovery",
+   "trigger": "we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half",
+   "symptoms": [
+    "updates are taking much longer than usual",
+    "credential delivery is sluggish",
+    "shared service-discovery cluster is in poor health"
+   ],
+   "category": null
+  },
+  "real_root_cause": "The outage resulted from two primarily independent performance problems within Consul. First, the recently enabled streaming implementation suffered excessive contention under the combination of very high read and write loads. The streaming implementation used fewer Go channels for concurrency control than the previous long-polling approach. At this workload scale, contention on a shared channel blocked writes, increased CPU usage, and severely degraded Consul performance. The 128-core replacement servers, which used a dual-socket NUMA architecture, aggravated contention on shared resources. Second, the workload exposed a pathological BoltDB performance problem affecting Consul's Raft log persistence. BoltDB retained free pages from deleted log entries in an increasingly large freelist. The database contained approximately 3.8 GB of unused space and a 7.8 MB freelist, which was rewritten during small log appends, causing excessive write latency. Backpressure and full TCP buffers contributed to write times of 2 to 3 seconds on unhealthy leaders. Both problems affected a single shared Consul cluster that supported numerous critical services, amplifying the outage. Monitoring systems also depended on Consul, reducing visibility during diagnosis.",
+  "findings": [
+   {
+    "id": "DAN-098",
+    "deepened": true,
+    "title": "Addressing GitHub’s recent availability issues - The GitHub Blog — Two popular client apps had been quietly increasing read traffic 10×, then a Saturday change shortened a..."
+   },
+   {
+    "id": "DAN-109",
+    "deepened": true,
+    "title": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region"
+   },
+   {
+    "id": "DAN-205",
+    "deepened": false,
+    "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+   },
+   {
+    "id": "DAN-145",
+    "deepened": false,
+    "title": "Discord Status - Unavailable Guilds & Connection Issues"
+   },
+   {
+    "id": "DAN-148",
+    "deepened": false,
+    "title": "Postmortem of Service Outage at 3.4M CCU"
+   },
+   {
+    "id": "DAN-144",
+    "deepened": false,
+    "title": "Discord Status - Connectivity Issues"
+   },
+   {
+    "id": "DAN-066",
+    "deepened": false,
+    "title": "A Byzantine failure in the real world"
+   },
+   {
+    "id": "DAN-106",
+    "deepened": false,
+    "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+   }
+  ],
+  "right_incident_in_findings": false,
+  "right_incident_deepened": false,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "The request-routing application's switch to continuous updates from the coordination system plus its ~50% fleet growth created a sustained load increase on the shared service-discovery cluster, which became overwhelmed and slowed credential delivery and backend lookups.",
+     "based_on": [
+      "DAN-098"
+     ],
+     "matches": "A quiet load increase (fleet growth / continuous updates) combined with a change to how the app consumes a shared dependency, followed by a delayed cascade that degraded many dependent services.",
+     "differs": "The current trigger is a routing app and service-discovery cluster, whereas the past incident involved client apps and a core auth/user database; the current analyst is unsure whether the change caused the failure because operations seemed fine for close to a day.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "medium"
+    },
+    {
+     "cause": "The service-discovery cluster is suffering metadata overload and retry storms similar to a metadata service being flooded with membership requests, causing timeouts, node self-eviction, and cascading slowness across dependent backends.",
+     "based_on": [
+      "DAN-109"
+     ],
+     "matches": "Shared metadata/coordination infrastructure overload causing slow responses, timeouts, and cascading impact to services that depend on it.",
+     "differs": "The past incident was triggered by a network disruption and storage-node retries; the current incident's trigger is a routing-app change and fleet growth, and no retry storm or node eviction is described.",
+     "same_trigger": "no",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "low"
+    },
+    {
+     "cause": "A coordination-cluster quorum or connectivity problem, like two deployments losing quorum over an unstable shared peering point, is preventing the service-discovery cluster from responding promptly to applications.",
+     "based_on": [
+      "DAN-205"
+     ],
+     "matches": "A coordination/quorum system becoming unhealthy due to network instability, causing dependent applications to fail or slow down.",
+     "differs": "The past incident involved two cloud deployments sharing a peering point; the current incident involves a single shared service-discovery cluster and a recent routing-app change, with no mention of network partitions or quorum loss.",
+     "same_trigger": "no",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "We do not know whether the routing application's continuous updates actually increased discovery lookups, or whether the cluster was already degrading before the change.",
+    "No error messages, logs, or metrics from the service-discovery cluster are provided to confirm overload, quorum loss, or metadata timeouts.",
+    "The timeline is unclear: the change happened the preceding afternoon, but symptoms appeared the next early afternoon and worsened hours later; it is unknown if this delay is consistent with load growth or a separate cause."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "medium",
+   "low",
+   "low"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 15728,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [
+     "DAN-200 is not among the incidents found; ignored."
+    ],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Creden",
+      "ids": [
+       "DAN-205",
+       "DAN-145",
+       "DAN-148",
+       "DAN-144",
+       "DAN-066",
+       "DAN-106",
+       "DAN-096",
+       "DAN-029",
+       "DAN-129",
+       "DAN-098"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "service discovery cluster poor health slow credential delivery backend applications",
+      "ids": [
+       "DAN-020",
+       "DAN-129",
+       "DAN-109",
+       "DAN-220",
+       "DAN-219",
+       "DAN-222",
+       "DAN-029",
+       "DAN-066",
+       "DAN-145",
+       "DAN-112"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "routing application continuous updates from coordination system fleet scale service discovery degradation",
+      "ids": [
+       "DAN-020",
+       "DAN-151",
+       "DAN-018",
+       "DAN-205",
+       "DAN-066",
+       "DAN-220",
+       "DAN-143",
+       "DAN-135",
+       "DAN-144",
+       "DAN-184"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "traffic increase config change overwhelmed database cascading dependent services root cause fix",
+      "ids": [
+       "DAN-098"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-098"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-098"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "metadata service overload timeout cascading failure retry root cause fix",
+      "ids": [
+       "DAN-109"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-109"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-109"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-098",
+      "deepened": true,
+      "title": "Addressing GitHub’s recent availability issues - The GitHub Blog — Two popular client apps had been quietly increasing read traffic 10×, then a Saturday change shortened a..."
+     },
+     {
+      "id": "DAN-109",
+      "deepened": true,
+      "title": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region"
+     },
+     {
+      "id": "DAN-205",
+      "deepened": false,
+      "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+     },
+     {
+      "id": "DAN-145",
+      "deepened": false,
+      "title": "Discord Status - Unavailable Guilds & Connection Issues"
+     },
+     {
+      "id": "DAN-148",
+      "deepened": false,
+      "title": "Postmortem of Service Outage at 3.4M CCU"
+     },
+     {
+      "id": "DAN-144",
+      "deepened": false,
+      "title": "Discord Status - Connectivity Issues"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     },
+     {
+      "id": "DAN-106",
+      "deepened": false,
+      "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "The request-routing application's switch to continuous updates from the coordination system plus its ~50% fleet growth created a sustained load increase on the shared service-discovery cluster, which became overwhelmed and slowed credential delivery and backend lookups.",
+       "based_on": [
+        "DAN-098"
+       ],
+       "matches": "A quiet load increase (fleet growth / continuous updates) combined with a change to how the app consumes a shared dependency, followed by a delayed cascade that degraded many dependent services.",
+       "differs": "The current trigger is a routing app and service-discovery cluster, whereas the past incident involved client apps and a core auth/user database; the current analyst is unsure whether the change caused the failure because operations seemed fine for close to a day.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "The service-discovery cluster is suffering metadata overload and retry storms similar to a metadata service being flooded with membership requests, causing timeouts, node self-eviction, and cascading slowness across dependent backends.",
+       "based_on": [
+        "DAN-109"
+       ],
+       "matches": "Shared metadata/coordination infrastructure overload causing slow responses, timeouts, and cascading impact to services that depend on it.",
+       "differs": "The past incident was triggered by a network disruption and storage-node retries; the current incident's trigger is a routing-app change and fleet growth, and no retry storm or node eviction is described.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "low"
+      },
+      {
+       "cause": "A coordination-cluster quorum or connectivity problem, like two deployments losing quorum over an unstable shared peering point, is preventing the service-discovery cluster from responding promptly to applications.",
+       "based_on": [
+        "DAN-205"
+       ],
+       "matches": "A coordination/quorum system becoming unhealthy due to network instability, causing dependent applications to fail or slow down.",
+       "differs": "The past incident involved two cloud deployments sharing a peering point; the current incident involves a single shared service-discovery cluster and a recent routing-app change, with no mention of network partitions or quorum loss.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "We do not know whether the routing application's continuous updates actually increased discovery lookups, or whether the cluster was already degrading before the change.",
+      "No error messages, logs, or metrics from the service-discovery cluster are provided to confirm overload, quorum loss, or metadata timeouts.",
+      "The timeline is unclear: the change happened the preceding afternoon, but symptoms appeared the next early afternoon and worsened hours later; it is unknown if this delay is consistent with load growth or a separate cause."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "medium",
+     "low",
+     "low"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 15728
+   }
+  ],
+  "seconds": 95
+ },
+ {
+  "case": "DAN-197",
+  "round": 1,
+  "hidden": [
+   "DAN-197"
+  ],
+  "description": "Our automated checks are failing sporadically.\n\nAnalyst answer: We monitor a hosted database offering, and the failing step is the probe that provisions a new container. Our provisioning logic and request method have been unchanged for months. We are unaware of anything changing just before the errors appeared. We noticed the first rejection in the early evening UTC and marked availability as degraded roughly half an hour afterward. US East was hit first, with roughly three quarters of probes unsuccessful; locations elsewhere remained healthy. Requests to provision containers keep getting rejected because a parameter is deemed unacceptable. Some attempts pass, and the diagnostics do not tell us which parameter caused the rejection.",
+  "triage": {
+   "affected_service": "database",
+   "trigger": null,
+   "symptoms": [
+    "automated checks failing sporadically",
+    "container provisioning requests rejected because a parameter is deemed unacceptable"
+   ],
+   "category": null
+  },
+  "real_root_cause": "The cloud database provider introduced an unannounced breaking change to its API contract. A partition key field that had previously been optional became mandatory when creating database containers. Our existing SDK-based implementation did not explicitly supply this field, causing container creation requests to fail as the change progressively affected different regions.",
+  "findings": [
+   {
+    "id": "DAN-169",
+    "deepened": true,
+    "title": "Incident details | Google Cloud Service Health — A policy change containing blank fields triggered a null pointer exception in Service Control, Google's API..."
+   },
+   {
+    "id": "DAN-193",
+    "deepened": true,
+    "title": "Our October 20 Service Disruption: What Happened, What We Learned and How We’re Improving | LaunchDarkly"
+   },
+   {
+    "id": "DAN-027",
+    "deepened": true,
+    "title": "GitHub Availability Report: August 2024 - The GitHub Blog"
+   },
+   {
+    "id": "DAN-179",
+    "deepened": false,
+    "title": "Incident Review: Working as Designed, But Still Failing | Honeycomb"
+   },
+   {
+    "id": "DAN-178",
+    "deepened": false,
+    "title": "Incident Resolution: Do You Remember, the Twenty Fires of September? | Honeycomb"
+   },
+   {
+    "id": "DAN-116",
+    "deepened": false,
+    "title": "2013–09–17 Outage Postmortem. On September 17, 2013 starting at 17:54… | by Xandr Engineering | Xandr-Tech | Medium"
+   },
+   {
+    "id": "DAN-094",
+    "deepened": false,
+    "title": "February service disruptions post-incident analysis - The GitHub Blog"
+   },
+   {
+    "id": "DAN-086",
+    "deepened": false,
+    "title": "Summary of Windows Azure Service Disruption on Feb 29th, 2012 | Microsoft Azure Blog"
+   }
+  ],
+  "right_incident_in_findings": false,
+  "right_incident_deepened": false,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "A provider-side policy or configuration change introduced blank or invalid fields into a parameter that the database provisioning API validates, causing sporadic rejections that first appeared in US East before spreading.",
+     "based_on": [
+      "DAN-169"
+     ],
+     "matches": "Both involve requests being rejected because a parameter is deemed unacceptable/invalid, with a regional first impact (US East / us-central-1) and sporadic rather than total failure.",
+     "differs": "The current analyst reports no known change just before the errors, whereas DAN-169 was triggered by an explicit policy change; the current incident involves container provisioning rather than API quota/policy checks.",
+     "same_trigger": "unknown",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "medium"
+    },
+    {
+     "cause": "A configuration change to the hosted database's control plane broke how it answers provisioning or health-check requests, causing sporadic rejections concentrated in one region.",
+     "based_on": [
+      "DAN-027"
+     ],
+     "matches": "Both involve a configuration change affecting database-related request handling and a probe/health-check style step failing, with regional impact.",
+     "differs": "DAN-027 was a complete read endpoint outage for 36 minutes after an explicit config change, while the current incident is sporadic provisioning rejections with no known change and only US East degraded.",
+     "same_trigger": "unknown",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "medium"
+    },
+    {
+     "cause": "A regional cloud provider issue in US East caused container provisioning calls to be rejected with an invalid-parameter error, similar to how AWS us-east-1 problems cascaded into provisioning failures elsewhere.",
+     "based_on": [
+      "DAN-193"
+     ],
+     "matches": "Both show US East hit first with provisioning-related failures and other regions remaining healthy initially.",
+     "differs": "DAN-193 was triggered by a known major AWS outage plus an internal load-shedding change, while the current analyst reports no known trigger and the symptom is parameter rejection rather than load-balancer or retry overload.",
+     "same_trigger": "no",
+     "same_component": "no",
+     "same_mechanism": "no",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": false,
+   "gaps": [
+    "No known change is reported just before the errors, so it is unclear whether the trigger was a provider-side policy/config change, a regional cloud issue, or something else.",
+    "The analyst does not say which parameter is deemed unacceptable, and diagnostics do not identify it.",
+    "It is unknown whether the hosted database provider made any backend changes around the first rejection time.",
+    "No past incident describes exactly sporadic container-provisioning rejections due to an invalid parameter with regional first impact."
+   ],
+   "next_step": "ask_analyst",
+   "search_request": "",
+   "questions_for_analyst": [
+    "Which parameter is the provisioning request being rejected for, and do the diagnostics show any error code or message?",
+    "Did the database provider deploy any backend change, policy update, or configuration change around the time the first rejection appeared?",
+    "Are the failing provisioning requests all coming from US East, or are they spread across regions with US East just having a higher failure rate?"
+   ]
+  },
+  "model_confidence": [
+   "medium",
+   "medium",
+   "low"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 14445,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 4,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Our automated checks are failing sporadically.\n\nAnalyst answer: We monitor a hosted database offering, and the failing step is the probe that provisio",
+      "ids": [
+       "DAN-035",
+       "DAN-106",
+       "DAN-002",
+       "DAN-101",
+       "DAN-029",
+       "DAN-096",
+       "DAN-147",
+       "DAN-134",
+       "DAN-008",
+       "DAN-064"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "container provisioning request rejected parameter unacceptable sporadic",
+      "ids": [
+       "DAN-147",
+       "DAN-014",
+       "DAN-114",
+       "DAN-029",
+       "DAN-033",
+       "DAN-035",
+       "DAN-017",
+       "DAN-105",
+       "DAN-134",
+       "DAN-218"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "hosted database provisioning failure invalid parameter region degraded",
+      "ids": [
+       "DAN-048",
+       "DAN-029",
+       "DAN-075",
+       "DAN-020",
+       "DAN-106",
+       "DAN-060",
+       "DAN-043",
+       "DAN-151",
+       "DAN-058",
+       "DAN-164"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "container provisioning invalid parameter rejected request failure",
+      "ids": [
+       "DAN-033",
+       "DAN-017",
+       "DAN-042",
+       "DAN-015",
+       "DAN-014",
+       "DAN-173",
+       "DAN-191",
+       "DAN-210",
+       "DAN-044",
+       "DAN-055"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "hosted database container creation parameter not acceptable sporadic error",
+      "ids": [
+       "DAN-058",
+       "DAN-173",
+       "DAN-056",
+       "DAN-195",
+       "DAN-164",
+       "DAN-186",
+       "DAN-208",
+       "DAN-003",
+       "DAN-103",
+       "DAN-017"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "provisioning container request rejected invalid parameter API",
+      "ids": [
+       "DAN-014",
+       "DAN-015",
+       "DAN-013",
+       "DAN-044",
+       "DAN-210",
+       "DAN-032",
+       "DAN-066",
+       "DAN-016",
+       "DAN-012",
+       "DAN-050"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "container creation failed unacceptable parameter cloud service regional",
+      "ids": [
+       "DAN-151",
+       "DAN-111",
+       "DAN-114",
+       "DAN-044",
+       "DAN-105",
+       "DAN-037",
+       "DAN-104",
+       "DAN-072",
+       "DAN-015",
+       "DAN-115"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "container provision probe parameter rejected sporadic US East",
+      "ids": [
+       "DAN-218",
+       "DAN-115",
+       "DAN-184",
+       "DAN-189",
+       "DAN-012",
+       "DAN-073",
+       "DAN-191",
+       "DAN-107",
+       "DAN-211",
+       "DAN-072"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "hosted database container creation API validation error parameter",
+      "ids": [
+       "DAN-066",
+       "DAN-080",
+       "DAN-189",
+       "DAN-018",
+       "DAN-116",
+       "DAN-155",
+       "DAN-129",
+       "DAN-133",
+       "DAN-003",
+       "DAN-142"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-035",
+      "deepened": false,
+      "title": "Google Cloud Status Dashboard — A bug in configuration roll-out to a load balancer lead to increased error rates for 22 minutes"
+     },
+     {
+      "id": "DAN-106",
+      "deepened": false,
+      "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+     },
+     {
+      "id": "DAN-002",
+      "deepened": false,
+      "title": "Summary of the Amazon EC2 DNS Resolution Issues in the Asia Pacific (Seoul) Region (AP-NORTHEAST-2)"
+     },
+     {
+      "id": "DAN-101",
+      "deepened": false,
+      "title": "Battling database performance | Blog | incident.io"
+     },
+     {
+      "id": "DAN-029",
+      "deepened": false,
+      "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+     },
+     {
+      "id": "DAN-096",
+      "deepened": false,
+      "title": "An update on recent service disruptions - The GitHub Blog"
+     },
+     {
+      "id": "DAN-147",
+      "deepened": false,
+      "title": "Duo Status - Authentication Latency on DUO1 Deployment"
+     },
+     {
+      "id": "DAN-134",
+      "deepened": false,
+      "title": "Postmortem: May 21, 2021 - Delay in starting Docker Jobs. Machine & remote Docker environments blocked - Announcements - CircleCI Discuss"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A region-scoped configuration change to the hosted database service made container-provisioning requests fail validation in US East only, while other regions kept working.",
+       "based_on": [
+        "DAN-002"
+       ],
+       "matches": "Both incidents are region-scoped (US East first / only, other locations healthy) with no known change reported by the customer, and both involve a service-side configuration or capacity setting that causes requests to be rejected.",
+       "differs": "The past incident was about DNS resolver capacity and a minimum-healthy-hosts setting, not container provisioning parameter validation; we have no passage describing the exact rejection mechanism, so we cannot confirm it explains the 'unacceptable parameter' symptom.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A routine networking or capacity change by the database provider reduced available resources in US East, causing sporadic provisioning rejections that look like parameter errors.",
+       "based_on": [
+        "DAN-106"
+       ],
+       "matches": "Both involve a US East-focused disruption with no customer-known change before the errors, and both show regional impact while other areas stay healthy.",
+       "differs": "The past incident was triggered by a human error during a networking upgrade and involved resource exhaustion and volume loss, not parameter validation rejections; no deepened passage is available to confirm the mechanism.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "low"
+      },
+      {
+       "cause": "A configuration rollout bug to a load balancer or front-end component in the database service caused sporadic request rejections in one region.",
+       "based_on": [
+        "DAN-035"
+       ],
+       "matches": "Both involve increased error rates from a configuration rollout with no customer-known trigger, and both can be sporadic rather than total.",
+       "differs": "The past incident is not deepened, so we do not know the component, region scope, or whether requests were rejected for an unacceptable parameter; the match is only at the general 'configuration rollout caused errors' level.",
+       "same_trigger": "unknown",
+       "same_component": "no",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": false,
+     "gaps": [
+      "No deepened passages are available for any past incident, so we cannot verify the exact rejection mechanism or whether a parameter-validation bug occurred.",
+      "The current incident has no known trigger, so same_trigger cannot be confirmed for any hypothesis.",
+      "We do not know which parameter is deemed unacceptable, whether the rejection is region-specific in the provider's logs, or whether the provider deployed any configuration change around the first failure time."
+     ],
+     "next_step": "refine_search",
+     "search_request": "hosted database container provisioning request rejected invalid parameter region-specific configuration change",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "medium",
+     "low",
+     "low"
+    ],
+    "diagnosis_turns": 2,
+    "prompt_chars": 4695
+   },
+   {
+    "research_round": 2,
+    "request": "hosted database container provisioning request rejected invalid parameter region-specific configuration change",
+    "research_warnings": [],
+    "research_llm_calls": 4,
+    "searches": [
+     {
+      "step": "initial_search",
+      "query": "hosted database container provisioning request rejected invalid parameter region-specific configuration change",
+      "ids": [
+       "DAN-108",
+       "DAN-036",
+       "DAN-005",
+       "DAN-007",
+       "DAN-027",
+       "DAN-055",
+       "DAN-210",
+       "DAN-125",
+       "DAN-003",
+       "DAN-143"
+      ]
+     },
+     {
+      "step": "initial_search",
+      "query": "Our automated checks are failing sporadically.\n\nAnalyst answer: We monitor a hosted database offering, and the failing step is the probe that provisio",
+      "ids": [
+       "DAN-129",
+       "DAN-183",
+       "DAN-078",
+       "DAN-102",
+       "DAN-210",
+       "DAN-016",
+       "DAN-113",
+       "DAN-125",
+       "DAN-211",
+       "DAN-217"
+      ]
+     },
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Our automated checks are failing sporadically.\n\nAnalyst answer: We monitor a hosted database offering, and the failing step is the probe that provisio",
+      "ids": [
+       "DAN-092",
+       "DAN-220",
+       "DAN-135",
+       "DAN-027",
+       "DAN-205",
+       "DAN-133",
+       "DAN-154",
+       "DAN-108",
+       "DAN-221",
+       "DAN-026"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "container provisioning request rejected invalid parameter region-specific configuration change",
+      "ids": [
+       "DAN-055",
+       "DAN-007",
+       "DAN-005",
+       "DAN-036",
+       "DAN-108",
+       "DAN-143",
+       "DAN-054",
+       "DAN-039",
+       "DAN-031",
+       "DAN-053"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "hosted database container creation rejected parameter unacceptable sporadic US East",
+      "ids": [
+       "DAN-003",
+       "DAN-109",
+       "DAN-133",
+       "DAN-112",
+       "DAN-222",
+       "DAN-092",
+       "DAN-190",
+       "DAN-178",
+       "DAN-148",
+       "DAN-103"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "container provisioning invalid parameter error region-specific us-east",
+      "ids": [
+       "DAN-054",
+       "DAN-053",
+       "DAN-030",
+       "DAN-193",
+       "DAN-110",
+       "DAN-032",
+       "DAN-143",
+       "DAN-061",
+       "DAN-039",
+       "DAN-086"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "database service container creation rejected parameter unacceptable configuration change",
+      "ids": [
+       "DAN-036",
+       "DAN-032",
+       "DAN-103",
+       "DAN-018",
+       "DAN-053",
+       "DAN-039",
+       "DAN-222",
+       "DAN-219",
+       "DAN-169",
+       "DAN-130"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "managed database service provisioning container invalid parameter regional outage us-east",
+      "ids": [
+       "DAN-193",
+       "DAN-072",
+       "DAN-061",
+       "DAN-169",
+       "DAN-112",
+       "DAN-143",
+       "DAN-071",
+       "DAN-067",
+       "DAN-062",
+       "DAN-145"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "RDS Aurora database instance creation rejected parameter region-specific",
+      "ids": [
+       "DAN-061",
+       "DAN-190",
+       "DAN-072",
+       "DAN-112",
+       "DAN-006",
+       "DAN-062",
+       "DAN-193",
+       "DAN-110",
+       "DAN-138",
+       "DAN-143"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "policy change blank fields invalid parameter root cause fix",
+      "ids": [
+       "DAN-169"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-169"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-169"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "EC2 provisioning issues us-east-1 root cause fix",
+      "ids": [
+       "DAN-193"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-193"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-193"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "configuration change routing-service health-check invalid parameter root cause fix",
+      "ids": [
+       "DAN-027"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-027"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-027"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-169",
+      "deepened": true,
+      "title": "Incident details | Google Cloud Service Health — A policy change containing blank fields triggered a null pointer exception in Service Control, Google's API..."
+     },
+     {
+      "id": "DAN-193",
+      "deepened": true,
+      "title": "Our October 20 Service Disruption: What Happened, What We Learned and How We’re Improving | LaunchDarkly"
+     },
+     {
+      "id": "DAN-027",
+      "deepened": true,
+      "title": "GitHub Availability Report: August 2024 - The GitHub Blog"
+     },
+     {
+      "id": "DAN-129",
+      "deepened": false,
+      "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef"
+     },
+     {
+      "id": "DAN-183",
+      "deepened": false,
+      "title": "Clouds, caches and connection conundrums | Blog | incident.io"
+     },
+     {
+      "id": "DAN-078",
+      "deepened": false,
+      "title": "October 21 post-incident analysis - The GitHub Blog"
+     },
+     {
+      "id": "DAN-102",
+      "deepened": false,
+      "title": "Intermittent failures - incident.io Status"
+     },
+     {
+      "id": "DAN-210",
+      "deepened": false,
+      "title": "You Broke Reddit: The Pi-Day Outage : RedditEng"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A provider-side policy or configuration change introduced blank or invalid fields into a parameter that the database service validates during container provisioning, causing sporadic rejections first in US East.",
+       "based_on": [
+        "DAN-169"
+       ],
+       "matches": "Both involve requests being rejected because a parameter is deemed unacceptable/invalid, and both show a regional-first pattern (US East / us-central-1) with other locations initially healthy.",
+       "differs": "The current analyst reports no known change just before the errors, whereas DAN-169 was triggered by an explicit policy change; the current incident is sporadic rather than a global crash loop, and no passage confirms the exact parameter or validation mechanism.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A configuration change to the hosted database's backend broke how it answers provisioning or health-check requests, causing sporadic rejections concentrated in one region.",
+       "based_on": [
+        "DAN-027"
+       ],
+       "matches": "Both involve a configuration change affecting database-related request handling and a probe/health-check style step failing, with regional impact.",
+       "differs": "DAN-027 was a complete read endpoint outage for 36 minutes after an explicit erroneous config change, whereas the current incident is sporadic, ongoing, and the analyst is unaware of any change; the failing step is container provisioning, not read routing.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "low"
+      },
+      {
+       "cause": "An upstream regional cloud provider issue (similar to an AWS us-east-1 degradation) caused container provisioning calls to fail first in US East, with retries and cascading load making the failures appear sporadic.",
+       "based_on": [
+        "DAN-193"
+       ],
+       "matches": "Both show US East hit first with a large fraction of requests failing while other regions remain healthy, and both involve provisioning/scaling infrastructure struggling under load.",
+       "differs": "DAN-193 began with a known major AWS outage and involved an internal load-shedding change, whereas the current analyst reports no known trigger and the symptom is parameter rejection rather than connection errors or timeouts.",
+       "same_trigger": "no",
+       "same_component": "no",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": false,
+     "gaps": [
+      "The analyst does not know of any change before the errors, so we cannot confirm whether a provider-side policy/config change occurred.",
+      "The diagnostics do not identify which parameter is rejected, so we cannot verify whether it matches a blank-field or invalid-parameter mechanism.",
+      "No past incident describes a hosted database container-provisioning API rejecting requests for an unacceptable parameter.",
+      "It is unclear whether the regional pattern is caused by a regional rollout, a regional provider issue, or uneven traffic distribution."
+     ],
+     "next_step": "refine_search",
+     "search_request": "hosted database container provisioning API invalid parameter rejected regional outage",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "medium",
+     "low",
+     "low"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 14560
+   },
+   {
+    "research_round": 3,
+    "request": "hosted database container provisioning API invalid parameter rejected regional outage",
+    "research_warnings": [],
+    "research_llm_calls": 4,
+    "searches": [
+     {
+      "step": "initial_search",
+      "query": "hosted database container provisioning API invalid parameter rejected regional outage",
+      "ids": [
+       "DAN-086",
+       "DAN-023",
+       "DAN-006",
+       "DAN-001",
+       "DAN-097",
+       "DAN-209",
+       "DAN-063",
+       "DAN-139",
+       "DAN-098",
+       "DAN-234"
+      ]
+     },
+     {
+      "step": "initial_search",
+      "query": "Our automated checks are failing sporadically.\n\nAnalyst answer: We monitor a hosted database offering, and the failing step is the probe that provisio",
+      "ids": [
+       "DAN-179",
+       "DAN-178",
+       "DAN-116",
+       "DAN-094",
+       "DAN-130",
+       "DAN-011",
+       "DAN-156",
+       "DAN-031",
+       "DAN-097",
+       "DAN-093"
+      ]
+     },
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Our automated checks are failing sporadically.\n\nAnalyst answer: We monitor a hosted database offering, and the failing step is the probe that provisio",
+      "ids": [
+       "DAN-031",
+       "DAN-097",
+       "DAN-093",
+       "DAN-180",
+       "DAN-110",
+       "DAN-182",
+       "DAN-148",
+       "DAN-137",
+       "DAN-159",
+       "DAN-181"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "container provisioning API invalid parameter rejected regional outage",
+      "ids": [
+       "DAN-063",
+       "DAN-068",
+       "DAN-118",
+       "DAN-001",
+       "DAN-022",
+       "DAN-040",
+       "DAN-110",
+       "DAN-049",
+       "DAN-069",
+       "DAN-139"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "hosted database service container creation invalid parameter request rejected",
+      "ids": [
+       "DAN-226",
+       "DAN-144",
+       "DAN-155",
+       "DAN-120",
+       "DAN-188",
+       "DAN-190",
+       "DAN-181",
+       "DAN-050",
+       "DAN-204",
+       "DAN-148"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "container provisioning API invalid parameter request rejected",
+      "ids": [
+       "DAN-050",
+       "DAN-144",
+       "DAN-136",
+       "DAN-028",
+       "DAN-204",
+       "DAN-142",
+       "DAN-171",
+       "DAN-004",
+       "DAN-223",
+       "DAN-038"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "database service provisioning failure invalid parameter regional outage",
+      "ids": [
+       "DAN-209",
+       "DAN-146",
+       "DAN-234",
+       "DAN-226",
+       "DAN-188",
+       "DAN-231",
+       "DAN-155",
+       "DAN-230",
+       "DAN-098",
+       "DAN-144"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "invalid parameter container provisioning request rejected API",
+      "ids": [
+       "DAN-050",
+       "DAN-136",
+       "DAN-142",
+       "DAN-223",
+       "DAN-028",
+       "DAN-204",
+       "DAN-004",
+       "DAN-171",
+       "DAN-024",
+       "DAN-076"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "cloud database container creation invalid parameter API rejection",
+      "ids": [
+       "DAN-038",
+       "DAN-136",
+       "DAN-040",
+       "DAN-132",
+       "DAN-166",
+       "DAN-168",
+       "DAN-050",
+       "DAN-120",
+       "DAN-204",
+       "DAN-139"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "hosted database container provisioning invalid parameter rejected",
+      "ids": [
+       "DAN-190",
+       "DAN-142",
+       "DAN-091",
+       "DAN-028",
+       "DAN-223",
+       "DAN-095",
+       "DAN-024",
+       "DAN-049",
+       "DAN-194",
+       "DAN-192"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "database as a service provisioning API parameter error regional",
+      "ids": [
+       "DAN-194",
+       "DAN-190",
+       "DAN-126",
+       "DAN-049",
+       "DAN-162",
+       "DAN-009",
+       "DAN-045",
+       "DAN-223",
+       "DAN-091",
+       "DAN-095"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-169",
+      "deepened": true,
+      "title": "Incident details | Google Cloud Service Health — A policy change containing blank fields triggered a null pointer exception in Service Control, Google's API..."
+     },
+     {
+      "id": "DAN-193",
+      "deepened": true,
+      "title": "Our October 20 Service Disruption: What Happened, What We Learned and How We’re Improving | LaunchDarkly"
+     },
+     {
+      "id": "DAN-027",
+      "deepened": true,
+      "title": "GitHub Availability Report: August 2024 - The GitHub Blog"
+     },
+     {
+      "id": "DAN-179",
+      "deepened": false,
+      "title": "Incident Review: Working as Designed, But Still Failing | Honeycomb"
+     },
+     {
+      "id": "DAN-178",
+      "deepened": false,
+      "title": "Incident Resolution: Do You Remember, the Twenty Fires of September? | Honeycomb"
+     },
+     {
+      "id": "DAN-116",
+      "deepened": false,
+      "title": "2013–09–17 Outage Postmortem. On September 17, 2013 starting at 17:54… | by Xandr Engineering | Xandr-Tech | Medium"
+     },
+     {
+      "id": "DAN-094",
+      "deepened": false,
+      "title": "February service disruptions post-incident analysis - The GitHub Blog"
+     },
+     {
+      "id": "DAN-086",
+      "deepened": false,
+      "title": "Summary of Windows Azure Service Disruption on Feb 29th, 2012 | Microsoft Azure Blog"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A provider-side policy or configuration change introduced blank or invalid fields into a parameter that the database provisioning API validates, causing sporadic rejections that first appeared in US East before spreading.",
+       "based_on": [
+        "DAN-169"
+       ],
+       "matches": "Both involve requests being rejected because a parameter is deemed unacceptable/invalid, with a regional first impact (US East / us-central-1) and sporadic rather than total failure.",
+       "differs": "The current analyst reports no known change just before the errors, whereas DAN-169 was triggered by an explicit policy change; the current incident involves container provisioning rather than API quota/policy checks.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A configuration change to the hosted database's control plane broke how it answers provisioning or health-check requests, causing sporadic rejections concentrated in one region.",
+       "based_on": [
+        "DAN-027"
+       ],
+       "matches": "Both involve a configuration change affecting database-related request handling and a probe/health-check style step failing, with regional impact.",
+       "differs": "DAN-027 was a complete read endpoint outage for 36 minutes after an explicit config change, while the current incident is sporadic provisioning rejections with no known change and only US East degraded.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A regional cloud provider issue in US East caused container provisioning calls to be rejected with an invalid-parameter error, similar to how AWS us-east-1 problems cascaded into provisioning failures elsewhere.",
+       "based_on": [
+        "DAN-193"
+       ],
+       "matches": "Both show US East hit first with provisioning-related failures and other regions remaining healthy initially.",
+       "differs": "DAN-193 was triggered by a known major AWS outage plus an internal load-shedding change, while the current analyst reports no known trigger and the symptom is parameter rejection rather than load-balancer or retry overload.",
+       "same_trigger": "no",
+       "same_component": "no",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": false,
+     "gaps": [
+      "No known change is reported just before the errors, so it is unclear whether the trigger was a provider-side policy/config change, a regional cloud issue, or something else.",
+      "The analyst does not say which parameter is deemed unacceptable, and diagnostics do not identify it.",
+      "It is unknown whether the hosted database provider made any backend changes around the first rejection time.",
+      "No past incident describes exactly sporadic container-provisioning rejections due to an invalid parameter with regional first impact."
+     ],
+     "next_step": "ask_analyst",
+     "search_request": "",
+     "questions_for_analyst": [
+      "Which parameter is the provisioning request being rejected for, and do the diagnostics show any error code or message?",
+      "Did the database provider deploy any backend change, policy update, or configuration change around the time the first rejection appeared?",
+      "Are the failing provisioning requests all coming from US East, or are they spread across regions with US East just having a higher failure rate?"
+     ]
+    },
+    "model_confidence": [
+     "medium",
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 14445
+   }
+  ],
+  "seconds": 612
+ }
+]

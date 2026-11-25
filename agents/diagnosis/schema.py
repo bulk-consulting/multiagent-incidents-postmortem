@@ -35,7 +35,7 @@ class Hypothesis(BaseModel):
     matches: str
     differs: str
 
-    # Two simple comparisons the model makes for this hypothesis. Code uses them to limit the confidence and to
+    # Three simple comparisons the model makes for this hypothesis. Code uses them to limit the confidence and to
     # decide whether the evidence is enough (decide() below): in the tests the model judged each point well, but
     # almost always said "the evidence is enough" when asked for an overall judgment.
     #   same_trigger: is the past trigger the same KIND as the current one? "unknown" when the current trigger is
@@ -44,6 +44,10 @@ class Hypothesis(BaseModel):
     #                   network, a coordination cluster)?
     same_trigger: Literal["yes", "no", "unknown"]
     same_component: Literal["yes", "no"]
+    #   same_mechanism: would what broke in the past incident, and how it spread, explain the current symptoms in
+    #                   the same way? (In the tests, the trigger and the component were marked "yes" when only the
+    #                   general kind matched, e.g. a backend revision, while the failure itself was another one.)
+    same_mechanism: Literal["yes", "no"]
 
     confidence: Literal["high", "medium", "low"]
 
@@ -106,17 +110,19 @@ def _cap(confidence, top):
 def decide(draft, deepened_ids, research_round=1, max_rounds=3):
     """Turn the model's draft into the DiagnosisResult, applying the rules in code:
 
-    1. Confidence limit: high only if same kind of trigger AND component; medium at most otherwise; low if both
-       differ.
-    2. Evidence is enough only if a high/medium hypothesis has the same kind of component, a trigger that is not
-       different (same or unknown) and is based on at least one deepened incident (with passages).
+    1. Confidence limit: high only if same kind of trigger, component AND mechanism; medium at most otherwise;
+       low if trigger and component both differ.
+    2. Evidence is enough only if a high/medium hypothesis has the same kind of component and mechanism, is based
+       on at least one deepened incident (with passages) and its trigger is the same, or unknown from the second
+       research round on (with an unknown trigger, almost any incident with the same kind of component passed in
+       the first round: one more search is tried first).
     3. Next step: enough → report. Not enough → refine_search while there are research rounds left (and a
        search_request); otherwise ask_analyst if there are questions; otherwise an inconclusive report.
     """
     deepened = set(deepened_ids)
     hypotheses = []
     for h in draft.hypotheses:
-        if h.same_trigger == "yes" and h.same_component == "yes":
+        if h.same_trigger == "yes" and h.same_component == "yes" and h.same_mechanism == "yes":
             top = "high"
         elif h.same_trigger == "no" and h.same_component == "no":
             top = "low"
@@ -124,8 +130,9 @@ def decide(draft, deepened_ids, research_round=1, max_rounds=3):
             top = "medium"
         hypotheses.append(h.model_copy(update={"confidence": _cap(h.confidence, top)}))
 
-    sufficient = any(h.confidence in ("high", "medium") and h.same_component == "yes"
-                     and h.same_trigger != "no" and deepened.intersection(h.based_on) for h in hypotheses)
+    trigger_ok = ("yes", "unknown") if research_round > 1 or research_round >= max_rounds else ("yes",)
+    sufficient = any(h.confidence in ("high", "medium") and h.same_component == "yes" and h.same_mechanism == "yes"
+                     and h.same_trigger in trigger_ok and deepened.intersection(h.based_on) for h in hypotheses)
     if sufficient:
         next_step = "report"
     elif research_round < max_rounds and draft.search_request.strip():

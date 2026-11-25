@@ -1,0 +1,353 @@
+{
+ "case": "DAN-154",
+ "hidden": false,
+ "description": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact.",
+ "triage": {
+  "affected_service": "edge",
+  "trigger": null,
+  "symptoms": [
+   "widespread errors on edge infrastructure",
+   "more than 75% of edge infrastructure producing errors"
+  ],
+  "category": null
+ },
+ "warnings": [],
+ "findings": [
+  {
+   "incident_id": "DAN-154",
+   "company": "Fastly",
+   "title": "Summary of June 8 outage | Fastly",
+   "url": "https://www.fastly.com/blog/summary-of-june-8-outage",
+   "summary": "Global outage due to an undiscovered software bug that surfaced on June 8 when it was triggered by a valid customer configuration change.",
+   "similarity": 0.6552037433388828,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "Global outage due to an undiscovered software bug that surfaced on June 8 when it was triggered by a valid customer configuration change."
+   },
+   "passages": [
+    {
+     "section": "**Where do we go from here?**",
+     "content": "### **Where do we go from here?**\n\nIn the short term:\n\n- We’re deploying the bug fix across our network as quickly and safely as possible.\n- We are conducting a complete post mortem of the processes and practices we followed during this incident.\n- We’ll figure out why we didn’t detect the bug during our software quality assurance and testing processes.\n- We’ll evaluate ways to improve our remediation time.\n\nWe have been — and will continue to — innovate and invest in fundamental changes to the safety of our underlying platforms. Broadly, this means fully leveraging the isolation capabilities of WebAssembly and Compute@Edge to build greater resiliency from the ground up. We’ll continue to update our community as we make progress toward this goal.",
+     "similarity": 0.39745216382167514,
+     "origin": "deep_search",
+     "query": "what was the root cause of the failure",
+     "query_source": "cause"
+    },
+    {
+     "section": "**Conclusion**",
+     "content": "### **Conclusion**\n\nEven though there were specific conditions that triggered this outage, we should have anticipated it. We provide mission critical services, and we treat any action that can cause service issues with the utmost sensitivity and priority. We apologize to our customers and those who rely on them for the outage and sincerely thank the community for its support. Customers should always feel free to email support@fastly.com for more information.",
+     "similarity": 0.40662199778733976,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "**What happened?**",
+     "content": "### **What happened?**\n\nOn May 12, we began a software deployment that introduced a bug that could be triggered by a specific customer configuration under specific circumstances.\n\nEarly June 8, a customer pushed a valid configuration change that included the specific circumstances that triggered the bug, which caused 85% of our network to return errors.\n\nHere’s a timeline of the day’s activity (all times are in UTC):\n\n**09:47** Initial onset of global disruption\n\n**09:48** Global disruption identified by Fastly monitoring\n\n**09:58** <u>Status post</u> is published\n\n**10:27** Fastly Engineering identified the customer configuration\n\n**10:36** Impacted services began to recover\n\n**11:00** Majority of services recovered\n\n**12:35** Incident mitigated\n\n**12:44** Status post resolved\n\n**17:25** Bug fix deployment began\n\nOnce the immediate effects were mitigated, we turned our attention to fixing the bug and communicating with our customers. We created a permanent fix for the bug and began deploying it at 17:25.",
+     "similarity": 0.6285304893560703,
+     "origin": "similar",
+     "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact."
+    },
+    {
+     "section": "",
+     "content": "We experienced a global outage due to an undiscovered software bug that surfaced on June 8 when it was triggered by a valid customer configuration change. We detected the disruption within one minute, then identified and isolated the cause, and disabled the configuration. Within 49 minutes, 95% of our network was operating as normal.\n\nThis outage was broad and severe, and we’re truly sorry for the impact to our customers and everyone who relies on them.",
+     "similarity": 0.6085435460663299,
+     "origin": "similar",
+     "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact."
+    }
+   ],
+   "found_by": "description",
+   "deepened": true,
+   "why": "Fastly is a CDN/edge infrastructure provider; the summary describes a global outage triggered by a configuration change, matching the current incident's worldwide edge infrastructure and abrupt failures."
+  },
+  {
+   "incident_id": "DAN-005",
+   "company": "Cloudflare",
+   "title": "Today's Outage Post Mortem",
+   "url": "https://web.archive.org/web/20211006135542/https://blog.cloudflare.com/todays-outage-post-mortem-82515/",
+   "summary": "A bad config (router rule) caused all of their edge routers to crash, taking down all of Cloudflare.",
+   "similarity": 0.652924562739514,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "A bad config (router rule) caused all of their edge routers to crash, taking down all of Cloudflare."
+   },
+   "passages": [
+    {
+     "section": "Bad Rule",
+     "content": "### Bad Rule\n\nSomeone from our operations team is monitoring our network 24/7. As is normal practice for us, one of our ops team members took the output from the profiler and added a rule based on its output to drop packets that were between 99,971 and 99,985 bytes long. Here's what the rule (somewhat simplified and with the IPs obscured) looked like in Junos, the Juniper operating system:\n\n```\n+    route 173.X.X.X/32-DNS-DROP {\n+        match {\n+            destination 173.X.X.X/32;\n+            port 53;\n+            packet-length [ 99971 99985 ];\n+        }\n+        then discard;\n+    }\n```\nFlowspec accepted the rule and relayed it to our edge network. What should have happened is that no packet should have matched that rule because no packet was actually that large. What happened instead is that the routers encountered the rule and then proceeded to consume all their RAM until they crashed.\n\nIn all cases, we run a monitoring process that reboots the routers automatically when they crash. That worked in a few cases. Unfortunately, many of the routers crashed in such a way that they did not reboot automatically and we were not able to access the routers' management ports. Even though some data centers came back online initially, they fell back over again because all the traffic across our entire network hit them and overloaded their resources.\n\nSam Bowne, a computer science professor at City College of San Francisco, used BGPlay to capture the following video of BGP sessions being withdrawn as our routers crashed:",
+     "similarity": 0.4350765354583527,
+     "origin": "deep_search",
+     "query": "what was the root cause of the failure",
+     "query_source": "cause"
+    },
+    {
+     "section": "Parallels to Syria",
+     "content": "### Parallels to Syria\n\nIn writing this up, I was reminded of the parallels to the Syrian Internet outage we reported on earlier this year. In that case, we were able to detect as the Syrian government shut down their board routers and effectively cut the country off from the rest of the Internet. In CloudFlare's case the cause was not intentional or malicious, but the net effect was the same: a router change caused a network to go offline.\n\nAt CloudFlare, we spend a significant amount of our time immersed in the dark arts of Internet routing. This incident, like the incident in Syria, illustrates the power and importance of the these network protocols. We let our customer down this morning, but we will learn from the incident and put more controls in place to eliminate problems like this in the future.",
+     "similarity": 0.37840547973241057,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Flowspec",
+     "content": "### Flowspec\n\nWe are largely a Juniper shop at CloudFlare and all the edge routers that were affected were from Juniper. One of the reasons we like Juniper is their support of a protocol called Flowspec. Flowspec allows you to propagate router rules to a large number of routers efficiently. At CloudFlare, we constantly make updates to the rules on our routers. We do this to fight attacks as well as to shift traffic so it can be served as fast as possible.\n\nThis morning, we saw a DDoS attack being launched against one of our customers. The attack specifically targeted the customer's DNS servers. We have an internal tool that profiles attacks and outputs signatures that our automated systems as well as our ops team can use to stop attacks. Often, we use these signatures in order to create router rules to either rate limit or drop known-bad requests.\n\nIn this case, our attack profiler output the fact that the attack packets were between 99,971 and 99,985 bytes long. That's odd to begin with because the largest packets sent across the Internet are typically in the 1,500-byte range and average around 500 – 600 bytes. We have the maximum packet size set to 4,470 on our network, which is on the large size, but well under what the attack profiler was telling us was the size of these attack packets.",
+     "similarity": 0.2912351728974887,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "",
+     "content": "This morning at 09:47 UTC CloudFlare effectively dropped off the Internet. The outage affected all of CloudFlare's services including DNS and any services that rely on our web proxy. During the outage, anyone accessing CloudFlare.com or any site on CloudFlare's network would have received a DNS error. Pings and Traceroutes to CloudFlare's network resulted in a \"No Route to Host\" error.\n\nThe cause of the outage was a system-wide failure of our edge routers. CloudFlare currently runs 23 data centers worldwide. These data centers are connected to the rest of the Internet using routers. These routers announce the path that, from any point on the Internet, packets should use to reach our network. When a router goes down, the routes to the network that sits behind the router are withdrawn from the rest of the Internet.\n\nWe regularly will shut down one or a small handful of routers when we are upgrading a facility. Because we use Anycast, traffic naturally fails to the next closest data center. However, this morning we encountered a bug that caused all of our routers to fail network wide.",
+     "similarity": 0.6350377603664314,
+     "origin": "similar",
+     "query": "global edge CDN sudden errors affecting majority infrastructure"
+    },
+    {
+     "section": "Incident Response",
+     "content": "### Incident Response\n\nCloudFlare's ops and network teams were aware of the incident immediately because of both internal and external monitors we run on our network. While it wasn't initially clear the reason the routers had crashed, it was clear that it was an issue caused by an inability for packets to find a route to our network. We were able to access some routers and see that they were crashing when they encountered this bad rule. We removed the rule and then called the network operations teams in the data centers where our routers were unresponsive to ask them to physically access the routers and perform a hard reboot.\n\nCloudFlare's 23 data centers span 14 countries so the response took some time but within about 30 minutes we began to restore CloudFlare's network and services. By 10:49 UTC, all of CloudFlare's services were restored. We continue to investigate some edge cases where people are seeing outages. In nearly all of these cases, the problem is that a bad DNS response has been cached. Typically clearing the DNS cache will resolve the issue.\n\nWe have already reached out to Juniper to see if this is a known bug or something unique to our setup and the kind of traffic we were seeing at the time. We will be doing more extensive testing of Flowspec provisioned filters and evaluating whether there are ways we can isolate the application of the rules to only those data centers that need to be updated, rather than applying the rules network wide. Finally, we plan to proactively issue service credits to accounts covered by SLAs. Any amount of downtime is completely unacceptable to us and the whole CloudFlare team is sorry we let our customers down this morning.",
+     "similarity": 0.589268705446543,
+     "origin": "similar",
+     "query": "global edge CDN sudden errors affecting majority infrastructure"
+    }
+   ],
+   "found_by": "llm_query",
+   "deepened": true,
+   "why": "Cloudflare edge routers crashing globally due to a bad config rule matches the current incident's worldwide edge infrastructure errors affecting most of the network."
+  },
+  {
+   "incident_id": "DAN-011",
+   "company": "Cloudflare",
+   "title": "Cloudflare outage on November 18, 2025 | Cloudflare Blog",
+   "url": "https://blog.cloudflare.com/18-november-2025-outage/",
+   "summary": "On 18 Nov. 2025, a change in permissions in a database in Cloudflare's bot-detection systems caused a file to be output that exceeded the limits of the software that runs that system. That file was propagated througout Cloudflare's network, causing a systemwide outage.",
+   "similarity": 0.6871557673056998,
+   "best_chunk": {
+    "type": "text",
+    "section": "The outage",
+    "content": "## The outage\n\nAs well as returning HTTP 5xx errors, we observed significant increases in latency of responses from our CDN during the impact period. This was due to large amounts of CPU being consumed by our debugging and observability systems, which automatically enhance uncaught errors with additional debugging information."
+   },
+   "passages": [
+    {
+     "section": "",
+     "content": "On 18 November 2025 at 11:20 UTC (all times in this blog are UTC), Cloudflare's network began experiencing significant failures to deliver core network traffic. This showed up to Internet users trying to access our customers' sites as an error page indicating a failure within Cloudflare's network.\n\n**The issue was not caused, directly or indirectly, by a cyber attack or malicious activity of any kind.** Instead, it was triggered by a change to one of our database systems' permissions which caused the database to output multiple entries into a “feature file” used by our Bot Management system. That feature file, in turn, doubled in size. The larger-than-expected feature file was then propagated to all the machines that make up our network.\n\nThe software running on these machines to route traffic across our network reads this feature file to keep our Bot Management system up to date with ever changing threats. The software had a limit on the size of the feature file that was below its doubled size. That caused the software to fail.\n\nAfter we initially wrongly suspected the symptoms we were seeing were caused by a hyper-scale DDoS attack, we correctly identified the core issue and were able to stop the propagation of the larger-than-expected feature file and replace it with an earlier version of the file. Core traffic was largely flowing as normal by 14:30. We worked over the next few hours to mitigate increased load on various parts of our network as traffic rushed back online. As of 17:06 all systems at Cloudflare were functioning as normal.",
+     "similarity": 0.7384923274388541,
+     "origin": "deep_search",
+     "query": "root cause fix systemwide outage Cloudflare network permissions database file propagated",
+     "query_source": "llm"
+    },
+    {
+     "section": "The outage",
+     "content": "## The outage\n\nThe chart below shows the volume of 5xx error HTTP status codes served by the Cloudflare network. Normally this should be very low, and it was right up until the start of the outage.\n\nThe volume prior to 11:20 is the expected baseline of 5xx errors observed across our network. The spike, and subsequent fluctuations, show our system failing due to loading the incorrect feature file. What’s notable is that our system would then recover for a period. This was very unusual behavior for an internal error.\n\nThe explanation was that the file was being generated every five minutes by a query running on a ClickHouse database cluster, which was being gradually updated to improve permissions management. Bad data was only generated if the query ran on a part of the cluster which had been updated. As a result, every five minutes there was a chance of either a good or a bad set of configuration files being generated and rapidly propagated across the network.\n\nThis fluctuation made it unclear what was happening as the entire system would recover and then fail again as sometimes good, sometimes bad configuration files were distributed to our network. Initially, this led us to believe this might be caused by an attack. Eventually, every ClickHouse node was generating the bad configuration file and the fluctuation stabilized in the failing state.\n\nErrors continued until the underlying issue was identified and resolved starting at 14:30. We solved the problem by stopping the generation and propagation of the bad feature file and manually inserting a known good file into the feature file distribution queue. And then forcing a restart of our core proxy.\n\nThe remaining long tail in the chart above is our team restarting remaining services that had entered a bad state, with 5xx error code volume returning to normal at 17:06.\n\nThe following services were impacted:",
+     "similarity": 0.713322202531346,
+     "origin": "deep_search",
+     "query": "root cause fix systemwide outage Cloudflare network permissions database file propagated",
+     "query_source": "llm"
+    },
+    {
+     "section": "How Cloudflare processes requests, and how this went wrong today",
+     "content": "## How Cloudflare processes requests, and how this went wrong today\n\nThrowing us off and making us believe this might have been an attack was another apparent symptom we observed: Cloudflare’s status page went down. The status page is hosted completely off Cloudflare’s infrastructure with no dependencies on Cloudflare. While it turned out to be a coincidence, it led some of the team diagnosing the issue to believe that an attacker may be targeting both our systems as well as our status page. Visitors to the status page at that time were greeted by an error message:\n\nIn the internal incident chat room, we were concerned that this might be the continuation of the recent spate of high volume <u>Aisuru DDoS attacks</u>:",
+     "similarity": 0.3958339995451253,
+     "origin": "deep_search",
+     "query": "what was the root cause of the failure",
+     "query_source": "cause"
+    },
+    {
+     "section": "Remediation and follow-up steps",
+     "content": "## Remediation and follow-up steps\n\nAlthough the issue was also present in prior versions of our proxy, the impact was smaller as described below. |\n| 13:37 | Work focused on rollback of the Bot Management configuration file to a last-known-good version. | We were confident that the Bot Management configuration file was the trigger for the incident. Teams worked on ways to repair the service in multiple workstreams, with the fastest workstream a restore of a previous version of the file. |\n| 14:24 | Stopped creation and propagation of new Bot Management configuration files. | We identified that the Bot Management module was the source of the 500 errors and that this was caused by a bad configuration file. We stopped automatic deployment of new Bot Management configuration files. |\n| 14:24 | Test of new file complete. | We observed successful recovery using the old version of the configuration file and then focused on accelerating the fix globally. |\n| 14:30 | Main impact resolved. Downstream impacted services started observing reduced errors. | A correct Bot Management configuration file was deployed globally and most services started operating correctly. |\n| 17:06 | All services resolved. Impact ends. | All downstream services restarted and all operations fully restored. |",
+     "similarity": 0.5315564337774409,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Remediation and follow-up steps",
+     "content": "## Remediation and follow-up steps\n\nNow that our systems are back online and functioning normally, work has already begun on how we will harden them against failures like this in the future. In particular we are:\n\n- Hardening ingestion of Cloudflare-generated configuration files in the same way we would for user-generated input\n- Enabling more global kill switches for features\n- Eliminating the ability for core dumps or other error reports to overwhelm system resources\n- Reviewing failure modes for error conditions across all core proxy modules\n\nToday was Cloudflare's worst outage <u>since 2019</u>. We've had outages that have made our <u>dashboard unavailable</u>. Some that have caused <u>newer features</u> to not be available for a period of time. But in the last 6+ years we've not had another outage that has caused the majority of core traffic to stop flowing through our network.\n\nAn outage like today is unacceptable. We've architected our systems to be highly resilient to failure to ensure traffic will always continue to flow. When we've had outages in the past it's always led to us building new, more resilient systems.\n\nOn behalf of the entire team at Cloudflare, I would like to apologize for the pain we caused the Internet today.",
+     "similarity": 0.4862373065783956,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "The outage",
+     "content": "## The outage\n\nAs well as returning HTTP 5xx errors, we observed significant increases in latency of responses from our CDN during the impact period. This was due to large amounts of CPU being consumed by our debugging and observability systems, which automatically enhance uncaught errors with additional debugging information.",
+     "similarity": 0.6871557673056998,
+     "origin": "similar",
+     "query": "global edge CDN sudden errors affecting majority infrastructure"
+    },
+    {
+     "section": "The outage",
+     "content": "## The outage\n\n| Service / Product | Impact description |\n|---|---|\n| Core CDN and security services | HTTP 5xx status codes. The screenshot at the top of this post shows a typical error page delivered to end users. |\n| Turnstile | Turnstile failed to load. |\n| Workers KV | Workers KV returned a significantly elevated level of HTTP 5xx errors as requests to KV’s “front end” gateway failed due to the core proxy failing. |\n| Dashboard | While the dashboard was mostly operational, most users were unable to log in due to Turnstile being unavailable on the login page. |\n| Email Security | While email processing and delivery were unaffected, we observed a temporary loss of access to an IP reputation source which reduced spam-detection accuracy and prevented some new-domain-age detections from triggering, with no critical customer impact observed. We also saw failures in some Auto Move actions; all affected messages have been reviewed and remediated. |\n| Access | Authentication failures were widespread for most users, beginning at the start of the incident and continuing until the rollback was initiated at 13:05. Any existing Access sessions were unaffected. All failed authentication attempts resulted in an error page, meaning none of these users ever reached the target application while authentication was failing. Successful logins during this period were correctly logged during this incident. Any Access configuration updates attempted at that time would have either failed outright or propagated very slowly. All configuration updates are now recovered. |",
+     "similarity": 0.604596603142053,
+     "origin": "similar",
+     "query": "global edge CDN sudden errors affecting majority infrastructure"
+    }
+   ],
+   "found_by": "llm_query",
+   "deepened": true,
+   "why": "Cloudflare systemwide outage propagated throughout the network matches the current incident's widespread errors coming back from the vast majority of the network worldwide."
+  },
+  {
+   "incident_id": "DAN-106",
+   "company": "Amazon",
+   "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+   "url": "https://aws.amazon.com/message/65648/",
+   "summary": "Human error during a routine networking upgrade led to a resource crunch, exacerbated by software bugs, that ultimately resulted in an outage across all US East Availability Zones as well as a loss of 0.07% of volumes.",
+   "similarity": 0.6924568882049865,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "Human error during a routine networking upgrade led to a resource crunch, exacerbated by software bugs, that ultimately resulted in an outage across all US East Availability Zones as well as a loss of 0.07% of volumes."
+   },
+   "passages": [
+    {
+     "section": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "content": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nAt 12:47 AM PDT on April 21st, a network change was performed as part of our normal AWS scaling activities in a single Availability Zone in the US East Region. The configuration change was to upgrade the capacity of the primary network. During the change, one of the standard steps is to shift traffic off of one of the redundant routers in the primary EBS network to allow the upgrade to happen. The traffic shift was executed incorrectly and rather than routing the traffic to the other router on the primary network, the traffic was routed onto the lower capacity redundant EBS network. For a portion of the EBS cluster in the affected Availability Zone, this meant that they did not have a functioning primary or secondary network because traffic was purposely shifted away from the primary network and the secondary network couldn’t handle the traffic level it was receiving. As a result, many EBS nodes in the affected Availability Zone were completely isolated from other EBS nodes in its cluster. Unlike a normal network interruption, this change disconnected both the primary and secondary network simultaneously, leaving the affected nodes completely isolated from one another.",
+     "similarity": 0.5077121291496065,
+     "origin": "similar",
+     "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact."
+    },
+    {
+     "section": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "content": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nWhen this network connectivity issue occurred, a large number of EBS nodes in a single EBS cluster lost connection to their replicas. When the incorrect traffic shift was rolled back and network connectivity was restored, these nodes rapidly began searching the EBS cluster for available server space where they could re-mirror data. Once again, in a normally functioning cluster, this occurs in milliseconds. In this case, because the issue affected such a large number of volumes concurrently, the free capacity of the EBS cluster was quickly exhausted, leaving many of the nodes “stuck” in a loop, continuously searching the cluster for free space. This quickly led to a “re-mirroring storm,” where a large number of volumes were effectively “stuck” while the nodes searched the cluster for the storage space it needed for its new replica. At this point, about 13% of the volumes in the affected Availability Zone were in this “stuck” state.",
+     "similarity": 0.5009334286028259,
+     "origin": "similar",
+     "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-020",
+   "company": "Datadog",
+   "title": "2020-09-25 Incident: Infrastructure connectivity issue impacting multiple systems | Datadog",
+   "url": "https://www.datadoghq.com/blog/2020-09-25-infrastructure-connectivity-issue/",
+   "summary": "A bad service discovery config in one of the clients brought down service discovery globally when a dependent client went down.",
+   "similarity": 0.6595788187219783,
+   "best_chunk": {
+    "type": "text",
+    "section": "Why did it happen?",
+    "content": "## Why did it happen?\n\nIn all regions, the Datadog platform is deployed across multiple availability zones and is routinely tested for resilience against the random loss of nodes in all availability zones. This incident was the result of a kind of failure that we had not experienced before."
+   },
+   "passages": [
+    {
+     "section": "Why did it happen?",
+     "content": "## Why did it happen?\n\nIn all regions, the Datadog platform is deployed across multiple availability zones and is routinely tested for resilience against the random loss of nodes in all availability zones. This incident was the result of a kind of failure that we had not experienced before.",
+     "similarity": 0.6595788187219783,
+     "origin": "similar",
+     "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact."
+    },
+    {
+     "section": "The impact on the web tier",
+     "content": "## The impact on the web tier\n\nThe web tier, which terminates all interactive requests from our users, was visibly affected by the incident. It was intermittently available, with error rates in the 60-90% range throughout, as shown below. In practice pages often errored out, or dashboards successfully refreshed only 10% to 40% of the time.\n\nThe web tier by its very nature sits at the top of a dependency tree: it only has downstream service dependencies and to provide a satisfactory experience, it must be able to find them. And when it’s able to find them, enough requests have to be successful for it to be able to send useful answers back to the user, be it a new page or call to populate a widget on a page.\n\nBy its position in the dependency tree, the web tier only returned to normal when enough services came back online. The web tier is built to handle transient errors downstream; there will always be a fraction of a percent of requests that fail during normal operations. These transient errors can be made invisible by automatically retrying the call, or made visible with an error message back to the browser if it’s informative. But with the majority of the downstream requests failing it did not materially improve until service discovery was stabilized. At that point it went back to normal as quickly as it degraded, as shown in the slopes of the graphs above, suddenly going from 60-80% error rate down to almost 0.",
+     "similarity": 0.6267410867156049,
+     "origin": "similar",
+     "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-205",
+   "company": "PagerDuty",
+   "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty",
+   "url": "https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/",
+   "summary": "In April 2013, PagerDuty, a cloud service proving application uptime monitoring and real-time notifications, suffered an outage when two of its three independent cloud deployments in different data centers began experiencing connectivity issues and high network latency. It was found later that the two independent deployments shared a common peering point which was experiencing network instability. While the third deployment was still operational, PagerDuty's applications failed to establish quorum due to to high network latency and hence failed in their ability to send notifications.",
+   "similarity": 0.6584991074542444,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "In April 2013, PagerDuty, a cloud service proving application uptime monitoring and real-time notifications, suffered an outage when two of its three independent cloud deployments in different data centers began experiencing connectivity issues and high network latency. It was found later that the two independent deployments shared a common peering point which was experiencing network instability. While the third deployment was still operational, PagerDuty's applications failed to establish quorum due to to high network latency and hence failed in their ability to send notifications."
+   },
+   "passages": [
+    {
+     "section": "The Outage",
+     "content": "## The Outage\n\n**Note:** All times referenced below are in Pacific Time.\n\n- At 7:57am, according to AWS, connectivity issue begins due to a peering point degrading in Northern California\n- At 8:11am, PagerDuty on-call engineer is paged about an issue with the one of the nodes in our notification dispatch system\n- At 8:13am, an attempt is made to bring back the failed node but with no success\n- At 8:18am, our monitoring system detects multiple-provider failure for notifications (caused by connectivity issue). At this time, most of the notifications are still going through, but with increased latencies and error rates\n- At 8:31, a Sev-2 was declared and more engineers were paged to help out\n- At 8:35am, PagerDuty completely loses its ability to dispatch notification, as it couldn’t establish quorum due to high network latency. Sev-1 is declared\n- At 8:53am, PagerDuty notification dispatch system was able to reach quorum and started to process all queued notifications\n- At 9:23am, according to AWS, connectivity issue at the Northern California peering point ends\n\nDuring the post-mortem analysis, our engineers also determined that a misconfiguration on our coordinator service prevented us from recovering quickly. In all, PagerDuty wasn’t able to dispatch notifications for 18 minutes between 8:35am and 8:53am; however, during this time, our events API was still able to accept events.",
+     "similarity": 0.5861256500700807,
+     "origin": "similar",
+     "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact."
+    },
+    {
+     "section": "Outage Post-Mortem – April 13, 2013",
+     "content": "# Outage Post-Mortem – April 13, 2013\n\nWe spend enormous amount of our time on the reliability of PagerDuty and the infrastructure that hosts it. Most of this work is invisible, hidden behind the API and the user interface our customers interact with. However, when they fail, they become very noticeable as delays in notifications and 500s on our API endpoints. That’s what happened on Saturday, April 13, at around 8:00am Pacific Time. PagerDuty suffered an outage triggered by degradation in a peering point used by two AWS regions.\n\nWe are writing this post to let our customers know what had happened, what we have learned and what we’ll do to fix all the issues uncovered by this outage.",
+     "similarity": 0.5752479753523234,
+     "origin": "similar",
+     "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-078",
+   "company": "GitHub",
+   "title": "October 21 post-incident analysis - The GitHub Blog",
+   "url": "https://blog.github.com/2018-10-30-oct21-post-incident-analysis/",
+   "summary": "A 43 second network partition during maintenance caused MySQL master failover, but the new master didn't have several seconds of writes propogated to it because of cross-continent latency. 24+ hours of restoration work to maintain data integrity.",
+   "similarity": 0.646138189602943,
+   "best_chunk": {
+    "type": "text",
+    "section": "2018 October 21 22:54 UTC",
+    "content": "## 2018 October 21 22:54 UTC\n\nOur internal monitoring systems began generating alerts indicating that our systems were experiencing numerous faults. At this time there were several engineers responding and working to triage the incoming notifications. By 23:02 UTC, engineers in our first responder team had determined that topologies for numerous database clusters were in an unexpected state. Querying the Orchestrator API displayed a database replication topology that only included servers from our US West Coast data center."
+   },
+   "passages": [
+    {
+     "section": "2018 October 21 22:54 UTC",
+     "content": "## 2018 October 21 22:54 UTC\n\nOur internal monitoring systems began generating alerts indicating that our systems were experiencing numerous faults. At this time there were several engineers responding and working to triage the incoming notifications. By 23:02 UTC, engineers in our first responder team had determined that topologies for numerous database clusters were in an unexpected state. Querying the Orchestrator API displayed a database replication topology that only included servers from our US West Coast data center.",
+     "similarity": 0.646138189602943,
+     "origin": "similar",
+     "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact."
+    },
+    {
+     "section": "Incident timeline",
+     "content": "## Incident timeline\n\n## 2018 October 21 22:52 UTC\n\nDuring the network partition described above, Orchestrator, which had been active in our primary data center, began a process of leadership deselection, according to Raft consensus. The US West Coast data center and US East Coast public cloud Orchestrator nodes were able to establish a quorum and start failing over clusters to direct writes to the US West Coast data center. Orchestrator proceeded to organize the US West Coast database cluster topologies. When connectivity was restored, our application tier immediately began directing write traffic to the new primaries in the West Coast site.\n\nThe database servers in the US East Coast data center contained a brief period of writes that had not been replicated to the US West Coast facility. Because the database clusters in both data centers now contained writes that were not present in the other data center, we were unable to fail the primary back over to the US East Coast data center safely.",
+     "similarity": 0.5615762471575532,
+     "origin": "similar",
+     "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-006",
+   "company": "Cloudflare",
+   "title": "Cloudflare outage on July 17, 2020",
+   "url": "https://web.archive.org/web/20211016040522/https://blog.cloudflare.com/cloudflare-outage-on-july-17-2020/",
+   "summary": "During a maintenance of their private backbone network, an engineer made a typo in the Atlanta datacenter network configuration, causing all traffic coming from America and Europe flowing to this only datacenter, crushing it.",
+   "similarity": 0.6446326432574859,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "During a maintenance of their private backbone network, an engineer made a typo in the Atlanta datacenter network configuration, causing all traffic coming from America and Europe flowing to this only datacenter, crushing it."
+   },
+   "passages": [
+    {
+     "section": "Conclusion",
+     "content": "### Conclusion\n\nWe’ve never experienced an outage on our backbone and our team responded quickly to restore service in the affected locations, but this was a very painful period for everyone involved. We are sorry for the disruption to our customers and to all the users who were unable to access Internet properties while the outage was happening.\n\nWe’ve already made changes to the backbone configuration to make sure that this cannot happen again, and further changes will resume on Monday.",
+     "similarity": 0.6124850105302636,
+     "origin": "similar",
+     "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact."
+    },
+    {
+     "section": "",
+     "content": "Today a configuration error in our backbone network caused an outage for Internet properties and Cloudflare services that lasted 27 minutes. We saw traffic drop by about 50% across our network. Because of the architecture of our backbone this outage didn’t affect the entire Cloudflare network and was localized to certain geographies.\n\nThe outage occurred because, while working on an unrelated issue with a segment of the backbone from Newark to Chicago, our network engineering team updated the configuration on a router in Atlanta to alleviate congestion. This configuration contained an error that caused all traffic across our backbone to be sent to Atlanta. This quickly overwhelmed the Atlanta router and caused Cloudflare network locations connected to the backbone to fail.\n\nThe affected locations were San Jose, Dallas, Seattle, Los Angeles, Chicago, Washington, DC, Richmond, Newark, Atlanta, London, Amsterdam, Frankfurt, Paris, Stockholm, Moscow, St. Petersburg, São Paulo, Curitiba, and Porto Alegre. Other locations continued to operate normally.\n\nFor the avoidance of doubt: this was not caused by an attack or breach of any kind.\n\nWe are sorry for this outage and have already made a global change to the backbone configuration that will prevent it from being able to occur again.",
+     "similarity": 0.5792618001739723,
+     "origin": "similar",
+     "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  }
+ ]
+}

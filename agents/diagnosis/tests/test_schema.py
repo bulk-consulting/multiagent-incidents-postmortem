@@ -26,6 +26,7 @@ hypothesis = {
     "differs": "Metrist used Azure CosmosDB; the current service may use another API.",
     "same_trigger": "yes",
     "same_component": "yes",
+    "same_mechanism": "yes",
     "confidence": "high",
 }
 sufficient = {"hypotheses": [hypothesis], "evidence_sufficient": True, "next_step": "report"}
@@ -97,9 +98,15 @@ checker.check("different component: the evidence is not enough, new search", not
               and r.next_step == "refine_search" and r.search_request == "api breaking change")
 r = decide(draft({"same_component": "no", "same_trigger": "no"}), ["DAN-197"])
 checker.check("trigger and component differ: low", r.hypotheses[0].confidence == "low")
-r = decide(draft({"same_trigger": "unknown", "confidence": "medium"}), ["DAN-197"])
-checker.check("trigger unknown, same component, medium: the evidence is enough",
+r = decide(draft({"same_trigger": "unknown", "confidence": "medium"}), ["DAN-197"], research_round=1)
+checker.check("trigger unknown in the first round: not enough yet, new search",
+              not r.evidence_sufficient and r.next_step == "refine_search")
+r = decide(draft({"same_trigger": "unknown", "confidence": "medium"}), ["DAN-197"], research_round=2)
+checker.check("trigger unknown from the second round: the evidence is enough",
               r.evidence_sufficient and r.next_step == "report")
+r = decide(draft({"same_mechanism": "no"}), ["DAN-197"])
+checker.check("different mechanism: high becomes medium and the evidence is not enough",
+              r.hypotheses[0].confidence == "medium" and not r.evidence_sufficient)
 r = decide(draft({}), [])
 checker.check("based on an incident without passages: the evidence is not enough", not r.evidence_sufficient)
 r = decide(draft({"confidence": "low"}), ["DAN-197"])

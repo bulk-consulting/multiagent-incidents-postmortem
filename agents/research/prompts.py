@@ -137,5 +137,7 @@ def user_message(description: str, symptoms: list[str], candidates_text: str, re
         parts.append("SYMPTOMS:\n" + "\n".join(f"- {s}" for s in symptoms))
     if request:
         parts.append(f"REQUEST FROM THE DIAGNOSIS AGENT:\n{request}")
-    parts.append(f"INCIDENTS FOUND:\n\n{candidates_text}")
+        parts.append(f"NEW INCIDENTS FOUND (the ones examined in earlier rounds were left out):\n\n{candidates_text}")
+    else:
+        parts.append(f"INCIDENTS FOUND:\n\n{candidates_text}")
     return "\n\n---\n\n".join(parts)

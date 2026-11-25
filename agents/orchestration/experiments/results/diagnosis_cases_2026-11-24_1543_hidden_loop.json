@@ -1,0 +1,932 @@
+[
+ {
+  "case": "DAN-104",
+  "round": 1,
+  "hidden": [
+   "DAN-104"
+  ],
+  "description": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either.",
+  "triage": {
+   "affected_service": "cloud object store",
+   "trigger": "An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting the billing process",
+   "symptoms": [
+    "cannot read, enumerate, write or erase objects through APIs",
+    "virtual machine provisioning failing",
+    "disk volumes fetching snapshot contents failing",
+    "on-demand function execution failing",
+    "storage control panel failing",
+    "status page controls cannot post product-specific notices"
+   ],
+   "category": null
+  },
+  "real_root_cause": "An authorized team member entered an incorrect input when executing a standard operational command intended to remove a small number of servers from a subsystem used by the object storage billing process. The incorrect input caused a much larger set of servers to be removed than intended, including servers supporting the metadata index and storage placement subsystems. The index subsystem manages object metadata and location information and is required for GET, LIST, PUT, and DELETE requests. The placement subsystem allocates storage for new objects during PUT requests and depends on the index subsystem. The loss of significant capacity forced both subsystems to undergo full restarts. Because of the service's growth, restarting the subsystems and performing metadata integrity checks took longer than expected.",
+  "findings": [
+   {
+    "id": "DAN-106",
+    "deepened": true,
+    "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+   },
+   {
+    "id": "DAN-189",
+    "deepened": true,
+    "title": "Postmortem for outage of us-east-1 | Joyent"
+   },
+   {
+    "id": "DAN-036",
+    "deepened": true,
+    "title": "Google Cloud Status Dashboard — A configuration change intended to address an uptick in demand for metadata storage, which overloaded part of the..."
+   },
+   {
+    "id": "DAN-072",
+    "deepened": false,
+    "title": "Incident details | Google Cloud Service Health — On Tuesday, 19 July 2022 at 06:33 US/Pacific, a simultaneous failure of multiple, redundant cooling systems in one..."
+   },
+   {
+    "id": "DAN-037",
+    "deepened": false,
+    "title": "Google Cloud Status Dashboard — Two misconfigurations, plus a software bug, caused a massive Google Cloud Network failure on the US East Coast"
+   },
+   {
+    "id": "DAN-008",
+    "deepened": false,
+    "title": "Partial Cloudflare outage on October 25, 2022"
+   },
+   {
+    "id": "DAN-151",
+    "deepened": false,
+    "title": "Elastic Cloud Incident Report: February 4, 2019 | Elastic Blog"
+   },
+   {
+    "id": "DAN-073",
+    "deepened": false,
+    "title": "Outage report 7 July 2020 - PythonAnywhere News"
+   }
+  ],
+  "right_incident_in_findings": false,
+  "right_incident_deepened": false,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "Removing a small set of machines during the routine billing procedure reduced capacity in the regional object-store infrastructure, triggering a rebalancing/recovery storm that exhausted the object-store control plane (thread starvation), so all object APIs and the services that depend on them began failing across US East.",
+     "based_on": [
+      "DAN-106"
+     ],
+     "matches": "Same kind of trigger (an engineer running a routine procedure on a handful of machines), same region (US East), and the same cascading pattern (a storage infrastructure failure breaks dependent services: VM provisioning, disk snapshot fetching, function execution, control panels). DAN-106's passages describe exactly how a degraded storage cluster's control plane filled its thread pool with queued API requests and stopped servicing API calls.",
+     "differs": "DAN-106 involved a networking upgrade touching EC2/RDS/EBS block storage, whereas the current event is an object store; the exact failure mechanism (re-mirroring storm vs. object-store capacity loss) is not confirmed for the current incident.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "confidence": "high"
+    },
+    {
+     "cause": "The operator's routine procedure to remove a handful of machines was applied more broadly than intended (a tooling or input-validation mistake), taking down a larger portion of the object-store fleet or its control plane and causing an abrupt region-wide outage.",
+     "based_on": [
+      "DAN-189"
+     ],
+     "matches": "Same trigger pattern (routine small-scale maintenance by an operator that unintentionally expanded to a larger set of machines), same abrupt region-wide outage, and same need for manual control-plane recovery.",
+     "differs": "DAN-189 involved rebooting compute servers and DHCP/TFTP/PXE boot systems, not an object store; the current analyst said machines were taken out of billing infrastructure, not rebooted, and we do not know whether a tool misfired.",
+     "same_trigger": "yes",
+     "same_component": "no",
+     "confidence": "medium"
+    },
+    {
+     "cause": "Removing machines changed the load distribution on the object-store metadata/blob lookup system, overloading a key lookup component and causing a cascading failure that took down object APIs and all dependent products across the region.",
+     "based_on": [
+      "DAN-036"
+     ],
+     "matches": "Same component kind (object/blob storage with a metadata lookup layer), same cascading impact on many dependent services, and same region-wide abrupt failure.",
+     "differs": "DAN-036's trigger was a configuration change meant to reduce metadata storage load, not removing machines; we have no evidence the current overload came from a config side effect.",
+     "same_trigger": "no",
+     "same_component": "yes",
+     "confidence": "medium"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "We do not know whether the machine removal actually reduced capacity in the object-store infrastructure itself or only in the billing process, and whether that caused rebalancing load.",
+    "We do not have error messages or logs showing whether the object-store control plane was overwhelmed (thread starvation, timeouts) or whether nodes were unintentionally rebooted or removed.",
+    "It is unclear whether any configuration change was deployed at the same time as the machine removal."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "medium",
+   "medium"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 19777,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "findings": [
+     {
+      "id": "DAN-106",
+      "deepened": true,
+      "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+     },
+     {
+      "id": "DAN-189",
+      "deepened": true,
+      "title": "Postmortem for outage of us-east-1 | Joyent"
+     },
+     {
+      "id": "DAN-036",
+      "deepened": true,
+      "title": "Google Cloud Status Dashboard — A configuration change intended to address an uptick in demand for metadata storage, which overloaded part of the..."
+     },
+     {
+      "id": "DAN-072",
+      "deepened": false,
+      "title": "Incident details | Google Cloud Service Health — On Tuesday, 19 July 2022 at 06:33 US/Pacific, a simultaneous failure of multiple, redundant cooling systems in one..."
+     },
+     {
+      "id": "DAN-037",
+      "deepened": false,
+      "title": "Google Cloud Status Dashboard — Two misconfigurations, plus a software bug, caused a massive Google Cloud Network failure on the US East Coast"
+     },
+     {
+      "id": "DAN-008",
+      "deepened": false,
+      "title": "Partial Cloudflare outage on October 25, 2022"
+     },
+     {
+      "id": "DAN-151",
+      "deepened": false,
+      "title": "Elastic Cloud Incident Report: February 4, 2019 | Elastic Blog"
+     },
+     {
+      "id": "DAN-073",
+      "deepened": false,
+      "title": "Outage report 7 July 2020 - PythonAnywhere News"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "Removing a small set of machines during the routine billing procedure reduced capacity in the regional object-store infrastructure, triggering a rebalancing/recovery storm that exhausted the object-store control plane (thread starvation), so all object APIs and the services that depend on them began failing across US East.",
+       "based_on": [
+        "DAN-106"
+       ],
+       "matches": "Same kind of trigger (an engineer running a routine procedure on a handful of machines), same region (US East), and the same cascading pattern (a storage infrastructure failure breaks dependent services: VM provisioning, disk snapshot fetching, function execution, control panels). DAN-106's passages describe exactly how a degraded storage cluster's control plane filled its thread pool with queued API requests and stopped servicing API calls.",
+       "differs": "DAN-106 involved a networking upgrade touching EC2/RDS/EBS block storage, whereas the current event is an object store; the exact failure mechanism (re-mirroring storm vs. object-store capacity loss) is not confirmed for the current incident.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "confidence": "high"
+      },
+      {
+       "cause": "The operator's routine procedure to remove a handful of machines was applied more broadly than intended (a tooling or input-validation mistake), taking down a larger portion of the object-store fleet or its control plane and causing an abrupt region-wide outage.",
+       "based_on": [
+        "DAN-189"
+       ],
+       "matches": "Same trigger pattern (routine small-scale maintenance by an operator that unintentionally expanded to a larger set of machines), same abrupt region-wide outage, and same need for manual control-plane recovery.",
+       "differs": "DAN-189 involved rebooting compute servers and DHCP/TFTP/PXE boot systems, not an object store; the current analyst said machines were taken out of billing infrastructure, not rebooted, and we do not know whether a tool misfired.",
+       "same_trigger": "yes",
+       "same_component": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "Removing machines changed the load distribution on the object-store metadata/blob lookup system, overloading a key lookup component and causing a cascading failure that took down object APIs and all dependent products across the region.",
+       "based_on": [
+        "DAN-036"
+       ],
+       "matches": "Same component kind (object/blob storage with a metadata lookup layer), same cascading impact on many dependent services, and same region-wide abrupt failure.",
+       "differs": "DAN-036's trigger was a configuration change meant to reduce metadata storage load, not removing machines; we have no evidence the current overload came from a config side effect.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "confidence": "medium"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "We do not know whether the machine removal actually reduced capacity in the object-store infrastructure itself or only in the billing process, and whether that caused rebalancing load.",
+      "We do not have error messages or logs showing whether the object-store control plane was overwhelmed (thread starvation, timeouts) or whether nodes were unintentionally rebooted or removed.",
+      "It is unclear whether any configuration change was deployed at the same time as the machine removal."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium",
+     "medium"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 19777
+   }
+  ],
+  "seconds": 104
+ },
+ {
+  "case": "DAN-145",
+  "round": 1,
+  "hidden": [
+   "DAN-145"
+  ],
+  "description": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely.",
+  "triage": {
+   "affected_service": "redis",
+   "trigger": "our hosting vendor automatically relocated the machine serving as our active Redis server",
+   "symptoms": [
+    "failed connections",
+    "chat communities disconnected",
+    "hosting workers acting strangely",
+    "people struggling to join",
+    "API workers unable to connect to Redis",
+    "slow API calls",
+    "one hosting worker unhealthy",
+    "workers maintaining client sessions acting strangely"
+   ],
+   "category": null
+  },
+  "real_root_cause": "The initial disruption began when an automatic cloud infrastructure migration caused the primary node of a highly available Redis cluster to become unavailable. Although the cluster correctly failed over to its secondary, a previously known bug in how API instances handled Redis failover caused significant API degradation. This disruption also exposed an incorrectly configured edge caching rule for an expensive API endpoint, leading clients to make excessive requests and overloading a non-critical Cassandra cluster. The initial disruption was followed by failures in the real-time infrastructure: nodes in other services entered abnormal states, eventually ran out of memory, and contributed to a cascading system failure. The exact mechanism connecting the initial API disruption to the wider cascading failure was not determined. A later investigation identified potential flaws in a library used by an affected service, but their precise role in the cascade remained uncertain.",
+  "findings": [
+   {
+    "id": "DAN-234",
+    "deepened": true,
+    "title": "Billing Incident Post-Mortem: Breakdown, Analysis and Root Cause | Twilio"
+   },
+   {
+    "id": "DAN-217",
+    "deepened": true,
+    "title": "This was not normal. Really. | The Official Slack Blog"
+   },
+   {
+    "id": "DAN-144",
+    "deepened": true,
+    "title": "Discord Status - Connectivity Issues"
+   },
+   {
+    "id": "DAN-066",
+    "deepened": false,
+    "title": "A Byzantine failure in the real world"
+   },
+   {
+    "id": "DAN-129",
+    "deepened": false,
+    "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef"
+   },
+   {
+    "id": "DAN-029",
+    "deepened": false,
+    "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+   },
+   {
+    "id": "DAN-133",
+    "deepened": false,
+    "title": "Postmortem: March 26 - April 10 Workflow Delay Incidents - Announcements - CircleCI Discuss"
+   },
+   {
+    "id": "DAN-148",
+    "deepened": false,
+    "title": "Postmortem of Service Outage at 3.4M CCU"
+   }
+  ],
+  "right_incident_in_findings": false,
+  "right_incident_deepened": false,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "The vendor's automatic relocation of the active Redis host made the master unreachable and triggered a failover; the newly active Redis instance was then hit by simultaneous reconnections and resynchronizations from workers and clients, overloading it and producing the second wave of slow calls and disconnected communities.",
+     "based_on": [
+      "DAN-234"
+     ],
+     "matches": "Same component (Redis master/failover), same trigger kind (sudden loss of the active Redis host requiring standby promotion), and matching symptoms (workers unable to connect to Redis, slow API calls, disconnections). A passage explicitly states the root cause: slaves resynchronizing all at once overloaded the master.",
+     "differs": "The current incident had an initial recovery after about an hour followed by a separate second wave, and only some communities are affected; Twilio's incident was a sustained, all-at-once slave resync overload of the master with no described second distinct wave.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "confidence": "high"
+    },
+    {
+     "cause": "After the Redis failover, session workers and clients reconnected in a thundering herd, filling internal queues and exhausting resources on some hosting workers, which caused only some communities to appear disconnected and workers maintaining sessions to act strangely.",
+     "based_on": [
+      "DAN-144"
+     ],
+     "matches": "Same failure mechanism (a dependency blip followed by a mass reconnection storm that overwhelms workers and fills queues, causing partial rather than total outage).",
+     "differs": "The past trigger was CPU soft lockups on a presence server, not a vendor-initiated Redis relocation, and the failing component was a presence/session cluster rather than Redis itself.",
+     "same_trigger": "no",
+     "same_component": "no",
+     "confidence": "low"
+    },
+    {
+     "cause": "Clients and workers disconnected from Redis then attempted to reconnect simultaneously, creating cascading connection failures that exhausted downstream API capacity and left some communities unable to join.",
+     "based_on": [
+      "DAN-217"
+     ],
+     "matches": "Mass simultaneous reconnection after disconnection causing cascading connection failures and partial user impact.",
+     "differs": "The past trigger was a buggy deploy and SSLv3 change affecting web/job queue servers, not a Redis relocation, and the capacity bottleneck was databases rather than Redis.",
+     "same_trigger": "no",
+     "same_component": "no",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "We do not know whether the second wave coincided with all workers and clients reconnecting to Redis at once after the failover.",
+    "It is unclear whether only some communities use the affected Redis instance or whether the failover was partial.",
+    "The analyst did not report any Redis error logs (e.g., timeout, OOM, maxclients) during the second wave."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "medium",
+   "low"
+  ],
+  "diagnosis_turns": 2,
+  "prompt_chars": 17962,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "findings": [
+     {
+      "id": "DAN-234",
+      "deepened": true,
+      "title": "Billing Incident Post-Mortem: Breakdown, Analysis and Root Cause | Twilio"
+     },
+     {
+      "id": "DAN-217",
+      "deepened": true,
+      "title": "This was not normal. Really. | The Official Slack Blog"
+     },
+     {
+      "id": "DAN-144",
+      "deepened": true,
+      "title": "Discord Status - Connectivity Issues"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     },
+     {
+      "id": "DAN-129",
+      "deepened": false,
+      "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef"
+     },
+     {
+      "id": "DAN-029",
+      "deepened": false,
+      "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+     },
+     {
+      "id": "DAN-133",
+      "deepened": false,
+      "title": "Postmortem: March 26 - April 10 Workflow Delay Incidents - Announcements - CircleCI Discuss"
+     },
+     {
+      "id": "DAN-148",
+      "deepened": false,
+      "title": "Postmortem of Service Outage at 3.4M CCU"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "The vendor's automatic relocation of the active Redis host made the master unreachable and triggered a failover; the newly active Redis instance was then hit by simultaneous reconnections and resynchronizations from workers and clients, overloading it and producing the second wave of slow calls and disconnected communities.",
+       "based_on": [
+        "DAN-234"
+       ],
+       "matches": "Same component (Redis master/failover), same trigger kind (sudden loss of the active Redis host requiring standby promotion), and matching symptoms (workers unable to connect to Redis, slow API calls, disconnections). A passage explicitly states the root cause: slaves resynchronizing all at once overloaded the master.",
+       "differs": "The current incident had an initial recovery after about an hour followed by a separate second wave, and only some communities are affected; Twilio's incident was a sustained, all-at-once slave resync overload of the master with no described second distinct wave.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "confidence": "high"
+      },
+      {
+       "cause": "After the Redis failover, session workers and clients reconnected in a thundering herd, filling internal queues and exhausting resources on some hosting workers, which caused only some communities to appear disconnected and workers maintaining sessions to act strangely.",
+       "based_on": [
+        "DAN-144"
+       ],
+       "matches": "Same failure mechanism (a dependency blip followed by a mass reconnection storm that overwhelms workers and fills queues, causing partial rather than total outage).",
+       "differs": "The past trigger was CPU soft lockups on a presence server, not a vendor-initiated Redis relocation, and the failing component was a presence/session cluster rather than Redis itself.",
+       "same_trigger": "no",
+       "same_component": "no",
+       "confidence": "low"
+      },
+      {
+       "cause": "Clients and workers disconnected from Redis then attempted to reconnect simultaneously, creating cascading connection failures that exhausted downstream API capacity and left some communities unable to join.",
+       "based_on": [
+        "DAN-217"
+       ],
+       "matches": "Mass simultaneous reconnection after disconnection causing cascading connection failures and partial user impact.",
+       "differs": "The past trigger was a buggy deploy and SSLv3 change affecting web/job queue servers, not a Redis relocation, and the capacity bottleneck was databases rather than Redis.",
+       "same_trigger": "no",
+       "same_component": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "We do not know whether the second wave coincided with all workers and clients reconnecting to Redis at once after the failover.",
+      "It is unclear whether only some communities use the affected Redis instance or whether the failover was partial.",
+      "The analyst did not report any Redis error logs (e.g., timeout, OOM, maxclients) during the second wave."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 2,
+    "prompt_chars": 17962
+   }
+  ],
+  "seconds": 97
+ },
+ {
+  "case": "DAN-211",
+  "round": 1,
+  "hidden": [
+   "DAN-211"
+  ],
+  "description": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening.",
+  "triage": {
+   "affected_service": "service-discovery",
+   "trigger": "we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half",
+   "symptoms": [
+    "updates are taking much longer than usual",
+    "credential delivery is sluggish",
+    "shared service-discovery cluster is in poor health"
+   ],
+   "category": null
+  },
+  "real_root_cause": "The outage resulted from two primarily independent performance problems within Consul. First, the recently enabled streaming implementation suffered excessive contention under the combination of very high read and write loads. The streaming implementation used fewer Go channels for concurrency control than the previous long-polling approach. At this workload scale, contention on a shared channel blocked writes, increased CPU usage, and severely degraded Consul performance. The 128-core replacement servers, which used a dual-socket NUMA architecture, aggravated contention on shared resources. Second, the workload exposed a pathological BoltDB performance problem affecting Consul's Raft log persistence. BoltDB retained free pages from deleted log entries in an increasingly large freelist. The database contained approximately 3.8 GB of unused space and a 7.8 MB freelist, which was rewritten during small log appends, causing excessive write latency. Backpressure and full TCP buffers contributed to write times of 2 to 3 seconds on unhealthy leaders. Both problems affected a single shared Consul cluster that supported numerous critical services, amplifying the outage. Monitoring systems also depended on Consul, reducing visibility during diagnosis.",
+  "findings": [
+   {
+    "id": "DAN-020",
+    "deepened": true,
+    "title": "2020-09-25 Incident: Infrastructure connectivity issue impacting multiple systems | Datadog"
+   },
+   {
+    "id": "DAN-098",
+    "deepened": true,
+    "title": "Addressing GitHub’s recent availability issues - The GitHub Blog — Two popular client apps had been quietly increasing read traffic 10×, then a Saturday change shortened a..."
+   },
+   {
+    "id": "DAN-109",
+    "deepened": true,
+    "title": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region"
+   },
+   {
+    "id": "DAN-205",
+    "deepened": false,
+    "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+   },
+   {
+    "id": "DAN-145",
+    "deepened": false,
+    "title": "Discord Status - Unavailable Guilds & Connection Issues"
+   },
+   {
+    "id": "DAN-148",
+    "deepened": false,
+    "title": "Postmortem of Service Outage at 3.4M CCU"
+   },
+   {
+    "id": "DAN-144",
+    "deepened": false,
+    "title": "Discord Status - Connectivity Issues"
+   },
+   {
+    "id": "DAN-066",
+    "deepened": false,
+    "title": "A Byzantine failure in the real world"
+   }
+  ],
+  "right_incident_in_findings": false,
+  "right_incident_deepened": false,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "Switching the request-routing app to continuous updates and growing its fleet by about half sharply increased registration/discovery requests against the shared service-discovery cluster, producing a thundering-herd-like load that exhausted the cluster's quorum/response capacity and slowed updates and credential delivery for dependent backends.",
+     "based_on": [
+      "DAN-020"
+     ],
+     "matches": "Same component kind (a shared service-discovery/coordination cluster that most services depend on), same symptom (cluster poor health; dependent services cannot quickly find dependencies or load configuration), and same trigger kind (a scaling/rollout change that abruptly raised discovery load).",
+     "differs": "In the past incident the trigger was recycling/scaling a measuring cluster that caused an immediate DNS surge; here the change seemed fine for roughly a day before degrading, and the mechanism is continuous updates plus fleet growth rather than a recycled cluster.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "confidence": "high"
+    },
+    {
+     "cause": "The rollout (continuous updates plus fleet growth) gradually raised load on the shared service-discovery infrastructure until peak usage overwhelmed it, causing cascading slowness to dependent backend apps and credential delivery, with impact appearing only after a delay.",
+     "based_on": [
+      "DAN-098"
+     ],
+     "matches": "A routine change made earlier whose impact surfaced later under peak load, producing cascading degradation through services that depend on the same shared infrastructure.",
+     "differs": "The past component was an authentication/user-management database cluster affected by a cache-TTL change and client-app traffic growth, not a service-discovery/coordination cluster affected by continuous updates and fleet scaling.",
+     "same_trigger": "yes",
+     "same_component": "no",
+     "confidence": "medium"
+    },
+    {
+     "cause": "The added request-routing load pushed the coordination/metadata service past timeout thresholds; nodes began failing and retrying, adding more load and creating a self-reinforcing slowdown that keeps worsening.",
+     "based_on": [
+      "DAN-109"
+     ],
+     "matches": "Metadata/coordination service overload, responses exceeding timeouts, nodes retrying and amplifying load, and worsening cascading degradation to dependents.",
+     "differs": "The past trigger was a network disruption, not a planned rollout or scaling change, and the component was DynamoDB metadata/storage rather than a service-discovery cluster.",
+     "same_trigger": "no",
+     "same_component": "no",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "We do not know the exact error or latency pattern in the service-discovery/coordination cluster (for example DNS timeouts, lost quorum, or registration failures).",
+    "We do not have metrics confirming a spike in discovery queries or registrations immediately after the fleet growth and continuous-update switch.",
+    "It is unclear whether updates and credential delivery rely on the same service-discovery cluster or on separate infrastructure.",
+    "The roughly one-day delay between the change and the onset of degradation is unexplained."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "medium",
+   "low"
+  ],
+  "diagnosis_turns": 2,
+  "prompt_chars": 18739,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "findings": [
+     {
+      "id": "DAN-020",
+      "deepened": true,
+      "title": "2020-09-25 Incident: Infrastructure connectivity issue impacting multiple systems | Datadog"
+     },
+     {
+      "id": "DAN-098",
+      "deepened": true,
+      "title": "Addressing GitHub’s recent availability issues - The GitHub Blog — Two popular client apps had been quietly increasing read traffic 10×, then a Saturday change shortened a..."
+     },
+     {
+      "id": "DAN-109",
+      "deepened": true,
+      "title": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region"
+     },
+     {
+      "id": "DAN-205",
+      "deepened": false,
+      "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+     },
+     {
+      "id": "DAN-145",
+      "deepened": false,
+      "title": "Discord Status - Unavailable Guilds & Connection Issues"
+     },
+     {
+      "id": "DAN-148",
+      "deepened": false,
+      "title": "Postmortem of Service Outage at 3.4M CCU"
+     },
+     {
+      "id": "DAN-144",
+      "deepened": false,
+      "title": "Discord Status - Connectivity Issues"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "Switching the request-routing app to continuous updates and growing its fleet by about half sharply increased registration/discovery requests against the shared service-discovery cluster, producing a thundering-herd-like load that exhausted the cluster's quorum/response capacity and slowed updates and credential delivery for dependent backends.",
+       "based_on": [
+        "DAN-020"
+       ],
+       "matches": "Same component kind (a shared service-discovery/coordination cluster that most services depend on), same symptom (cluster poor health; dependent services cannot quickly find dependencies or load configuration), and same trigger kind (a scaling/rollout change that abruptly raised discovery load).",
+       "differs": "In the past incident the trigger was recycling/scaling a measuring cluster that caused an immediate DNS surge; here the change seemed fine for roughly a day before degrading, and the mechanism is continuous updates plus fleet growth rather than a recycled cluster.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "confidence": "high"
+      },
+      {
+       "cause": "The rollout (continuous updates plus fleet growth) gradually raised load on the shared service-discovery infrastructure until peak usage overwhelmed it, causing cascading slowness to dependent backend apps and credential delivery, with impact appearing only after a delay.",
+       "based_on": [
+        "DAN-098"
+       ],
+       "matches": "A routine change made earlier whose impact surfaced later under peak load, producing cascading degradation through services that depend on the same shared infrastructure.",
+       "differs": "The past component was an authentication/user-management database cluster affected by a cache-TTL change and client-app traffic growth, not a service-discovery/coordination cluster affected by continuous updates and fleet scaling.",
+       "same_trigger": "yes",
+       "same_component": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "The added request-routing load pushed the coordination/metadata service past timeout thresholds; nodes began failing and retrying, adding more load and creating a self-reinforcing slowdown that keeps worsening.",
+       "based_on": [
+        "DAN-109"
+       ],
+       "matches": "Metadata/coordination service overload, responses exceeding timeouts, nodes retrying and amplifying load, and worsening cascading degradation to dependents.",
+       "differs": "The past trigger was a network disruption, not a planned rollout or scaling change, and the component was DynamoDB metadata/storage rather than a service-discovery cluster.",
+       "same_trigger": "no",
+       "same_component": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "We do not know the exact error or latency pattern in the service-discovery/coordination cluster (for example DNS timeouts, lost quorum, or registration failures).",
+      "We do not have metrics confirming a spike in discovery queries or registrations immediately after the fleet growth and continuous-update switch.",
+      "It is unclear whether updates and credential delivery rely on the same service-discovery cluster or on separate infrastructure.",
+      "The roughly one-day delay between the change and the onset of degradation is unexplained."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 2,
+    "prompt_chars": 18739
+   }
+  ],
+  "seconds": 203
+ },
+ {
+  "case": "DAN-125",
+  "round": 1,
+  "hidden": [
+   "DAN-125"
+  ],
+  "description": "People are locked out of their accounts.\n\nAnalyst answer: The browser side of our CI offering is unavailable, including job output and help pages. Jobs themselves keep running and review results are still posted. We cut hosting expenses by moving our hosted Postgres deployment onto a less powerful tier recently. Instead of maintaining a pool on each app machine, we now share one pooling host. Postgres began slowing in the late afternoon UTC, with the site becoming largely unreachable roughly an hour and a half afterward. Account access, job output and help pages are unavailable to everyone trying to reach them; we have no evidence of a regional boundary.",
+  "triage": {
+   "affected_service": "ci",
+   "trigger": "We cut hosting expenses by moving our hosted Postgres deployment onto a less powerful tier recently. Instead of maintaining a pool on each app machine, we now share one pooling host.",
+   "symptoms": [
+    "people are locked out of their accounts",
+    "CI browser side unavailable including job output and help pages"
+   ],
+   "category": "Database"
+  },
+  "real_root_cause": "The smaller managed PostgreSQL instance could not handle the production workload during peak traffic, causing CPU saturation and database performance degradation. The application's health-check endpoint depended on successful connections to both SQL databases, Redis, and Memcached. When database connections failed, the health checks returned HTTP 500 errors, causing the dashboard load balancer to remove its application servers. Auto Scaling Groups launched replacement servers, but the server bootstrap process attempted to retrieve the currently deployed code revision from an endpoint on the unavailable website. Because that endpoint could not be reached, replacement servers ran the older application version embedded in their machine images. That version's health check referenced a database that had already been decommissioned, so replacement servers also failed health checks and could not join the load balancer. The resulting repeated instance launches and terminations eventually exhausted cloud instance request limits. Recovery was further delayed by cloud provider access-management issues and an on-call alerting configuration that failed to wake the team. The centralized pgbouncer configuration was reverted during recovery, but the post-mortem did not establish it as a confirmed root cause.",
+  "findings": [
+   {
+    "id": "DAN-096",
+    "deepened": true,
+    "title": "An update on recent service disruptions - The GitHub Blog"
+   },
+   {
+    "id": "DAN-101",
+    "deepened": true,
+    "title": "Battling database performance | Blog | incident.io"
+   },
+   {
+    "id": "DAN-029",
+    "deepened": true,
+    "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+   },
+   {
+    "id": "DAN-209",
+    "deepened": false,
+    "title": "Why Reddit was down on Aug 11 : announcements"
+   },
+   {
+    "id": "DAN-129",
+    "deepened": false,
+    "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef"
+   },
+   {
+    "id": "DAN-073",
+    "deepened": false,
+    "title": "Outage report 7 July 2020 - PythonAnywhere News"
+   },
+   {
+    "id": "DAN-205",
+    "deepened": false,
+    "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+   },
+   {
+    "id": "DAN-217",
+    "deepened": false,
+    "title": "This was not normal. Really. | The Official Slack Blog"
+   }
+  ],
+  "right_incident_in_findings": false,
+  "right_incident_deepened": false,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "The move to a smaller Postgres tier with a single shared pooling host exhausted available database connections under peak load, so the web/app tier could not open connections and the browser side became unreachable while background jobs kept running.",
+     "based_on": [
+      "DAN-096"
+     ],
+     "matches": "Same kind of component (a relational database behind a shared connection pool/proxy), same failure mode (client connections failing under load making the site largely unreachable), and the same pattern of a shared pool becoming the bottleneck after consolidation onto one host.",
+     "differs": "The past incident was driven by recurring peak-hour load on an existing shared cluster; the current incident follows an explicit infrastructure change (downgrade to a smaller tier plus shared pooling). Database differs (MySQL vs Postgres), but the failure mechanism is the same.",
+     "same_trigger": "unknown",
+     "same_component": "yes",
+     "confidence": "medium"
+    },
+    {
+     "cause": "The downgraded Postgres tier became slow enough that queries backed up, exhausting the shared connection pool across many endpoints and timing out the browser-side requests.",
+     "based_on": [
+      "DAN-101"
+     ],
+     "matches": "Connection-pool exhaustion made the application unable to serve requests, with intermittent timeouts spread across endpoints rather than one obviously slow query.",
+     "differs": "The past root cause was application-level (many small transactions holding the pool), not an infrastructure downgrade; the current trigger is explicitly a capacity reduction and move to a shared pool.",
+     "same_trigger": "no",
+     "same_component": "yes",
+     "confidence": "medium"
+    },
+    {
+     "cause": "A Postgres primary/node failure on the shared host could not be failed over, extending a brief database outage into prolonged browser-side unavailability.",
+     "based_on": [
+      "DAN-029"
+     ],
+     "matches": "A database cluster problem took the API/dashboard/browser side offline while other functions could continue.",
+     "differs": "The past cause was a hardware failure plus failed automatic failover; the current incident describes gradual slowing over about 1.5 hours consistent with resource exhaustion rather than a sudden node death, and no failover issue is mentioned.",
+     "same_trigger": "no",
+     "same_component": "yes",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "No Postgres logs showing 'too many connections' or pool exhaustion errors.",
+    "No evidence whether the shared pooling host hit its connection limit or its CPU/memory saturation point after the downgrade.",
+    "Unclear whether the web/app tier and background jobs use separate database connection paths or the same shared pooling host.",
+    "No metrics on connection count, query latency, or pool wait time before the site became unreachable."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "medium",
+   "low"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 17279,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "findings": [
+     {
+      "id": "DAN-096",
+      "deepened": true,
+      "title": "An update on recent service disruptions - The GitHub Blog"
+     },
+     {
+      "id": "DAN-101",
+      "deepened": true,
+      "title": "Battling database performance | Blog | incident.io"
+     },
+     {
+      "id": "DAN-029",
+      "deepened": true,
+      "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+     },
+     {
+      "id": "DAN-209",
+      "deepened": false,
+      "title": "Why Reddit was down on Aug 11 : announcements"
+     },
+     {
+      "id": "DAN-129",
+      "deepened": false,
+      "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef"
+     },
+     {
+      "id": "DAN-073",
+      "deepened": false,
+      "title": "Outage report 7 July 2020 - PythonAnywhere News"
+     },
+     {
+      "id": "DAN-205",
+      "deepened": false,
+      "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+     },
+     {
+      "id": "DAN-217",
+      "deepened": false,
+      "title": "This was not normal. Really. | The Official Slack Blog"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "The move to a smaller Postgres tier with a single shared pooling host exhausted available database connections under peak load, so the web/app tier could not open connections and the browser side became unreachable while background jobs kept running.",
+       "based_on": [
+        "DAN-096"
+       ],
+       "matches": "Same kind of component (a relational database behind a shared connection pool/proxy), same failure mode (client connections failing under load making the site largely unreachable), and the same pattern of a shared pool becoming the bottleneck after consolidation onto one host.",
+       "differs": "The past incident was driven by recurring peak-hour load on an existing shared cluster; the current incident follows an explicit infrastructure change (downgrade to a smaller tier plus shared pooling). Database differs (MySQL vs Postgres), but the failure mechanism is the same.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "The downgraded Postgres tier became slow enough that queries backed up, exhausting the shared connection pool across many endpoints and timing out the browser-side requests.",
+       "based_on": [
+        "DAN-101"
+       ],
+       "matches": "Connection-pool exhaustion made the application unable to serve requests, with intermittent timeouts spread across endpoints rather than one obviously slow query.",
+       "differs": "The past root cause was application-level (many small transactions holding the pool), not an infrastructure downgrade; the current trigger is explicitly a capacity reduction and move to a shared pool.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A Postgres primary/node failure on the shared host could not be failed over, extending a brief database outage into prolonged browser-side unavailability.",
+       "based_on": [
+        "DAN-029"
+       ],
+       "matches": "A database cluster problem took the API/dashboard/browser side offline while other functions could continue.",
+       "differs": "The past cause was a hardware failure plus failed automatic failover; the current incident describes gradual slowing over about 1.5 hours consistent with resource exhaustion rather than a sudden node death, and no failover issue is mentioned.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "No Postgres logs showing 'too many connections' or pool exhaustion errors.",
+      "No evidence whether the shared pooling host hit its connection limit or its CPU/memory saturation point after the downgrade.",
+      "Unclear whether the web/app tier and background jobs use separate database connection paths or the same shared pooling host.",
+      "No metrics on connection count, query latency, or pool wait time before the site became unreachable."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 17279
+   }
+  ],
+  "seconds": 98
+ },
+ {
+  "case": "DAN-164",
+  "round": 1,
+  "hidden": [
+   "DAN-164"
+  ],
+  "description": "People can't open their code projects.\n\nAnalyst answer: It's our online workspace for software teams, running on Postgres with a main instance paired with a live replica. Synchronization had failed, so we were reconstructing the replica by hand. We tried taking a fresh physical copy and adjusted the limits for replication streams and client sessions. Database demand spiked in the evening; synchronization trouble emerged roughly four hours afterward, with widespread downtime about half an hour later. Our shared hosted offering is affected, whereas independent installations and dedicated customer deployments are working.",
+  "triage": {
+   "affected_service": "workspace",
+   "trigger": "Database demand spiked in the evening; we were reconstructing the Postgres replica by hand, took a fresh physical copy, and adjusted limits for replication streams and client sessions",
+   "symptoms": [
+    "users cannot open their code projects"
+   ],
+   "category": "Database"
+  },
+  "real_root_cause": "During manual recovery of the PostgreSQL standby, an engineer accidentally executed a data-directory removal operation on the primary database server instead of the secondary. The operation was stopped within seconds, but approximately 300 GB of production database data had already been removed. The repair work had been necessary because increased database load caused replication lag, and WAL segments required by the standby had already been removed from the primary without WAL archiving. The increased load involved both spam activity and a background process attempting to remove an employee account and its associated data after an erroneous abuse report. Recovery was severely complicated by unavailable backups: the logical backup job was using pg_dump 9.2 against PostgreSQL 9.6, causing the backups to fail. Failure notifications were rejected because the automated emails lacked the required DMARC configuration, leaving the team unaware of the problem. Database disk snapshots were not enabled, and the secondary had already been cleared during the replication repair. As a result, the team had to recover from an older LVM snapshot in staging, losing subsequent database modifications.",
+  "error": "RuntimeError: The diagnosis agent did not produce a valid answer in 3 turns",
+  "seconds": 436
+ },
+ {
+  "case": "DAN-197",
+  "round": 1,
+  "hidden": [
+   "DAN-197"
+  ],
+  "description": "Our automated checks are failing sporadically.\n\nAnalyst answer: We monitor a hosted database offering, and the failing step is the probe that provisions a new container. Our provisioning logic and request method have been unchanged for months. We are unaware of anything changing just before the errors appeared. We noticed the first rejection in the early evening UTC and marked availability as degraded roughly half an hour afterward. US East was hit first, with roughly three quarters of probes unsuccessful; locations elsewhere remained healthy. Requests to provision containers keep getting rejected because a parameter is deemed unacceptable. Some attempts pass, and the diagnostics do not tell us which parameter caused the rejection.",
+  "triage": {
+   "affected_service": "database",
+   "trigger": null,
+   "symptoms": [
+    "automated checks failing sporadically",
+    "container provisioning requests rejected because a parameter is deemed unacceptable"
+   ],
+   "category": null
+  },
+  "real_root_cause": "The cloud database provider introduced an unannounced breaking change to its API contract. A partition key field that had previously been optional became mandatory when creating database containers. Our existing SDK-based implementation did not explicitly supply this field, causing container creation requests to fail as the change progressively affected different regions.",
+  "error": "RuntimeError: The diagnosis agent did not produce a valid answer in 3 turns",
+  "seconds": 668
+ }
+]

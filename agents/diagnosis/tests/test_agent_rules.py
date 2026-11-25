@@ -25,7 +25,7 @@ FINDINGS = [
 TRIAGE = {"affected_service": "object store", "trigger": "an engineer took machines out", "symptoms": ["reads fail"],
           "category": None}
 HYP = {"cause": "Too much capacity removed.", "based_on": ["DAN-104"], "matches": "trigger", "differs": "subsystem",
-       "same_trigger": "yes", "same_component": "yes", "confidence": "high"}
+       "same_trigger": "yes", "same_component": "yes", "same_mechanism": "yes", "confidence": "high"}
 GOOD = {"hypotheses": [HYP], "gaps": [], "search_request": "capacity removal storage outage"}
 INVENTED = {**GOOD, "hypotheses": [{**HYP, "based_on": ["DAN-999"]}]}
 # Based only on the incident without passages (DAN-189): the evidence is not enough.
