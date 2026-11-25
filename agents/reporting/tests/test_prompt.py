@@ -39,4 +39,15 @@ class AsObject:
 as_objects = {**gitlab, "triage_result": AsObject(gitlab["triage_result"]), "diagnosis": AsObject(gitlab["diagnosis"])}
 checker.check("it also works with Pydantic objects (as in the graph)", build_user_message(as_objects) == build_user_message(gitlab))
 
+# The analyst's language is decided in code (an English conversation used to get a report in Portuguese).
+from agents.reporting.prompts import SYSTEM_PROMPT  # noqa: E402
+
+english = build_user_message({**gitlab, "description": "Requests are failing across an entire region."})
+portuguese = build_user_message({**gitlab, "description": "A página de login não abre, está dando erro 500."})
+checker.check("English analyst: the language is said and there are no Portuguese fixed words",
+              "ANALYST LANGUAGE: English" in english and "O que aconteceu" not in english)
+checker.check("Portuguese analyst: the language and the fixed words are given",
+              "ANALYST LANGUAGE: Portuguese" in portuguese and "O que aconteceu" in portuguese)
+checker.check("the system prompt has no Portuguese words", "O que aconteceu" not in SYSTEM_PROMPT)
+
 checker.finish()

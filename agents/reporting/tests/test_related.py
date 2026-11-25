@@ -14,6 +14,13 @@ triage = TriageResult(enough_information=True, symptoms=["login page returns err
 print("The language of the analyst")
 checker.check("English message", analyst_language("The login page returns 500 for all users.") == "en")
 checker.check("Portuguese message", analyst_language("A página de login não abre, está dando erro 500.") == "pt")
+checker.check("Portuguese without the most common words", analyst_language(
+    "Perdemos cerca de seis horas de dados do banco. Um administrador cansado apagou o diretório errado.") == "pt")
+checker.check("Portuguese answer after the graph's English prefix", analyst_language(
+    "O banco caiu.\n\nAnalyst answer: a replicação atrasou e um admin apagou o diretório errado") == "pt")
+checker.check("a long English conversation", analyst_language(
+    "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products "
+    "relying on it are having trouble too.") == "en")
 
 print("\nThe report")
 out = related_incident_node({"incident_id": "INC-100", "description": "The login page returns 500.",

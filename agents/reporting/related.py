@@ -12,15 +12,26 @@ How to plug it into the main graph:
 """
 import re
 
-# Common Portuguese words that do not exist in English. Two or more of them: the analyst writes in Portuguese.
-PORTUGUESE_WORDS = {"não", "está", "estão", "nosso", "nossa", "com", "erro", "erros", "quando", "também", "desde",
-                    "falha", "falhas", "serviço", "usuários", "para", "uma", "depois", "ainda", "hoje", "agora"}
+# Words that are common in one language and do not exist (or are rare) in the other. A word that exists in both
+# ("a", "no", "do", "as") is left out. The Portuguese accents count too. The language with more signs wins.
+PORTUGUESE_WORDS = {"de", "da", "das", "dos", "um", "uma", "uns", "umas", "que", "não", "nao", "em", "na", "nas", "nos",
+                    "por", "para", "com", "é", "está", "estão", "foi", "são", "ao", "aos", "à", "às", "nosso", "nossa",
+                    "nossos", "mas", "também", "desde", "quando", "enquanto", "erro", "erros", "serviço", "o", "os",
+                    "se", "isso", "este", "esta", "ele", "ela", "seu", "sua", "depois", "ainda", "hoje", "agora",
+                    "falha", "falhas", "usuários"}
+ENGLISH_WORDS = {"the", "and", "of", "to", "is", "are", "was", "were", "we", "our", "it", "in", "on", "for", "with",
+                 "this", "that", "from", "since", "not", "an", "but", "they", "their", "be", "has", "have", "been",
+                 "can", "cannot", "when", "after", "before", "users", "error", "errors", "service"}
+PORTUGUESE_ACCENTS = set("ãõçáéíóúâêôà")
 
 
 def analyst_language(text):
-    """'pt' or 'en', from the words of the analyst's message."""
-    words = set(re.findall(r"[a-zà-ú]+", (text or "").lower()))
-    return "pt" if len(words & PORTUGUESE_WORDS) >= 2 else "en"
+    """'pt' or 'en', from the words of the analyst's message (the language with more signs; English on a tie)."""
+    text = (text or "").lower()
+    words = re.findall(r"[a-zà-ú]+", text)
+    pt = sum(w in PORTUGUESE_WORDS for w in words) + sum(c in PORTUGUESE_ACCENTS for c in text)
+    en = sum(w in ENGLISH_WORDS for w in words)
+    return "pt" if pt > en else "en"
 
 
 TEXTS = {
