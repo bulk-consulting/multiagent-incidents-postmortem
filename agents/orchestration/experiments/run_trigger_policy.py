@@ -15,6 +15,8 @@ post-mortem was found and deepened, and whether the top hypothesis is based on i
 
 Usage (from the repository root, database up):
     multiagent_env/bin/python -I agents/orchestration/experiments/run_trigger_policy.py --policy A [--cases DAN-018,...]
+        [--real-report]   # Mari's Reporting agent (default: the report built in code)
+        [--postgres]      # PostgresSaver, as in the demo (default: InMemorySaver)
 Output: agents/orchestration/experiments/results/trigger_policy_<A|B>_<date>.json
 """
 from __future__ import annotations
@@ -72,6 +74,10 @@ def answer_for(questions, conversation):
     return " ".join(script[t] for t in matched), matched
 
 
+def _report_dict(report):
+    return (report.model_dump() if hasattr(report, "model_dump") else report) or {}
+
+
 def run_case(g, case_id):
     case = load_case(case_id)
     config = {"configurable": {"thread_id": f"{case_id}-{time.time()}"}}
@@ -95,7 +101,11 @@ def run_case(g, case_id):
         "right_deepened_any_round": any(case_id in s.split("deepened")[1] for s in research_traces if "deepened" in s),
         "right_in_final_findings": any(r["incident_id"] == case_id for r in state.get("findings", [])),
         "top_based_on": top, "top_is_right": case_id in top,
-        "final": (state.get("report") or {}).get("kind"), "next_paused": bool(out.get("__interrupt__")),
+        "final": _report_dict(state.get("report")).get("kind"), "next_paused": bool(out.get("__interrupt__")),
+        "report": _report_dict(state.get("report")), "report_attempts": state.get("report_attempts"),
+        "report_problems": state.get("report_problems", []),
+        "diagnosis": d.model_dump() if d is not None else None,
+        "findings_ids": [(r["incident_id"], r.get("deepened")) for r in state.get("findings", [])],
         "errors": state.get("errors", []),
         "real_trigger": case["discovered_later"].get("trigger") if isinstance(case.get("discovered_later"), dict) else None,
     }
@@ -105,13 +115,22 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--policy", choices=["A", "B"], required=True)
     ap.add_argument("--cases", default=",".join(CASES))
+    ap.add_argument("--real-report", action="store_true", help="Mari's Reporting agent instead of the report in code")
+    ap.add_argument("--postgres", action="store_true", help="PostgresSaver (as in the demo) instead of InMemorySaver")
     a = ap.parse_args()
     triage_agent.set_trigger_policy(a.policy)
-    graph.run_reporting = graph.code_report_node  # the report in code: not measured here
-    g = graph.build_graph(InMemorySaver(serde=make_serializer()))
-    out = HERE / "results" / f"trigger_policy_{a.policy}_{datetime.now():%Y-%m-%d_%H%M}.json"
+    if not a.real_report:
+        graph.run_reporting = graph.code_report_node  # the report in code: not measured here
+    from agents.orchestration.run import checkpointer
+    tag = ("_report" if a.real_report else "") + ("_pg" if a.postgres else "")
+    out = HERE / "results" / f"trigger_policy_{a.policy}{tag}_{datetime.now():%Y-%m-%d_%H%M}.json"
+    with checkpointer(memory=not a.postgres) as saver:
+        run_all(graph.build_graph(saver), a.cases.split(","), out)
+
+
+def run_all(g, cases, out):
     rows = []
-    for case_id in a.cases.split(","):
+    for case_id in cases:
         t0 = time.time()
         try:
             row = run_case(g, case_id)
@@ -123,7 +142,8 @@ def main() -> None:
         print(f"{case_id} ({row['seconds']}s) " + (row.get("error") or
               f"answers={row['questions_answered']} asked_changes={row['asked_about_changes']} "
               f"triggers={len(row['triggers'])} rounds={row['research_rounds']} "
-              f"right_deepened={row['right_deepened_any_round']} top_right={row['top_is_right']} final={row['final']}"),
+              f"right_deepened={row['right_deepened_any_round']} top_right={row['top_is_right']} final={row['final']} "
+              f"report_attempts={row['report_attempts']} problems={len(row['report_problems'])}"),
               flush=True)
     print(f"\nsaved to {out}")
 

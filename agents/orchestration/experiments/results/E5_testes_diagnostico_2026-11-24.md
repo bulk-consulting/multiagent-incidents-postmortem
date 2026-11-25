@@ -294,3 +294,30 @@ mudança, e um analista simulado (`run_trigger_policy.py`, `trigger_policy_<A|B>
 **Decisão:** política B como padrão (`TRIGGER_POLICY = "B"` em `agents/triage/prompts.py`); a A ficou guardada
 (`TRIGGER_RULES["A"]`, `set_trigger_policy("A")` em `agents/triage/agent.py`) para testar de novo.
 
+
+## 16. Os 12 casos com o Relatório da Mari e o Postgres (25/11)
+
+Resultado: `trigger_policy_B_report_pg_2026-11-25_1239.json` (`run_trigger_policy.py --policy B --real-report
+--postgres`): o grafo inteiro com o modelo real, a política B, o Relatório da Mari (`agents/reporting`) e o
+PostgresSaver; 1ª mensagem com o que falha e onde, analista simulado. Os 12 relatórios foram lidos à mão.
+
+- **Diagnóstico:** a hipótese principal veio do post-mortem certo em 11/12.
+- **Relatório:** válido na 1ª tentativa em 3 (DAN-017, 121, 197), na 2ª em 4 (DAN-145, 211, 116, 004), na 3ª em 2
+  (DAN-104, 164); **falhou nas 3 tentativas em 3 (DAN-125, 018, 154)** e caiu no relatório de reserva
+  (inconclusivo), embora o Diagnóstico tivesse dito que a evidência bastava — no DAN-018 e no DAN-154 o diagnóstico
+  estava certo e se perdeu.
+- **Causa das falhas: limite de tokens.** JSON cortado no meio (DAN-125, 154) ou resposta vazia (DAN-018): o modelo
+  raciocina antes de responder (8192 tokens), e com 3 hipóteses a regra "causas = hipóteses" pede 3 causas completas
+  (correção, mudanças, prevenção, fontes), inclusive as `low`. O mesmo problema que o Diagnóstico tinha com o
+  raciocínio ligado (seção 7).
+- **Qualidade dos 9 válidos:** fiéis aos post-mortems (double free no DAN-116, build de staging no DAN-017, regra de
+  WAF fora do Terraform no DAN-004, mudança não anunciada da Azure no DAN-197); dizem quando o post-mortem não
+  descreve a correção, sem inventar; links corretos em todos; "o que verificar agora" concreto. Problemas menores:
+  muito longos (a causa `low` ocupa o mesmo espaço da principal); no DAN-164, um trecho do incidente aparece como
+  "como foi corrigido"; no DAN-121, o texto de um link traz o resumo colado ao título (vem dos achados).
+
+**Sugestões para a Mari** (em ordem): (1) desligar o raciocínio do modelo no Relatório, como no Diagnóstico
+(temperatura 0, `enable_thinking: False`); (2) quando o Diagnóstico disse que basta, o relatório de reserva deve ser
+um diagnóstico montado em código com as hipóteses e as fontes, não um inconclusivo; (3) encurtar as causas `low`
+(causa + fonte), o que pede afrouxar a regra "causas = hipóteses"; (4) guardar os problemas de cada tentativa, não só
+os da última.
