@@ -348,3 +348,31 @@ Resultado: `trigger_policy_B_report_nothink_pg_2026-11-25_1422.json` (`run_trigg
 **Decisão:** o Relatório passa a chamar o modelo com o raciocínio desligado e temperatura 0
 (`agents/reporting/agent.py`, `TEMPERATURE` e `LLM_OPTIONS`), na branch `e5-acabamentos`, para a Mari revisar.
 
+
+## 18. Regressão depois das mudanças do Relatório (25/11, noite)
+
+Depois de três mudanças no Relatório — raciocínio desligado (seção 17), causas `low` curtas e rótulos traduzidos
+(Mari, E6) e idioma do analista decidido em código (`ANALYST LANGUAGE`; a lista de rótulos em português saiu do prompt
+de sistema, porque puxava conversas em inglês para o português) —, os 12 casos de novo pelo grafo, com o Relatório
+real e o Postgres (`trigger_policy_B_report_pg_2026-11-25_1756.json`). Os 12 relatórios foram lidos à mão.
+
+| | Seção 16 (antes) | Agora |
+|---|---|---|
+| Relatório válido na 1ª tentativa | 3/12 | **11/12** (DAN-121 na 2ª) |
+| Relatório de reserva (inconclusivo por falha) | 3/12 | **0** |
+| No idioma do analista (inglês) | — | 12/12 |
+| Causas `low` curtas, sem correção nem prevenção | — | 9/9 |
+| Hipótese principal do post-mortem certo | 11/12 | 9/12 |
+
+- A queda da hipótese principal vem do Pesquisa e do Diagnóstico, que variam entre execuções (DAN-104: o certo foi
+  aprofundado, mas um caso parecido do Azure ficou em 1º; DAN-017 e DAN-197: o certo não foi aprofundado); a média de
+  ~80% das seções 9–15 se mantém.
+- Leitura: fiéis aos post-mortems, dizem quando o caso atual difere, links certos, "o que verificar agora" concreto;
+  o inconclusivo do DAN-197 é honesto.
+- Detalhes que continuam: no DAN-164 um passo do incidente aparece como correção; no DAN-125 uma causa apoiada em
+  vários incidentes junta os passos de todos numa lista só, sem dizer de qual post-mortem vem cada um; no DAN-164 e no
+  DAN-121 uma causa `medium` saiu no formato curto de `low`; o DAN-197 voltou a ser o pior caso (17 minutos,
+  3 perguntas do Diagnóstico ao analista, 9 rodadas de busca).
+- Pela tela (Streamlit + API, à mão): conversa em inglês com relatório todo em inglês; em português, todo em português;
+  duplicado reconhecido (INC-042) em 15 s. Os textos fixos da tela (“Fontes e detalhes”, “Causa 1 — confiança alta”)
+  ficam sempre em português.
