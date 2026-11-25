@@ -124,7 +124,9 @@ def user_message(description, triage, findings, research_round=1, max_rounds=3):
     """The message with everything the agent needs for one diagnosis."""
     triage = triage or {}
     tri = [f"- affected service: {triage.get('affected_service') or 'unknown'}",
-           f"- what changed right before (trigger): {triage.get('trigger') or 'none known'}",
+           "- what changed right before (trigger): " + (
+               (triage.get("trigger") or "none known") if "trigger" in triage
+               else "not extracted by the triage (read the CURRENT INCIDENT)"),
            "- symptoms: " + ("; ".join(triage.get("symptoms") or []) or "none listed"),
            f"- category hint: {triage.get('category') or 'none'}"]
     last = " This is the LAST research round." if research_round >= max_rounds else ""
