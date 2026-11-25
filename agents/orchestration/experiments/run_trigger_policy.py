@@ -117,12 +117,20 @@ def main() -> None:
     ap.add_argument("--cases", default=",".join(CASES))
     ap.add_argument("--real-report", action="store_true", help="Mari's Reporting agent instead of the report in code")
     ap.add_argument("--postgres", action="store_true", help="PostgresSaver (as in the demo) instead of InMemorySaver")
+    ap.add_argument("--report-no-thinking", action="store_true",
+                    help="the Reporting agent's model with the reasoning off and temperature 0 (the test of "
+                         "2026-11-25, section 17 of the report; since then it is the default in agents/reporting)")
     a = ap.parse_args()
     triage_agent.set_trigger_policy(a.policy)
     if not a.real_report:
         graph.run_reporting = graph.code_report_node  # the report in code: not measured here
+    if a.report_no_thinking:
+        import agents.reporting.agent as reporting_agent
+        from agents.triage.llm import chat
+        reporting_agent.chat = lambda messages, max_tokens=8192, **kw: chat(
+            messages, max_tokens=max_tokens, temperature=0, chat_template_kwargs={"enable_thinking": False})
     from agents.orchestration.run import checkpointer
-    tag = ("_report" if a.real_report else "") + ("_pg" if a.postgres else "")
+    tag = ("_report" if a.real_report else "") + ("_nothink" if a.report_no_thinking else "") + ("_pg" if a.postgres else "")
     out = HERE / "results" / f"trigger_policy_{a.policy}{tag}_{datetime.now():%Y-%m-%d_%H%M}.json"
     with checkpointer(memory=not a.postgres) as saver:
         run_all(graph.build_graph(saver), a.cases.split(","), out)

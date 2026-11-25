@@ -321,3 +321,30 @@ PostgresSaver; 1ª mensagem com o que falha e onde, analista simulado. Os 12 rel
 um diagnóstico montado em código com as hipóteses e as fontes, não um inconclusivo; (3) encurtar as causas `low`
 (causa + fonte), o que pede afrouxar a regra "causas = hipóteses"; (4) guardar os problemas de cada tentativa, não só
 os da última.
+
+## 17. Relatório com o raciocínio desligado (25/11)
+
+Resultado: `trigger_policy_B_report_nothink_pg_2026-11-25_1422.json` (`run_trigger_policy.py --policy B --real-report
+--report-no-thinking --postgres`), nos 3 casos que caíram no relatório de reserva na seção 16 e em 3 que passaram
+(2 deles só na 3ª tentativa). O modelo do Relatório foi chamado com temperatura 0 e `enable_thinking: False`.
+
+| Caso | Seção 16 (raciocínio ligado) | Raciocínio desligado |
+|---|---|---|
+| DAN-125 | falhou nas 3 → reserva | válido na 1ª |
+| DAN-018 | falhou nas 3 → reserva | válido na 1ª |
+| DAN-154 | falhou nas 3 → reserva | válido na 1ª |
+| DAN-104 | válido na 3ª | válido na 1ª |
+| DAN-164 | válido na 3ª | válido na 1ª |
+| DAN-197 | válido na 1ª | válido na 1ª (inconclusivo) |
+
+- **6 de 6 válidos na 1ª tentativa**, nenhum relatório de reserva. Lidos à mão: a mesma qualidade (fiéis aos
+  post-mortems, dizem quando o post-mortem não descreve a correção ou a prevenção, links corretos), um pouco mais
+  curtos (2.500 a 4.800 caracteres). Continua o detalhe do DAN-164 (um passo do incidente aparece como correção).
+- **DAN-197 levou 26 minutos:** com 429 do NIM o Pesquisa não aprofundou o post-mortem certo, o Diagnóstico perguntou
+  ao analista 3 vezes e cada resposta recomeçou a investigação (9 rodadas de busca no total); o relatório
+  inconclusivo saiu honesto. O pior caso do desenho (3 respostas × 3 rodadas) é longo; limitar o total de rodadas por
+  investigação fica como ideia para depois.
+
+**Decisão:** o Relatório passa a chamar o modelo com o raciocínio desligado e temperatura 0
+(`agents/reporting/agent.py`, `TEMPERATURE` e `LLM_OPTIONS`), na branch `e5-acabamentos`, para a Mari revisar.
+

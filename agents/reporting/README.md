@@ -156,8 +156,10 @@ Keepthescore, Spotify); as similaridades e os campos `why` foram inventados.
 - **O modelo varia.** Uma vez ele inventou um checklist de prevenção sem apoio no texto; o prompt foi
   reforçado e passou a respeitar a regra, mas pode voltar a acontecer. O teste `thin_passages_edge` existe
   para vigiar isso.
-- **Texto vazio ocasional.** O modelo às vezes gasta todos os tokens "pensando" e responde vazio. O limite
-  é de 8192 tokens e o reintento cobre o resto.
+- **Texto vazio ocasional (resolvido em 25/11).** Com o raciocínio do modelo ligado, ele às vezes gastava os
+  tokens "pensando" e respondia vazio ou com o JSON cortado: nos 12 casos reais pelo grafo, 3 relatórios caíram no
+  inconclusivo de reserva. Agora o agente chama o modelo com o raciocínio desligado e temperatura 0 (como o
+  Diagnóstico): nos mesmos casos, 6 de 6 válidos na 1ª tentativa, com a mesma qualidade.
 - **Dados simulados.** O formato dos `findings` e do `diagnosis` segue o `docs/E5_Estado_e_Formatos.md`.
   Falta confirmar com os dados reais quando os agentes estiverem conectados no grafo.
 - **A regra "causas = hipóteses" é estrita.** Se atrapalhar a integração, pode ser relaxada em `validation.py`.

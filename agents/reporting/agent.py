@@ -18,7 +18,14 @@ from agents.reporting.schema import Report, parse_report_answer
 from agents.reporting.validation import _as_dict, validate_report
 
 MAX_ATTEMPTS = 3      # the first answer plus up to 2 fixes
-MAX_TOKENS = 8192     # the model "thinks" before it answers, and the message and the fields together can be long
+MAX_TOKENS = 8192     # the message and the fields together can be long (3 causes with fix, changes and prevention)
+# Model settings: reasoning off and temperature 0, as the Diagnosis agent. With the reasoning on, the model spent the
+# tokens "thinking" and the answer came back empty or cut in the middle of the JSON: in 12 real cases (graph + Postgres,
+# 2026-11-25) 3 reports fell back to the inconclusive one although the diagnosis was enough, and 2 needed 3 attempts.
+# With these settings, the same cases gave 6 of 6 valid reports at the first attempt, with the same quality
+# (agents/orchestration/experiments/results/E5_testes_diagnostico_2026-11-24.md, sections 16 and 17).
+TEMPERATURE = 0
+LLM_OPTIONS = {"chat_template_kwargs": {"enable_thinking": False}}
 
 
 def fallback_report(state, problems):
@@ -65,7 +72,7 @@ def run_reporting_agent(state):
 
     problems = []
     for attempt in range(1, MAX_ATTEMPTS + 1):
-        reply = chat(messages, max_tokens=MAX_TOKENS)
+        reply = chat(messages, max_tokens=MAX_TOKENS, temperature=TEMPERATURE, **LLM_OPTIONS)
         text = reply.get("content") or ""
         messages.append({"role": "assistant", "content": text})
 
