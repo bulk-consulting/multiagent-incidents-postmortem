@@ -15,6 +15,11 @@ from app.api import incidents  # noqa: E402  (after load_dotenv, so the settings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
+# Libraries that write too much at INFO level (every HTTP call, the embedding progress bars). Only their
+# warnings and errors are shown, so the terminal shows the line of each agent clearly.
+for noisy in ("httpx", "httpx2", "huggingface_hub", "sentence_transformers"):
+    logging.getLogger(noisy).setLevel(logging.WARNING)
+
 app = FastAPI(
     title="Incident Copilot API",
     description="Recebe a descrição de um incidente e devolve o relatório dos agentes.",

@@ -11,7 +11,7 @@ import streamlit as st
 
 # 127.0.0.1 and not "localhost": on Windows, "localhost" tries IPv6 first and each failed try takes seconds.
 API_URL = os.getenv("API_URL", "http://127.0.0.1:8000/api/v1")
-TIMEOUT_SECONDS = 300  # the real agents can take minutes
+TIMEOUT_SECONDS = 600  # the real agents can take several minutes (3 to 6 with the free NIM)
 CONFIDENCE = {"high": "alta", "medium": "média", "low": "baixa"}
 
 st.set_page_config(page_title="Incident Copilot", page_icon="🛠️")
@@ -33,6 +33,12 @@ def api_is_up() -> bool:
 def show_details(report: dict, incident_id: str, seconds: float) -> None:
     """Sources and other details, folded under the answer."""
     sources = {s["url"]: s for cause in report["causes"] for s in cause["sources"]}
+
+    # Questions or "already under investigation": nothing to unfold, only the small line at the end.
+    if not sources and not report["suggested_checks"]:
+        st.caption(f"{incident_id} · {seconds:.1f}s · tipo: {report['kind']}")
+        return
+
     with st.expander(f"Fontes e detalhes ({len(sources)} fonte(s))"):
         if sources:
             st.markdown("**Post-mortems usados**")

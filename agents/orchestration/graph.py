@@ -197,8 +197,34 @@ def code_report_node(state: InvestigationState) -> dict:
         report = {"incident_id": state.get("incident_id"), "kind": "inconclusive",
                   "summary": "The evidence found is not enough for a diagnosis.", "causes": [], "gaps": gaps,
                   "suggested_checks": list(d.questions_for_analyst) if d is not None else []}
+    report["message"] = _code_report_message(report)
     return {"report": report, "report_problems": [],
             **_step("report", start, f"{report['kind']}, {len(report['causes'])} causes")}
+
+
+def _code_report_message(report: dict) -> str:
+    """The text for the chat (Markdown), so the code report has the same fields as the Reporting agent's Report."""
+    lines = [report["summary"]]
+
+    # 1. The causes, with their sources (only in a diagnosis).
+    for number, cause in enumerate(report["causes"], start=1):
+        lines += ["", f"**Cause {number}** (confidence: {cause['confidence']})", cause["root_cause"]]
+        for source in cause["sources"]:
+            lines.append(f"- Source: [{source['incident_id']} - {source['title']}]({source['url']})")
+
+    # 2. What is missing.
+    if report["gaps"]:
+        lines += ["", "**What is missing**"]
+        for gap in report["gaps"]:
+            lines.append(f"- {gap}")
+
+    # 3. What the analyst can check now.
+    if report["suggested_checks"]:
+        lines += ["", "**What you can check now**"]
+        for check in report["suggested_checks"]:
+            lines.append(f"- {check}")
+
+    return "\n".join(lines)
 
 
 def validate_report_node(state: InvestigationState) -> dict:
