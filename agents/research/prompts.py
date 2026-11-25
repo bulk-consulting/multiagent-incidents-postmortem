@@ -87,10 +87,42 @@ Note: in your first search, the system also searches automatically with the orig
 the incident; the results of both searches come together."""
 
 
-def agentic_user_message(description: str, symptoms: list[str], request: str = "") -> str:
-    """The first message in agentic/hybrid mode: no incidents yet, the LLM starts searching."""
-    parts = [f"CURRENT INCIDENT:\n{description}"]
-    if symptoms:
+# Experiment (2026-11-24, TRIAGE_CONTEXT in agent.py): how to use the structured output of the Triage agent.
+TRIAGE_GUIDANCE = """
+
+How to use the triage information:
+- The analyst's own words (CURRENT INCIDENT) are the source of truth; the TRIAGE block is a summary to help you
+  search.
+- Write your first queries from different angles:
+  1. the trigger + the kind of component (when a trigger is known): past incidents with the same kind of trigger
+     are often the best matches, even when the symptoms look different;
+  2. the main visible symptom + the kind of service + how far it spread;
+  3. if nothing fits, the likely failure mechanism that the trigger and symptoms suggest (capacity,
+     configuration, a dependency, a bad data update...).
+- Use general technical words, not internal names: the past incidents come from other companies, which name
+  things differently.
+- If the trigger is "none known", do not invent one: search by symptoms and scope."""
+
+
+def triage_block(triage: dict) -> str:
+    """The structured Triage output as text for the LLM (TRIAGE_CONTEXT experiment)."""
+    lines = ["TRIAGE (structured summary from the triage agent):",
+             f"- affected service: {triage.get('affected_service') or 'unknown'}",
+             f"- what changed right before (trigger): {triage.get('trigger') or 'none known'}",
+             "- symptoms:"]
+    lines += [f"  - {s}" for s in triage.get("symptoms") or []] or ["  - (none listed)"]
+    lines.append(f"- category hint: {triage.get('category') or 'none'}")
+    return "\n".join(lines)
+
+
+def agentic_user_message(description: str, symptoms: list[str], request: str = "", triage: dict | None = None) -> str:
+    """The first message in agentic/hybrid mode: no incidents yet, the LLM starts searching.
+    With `triage` (TRIAGE_CONTEXT experiment), the whole structured Triage output replaces the symptoms list."""
+    if triage:
+        parts = [f"CURRENT INCIDENT (the analyst's own words, all messages):\n{description}", triage_block(triage)]
+    else:
+        parts = [f"CURRENT INCIDENT:\n{description}"]
+    if symptoms and not triage:
         parts.append("SYMPTOMS (triage):\n" + "\n".join(f"- {s}" for s in symptoms))
     if request:
         parts.append(f"REQUEST FROM THE DIAGNOSIS AGENT:\n{request}")
@@ -105,5 +137,7 @@ def user_message(description: str, symptoms: list[str], candidates_text: str, re
         parts.append("SYMPTOMS:\n" + "\n".join(f"- {s}" for s in symptoms))
     if request:
         parts.append(f"REQUEST FROM THE DIAGNOSIS AGENT:\n{request}")
-    parts.append(f"INCIDENTS FOUND:\n\n{candidates_text}")
+        parts.append(f"NEW INCIDENTS FOUND (the ones examined in earlier rounds were left out):\n\n{candidates_text}")
+    else:
+        parts.append(f"INCIDENTS FOUND:\n\n{candidates_text}")
     return "\n\n---\n\n".join(parts)

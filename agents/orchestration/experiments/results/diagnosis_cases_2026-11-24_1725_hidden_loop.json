@@ -1,0 +1,563 @@
+[
+ {
+  "case": "DAN-211",
+  "round": 1,
+  "hidden": [
+   "DAN-211"
+  ],
+  "description": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening.",
+  "triage": {
+   "affected_service": "service-discovery",
+   "trigger": "we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half",
+   "symptoms": [
+    "updates are taking much longer than usual",
+    "credential delivery is sluggish",
+    "shared service-discovery cluster is in poor health"
+   ],
+   "category": null
+  },
+  "real_root_cause": "The outage resulted from two primarily independent performance problems within Consul. First, the recently enabled streaming implementation suffered excessive contention under the combination of very high read and write loads. The streaming implementation used fewer Go channels for concurrency control than the previous long-polling approach. At this workload scale, contention on a shared channel blocked writes, increased CPU usage, and severely degraded Consul performance. The 128-core replacement servers, which used a dual-socket NUMA architecture, aggravated contention on shared resources. Second, the workload exposed a pathological BoltDB performance problem affecting Consul's Raft log persistence. BoltDB retained free pages from deleted log entries in an increasingly large freelist. The database contained approximately 3.8 GB of unused space and a 7.8 MB freelist, which was rewritten during small log appends, causing excessive write latency. Backpressure and full TCP buffers contributed to write times of 2 to 3 seconds on unhealthy leaders. Both problems affected a single shared Consul cluster that supported numerous critical services, amplifying the outage. Monitoring systems also depended on Consul, reducing visibility during diagnosis.",
+  "findings": [
+   {
+    "id": "DAN-020",
+    "deepened": true,
+    "title": "2020-09-25 Incident: Infrastructure connectivity issue impacting multiple systems | Datadog"
+   },
+   {
+    "id": "DAN-096",
+    "deepened": true,
+    "title": "An update on recent service disruptions - The GitHub Blog"
+   },
+   {
+    "id": "DAN-115",
+    "deepened": false,
+    "title": "Summary of the Amazon Kinesis Data Streams Service Event in Northern Virginia (US-EAST-1) Region"
+   },
+   {
+    "id": "DAN-209",
+    "deepened": false,
+    "title": "Why Reddit was down on Aug 11 : announcements"
+   },
+   {
+    "id": "DAN-183",
+    "deepened": false,
+    "title": "Clouds, caches and connection conundrums | Blog | incident.io"
+   },
+   {
+    "id": "DAN-217",
+    "deepened": false,
+    "title": "This was not normal. Really. | The Official Slack Blog"
+   },
+   {
+    "id": "DAN-135",
+    "deepened": false,
+    "title": "CircleCI Status - Jobs not starting"
+   },
+   {
+    "id": "DAN-035",
+    "deepened": false,
+    "title": "Google Cloud Status Dashboard — A bug in configuration roll-out to a load balancer lead to increased error rates for 22 minutes"
+   }
+  ],
+  "right_incident_in_findings": false,
+  "right_incident_deepened": false,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "Switching the request-routing application to continuous updates from the coordination system and increasing its fleet by about half caused a sudden surge of discovery and configuration requests that overwhelmed the shared service-discovery cluster, leading to quorum loss, slow registration/deregistration, and sluggish credential delivery for dependent backends.",
+     "based_on": [
+      "DAN-020"
+     ],
+     "matches": "Same component (shared service-discovery/coordination cluster), same kind of trigger (a change in how an application consumes the coordination system combined with a scaling event), and same degradation pattern (slow updates, sluggish dependent services, impact spreading after a delay).",
+     "differs": "In DAN-020 the trigger was recycling a smaller latency-measuring cluster (scale down/up), not switching to continuous updates; the current incident had roughly a day of apparent stability before symptoms worsened, whereas the past thundering herd appeared more immediately.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "high"
+    },
+    {
+     "cause": "Resource exhaustion on a shared backend infrastructure component under increased load from the enlarged request-routing fleet cascaded to dependent applications, slowing updates and credential delivery.",
+     "based_on": [
+      "DAN-096"
+     ],
+     "matches": "Shared infrastructure relied on by many backend applications; resource exhaustion under increased load causing cascading degradation across services.",
+     "differs": "The past component is a MySQL database cluster accessed via ProxySQL, not a service-discovery/coordination cluster; the trigger was peak traffic and enabling memory profiling, not a switch to continuous updates plus fleet growth; no passage ties it to service discovery or credential delivery.",
+     "same_trigger": "no",
+     "same_component": "no",
+     "same_mechanism": "no",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "We do not have metrics showing whether the service-discovery cluster received a sudden spike in requests after the fleet growth.",
+    "We do not know whether the cluster lost quorum or whether individual nodes became unhealthy.",
+    "It is unclear whether credential delivery depends on the same service-discovery cluster or on a separate system that was also affected."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "low"
+  ],
+  "diagnosis_turns": 2,
+  "prompt_chars": 12492,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Creden",
+      "ids": [
+       "DAN-205",
+       "DAN-145",
+       "DAN-148",
+       "DAN-144",
+       "DAN-066",
+       "DAN-106",
+       "DAN-096",
+       "DAN-029",
+       "DAN-129",
+       "DAN-098"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "service discovery cluster poor health slow updates credential delivery",
+      "ids": [
+       "DAN-020",
+       "DAN-219",
+       "DAN-145",
+       "DAN-109",
+       "DAN-066",
+       "DAN-029",
+       "DAN-210",
+       "DAN-222",
+       "DAN-220",
+       "DAN-015"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "continuous updates coordination system service discovery slow backend applications",
+      "ids": [
+       "DAN-020",
+       "DAN-220",
+       "DAN-066",
+       "DAN-144",
+       "DAN-129",
+       "DAN-133",
+       "DAN-208",
+       "DAN-109",
+       "DAN-205",
+       "DAN-145"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "service discovery root cause fix bad config dependent client",
+      "ids": [
+       "DAN-020"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-020"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-020"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "shared mysql cluster ProxySQL connection exhaustion root cause fix throttling",
+      "ids": [
+       "DAN-096"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-096"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-096"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-020",
+      "deepened": true,
+      "title": "2020-09-25 Incident: Infrastructure connectivity issue impacting multiple systems | Datadog"
+     },
+     {
+      "id": "DAN-096",
+      "deepened": true,
+      "title": "An update on recent service disruptions - The GitHub Blog"
+     },
+     {
+      "id": "DAN-205",
+      "deepened": false,
+      "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+     },
+     {
+      "id": "DAN-145",
+      "deepened": false,
+      "title": "Discord Status - Unavailable Guilds & Connection Issues"
+     },
+     {
+      "id": "DAN-148",
+      "deepened": false,
+      "title": "Postmortem of Service Outage at 3.4M CCU"
+     },
+     {
+      "id": "DAN-144",
+      "deepened": false,
+      "title": "Discord Status - Connectivity Issues"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     },
+     {
+      "id": "DAN-106",
+      "deepened": false,
+      "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "Switching the request-routing application to continuous updates from the coordination system and growing its fleet by roughly half caused a sudden surge of registration and lookup traffic against the shared service-discovery cluster, producing a thundering herd that degraded quorum and slowed updates and credential delivery.",
+       "based_on": [
+        "DAN-020"
+       ],
+       "matches": "Same component (a shared service-discovery/coordination cluster relied on by most services), same symptom pattern (slow updates, sluggish dependent services, degradation worsening over hours), and a passage describes a thundering herd of requests overwhelming service discovery and breaking quorum.",
+       "differs": "The past trigger was a cluster recycle that made nodes unreachable and spiked DNS requests; the current trigger is a deliberate change to continuous updates plus fleet growth, and symptoms appeared only after roughly a day of seemingly normal operation.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "The expanded request-routing fleet exhausted connections or resources on the shared service-discovery and credential-delivery infrastructure, creating resource contention that cascaded to the many backend applications that depend on it.",
+       "based_on": [
+        "DAN-096"
+       ],
+       "matches": "Shared infrastructure relied on by many backend applications; performance degradation under increased load; cascading impact to dependents.",
+       "differs": "The past incident involved a MySQL/ProxySQL database cluster and connection exhaustion, not a service-discovery/coordination cluster; the trigger was peak load and memory profiling, not a config change to continuous updates.",
+       "same_trigger": "no",
+       "same_component": "no",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": false,
+     "gaps": [
+      "No metrics or logs show whether the service-discovery cluster lost quorum or was overwhelmed by request volume after the fleet growth.",
+      "It is unknown whether the request-routing application was the only client switched to continuous updates or whether other clients also increased their query rate.",
+      "No error messages (for example DNS, lookup, or credential-delivery timeouts) are provided from backend applications."
+     ],
+     "next_step": "refine_search",
+     "search_request": "service discovery cluster thundering herd continuous updates fleet scaling quorum loss",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 3,
+    "prompt_chars": 11995
+   },
+   {
+    "research_round": 2,
+    "request": "service discovery cluster thundering herd continuous updates fleet scaling quorum loss",
+    "searches": [
+     {
+      "step": "initial_search",
+      "query": "service discovery cluster thundering herd continuous updates fleet scaling quorum loss",
+      "ids": [
+       "DAN-077",
+       "DAN-079",
+       "DAN-143",
+       "DAN-018",
+       "DAN-222",
+       "DAN-078",
+       "DAN-184",
+       "DAN-086",
+       "DAN-151",
+       "DAN-135"
+      ]
+     },
+     {
+      "step": "initial_search",
+      "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Creden",
+      "ids": [
+       "DAN-115",
+       "DAN-209",
+       "DAN-183",
+       "DAN-217",
+       "DAN-135",
+       "DAN-035",
+       "DAN-208",
+       "DAN-130",
+       "DAN-127",
+       "DAN-218"
+      ]
+     },
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Creden",
+      "ids": [
+       "DAN-164",
+       "DAN-008",
+       "DAN-077",
+       "DAN-222",
+       "DAN-221",
+       "DAN-143",
+       "DAN-094",
+       "DAN-147",
+       "DAN-151",
+       "DAN-238"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "service discovery cluster thundering herd continuous updates fleet scaling etcd Consul quorum",
+      "ids": [
+       "DAN-079",
+       "DAN-151",
+       "DAN-178",
+       "DAN-222",
+       "DAN-078",
+       "DAN-143",
+       "DAN-018",
+       "DAN-184",
+       "DAN-189",
+       "DAN-180"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "coordination service watch overload credential delivery sluggish service discovery degraded",
+      "ids": [
+       "DAN-221",
+       "DAN-151",
+       "DAN-113",
+       "DAN-234",
+       "DAN-016",
+       "DAN-147",
+       "DAN-001",
+       "DAN-222",
+       "DAN-033",
+       "DAN-191"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "etcd Consul watch connection storm service discovery degraded performance scaled services",
+      "ids": [
+       "DAN-078",
+       "DAN-112",
+       "DAN-067",
+       "DAN-178",
+       "DAN-014",
+       "DAN-188",
+       "DAN-018",
+       "DAN-133",
+       "DAN-075",
+       "DAN-026"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "service discovery quorum loss leader election continuous watch fleet expansion thundering herd",
+      "ids": [
+       "DAN-078",
+       "DAN-093",
+       "DAN-112",
+       "DAN-002",
+       "DAN-184",
+       "DAN-191",
+       "DAN-048",
+       "DAN-018",
+       "DAN-159",
+       "DAN-026"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "Consul etcd service mesh control plane overload continuous updates watch connections",
+      "ids": [
+       "DAN-114",
+       "DAN-108",
+       "DAN-189",
+       "DAN-064",
+       "DAN-081",
+       "DAN-184",
+       "DAN-169",
+       "DAN-022",
+       "DAN-110",
+       "DAN-107"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "coordination system quorum loss service discovery degraded credential delivery after fleet scaling",
+      "ids": [
+       "DAN-033",
+       "DAN-191",
+       "DAN-048",
+       "DAN-015",
+       "DAN-068",
+       "DAN-184",
+       "DAN-189",
+       "DAN-139",
+       "DAN-116",
+       "DAN-193"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "etcd watch thundering herd performance degradation quorum",
+      "ids": [
+       "DAN-093",
+       "DAN-107",
+       "DAN-134",
+       "DAN-180",
+       "DAN-181",
+       "DAN-139",
+       "DAN-103",
+       "DAN-105",
+       "DAN-071",
+       "DAN-195"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "service discovery cluster overload continuous updates fleet scaling quorum loss credential",
+      "ids": [
+       "DAN-015",
+       "DAN-086",
+       "DAN-093",
+       "DAN-180",
+       "DAN-139",
+       "DAN-002",
+       "DAN-134",
+       "DAN-193",
+       "DAN-156",
+       "DAN-003"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-020",
+      "deepened": true,
+      "title": "2020-09-25 Incident: Infrastructure connectivity issue impacting multiple systems | Datadog"
+     },
+     {
+      "id": "DAN-096",
+      "deepened": true,
+      "title": "An update on recent service disruptions - The GitHub Blog"
+     },
+     {
+      "id": "DAN-115",
+      "deepened": false,
+      "title": "Summary of the Amazon Kinesis Data Streams Service Event in Northern Virginia (US-EAST-1) Region"
+     },
+     {
+      "id": "DAN-209",
+      "deepened": false,
+      "title": "Why Reddit was down on Aug 11 : announcements"
+     },
+     {
+      "id": "DAN-183",
+      "deepened": false,
+      "title": "Clouds, caches and connection conundrums | Blog | incident.io"
+     },
+     {
+      "id": "DAN-217",
+      "deepened": false,
+      "title": "This was not normal. Really. | The Official Slack Blog"
+     },
+     {
+      "id": "DAN-135",
+      "deepened": false,
+      "title": "CircleCI Status - Jobs not starting"
+     },
+     {
+      "id": "DAN-035",
+      "deepened": false,
+      "title": "Google Cloud Status Dashboard — A bug in configuration roll-out to a load balancer lead to increased error rates for 22 minutes"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "Switching the request-routing application to continuous updates from the coordination system and increasing its fleet by about half caused a sudden surge of discovery and configuration requests that overwhelmed the shared service-discovery cluster, leading to quorum loss, slow registration/deregistration, and sluggish credential delivery for dependent backends.",
+       "based_on": [
+        "DAN-020"
+       ],
+       "matches": "Same component (shared service-discovery/coordination cluster), same kind of trigger (a change in how an application consumes the coordination system combined with a scaling event), and same degradation pattern (slow updates, sluggish dependent services, impact spreading after a delay).",
+       "differs": "In DAN-020 the trigger was recycling a smaller latency-measuring cluster (scale down/up), not switching to continuous updates; the current incident had roughly a day of apparent stability before symptoms worsened, whereas the past thundering herd appeared more immediately.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "high"
+      },
+      {
+       "cause": "Resource exhaustion on a shared backend infrastructure component under increased load from the enlarged request-routing fleet cascaded to dependent applications, slowing updates and credential delivery.",
+       "based_on": [
+        "DAN-096"
+       ],
+       "matches": "Shared infrastructure relied on by many backend applications; resource exhaustion under increased load causing cascading degradation across services.",
+       "differs": "The past component is a MySQL database cluster accessed via ProxySQL, not a service-discovery/coordination cluster; the trigger was peak traffic and enabling memory profiling, not a switch to continuous updates plus fleet growth; no passage ties it to service discovery or credential delivery.",
+       "same_trigger": "no",
+       "same_component": "no",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "We do not have metrics showing whether the service-discovery cluster received a sudden spike in requests after the fleet growth.",
+      "We do not know whether the cluster lost quorum or whether individual nodes became unhealthy.",
+      "It is unclear whether credential delivery depends on the same service-discovery cluster or on a separate system that was also affected."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "low"
+    ],
+    "diagnosis_turns": 2,
+    "prompt_chars": 12492
+   }
+  ],
+  "seconds": 421
+ }
+]

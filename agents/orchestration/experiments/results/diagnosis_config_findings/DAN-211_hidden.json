@@ -1,0 +1,330 @@
+{
+ "case": "DAN-211",
+ "hidden": true,
+ "description": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening.",
+ "triage": {
+  "affected_service": "service-discovery",
+  "trigger": "we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half",
+  "symptoms": [
+   "updates are taking much longer than usual",
+   "credential delivery is sluggish",
+   "shared service-discovery cluster is in poor health"
+  ],
+  "category": null
+ },
+ "warnings": [],
+ "findings": [
+  {
+   "incident_id": "DAN-020",
+   "company": "Datadog",
+   "title": "2020-09-25 Incident: Infrastructure connectivity issue impacting multiple systems | Datadog",
+   "url": "https://www.datadoghq.com/blog/2020-09-25-infrastructure-connectivity-issue/",
+   "summary": "A bad service discovery config in one of the clients brought down service discovery globally when a dependent client went down.",
+   "similarity": 0.7079492726025525,
+   "best_chunk": {
+    "type": "text",
+    "section": "A thundering herd",
+    "content": "## A thundering herd\n\nBack to our fateful day. When the smaller, latency-measuring cluster was recycled (scaled down and back up again), its nodes were unreachable for enough time for the larger cluster to issue a large volume of DNS requests back to the service discovery system. The volume of DNS requests was multiplied by 10 in 10 short seconds, as shown below:\n\nThis sudden onslaught caused the service discovery cluster to lose its quorum and fail to reliably register and deregister services, and fail to quickly answer DNS requests coming from other parts of our infrastructure. After local DNS caches expired on all nodes, we faced a “thundering herd” on the service discovery cluster, amplifying the issue until its breaking point. The net result was that most of our services could neither reliably find their dependencies nor load their runtime configuration at startup time, thus causing repeated errors until:\n\n- Their dependencies were statically available via a local file,\n\n- Their runtime configuration parameters were statically available via a local file, or\n\n- They could reliably depend on the service discovery cluster again."
+   },
+   "passages": [
+    {
+     "section": "The failure of a core system",
+     "content": "## The failure of a core system\n\nThe incident was caused by the failure of an internal service discovery and dynamic configuration system that the vast majority of Datadog software components rely on. Service discovery is a central directory of all services running at a given time and provides an easy way for services to find where their dependencies are. Dynamic configuration lets us reconfigure services at run-time and is one of the first dependencies that our services query, as they start up.\n\nThis system is backed by a highly available, distributed cluster spanning multiple availability zones. It is designed to withstand the loss of one or two of its nodes at any given time without an impact on its ability to:\n\n- Register and deregister services (“service foo is now available at this IP”)\n\n- Answer service discovery queries over DNS (“where is service foo?”)\n\n- Answer configuration queries (“should this option be turned on for this customer’s\n\nrequests?”)\n\nBecause service discovery is a core system throughout our entire infrastructure, its failure unfortunately had global effects, made our recovery efforts difficult, and extended the duration of the incident.",
+     "similarity": 0.6762321643381042,
+     "origin": "deep_search",
+     "query": "service discovery root cause fix dependent client config",
+     "query_source": "llm"
+    },
+    {
+     "section": "How do we avoid it in the future?",
+     "content": "## How do we avoid it in the future?\n\nPost-incident, all engineering teams have been involved in forensic investigations in order to understand in depth what happened and summarize all the findings in a copious collection of internal postmortems. Here is the gist of what we are prioritizing now to avoid this type of failure in the future, with work already underway and continuing into Q4 ’20 and beyond.",
+     "similarity": 0.5064150102987489,
+     "origin": "deep_search",
+     "query": "what was the root cause of the failure",
+     "query_source": "cause"
+    },
+    {
+     "section": "Improve our external response",
+     "content": "## Improve our external response\n\nIt starts with having a dedicated role with clear processes to disseminate updates about high visibility incidents throughout. It also includes having clearer communication on the impact of an incident as it develops.",
+     "similarity": 0.4804301889578375,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Internal response and recovery",
+     "content": "## Internal response and recovery\n\nA few minutes after the intake cluster started to show intermittent failures and roughly 20 minutes before we publicly declared an incident, teams triggered an internal one. It brought together on-call engineers for each of the affected services into a virtual war room and an incident commander to coordinate the overall response.\n\nWith service discovery and dynamic configuration down, a lot of the tools we have to mitigate failures became unavailable. We could no longer quickly alter the configuration, nor shed load to another part of the infrastructure. Bringing more capacity online across the board had virtually no effect until service discovery was fixed. Adding more capacity to the service discovery cluster proved ineffective, as distributed consensus-based systems require a quorum of nodes to agree on the state of the world. In this case each node of the service discovery cluster was already too loaded to properly admit extra ones and spread the load.\n\nWhile the service discovery team was working to stabilize the cluster by cutting it off from all its clients and controlling re-admission, all other teams temporarily eliminated the dependency on service discovery and dynamic configuration. This turned out to be an iterative process for which we did not have ready-made, break-the-glass automation. The web tier was affected for a number of hours for the reasons mentioned above. Other backend services were restored before that point because they are by design isolated from the web tier.",
+     "similarity": 0.39345357191999764,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "A thundering herd",
+     "content": "## A thundering herd\n\nBack to our fateful day. When the smaller, latency-measuring cluster was recycled (scaled down and back up again), its nodes were unreachable for enough time for the larger cluster to issue a large volume of DNS requests back to the service discovery system. The volume of DNS requests was multiplied by 10 in 10 short seconds, as shown below:\n\nThis sudden onslaught caused the service discovery cluster to lose its quorum and fail to reliably register and deregister services, and fail to quickly answer DNS requests coming from other parts of our infrastructure. After local DNS caches expired on all nodes, we faced a “thundering herd” on the service discovery cluster, amplifying the issue until its breaking point. The net result was that most of our services could neither reliably find their dependencies nor load their runtime configuration at startup time, thus causing repeated errors until:\n\n- Their dependencies were statically available via a local file,\n\n- Their runtime configuration parameters were statically available via a local file, or\n\n- They could reliably depend on the service discovery cluster again.",
+     "similarity": 0.7079492726025525,
+     "origin": "similar",
+     "query": "service discovery cluster poor health slow updates credential delivery"
+    },
+    {
+     "section": "Improve the resilience of service discovery",
+     "content": "## Improve the resilience of service discovery\n\nThe need to register and deregister services won’t go away but we must support it with a system that is not a single point of failure (be it distributed or not).",
+     "similarity": 0.6492288501675297,
+     "origin": "similar",
+     "query": "service discovery cluster poor health slow updates credential delivery"
+    }
+   ],
+   "found_by": "llm_query",
+   "deepened": true,
+   "why": "Matches the service-discovery cluster component and the idea that one client/config change brought down discovery globally, similar to the routing app change affecting shared infrastructure."
+  },
+  {
+   "incident_id": "DAN-098",
+   "company": "GitHub",
+   "title": "Addressing GitHub’s recent availability issues - The GitHub Blog — Two popular client apps had been quietly increasing read traffic 10×, then a Saturday change shortened a...",
+   "url": "https://github.blog/news-insights/company-news/addressing-githubs-recent-availability-issues-2/",
+   "summary": "Two popular client apps had been quietly increasing read traffic 10×, then a Saturday change shortened a user-settings cache TTL from 12h to 2h. On Monday's peak, the combined write amplification from cache rewrites plus read load overwhelmed the core auth/user-management database cluster, cascading through every service that depends on it (github.com, API, Actions, Git over HTTPS, Copilot, etc.).",
+   "similarity": 0.64938968521592,
+   "best_chunk": {
+    "type": "text",
+    "section": "February 9 incident",
+    "content": "### February 9 incident\n\nOn Monday, February 9, we experienced a high‑impact incident due to a core database cluster that supports authentication and user management becoming overloaded. The mistakes that led to the problem were made days and weeks earlier.\n\nIn early February, two very popular client-side applications that make a significant amount of API calls against our servers were released, with unintentional changes driving a more-than-tenfold increase in read traffic they generated. Because these applications end up being updated by the users over time, the increase in usage doesn’t become evident right away; it appears as enough users upgrade.\n\nOn Saturday, February 7, we deployed a new model. While trying to get it to customers as quickly as possible, we changed a refresh TTL on a cache storing user settings from 12 to 2 hours. The model was released to a narrower set of customers due to limited capacity, which made the change necessary. At this point, everything was operating normally because the weekend load is significantly lower, and we didn’t have sufficiently granular alarms to detect the looming issue."
+   },
+   "passages": [
+    {
+     "section": "GitHub Actions incidents on February 2 and March 5",
+     "content": "### GitHub Actions incidents on February 2 and March 5\n\nWe also had two significant instances where our failover solution was either insufficient or didn’t function correctly:\n\n- Actions hosted runners had a significant outage on February 2. Most cloud infrastructure issues in this area typically do not cause impact as they occur in a limited number of regions, and we automatically shift traffic to healthy regions. However, in this case, there was a cascading set of events triggered by a telemetry gap that caused existing security policies to be applied to key internal storage accounts affecting all regions. This blocked access to VM metadata on VM creates and halted hosted runner lifecycle operations.\n- Another impactful incident for Actions occurred on March 5. Automated failover has been progressively rolling out across our Redis infrastructure, and on this day, a failover occurred for a Redis cluster used by Actions job orchestration. The failover performed as expected, but a latent configuration issue meant the failover left the cluster in a state with no writable primary. With writes failing and failover not available as a mitigation, we had to correct the state manually to mitigate. This was not an aggressive rollout or missing resiliency mechanism, but rather latent configuration that was only exposed by an event in production infrastructure.\n\nFor both of these incidents, the investigations brought up unexpected single points of failure that we needed to protect and needed to dry run failover procedures in the production more rigorously.\n\nAcross these incidents, contributing factors expanded the scope of impact to be much broader or longer than necessary, including:",
+     "similarity": 0.45189756491849453,
+     "origin": "deep_search",
+     "query": "what was the root cause of the failure",
+     "query_source": "cause"
+    },
+    {
+     "section": "What we are doing now",
+     "content": "## What we are doing now\n\nOur engineering teams are fully engaged in both near-term mitigations and durable longer-term architecture and process investments. We are addressing two common themes: managing rapidly increasing load by focusing on resilience and isolation of critical paths and preventing localized failures from ever causing broad service degradation.\n\nIn the near term, we are prioritizing stabilization work to reduce the likelihood and impact of incidents. This includes:\n\n1. Redesigning our user cache system, which hosts model policies and more, to accommodate significantly higher volume in a segmented database cluster.\n2. Expediting capacity planning and completing a full audit of fundamental health for critical data and compute infrastructure to address urgent growth.\n3. Further isolate key dependencies so that critical systems like GitHub Actions and Git will not be impacted by any shared infrastructure issues, reducing cascade risk. This is being done through a combination of removing or handling dependency failures where possible or isolating dependencies.\n4. Protecting downstream components during spikes to prevent cascading failures while prioritizing critical traffic loads.\n\nIn parallel, we are accelerating deeper platform investments to deliver on GitHub’s commitment to supporting sustained, high-rate growth with high availability. These include:",
+     "similarity": 0.35240733862585016,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "What we are doing now",
+     "content": "## What we are doing now\n\n1. Migrating our infrastructure to Azure to accommodate rapid growth, enabling both vertical scaling within regions and horizontal scaling across regions. In the short term, this provides a hybrid approach for infrastructure resiliency. As of today, 12.5% of all GitHub traffic is served from our Azure Central US region, and we are on track to serving 50% of all GitHub traffic by July. Longer term, this enables simplification of our infrastructure architecture and more global resiliency by adopting managed services.\n2. Breaking apart the monolith into more isolated services and data domains as appropriate, so we can scale independently, enable more isolated change management, and implement localized decisions about shedding traffic when needed.\n\nWe are also continuing tactical repair work from every incident.",
+     "similarity": 0.22751040219601126,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "February 9 incident",
+     "content": "### February 9 incident\n\nOn Monday, February 9, we experienced a high‑impact incident due to a core database cluster that supports authentication and user management becoming overloaded. The mistakes that led to the problem were made days and weeks earlier.\n\nIn early February, two very popular client-side applications that make a significant amount of API calls against our servers were released, with unintentional changes driving a more-than-tenfold increase in read traffic they generated. Because these applications end up being updated by the users over time, the increase in usage doesn’t become evident right away; it appears as enough users upgrade.\n\nOn Saturday, February 7, we deployed a new model. While trying to get it to customers as quickly as possible, we changed a refresh TTL on a cache storing user settings from 12 to 2 hours. The model was released to a narrower set of customers due to limited capacity, which made the change necessary. At this point, everything was operating normally because the weekend load is significantly lower, and we didn’t have sufficiently granular alarms to detect the looming issue.",
+     "similarity": 0.64938968521592,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    },
+    {
+     "section": "What happened",
+     "content": "## What happened\n\nThese incidents have occurred during a period of extremely rapid usage growth across our platform, exposing scaling limitations in parts of our current architecture. Specifically, we’ve found that recent platform instability was primarily driven by rapid load growth, architectural coupling that allowed localized issues to cascade across critical services, and inability of the system to adequately shed load from misbehaving clients.\n\nBefore we cover what we are doing to prevent these issues going forward, it is worth diving into the details of the most impactful incidents.",
+     "similarity": 0.6000012209229527,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    }
+   ],
+   "found_by": "description",
+   "deepened": true,
+   "why": "Matches the pattern of a change (fleet scaling / continuous updates) followed by delayed cascading impact across multiple dependent applications."
+  },
+  {
+   "incident_id": "DAN-205",
+   "company": "PagerDuty",
+   "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty",
+   "url": "https://web.archive.org/web/20211019062735/https://www.pagerduty.com/blog/outage-post-mortem-april-13-2013/",
+   "summary": "In April 2013, PagerDuty, a cloud service proving application uptime monitoring and real-time notifications, suffered an outage when two of its three independent cloud deployments in different data centers began experiencing connectivity issues and high network latency. It was found later that the two independent deployments shared a common peering point which was experiencing network instability. While the third deployment was still operational, PagerDuty's applications failed to establish quorum due to to high network latency and hence failed in their ability to send notifications.",
+   "similarity": 0.6776107323969303,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "In April 2013, PagerDuty, a cloud service proving application uptime monitoring and real-time notifications, suffered an outage when two of its three independent cloud deployments in different data centers began experiencing connectivity issues and high network latency. It was found later that the two independent deployments shared a common peering point which was experiencing network instability. While the third deployment was still operational, PagerDuty's applications failed to establish quorum due to to high network latency and hence failed in their ability to send notifications."
+   },
+   "passages": [
+    {
+     "section": "The Outage",
+     "content": "## The Outage\n\n**Note:** All times referenced below are in Pacific Time.\n\n- At 7:57am, according to AWS, connectivity issue begins due to a peering point degrading in Northern California\n- At 8:11am, PagerDuty on-call engineer is paged about an issue with the one of the nodes in our notification dispatch system\n- At 8:13am, an attempt is made to bring back the failed node but with no success\n- At 8:18am, our monitoring system detects multiple-provider failure for notifications (caused by connectivity issue). At this time, most of the notifications are still going through, but with increased latencies and error rates\n- At 8:31, a Sev-2 was declared and more engineers were paged to help out\n- At 8:35am, PagerDuty completely loses its ability to dispatch notification, as it couldn’t establish quorum due to high network latency. Sev-1 is declared\n- At 8:53am, PagerDuty notification dispatch system was able to reach quorum and started to process all queued notifications\n- At 9:23am, according to AWS, connectivity issue at the Northern California peering point ends\n\nDuring the post-mortem analysis, our engineers also determined that a misconfiguration on our coordinator service prevented us from recovering quickly. In all, PagerDuty wasn’t able to dispatch notifications for 18 minutes between 8:35am and 8:53am; however, during this time, our events API was still able to accept events.",
+     "similarity": 0.5965128608338364,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    },
+    {
+     "section": "Long term",
+     "content": "### Long term\n\n1. We also found that not all of our engineering staff are up to date with Cassandra and ZooKeeper. We’ll be investing time to train our staff on both of these technologies.\n2. Investigate moving off one of the AWS regions. We’ll need to do our homework when picking a new hosting provider and the datacenter to avoid single point of failure.",
+     "similarity": 0.5660197054255122,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-145",
+   "company": "Discord",
+   "title": "Discord Status - Unavailable Guilds & Connection Issues",
+   "url": "https://status.discordapp.com/incidents/qk9cdgnqnhcn",
+   "summary": "\"At approximately 14:01, a Redis instance acting as the primary for a highly-available cluster used by Discord's API services was migrated automatically by Google’s Cloud Platform. This migration caused the node to incorrectly drop offline, forcing the cluster to rebalance and trigger known issues with the way Discord API instances handle Redis failover. After resolving this partial outage, unnoticed issues on other services caused a cascading failure through Discord’s real time system. These issues caused enough critical impact that Discord’s engineering team was forced to fully restart the service, reconnecting millions of clients over a period of 20 minutes.\"",
+   "similarity": 0.6730029285245894,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "\"At approximately 14:01, a Redis instance acting as the primary for a highly-available cluster used by Discord's API services was migrated automatically by Google’s Cloud Platform. This migration caused the node to incorrectly drop offline, forcing the cluster to rebalance and trigger known issues with the way Discord API instances handle Redis failover. After resolving this partial outage, unnoticed issues on other services caused a cascading failure through Discord’s real time system. These issues caused enough critical impact that Discord’s engineering team was forced to fully restart the service, reconnecting millions of clients over a period of 20 minutes.\""
+   },
+   "passages": [
+    {
+     "section": "Summary",
+     "content": "## Summary\n\nAt approximately 14:01, a Redis instance acting as the primary for a highly-available cluster used by our API services was migrated automatically by Google’s Cloud Platform. This migration caused the node to incorrectly drop offline, forcing the cluster to rebalance and trigger known issues with the way our API instances handle Redis failover. After resolving this partial outage, unnoticed issues on other services caused a cascading failure through Discord’s real time system. These issues caused enough critical impact that Discord’s engineering team was forced to fully restart the service, reconnecting millions of clients over a period of 20 minutes.",
+     "similarity": 0.65924618561993,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    },
+    {
+     "section": "Update",
+     "content": "## Update\n\nAfter engineers were alerted to similar issues on Saturday (by alerts added due to the findings of this post-mortem), they were able to safely decommission and investigate a node experiencing the behavior which caused this outage. After investigation we discovered potential flaws with a library this service uses, and we’re currently working on rolling out an update we believe should resolve the problems. While we’re still not entirely sure why the flaws in this library caused the cascading failures we saw, we’ll continue to investigate and are confident these fixes should improve the situation for the future.\n\nPosted Oct 16, 2017 - 12:36 PDT",
+     "similarity": 0.6534953893898997,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-148",
+   "company": "Epic Games",
+   "title": "Postmortem of Service Outage at 3.4M CCU",
+   "url": "https://web.archive.org/web/20220430011642/https://www.epicgames.com/fortnite/en-US/news/postmortem-of-service-outage-at-3-4m-ccu",
+   "summary": "Extreme load (a new peak of 3.4 million concurrent users) resulted in a mix of partial and total service disruptions.",
+   "similarity": 0.6688529524229959,
+   "best_chunk": {
+    "type": "text",
+    "section": "**XMPP outage**",
+    "content": "### **XMPP outage**\n\nAnd at 22:00 UTC on Sunday we started losing cluster nodes and disconnecting players.\n  - A decision was made to immediately failover to a stand-by cluster via green/blue deployment strategy, when we instantly flip all the traffic to another set of endpoints.\n  - Unfortunately, landrush of reconnecting people at the time has effectively killed one of the **Friends Service** load balancers paralyzing our ability to setup presence flow on new connections.\n- Impact:\n\t  - As a result, though people did actually connect to XMPP, the UI showed everyone as offline due to missing presence flow.\n  - Effectively, a “dark room” situation.\n- Next steps:\n\t  - We’re in a process of upgrading load-balancer solution for Friends Service and other platform services to address issues like above.\n  - We’re fixing our VPC configuration to ensure subnet capacity.\n  - There are also longer-term problems team is actively working on. For example with current architecture XMPP cluster represents a full mesh. Each cluster node is connected to each other. With 10 connections between each node and 101 nodes in cluster it effectively spends 1k sockets per node just on cluster connections.\n  - Each XMPP node can hold only up to N connections with current solution. Hence there is a theoretical limit on optimal number of cluster nodes (and hence CCU capacity) we can maintain without solution redesign."
+   },
+   "passages": [
+    {
+     "section": "**XMPP outage**",
+     "content": "### **XMPP outage**\n\nAnd at 22:00 UTC on Sunday we started losing cluster nodes and disconnecting players.\n  - A decision was made to immediately failover to a stand-by cluster via green/blue deployment strategy, when we instantly flip all the traffic to another set of endpoints.\n  - Unfortunately, landrush of reconnecting people at the time has effectively killed one of the **Friends Service** load balancers paralyzing our ability to setup presence flow on new connections.\n- Impact:\n\t  - As a result, though people did actually connect to XMPP, the UI showed everyone as offline due to missing presence flow.\n  - Effectively, a “dark room” situation.\n- Next steps:\n\t  - We’re in a process of upgrading load-balancer solution for Friends Service and other platform services to address issues like above.\n  - We’re fixing our VPC configuration to ensure subnet capacity.\n  - There are also longer-term problems team is actively working on. For example with current architecture XMPP cluster represents a full mesh. Each cluster node is connected to each other. With 10 connections between each node and 101 nodes in cluster it effectively spends 1k sockets per node just on cluster connections.\n  - Each XMPP node can hold only up to N connections with current solution. Hence there is a theoretical limit on optimal number of cluster nodes (and hence CCU capacity) we can maintain without solution redesign.",
+     "similarity": 0.6688529524229959,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    },
+    {
+     "section": "**XMPP outage**",
+     "content": "### **XMPP outage**\n\nOn Sunday we had a situation while mitigating a known instability problem that resulted in overloading a downstream system component and effectively paralyzing presence flow.  Without presence, a user who is your friend cannot see that you are online, breaking most of our social features including the ability to form parties.\n\nGraphs below:\n- At the top - instability and connection migration from Blue cluster to Green cluster (time in UTC).\n- On the left - calls made by stand-by XMPP cluster to Friends Service. XMPP perspective.\n- On the right - traffic handled by Friends load balancer. Once recovered, it was able to handle all queued traffic.\n\nHere is a quick summary of the incident:\n- Timeline:\n\t  - 2018-02-04 22:00 UTC - 2018-02-05 00:15 UTC\n- Root cause:\n\t  - Friends Service internal load balancer - the one on critical path for XMPP - got overloaded and pushed into an error state.\n  - ELB could not quickly recover due to specifics of failover process and outdated network configuration - ELB subnet was short on free IPs to provision replacement.\n- Incident Details:\n\t  - Due to a recently introduced memory leak, XMPP was on a monitored path to falling into unstable state.\n  - We planned to replace it with another ready and stand-by cluster with the leak already fixed.\n  - We expected cluster to survive through weekend, so that we could schedule a proper maintenance during working week days.\n  - Unfortunately, Game Services and Account Service instability significantly increased the effect of the leak. And at 22:00 UTC on Sunday we started losing cluster nodes and disconnecting players.\n  - A decision was made to immediately failover to a stand-by cluster via green/blue deployment strategy, when we instantly flip all the traffic to another set of endpoints.",
+     "similarity": 0.6422919448434595,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-144",
+   "company": "Discord",
+   "title": "Discord Status - Connectivity Issues",
+   "url": "https://status.discordapp.com/incidents/dj3l6lw926kl",
+   "summary": "A flapping service lead to a thundering herd reconnecting to it once it came up. This lead to a cascading error where frontend services ran out of memory due to internal queues filling up.",
+   "similarity": 0.6661889331838741,
+   "best_chunk": {
+    "type": "text",
+    "section": "Investigation and Analysis",
+    "content": "## Investigation and Analysis\n\nWhile we’ve invested immense effort and engineering in scaling and improving the performance of many core services and database over the past months, we’ve also seen immense growth. As such, our engineers were concerned with simply letting the thundering herd that is millions of Discord clients reconnect to our service at once. This caused us to spend time during the incident to add and roll out changes to our API which limited the potential of this effect. Although we’re pleased with the result and believe the initial choice was correct, issues with recently added configuration code caused this process to take much longer than expected."
+   },
+   "passages": [
+    {
+     "section": "Investigation and Analysis",
+     "content": "## Investigation and Analysis\n\nWhile we’ve invested immense effort and engineering in scaling and improving the performance of many core services and database over the past months, we’ve also seen immense growth. As such, our engineers were concerned with simply letting the thundering herd that is millions of Discord clients reconnect to our service at once. This caused us to spend time during the incident to add and roll out changes to our API which limited the potential of this effect. Although we’re pleased with the result and believe the initial choice was correct, issues with recently added configuration code caused this process to take much longer than expected.",
+     "similarity": 0.6661889331838741,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    },
+    {
+     "section": "Action Items / Response",
+     "content": "## Action Items / Response\n\nDuring the outage, engineers were able to roll out upgrades to our presence server (which had previously been untouched for almost a year). These changes fix the split-brain bug previously mentioned, and include other planned upgrades. We’ve added a hard limit to the number of in-flight connections from our sessions cluster to our presence server, and have also added a fast-fail mechanism to this dependency which should prevent a cascading failure like this from occurring in the future while also resolving the problems developers experienced accessing debug information. These changes were deployed at 1AM on Tuesday. As previously mentioned, we’re actively working with Google Cloud Platform’s hypervisor team to ensure the root cause of the CPU soft lockups is investigated and resolved. We’re working on adding additional tooling which should help automate the process of detecting and alerting around anomalous and hard to track problems like CPU soft lockups.\n\nThe last time Discord had an outage which forced us to effectively “reboot” Discord as a whole, was September 2016. Since then the improvements and time we’ve invested in improving the performance of our core services and databases caused this experience to be much less painful. While we’re generally unhappy with any outage, and always strive to do better, our services took under 16 minutes to reconnect millions of concurrent Discord users.\n\nPosted Mar 21, 2017 - 16:15 PDT",
+     "similarity": 0.6321747238469614,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-066",
+   "company": "Cloudflare",
+   "title": "A Byzantine failure in the real world",
+   "url": "https://web.archive.org/web/20211015231917/https://blog.cloudflare.com/a-byzantine-failure-in-the-real-world/",
+   "summary": "A partial switch misbehavior caused a cascading Byzantine failure which impacted the availability of the API and dashboard for six hours and 33 minutes.",
+   "similarity": 0.6639414085388339,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "A partial switch misbehavior caused a cascading Byzantine failure which impacted the availability of the API and dashboard for six hours and 33 minutes."
+   },
+   "passages": [
+    {
+     "section": "The Dashboard",
+     "content": "### The Dashboard\n\nThe Cloudflare dashboard, like most web applications, has the notion of a user session. When user sessions are created (each time a user logs in) we perform some database operations and keep data in a Redis cluster for the duration of that user’s session. Unlike our API calls, our user sessions cannot currently be moved across the ocean without disruption. As we took actions to improve the availability of our API calls, we were unfortunately making the user experience on the dashboard worse.\n\nThis is an area of the system that is currently designed to be able to fail over across data centers in the event of a disaster, but has not yet been designed to work in both data centers at the same time. After a first period in which users on the dashboard became increasingly frustrated, we failed the authentication calls fully back to our primary data center, and kept working on our primary database to ensure we could provide the best service levels possible in that degraded state.",
+     "similarity": 0.6242179190137862,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    },
+    {
+     "section": "2020-11-02 14:45 UTC: Database system promotes a new primary database",
+     "content": "### 2020-11-02 14:45 UTC: Database system promotes a new primary database\n\nCloudflare’s control plane services use relational databases hosted across multiple clusters within a data center. Each cluster is configured for high availability. The cluster setup includes a primary database, a synchronous replica, and one or more asynchronous replicas. This setup allows redundancy within a data center. For cross-datacenter redundancy, a similar high availability secondary cluster is set up and replicated in a geographically dispersed data center for disaster recovery. The cluster management system leverages etcd for cluster member discovery and coordination.\n\nWhen etcd became read-only, two clusters were unable to communicate that they had a healthy primary database. This triggered the automatic promotion of a synchronous database replica to become the new primary. This process happened automatically and without error or data loss.\n\nThere was a defect in our cluster management system that requires a rebuild of all database replicas when a new primary database is promoted. So, although the new primary database was available instantly, the replicas would take considerable time to become available, depending on the size of the database. For one of the clusters, service was restored quickly. Synchronous and asynchronous database replicas were rebuilt and started replicating successfully from primary, and the impact was minimal.\n\nFor the other cluster, however, performant operation of that database *required* a replica to be online. Because this database handles authentication for API calls and dashboard activities, it takes a lot of reads, and one replica was heavily utilized to spare the primary the load. When this failover happened and no replicas were available, the primary was overloaded, as it had to take all of the load. This is when the main impact started.",
+     "similarity": 0.6094278861591955,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-106",
+   "company": "Amazon",
+   "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+   "url": "https://aws.amazon.com/message/65648/",
+   "summary": "Human error during a routine networking upgrade led to a resource crunch, exacerbated by software bugs, that ultimately resulted in an outage across all US East Availability Zones as well as a loss of 0.07% of volumes.",
+   "similarity": 0.6598579899963195,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "Human error during a routine networking upgrade led to a resource crunch, exacerbated by software bugs, that ultimately resulted in an outage across all US East Availability Zones as well as a loss of 0.07% of volumes."
+   },
+   "passages": [
+    {
+     "section": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "content": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nThe team faced two challenges which delayed getting capacity online. First, when a node fails, the EBS cluster does not reuse the failed node until every data replica is successfully re-mirrored. This is a conscious decision so that we can recover data if a cluster fails to behave as designed. Because we did not want to re-purpose this failed capacity until we were sure we could recover affected user volumes on the failed nodes, the team had to install a large amount of additional new capacity to replace that capacity in the cluster. This required the time-consuming process of physically relocating excess server capacity from across the US East Region and installing that capacity into the degraded EBS cluster. Second, because of the changes made to reduce the node-to-node communication used by peers to find new capacity (which is what stabilized the cluster in the step described above), the team had difficulty incorporating the new capacity into the cluster.",
+     "similarity": 0.5518035587765673,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    },
+    {
+     "section": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region",
+     "content": "### Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region\n\nSecond, because of the changes made to reduce the node-to-node communication used by peers to find new capacity (which is what stabilized the cluster in the step described above), the team had difficulty incorporating the new capacity into the cluster. The team had to carefully make changes to their negotiation throttles to allow negotiation to occur with the newly-built servers without again inundating the old servers with requests that they could not service. This process took longer than we expected as the team had to navigate a number of issues as they worked around the disabled communication. At about 02:00AM PDT on April 22nd, the team successfully started adding significant amounts of new capacity and working through the replication backlog. Volumes were restored consistently over the next nine hours and all but about 2.2% of the volumes in the affected Availability Zone were restored by 12:30PM PDT on April 22nd. While the restored volumes were fully replicated, not all of them immediately became “unstuck” from the perspective of the attached EC2 instances because some were blocked waiting for the EBS control plane to be contactable, so they could safely re-establish a connection with the EC2 instance and elect a new writable copy.",
+     "similarity": 0.5477567107614764,
+     "origin": "similar",
+     "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  }
+ ]
+}

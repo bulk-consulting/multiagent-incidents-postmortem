@@ -2,7 +2,7 @@
 
 We build a tiny graph around the node and replace the agent with a fake one, so there is no
 model call and it runs in a second. What we check:
-  - the node reads "descricao" and writes "triage_result" and "sintomas"
+  - the node reads "description" and writes "triage_result" and "symptoms"
   - the graph goes to the right place for each of the three next steps
 
 Run from the repository root:
@@ -19,9 +19,9 @@ from agents.triage.tests.checks import Checker
 
 
 class State(TypedDict, total=False):
-    descricao: str
+    description: str
     triage_result: TriageResult
-    sintomas: list
+    symptoms: list
     went_to: str
 
 
@@ -68,17 +68,17 @@ node.run_agent = fake_run_agent  # the node uses the fake agent in this test
 graph = build_graph()
 checker = Checker()
 
-final = graph.invoke({"descricao": "vague message"})
+final = graph.invoke({"description": "vague message"})
 checker.check("vague message: the graph goes to ask_user", final["went_to"] == ASK_USER, f"(got {final.get('went_to')})")
-checker.check("vague message: no symptoms are passed on", final["sintomas"] == [])
+checker.check("vague message: no symptoms are passed on", final["symptoms"] == [])
 
-final = graph.invoke({"descricao": "login error"})
+final = graph.invoke({"description": "login error"})
 checker.check("related incident: the graph goes to tell_related_incident", final["went_to"] == TELL_RELATED_INCIDENT, f"(got {final.get('went_to')})")
 checker.check("related incident: the result keeps the incident_id", final["triage_result"].related_incident.incident_id == "INC-042")
 
-final = graph.invoke({"descricao": "new problem"})
+final = graph.invoke({"description": "new problem"})
 checker.check("new problem: the graph goes to go_to_research", final["went_to"] == GO_TO_RESEARCH, f"(got {final.get('went_to')})")
-checker.check("new problem: the symptoms are ready for the Research agent", final["sintomas"] == ["empty lists"])
-checker.check("new problem: the original message is still in the state", final["descricao"] == "new problem")
+checker.check("new problem: the symptoms are ready for the Research agent", final["symptoms"] == ["empty lists"])
+checker.check("new problem: the original message is still in the state", final["description"] == "new problem")
 
 checker.finish()

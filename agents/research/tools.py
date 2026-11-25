@@ -33,6 +33,12 @@ N_PASSAGES = 2             # passages per query inside an incident
 N_DOCS = 5                 # incidents per query in find_similar_incidents
 INCLUDE_DESCRIPTION_IN_FIRST_SEARCH = False  # hybrid mode: see find_similar_incidents
 EXTRA_FROM_LLM = 5         # hybrid mode: new incidents from the LLM queries added to the description's
+# Experiment (2026-11-23): the description and the Triage symptoms in ONE search text, instead of one search
+# per symptom (normal mode) or the description alone (hybrid's guaranteed search). See description_query().
+SYMPTOMS_IN_ONE_QUERY = False
+# Experiments: incidents treated as if they were not in the corpus (no search returns them). Used to test a new
+# problem whose right post-mortem does not exist (agents/orchestration/experiments/run_diagnosis_cases.py --hide-right).
+HIDDEN_IDS: set[str] = set()
 MIN_PASSAGE_CHARS = 200    # shorter passages are almost always just a title ("Further details here.")
 PASSAGE_CHARS_FOR_LLM = 700
 # Fixed queries added to the LLM's query in every search inside an incident (the LLM sometimes writes a
@@ -58,6 +64,7 @@ def _passage(d: dict) -> dict:
 def search_incidents(query: str, n_docs: int, n_passages: int, exclude: list[str] | None = None) -> list[dict]:
     """Incidents similar to the query (two-step search in pgvector), with English keys."""
     incidents = []
+    exclude = sorted(set(exclude or []) | HIDDEN_IDS)
     for r in busca.buscar(query, n_docs, n_passages, excluir=exclude):
         best = r.get("melhor_chunk") or {}
         incidents.append({
@@ -73,6 +80,15 @@ def search_incidents(query: str, n_docs: int, n_passages: int, exclude: list[str
 def search_in_incident(incident_id: str, query: str, n: int) -> list[dict]:
     """The n passages of one incident most similar to the query, with English keys."""
     return [_passage(d) for d in busca.buscar_no_incidente(incident_id, query, n)]
+
+
+def description_query(state: dict) -> str:
+    """The text of the code search for the description: the description alone or, with SYMPTOMS_IN_ONE_QUERY,
+    the description followed by the symptoms joined in one text."""
+    symptoms = [s for s in state.get("symptoms") or [] if s.strip()]
+    if SYMPTOMS_IN_ONE_QUERY and symptoms:
+        return f"{state['description']} {'; '.join(symptoms)}"
+    return state["description"]
 
 
 # ---------------------------------------------------------------- search_inside_incidents
@@ -178,12 +194,12 @@ def find_similar_incidents(queries: list[str], state: Annotated[dict, InjectedSt
     if INCLUDE_DESCRIPTION_IN_FIRST_SEARCH and first and state.get("description"):
         # Hybrid mode: the LLM's first search also searches with the original description (done in code).
         # Its N_DOCS incidents always come in; the LLM queries add up to EXTRA_FROM_LLM new ones.
-        guaranteed = search_incidents(state["description"], N_DOCS, N_PASSAGES, exclude)
+        guaranteed = search_incidents(description_query(state), N_DOCS, N_PASSAGES, exclude)
         for r in guaranteed:
             r["found_by"] = "description"
             for d in r["passages"]:
-                d.update({"origin": "similar", "query": state["description"]})
-        log.append({"step": "find_similar_incidents (description)", "query": state["description"],
+                d.update({"origin": "similar", "query": description_query(state)})
+        log.append({"step": "find_similar_incidents (description)", "query": description_query(state),
                     "filter": {"exclude": exclude}, "ids": [r["incident_id"] for r in guaranteed]})
     for query in [q.strip() for q in queries if q.strip()][:MAX_QUERIES_PER_CALL]:
         found = search_incidents(query, N_DOCS, N_PASSAGES, exclude)

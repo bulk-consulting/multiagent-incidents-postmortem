@@ -1,0 +1,73 @@
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Access to our management console suddenly collapsed and stayed poor.",
+      "Numerous API calls failed with server-side responses.",
+      "The API responsible for customer account information was flooded with traffic and could not keep up.",
+      "Giving that backend more capacity brought API success rates back to nearly normal, without restoring the console.",
+      "Health checks for the account backend turned green even though failures were still widespread.",
+      "Another release aimed at eliminating outstanding failures caused API reliability to fall once more."
+    ],
+    "affected_service": "Our customer account backend, which helps determine whether API calls are permitted.",
+    "dependent_impact": "The console and numerous API operations failed when the account backend could no longer supply information needed for access checks.",
+    "scope": "The disruption was widespread across our administrative systems, particularly for people using the console or submitting settings updates programmatically. Console access remained poor for the entire event, and API operations suffered two major dips. Customers who were not managing their settings generally saw no disruption. Production traffic handling remained functional. We have neither a precise customer impact figure nor a regional breakdown.",
+    "timing": "Late in the UTC afternoon, console access fell abruptly within minutes of the account backend rollout. API success rates rebounded roughly twenty minutes into the event, fell again about an hour after onset, and the console returned to normal roughly a quarter of an hour after that.",
+    "trigger": "We shipped an updated console roughly an hour and a half before the disruption, followed by an account backend release just minutes before the first failures. The backend was swamped during the rollout activity.",
+    "environment": [
+      "Browser console built with React",
+      "Account management backend written in Go",
+      "Kubernetes workloads hosted in some of our facilities",
+      "Access checks for API calls rely on account information",
+      "Administrative infrastructure isolated from production traffic handling"
+    ],
+    "already_tried": [
+      "We examined the abnormal influx of account backend calls and sought ways to ease pressure on it.",
+      "We scaled out the backend workloads in Kubernetes; nearly all API calls started succeeding, although console access remained poor.",
+      "We temporarily capped inbound requests across the entire account backend.",
+      "Although health checks passed, failures persisted, so we shipped a revision excluding several failing execution paths. API reliability then fell sharply for another stretch."
+    ],
+    "misleading_signals": [
+      "Scaling out the backend restored positive health checks without bringing the console back.",
+      "Persistent backend failures made us think certain failing execution paths might explain why the console was still inaccessible.",
+      "Our traffic metrics showed a surge but did not readily separate fresh calls from repeated attempts, complicating diagnosis."
+    ]
+  },
+  "complete_message": "Our management console suddenly became largely inaccessible late in the UTC afternoon, server-side failures are widespread across our APIs, and the backend providing account information for access checks is swamped with calls. People managing settings through the console or programmatically are experiencing disruptions, whereas ordinary production traffic seems fine. We shipped a console update roughly an hour and a half earlier and rolled out an account backend revision just minutes before things went downhill.",
+  "conversation": [
+    {
+      "analyst": "Availability has suddenly plummeted."
+    },
+    {
+      "if_asked_about": "which system is failing",
+      "analyst": "The backend that supplies customer account information is struggling, and its role in access checks means that the management console and numerous API operations are failing too."
+    },
+    {
+      "if_asked_about": "recent releases or possible initiating events",
+      "analyst": "We shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared."
+    },
+    {
+      "if_asked_about": "onset and impacted customers",
+      "analyst": "Things went downhill late in the UTC afternoon. People opening the console or updating settings programmatically are having trouble, whereas our production traffic handling still seems normal."
+    },
+    {
+      "if_asked_about": "observed failures and other indicators",
+      "analyst": "Numerous API calls fail on the server side, the console is barely accessible, and the account backend is receiving far more calls than usual. Scaling out its Kubernetes workloads brought API success rates close to normal, yet the console remains unreliable and backend failures persist."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "A bug introduced in the React dashboard caused excessive, unnecessary requests to the tenant API service. A React useEffect hook included an object in its dependency array that was recreated whenever component state or props changed. React therefore treated the object as a new dependency and repeatedly executed the effect, causing multiple requests to the /organizations endpoint during a single dashboard render instead of one. This behavior, combined with a concurrent tenant service update and insufficient capacity to handle traffic spikes, overwhelmed the tenant service. Because the tenant service participated in API authorization, its failure prevented authorization evaluation and caused widespread HTTP 5xx responses. Service restarts also triggered a thundering-herd pattern, with dashboards attempting to re-authenticate simultaneously, further amplified by the request-loop bug. During recovery, a patch intended to eliminate remaining service errors worsened availability and caused a second period of API impact.",
+    "fix": [
+      "Reverted the problematic tenant service changes introduced during the later patch, restoring dashboard availability to 100%.",
+      "Released a dashboard hotfix correcting the repeated API-call behavior shortly after the incident ended."
+    ],
+    "prevention": [
+      "Prioritize migrating the tenant service to an automated rollout system that monitors deployments for errors and automatically rolls back unhealthy releases.",
+      "Introduce randomized delays into dashboard retry behavior to spread requests over time and reduce thundering-herd contention.",
+      "Allocate substantially more resources to the tenant service to improve its ability to withstand traffic spikes.",
+      "Improve capacity monitoring and proactive alerting so the team receives warnings before the tenant service reaches its capacity limits.",
+      "Add metadata to dashboard API requests identifying whether each request is a new request or a retry, making abnormal request patterns easier to diagnose.",
+      "Correct the dashboard's React effect logic to prevent unnecessary repeated requests to the tenant API service."
+    ],
+    "changes": "The team increased Kubernetes pod capacity for the tenant service and introduced temporary global rate limiting during mitigation. A subsequent tenant service patch removed some erroring codepaths but worsened availability, so those changes were reverted. After the incident, a dashboard hotfix corrected the repeated API requests caused by the React useEffect dependency behavior. Additional planned changes included randomized retry delays, request metadata distinguishing new requests from retries, increased tenant service capacity, improved capacity monitoring, and automated deployment rollback support."
+  }
+}

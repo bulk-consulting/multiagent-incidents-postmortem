@@ -1,0 +1,695 @@
+[
+ {
+  "case": "DAN-164",
+  "round": 1,
+  "hidden": [
+   "DAN-164"
+  ],
+  "description": "People can't open their code projects.\n\nAnalyst answer: It's our online workspace for software teams, running on Postgres with a main instance paired with a live replica. Synchronization had failed, so we were reconstructing the replica by hand. We tried taking a fresh physical copy and adjusted the limits for replication streams and client sessions. Database demand spiked in the evening; synchronization trouble emerged roughly four hours afterward, with widespread downtime about half an hour later. Our shared hosted offering is affected, whereas independent installations and dedicated customer deployments are working.",
+  "triage": {
+   "affected_service": "workspace",
+   "trigger": "Database demand spiked in the evening; we were reconstructing the Postgres replica by hand, took a fresh physical copy, and adjusted limits for replication streams and client sessions",
+   "symptoms": [
+    "users cannot open their code projects"
+   ],
+   "category": "Database"
+  },
+  "real_root_cause": "During manual recovery of the PostgreSQL standby, an engineer accidentally executed a data-directory removal operation on the primary database server instead of the secondary. The operation was stopped within seconds, but approximately 300 GB of production database data had already been removed. The repair work had been necessary because increased database load caused replication lag, and WAL segments required by the standby had already been removed from the primary without WAL archiving. The increased load involved both spam activity and a background process attempting to remove an employee account and its associated data after an erroneous abuse report. Recovery was severely complicated by unavailable backups: the logical backup job was using pg_dump 9.2 against PostgreSQL 9.6, causing the backups to fail. Failure notifications were rejected because the automated emails lacked the required DMARC configuration, leaving the team unaware of the problem. Database disk snapshots were not enabled, and the secondary had already been cleared during the replication repair. As a result, the team had to recover from an older LVM snapshot in staging, losing subsequent database modifications.",
+  "findings": [
+   {
+    "id": "DAN-186",
+    "deepened": true,
+    "title": "Instapaper Outage Cause & Recovery | by Brian Donohue | Making Instapaper | Medium"
+   },
+   {
+    "id": "DAN-217",
+    "deepened": true,
+    "title": "This was not normal. Really. | The Official Slack Blog"
+   },
+   {
+    "id": "DAN-066",
+    "deepened": false,
+    "title": "A Byzantine failure in the real world"
+   },
+   {
+    "id": "DAN-078",
+    "deepened": false,
+    "title": "October 21 post-incident analysis - The GitHub Blog"
+   },
+   {
+    "id": "DAN-048",
+    "deepened": false,
+    "title": "The Day of the RDS Multi-AZ Failover - Razorpay Tech"
+   },
+   {
+    "id": "DAN-146",
+    "deepened": false,
+    "title": "Outage post-mortem | Dropbox Tech Blog"
+   },
+   {
+    "id": "DAN-162",
+    "deepened": false,
+    "title": "GitHub Availability Report: October 2024 - The GitHub Blog"
+   },
+   {
+    "id": "DAN-145",
+    "deepened": false,
+    "title": "Discord Status - Unavailable Guilds & Connection Issues"
+   }
+  ],
+  "right_incident_in_findings": false,
+  "right_incident_deepened": false,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "The manual Postgres replica rebuild combined with adjusted replication-stream and client-session limits exhausted database connections or replication capacity under the evening demand spike, causing cascading connection failures that brought down the shared hosted workspace.",
+     "based_on": [
+      "DAN-217"
+     ],
+     "matches": "Both involved a relational database being overwhelmed by connection/load pressure during an operational change, producing cascading connection failures and widespread downtime limited to the shared hosted offering.",
+     "differs": "Slack's trigger was mass simultaneous reconnections after message-server crashes, whereas the current trigger is a planned manual replica reconstruction with parameter tuning plus organic demand growth; Slack did not involve rebuilding a physical replica.",
+     "same_trigger": "no",
+     "same_component": "yes",
+     "confidence": "medium"
+    },
+    {
+     "cause": "A hard limit on the hosted Postgres database (such as replication slots, WAL senders, or max connections) was reached during the physical replica copy and evening demand spike, preventing new sessions or replication and taking down only the shared hosted offering.",
+     "based_on": [
+      "DAN-186"
+     ],
+     "matches": "Both involved a hosted relational database hitting an operational limit that caused a widespread outage confined to the shared hosted offering while other installations remained unaffected.",
+     "differs": "Instapaper's limit was a 2TB filesystem file-size ceiling on an older RDS instance caused by data growth, whereas the current analyst adjusted replication-stream and client-session limits during a manual replica rebuild and the demand spike was organic.",
+     "same_trigger": "no",
+     "same_component": "yes",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": false,
+   "gaps": [
+    "The exact error messages from the application or Postgres logs are unknown.",
+    "It is unclear which specific limit was adjusted (max_connections, max_replication_slots, max_wal_senders, etc.) and what the previous versus new values were.",
+    "Whether the failure affected the primary, the replica, or both is not stated."
+   ],
+   "next_step": "ask_analyst",
+   "search_request": "",
+   "questions_for_analyst": [
+    "What error messages appear in the application logs or Postgres logs when users try to open projects?",
+    "Which Postgres parameters were changed during the replica rebuild, and what were the old and new values?",
+    "Did the outage affect the primary database, the replica, or both, and can new connections still be established to the primary?"
+   ]
+  },
+  "model_confidence": [
+   "medium",
+   "low"
+  ],
+  "diagnosis_turns": 3,
+  "prompt_chars": 13697,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "findings": [
+     {
+      "id": "DAN-186",
+      "deepened": false,
+      "title": "Instapaper Outage Cause & Recovery | by Brian Donohue | Making Instapaper | Medium"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     },
+     {
+      "id": "DAN-078",
+      "deepened": false,
+      "title": "October 21 post-incident analysis - The GitHub Blog"
+     },
+     {
+      "id": "DAN-048",
+      "deepened": false,
+      "title": "The Day of the RDS Multi-AZ Failover - Razorpay Tech"
+     },
+     {
+      "id": "DAN-146",
+      "deepened": false,
+      "title": "Outage post-mortem | Dropbox Tech Blog"
+     },
+     {
+      "id": "DAN-217",
+      "deepened": false,
+      "title": "This was not normal. Really. | The Official Slack Blog"
+     },
+     {
+      "id": "DAN-162",
+      "deepened": false,
+      "title": "GitHub Availability Report: October 2024 - The GitHub Blog"
+     },
+     {
+      "id": "DAN-145",
+      "deepened": false,
+      "title": "Discord Status - Unavailable Guilds & Connection Issues"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "The evening demand spike exhausted the adjusted replication-stream and client-session limits on the manually rebuilt shared Postgres replica, causing cascading connection failures that prevented users from opening projects while dedicated installations stayed up.",
+       "based_on": [
+        "DAN-186",
+        "DAN-217"
+       ],
+       "matches": "A hosted/shared relational database hit capacity or limits and caused widespread user access failure while other deployments were unaffected.",
+       "differs": "The current incident involved explicit manual replica reconstruction, a physical copy, and limit changes that are not described in the past summaries, and neither past incident is deepened with a stated root-cause passage.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "The physical copy taken while rebuilding the Postgres replica was missing recent writes or became inconsistent, so when synchronization trouble emerged hours later under evening load the replica could not take over and the shared workspace lost database access.",
+       "based_on": [
+        "DAN-078"
+       ],
+       "matches": "Primary-replica maintenance left the new or rebuilt database missing recent writes, causing a prolonged outage and data-integrity recovery; the component is a relational database.",
+       "differs": "DAN-078 involved a network partition during maintenance triggering MySQL failover over cross-continent latency, not a manual physical copy or Postgres limit changes; the summary does not state the exact root-cause mechanism in a passage.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "The limit changes made during the manual replica rebuild were misconfigured for the shared hosted workload, so under evening demand the Postgres primary or replica rejected replication streams and client sessions, causing the outage.",
+       "based_on": [
+        "DAN-186"
+       ],
+       "matches": "Limits on a hosted database were hit and caused a multi-hour outage requiring migration; the component is a relational database and the shared-only impact matches.",
+       "differs": "DAN-186 does not mention replica reconstruction, physical copies, or Postgres, and has no deepened cause passage; the current trigger includes a demand spike not present in the summary.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": false,
+     "gaps": [
+      "We do not know whether the Postgres replica was actually in sync after the physical copy and limit changes.",
+      "We do not have the exact error messages from the evening synchronization failure or the connection rejections.",
+      "We do not know if dedicated installations use a separate database cluster or the same Postgres topology."
+     ],
+     "next_step": "refine_search",
+     "search_request": "Postgres replica rebuild physical copy replication stream client session limits outage shared hosting",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "medium",
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 2,
+    "prompt_chars": 4138
+   },
+   {
+    "research_round": 2,
+    "request": "Postgres replica rebuild physical copy replication stream client session limits outage shared hosting",
+    "findings": [
+     {
+      "id": "DAN-186",
+      "deepened": false,
+      "title": "Instapaper Outage Cause & Recovery | by Brian Donohue | Making Instapaper | Medium"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     },
+     {
+      "id": "DAN-078",
+      "deepened": false,
+      "title": "October 21 post-incident analysis - The GitHub Blog"
+     },
+     {
+      "id": "DAN-048",
+      "deepened": false,
+      "title": "The Day of the RDS Multi-AZ Failover - Razorpay Tech"
+     },
+     {
+      "id": "DAN-146",
+      "deepened": false,
+      "title": "Outage post-mortem | Dropbox Tech Blog"
+     },
+     {
+      "id": "DAN-217",
+      "deepened": false,
+      "title": "This was not normal. Really. | The Official Slack Blog"
+     },
+     {
+      "id": "DAN-162",
+      "deepened": false,
+      "title": "GitHub Availability Report: October 2024 - The GitHub Blog"
+     },
+     {
+      "id": "DAN-145",
+      "deepened": false,
+      "title": "Discord Status - Unavailable Guilds & Connection Issues"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "The manual Postgres replica rebuild combined with the evening demand spike exhausted replication-stream or client-session limits on the shared hosted database, taking down the workspace while dedicated installs were unaffected.",
+       "based_on": [
+        "DAN-186"
+       ],
+       "matches": "Both involve limits being hit on a hosted relational database; the shared hosted offering is affected while self-hosted and dedicated deployments work, pointing to a shared resource ceiling rather than an application bug.",
+       "differs": "DAN-186 is not deepened, so its exact trigger and root cause are unknown; the current incident includes manual replica reconstruction and adjusted replication/client limits, which are not described in DAN-186.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A surge in database connections or replication traffic from the demand spike exceeded Postgres capacity limits during the replica reconstruction, causing cascading connection failures across the shared hosted workspace.",
+       "based_on": [
+        "DAN-217"
+       ],
+       "matches": "Both involve database capacity being exceeded by load, leading to connection failures and widespread user inability to access the service.",
+       "differs": "DAN-217 was triggered by a mass disconnection-reconnection storm, whereas the current incident was preceded by manual replica work and adjusted limits; the current outage affects only the shared hosted offering.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": false,
+     "gaps": [
+      "The exact Postgres error messages or logs during the outage are unknown (e.g., connection limit exceeded, replication slot exhausted, WAL sender limit).",
+      "It is unclear whether the adjusted limits for replication streams and client sessions were raised or lowered, and to what values.",
+      "DAN-186 has no deepened passage, so its root cause and trigger cannot be verified.",
+      "We do not know whether the shared hosted offering uses a single multi-tenant Postgres cluster shared by all customers.",
+      "The four-hour gap between the evening demand spike and the synchronization trouble is unexplained."
+     ],
+     "next_step": "refine_search",
+     "search_request": "Postgres replica rebuild connection limit exhaustion shared hosted database outage",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 4138
+   },
+   {
+    "research_round": 3,
+    "request": "Postgres replica rebuild connection limit exhaustion shared hosted database outage",
+    "findings": [
+     {
+      "id": "DAN-186",
+      "deepened": true,
+      "title": "Instapaper Outage Cause & Recovery | by Brian Donohue | Making Instapaper | Medium"
+     },
+     {
+      "id": "DAN-217",
+      "deepened": true,
+      "title": "This was not normal. Really. | The Official Slack Blog"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     },
+     {
+      "id": "DAN-078",
+      "deepened": false,
+      "title": "October 21 post-incident analysis - The GitHub Blog"
+     },
+     {
+      "id": "DAN-048",
+      "deepened": false,
+      "title": "The Day of the RDS Multi-AZ Failover - Razorpay Tech"
+     },
+     {
+      "id": "DAN-146",
+      "deepened": false,
+      "title": "Outage post-mortem | Dropbox Tech Blog"
+     },
+     {
+      "id": "DAN-162",
+      "deepened": false,
+      "title": "GitHub Availability Report: October 2024 - The GitHub Blog"
+     },
+     {
+      "id": "DAN-145",
+      "deepened": false,
+      "title": "Discord Status - Unavailable Guilds & Connection Issues"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "The manual Postgres replica rebuild combined with adjusted replication-stream and client-session limits exhausted database connections or replication capacity under the evening demand spike, causing cascading connection failures that brought down the shared hosted workspace.",
+       "based_on": [
+        "DAN-217"
+       ],
+       "matches": "Both involved a relational database being overwhelmed by connection/load pressure during an operational change, producing cascading connection failures and widespread downtime limited to the shared hosted offering.",
+       "differs": "Slack's trigger was mass simultaneous reconnections after message-server crashes, whereas the current trigger is a planned manual replica reconstruction with parameter tuning plus organic demand growth; Slack did not involve rebuilding a physical replica.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A hard limit on the hosted Postgres database (such as replication slots, WAL senders, or max connections) was reached during the physical replica copy and evening demand spike, preventing new sessions or replication and taking down only the shared hosted offering.",
+       "based_on": [
+        "DAN-186"
+       ],
+       "matches": "Both involved a hosted relational database hitting an operational limit that caused a widespread outage confined to the shared hosted offering while other installations remained unaffected.",
+       "differs": "Instapaper's limit was a 2TB filesystem file-size ceiling on an older RDS instance caused by data growth, whereas the current analyst adjusted replication-stream and client-session limits during a manual replica rebuild and the demand spike was organic.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": false,
+     "gaps": [
+      "The exact error messages from the application or Postgres logs are unknown.",
+      "It is unclear which specific limit was adjusted (max_connections, max_replication_slots, max_wal_senders, etc.) and what the previous versus new values were.",
+      "Whether the failure affected the primary, the replica, or both is not stated."
+     ],
+     "next_step": "ask_analyst",
+     "search_request": "",
+     "questions_for_analyst": [
+      "What error messages appear in the application logs or Postgres logs when users try to open projects?",
+      "Which Postgres parameters were changed during the replica rebuild, and what were the old and new values?",
+      "Did the outage affect the primary database, the replica, or both, and can new connections still be established to the primary?"
+     ]
+    },
+    "model_confidence": [
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 3,
+    "prompt_chars": 13697
+   }
+  ],
+  "seconds": 551
+ },
+ {
+  "case": "DAN-197",
+  "round": 1,
+  "hidden": [
+   "DAN-197"
+  ],
+  "description": "Our automated checks are failing sporadically.\n\nAnalyst answer: We monitor a hosted database offering, and the failing step is the probe that provisions a new container. Our provisioning logic and request method have been unchanged for months. We are unaware of anything changing just before the errors appeared. We noticed the first rejection in the early evening UTC and marked availability as degraded roughly half an hour afterward. US East was hit first, with roughly three quarters of probes unsuccessful; locations elsewhere remained healthy. Requests to provision containers keep getting rejected because a parameter is deemed unacceptable. Some attempts pass, and the diagnostics do not tell us which parameter caused the rejection.",
+  "triage": {
+   "affected_service": "database",
+   "trigger": null,
+   "symptoms": [
+    "automated checks failing sporadically",
+    "container provisioning requests rejected because a parameter is deemed unacceptable"
+   ],
+   "category": null
+  },
+  "real_root_cause": "The cloud database provider introduced an unannounced breaking change to its API contract. A partition key field that had previously been optional became mandatory when creating database containers. Our existing SDK-based implementation did not explicitly supply this field, causing container creation requests to fail as the change progressively affected different regions.",
+  "findings": [
+   {
+    "id": "DAN-169",
+    "deepened": true,
+    "title": "Incident details | Google Cloud Service Health — A policy change containing blank fields triggered a null pointer exception in Service Control, Google's API..."
+   },
+   {
+    "id": "DAN-106",
+    "deepened": true,
+    "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+   },
+   {
+    "id": "DAN-086",
+    "deepened": true,
+    "title": "Summary of Windows Azure Service Disruption on Feb 29th, 2012 | Microsoft Azure Blog"
+   },
+   {
+    "id": "DAN-035",
+    "deepened": false,
+    "title": "Google Cloud Status Dashboard — A bug in configuration roll-out to a load balancer lead to increased error rates for 22 minutes"
+   },
+   {
+    "id": "DAN-002",
+    "deepened": false,
+    "title": "Summary of the Amazon EC2 DNS Resolution Issues in the Asia Pacific (Seoul) Region (AP-NORTHEAST-2)"
+   },
+   {
+    "id": "DAN-101",
+    "deepened": false,
+    "title": "Battling database performance | Blog | incident.io"
+   },
+   {
+    "id": "DAN-029",
+    "deepened": false,
+    "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+   },
+   {
+    "id": "DAN-096",
+    "deepened": false,
+    "title": "An update on recent service disruptions - The GitHub Blog"
+   }
+  ],
+  "right_incident_in_findings": false,
+  "right_incident_deepened": false,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "A change to a globally replicated policy or quota configuration in the hosted database's provisioning control plane introduced an invalid parameter value, so container creation requests are rejected as unacceptable while some still pass; the rollout reached US East first and hardest, matching the skewed regional impact.",
+     "based_on": [
+      "DAN-169"
+     ],
+     "matches": "Same failure shape: an API/control plane rejecting requests because of an invalid parameter value, with intermittent successes, strong regional disparity (one region much worse), and diagnostics that do not identify the exact bad parameter.",
+     "differs": "The analyst reports no known change just before the errors, while DAN-169 was triggered by an explicit policy/config change; the affected region is US East rather than us-central-1; and the component is a hosted-database provisioning API rather than Google Service Control.",
+     "same_trigger": "unknown",
+     "same_component": "yes",
+     "confidence": "medium"
+    },
+    {
+     "cause": "A value-validation bug in the provisioning API generated an unacceptable parameter (for example an invalid date or identifier) on some requests, causing invalid-parameter rejections; this is only a loose match because the past incident was global and certificate-related rather than regionally concentrated and database-related.",
+     "based_on": [
+      "DAN-086"
+     ],
+     "matches": "Same symptom pattern: requests rejected because a parameter value is invalid, with some attempts passing and poor diagnostics about which parameter caused the rejection.",
+     "differs": "DAN-086 was a global leap-day certificate issuance bug, not a regionally skewed hosted-database provisioning failure, and there is no indication of a date-related trigger in the current incident.",
+     "same_trigger": "unknown",
+     "same_component": "no",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "We do not know whether any configuration, policy, quota, or feature-flag change was propagated to the provisioning control plane just before the first rejection.",
+    "The analyst did not identify which parameter is deemed unacceptable or whether rejections cluster by a specific request field or value.",
+    "We do not have confirmation that the hosted database's control plane uses globally replicated policy data like DAN-169."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "medium",
+   "low"
+  ],
+  "diagnosis_turns": 3,
+  "prompt_chars": 21009,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "findings": [
+     {
+      "id": "DAN-035",
+      "deepened": false,
+      "title": "Google Cloud Status Dashboard — A bug in configuration roll-out to a load balancer lead to increased error rates for 22 minutes"
+     },
+     {
+      "id": "DAN-106",
+      "deepened": false,
+      "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+     },
+     {
+      "id": "DAN-002",
+      "deepened": false,
+      "title": "Summary of the Amazon EC2 DNS Resolution Issues in the Asia Pacific (Seoul) Region (AP-NORTHEAST-2)"
+     },
+     {
+      "id": "DAN-101",
+      "deepened": false,
+      "title": "Battling database performance | Blog | incident.io"
+     },
+     {
+      "id": "DAN-029",
+      "deepened": false,
+      "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+     },
+     {
+      "id": "DAN-096",
+      "deepened": false,
+      "title": "An update on recent service disruptions - The GitHub Blog"
+     },
+     {
+      "id": "DAN-147",
+      "deepened": false,
+      "title": "Duo Status - Authentication Latency on DUO1 Deployment"
+     },
+     {
+      "id": "DAN-134",
+      "deepened": false,
+      "title": "Postmortem: May 21, 2021 - Delay in starting Docker Jobs. Machine & remote Docker environments blocked - Announcements - CircleCI Discuss"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A regional configuration change or rollout in the hosted database's control plane made a provisioning parameter invalid or tightened validation, causing sporadic rejections concentrated in US East while other regions stayed healthy.",
+       "based_on": [
+        "DAN-002",
+        "DAN-035"
+       ],
+       "matches": "Both involve a configuration change or rollout that caused failures concentrated in a specific region, with some requests still succeeding.",
+       "differs": "The current incident has no known change before the errors, and the failing component is a database provisioning API rather than a DNS resolver fleet or load balancer; no deepened passage states the cause.",
+       "same_trigger": "unknown",
+       "same_component": "no",
+       "confidence": "low"
+      },
+      {
+       "cause": "A resource crunch or capacity limitation in the US East region of the database/provisioning service caused container provisioning requests to be rejected when a parameter exceeded available capacity, with some attempts passing.",
+       "based_on": [
+        "DAN-106",
+        "DAN-147"
+       ],
+       "matches": "Both involve US East region impact and a resource/capacity crunch leading to failures, with some attempts potentially still passing.",
+       "differs": "The current symptom is a specific parameter rejection rather than a broad outage or connection exhaustion, and no change is known before the errors; no deepened passage states the cause.",
+       "same_trigger": "unknown",
+       "same_component": "no",
+       "confidence": "low"
+      },
+      {
+       "cause": "A recent routine upgrade or change to an upstream dependency such as a scheduler or orchestrator introduced a mis-scoped timeout or validation rule that intermittently rejects container provisioning parameters in one region.",
+       "based_on": [
+        "DAN-134"
+       ],
+       "matches": "Both involve a routine change that had broader-than-announced impact and caused failures or blocking concentrated in one region.",
+       "differs": "The current incident reports no change just before the errors, and the failing component is a database provisioning API rather than RabbitMQ; no deepened passage states the cause.",
+       "same_trigger": "unknown",
+       "same_component": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": false,
+     "gaps": [
+      "We do not know whether any configuration, software version, or infrastructure change was rolled out to the database service or its provisioning API shortly before the errors.",
+      "We do not know the exact error message or which parameter is being rejected.",
+      "We do not know whether the provisioning API depends on a regional control plane, scheduler, or orchestrator that could have changed independently."
+     ],
+     "next_step": "refine_search",
+     "search_request": "hosted database API provisioning request rejected invalid parameter regional US East",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "low",
+     "low",
+     "low"
+    ],
+    "diagnosis_turns": 2,
+    "prompt_chars": 4695
+   },
+   {
+    "research_round": 2,
+    "request": "hosted database API provisioning request rejected invalid parameter regional US East",
+    "findings": [
+     {
+      "id": "DAN-169",
+      "deepened": true,
+      "title": "Incident details | Google Cloud Service Health — A policy change containing blank fields triggered a null pointer exception in Service Control, Google's API..."
+     },
+     {
+      "id": "DAN-106",
+      "deepened": true,
+      "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+     },
+     {
+      "id": "DAN-086",
+      "deepened": true,
+      "title": "Summary of Windows Azure Service Disruption on Feb 29th, 2012 | Microsoft Azure Blog"
+     },
+     {
+      "id": "DAN-035",
+      "deepened": false,
+      "title": "Google Cloud Status Dashboard — A bug in configuration roll-out to a load balancer lead to increased error rates for 22 minutes"
+     },
+     {
+      "id": "DAN-002",
+      "deepened": false,
+      "title": "Summary of the Amazon EC2 DNS Resolution Issues in the Asia Pacific (Seoul) Region (AP-NORTHEAST-2)"
+     },
+     {
+      "id": "DAN-101",
+      "deepened": false,
+      "title": "Battling database performance | Blog | incident.io"
+     },
+     {
+      "id": "DAN-029",
+      "deepened": false,
+      "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+     },
+     {
+      "id": "DAN-096",
+      "deepened": false,
+      "title": "An update on recent service disruptions - The GitHub Blog"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A change to a globally replicated policy or quota configuration in the hosted database's provisioning control plane introduced an invalid parameter value, so container creation requests are rejected as unacceptable while some still pass; the rollout reached US East first and hardest, matching the skewed regional impact.",
+       "based_on": [
+        "DAN-169"
+       ],
+       "matches": "Same failure shape: an API/control plane rejecting requests because of an invalid parameter value, with intermittent successes, strong regional disparity (one region much worse), and diagnostics that do not identify the exact bad parameter.",
+       "differs": "The analyst reports no known change just before the errors, while DAN-169 was triggered by an explicit policy/config change; the affected region is US East rather than us-central-1; and the component is a hosted-database provisioning API rather than Google Service Control.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A value-validation bug in the provisioning API generated an unacceptable parameter (for example an invalid date or identifier) on some requests, causing invalid-parameter rejections; this is only a loose match because the past incident was global and certificate-related rather than regionally concentrated and database-related.",
+       "based_on": [
+        "DAN-086"
+       ],
+       "matches": "Same symptom pattern: requests rejected because a parameter value is invalid, with some attempts passing and poor diagnostics about which parameter caused the rejection.",
+       "differs": "DAN-086 was a global leap-day certificate issuance bug, not a regionally skewed hosted-database provisioning failure, and there is no indication of a date-related trigger in the current incident.",
+       "same_trigger": "unknown",
+       "same_component": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "We do not know whether any configuration, policy, quota, or feature-flag change was propagated to the provisioning control plane just before the first rejection.",
+      "The analyst did not identify which parameter is deemed unacceptable or whether rejections cluster by a specific request field or value.",
+      "We do not have confirmation that the hosted database's control plane uses globally replicated policy data like DAN-169."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 3,
+    "prompt_chars": 21009
+   }
+  ],
+  "seconds": 583
+ }
+]

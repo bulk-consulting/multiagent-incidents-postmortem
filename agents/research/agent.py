@@ -1,10 +1,12 @@
 """The Research RAG agent: finds historical evidence for the Diagnosis agent.
 
     first round:  START → initial_search → agent ⇄ tools → build_findings → END
-    refinement:   START → agent ⇄ tools → build_findings → END
-                  (starts from the previous findings and the Diagnosis agent's request)
+    refinement:   START → initial_search → agent ⇄ tools → build_findings → END
+                  (the Diagnosis agent's request; the incidents already seen are left out of every search)
 
-    initial_search  code: searches with the description and each symptom; merges by incident (top 10)
+    initial_search  code: searches with the description and each symptom; merges by incident (top 10).
+                    In a refinement: searches with the request and the description, leaving out the incidents
+                    already seen, so the LLM reads only NEW candidates
     agent           LLM (Nemotron 3.5 on NVIDIA NIM, via ChatNVIDIA) with tool_choice="auto": reads the
                     candidates and decides whether to call search_inside_incidents, find_similar_incidents or none
     tools           LangGraph ToolNode: runs the tools the LLM asked for (tools.py)
@@ -62,6 +64,9 @@ MAX_LLM_CALLS = 2          # per run of the agent
 AGENTIC_MODE = False
 MAX_LLM_CALLS_AGENTIC = 4
 N_DOCS_FIND_AGENTIC = 10   # incidents that find_similar_incidents returns in agentic mode (like the 10 candidates)
+# Experiment (2026-11-24): in agentic/hybrid mode, give the LLM the whole structured Triage output (state["triage"])
+# and the guidance on how to use it in its queries (prompts.TRIAGE_GUIDANCE).
+TRIAGE_CONTEXT = False
 
 
 class ResearchState(TypedDict, total=False):
@@ -69,8 +74,10 @@ class ResearchState(TypedDict, total=False):
     description: str
     symptoms: list[str]
     search_request: str                               # from the Diagnosis agent; empty in the first round
-    candidates: list[dict]                            # incidents found (in a refinement: the previous findings)
-    seen_ids: list[str]
+    triage: dict                                      # experiment (TRIAGE_CONTEXT): trigger, affected_service, category, symptoms
+    candidates: list[dict]                            # incidents found by the initial search
+    previous_findings: list[dict]                     # refinement: the findings of the earlier rounds
+    seen_ids: list[str]                               # incidents already seen: left out of every search
     no_llm: bool                                      # tests: fixed call, without NIM
     # produced by the agent
     messages: Annotated[list[AnyMessage], add_messages]
@@ -112,10 +119,18 @@ def _merge_by_incident(lists: list[list[dict]]) -> list[dict]:
 def initial_search(state: ResearchState) -> dict:
     start = time.time()
     lists, log = [], []
-    for query in [state["description"], *state.get("symptoms", [])]:
-        found = _tag_origin(tools.search_incidents(query, N_DOCS, N_SIMILAR_PASSAGES), query)
+    exclude = sorted(state.get("seen_ids", []))
+    if state.get("previous_findings"):  # refinement: the request and the description, without the incidents seen
+        queries = [q for q in (state.get("search_request", ""), state["description"]) if q.strip()]
+    elif tools.SYMPTOMS_IN_ONE_QUERY:  # experiment: description + symptoms in one search text
+        queries = [tools.description_query(state)]
+    else:  # the description and one search per symptom
+        queries = [state["description"], *state.get("symptoms", [])]
+    for query in queries:
+        found = _tag_origin(tools.search_incidents(query, N_DOCS, N_SIMILAR_PASSAGES, exclude), query)
         lists.append(found)
-        log.append({"step": "initial_search", "query": query, "filter": None, "ids": [r["incident_id"] for r in found]})
+        log.append({"step": "initial_search", "query": query, "filter": {"exclude": exclude} if exclude else None,
+                    "ids": [r["incident_id"] for r in found]})
     return {"candidates": _merge_by_incident(lists)[:N_DOCS], "search_log": log,
             "timings": {"initial_search": round(time.time() - start, 1)}}
 
@@ -275,15 +290,17 @@ def _system_prompt() -> str:
     if not AGENTIC_MODE:
         return prompts.SYSTEM_PROMPT
     hybrid = prompts.HYBRID_NOTE if tools.INCLUDE_DESCRIPTION_IN_FIRST_SEARCH else ""
-    return prompts.AGENTIC_SYSTEM_PROMPT + hybrid
+    guidance = prompts.TRIAGE_GUIDANCE if TRIAGE_CONTEXT else ""
+    return prompts.AGENTIC_SYSTEM_PROMPT + hybrid + guidance
 
 
 def agent(state: ResearchState) -> dict:
     new = []
     agentic = AGENTIC_MODE and not state.get("candidates")
     if not state.get("messages") and agentic:  # first call, agentic mode: no incidents yet; the LLM searches
+        triage = state.get("triage") if TRIAGE_CONTEXT else None
         new.append(HumanMessage(prompts.agentic_user_message(state["description"], state.get("symptoms", []),
-                                                             state.get("search_request", ""))))
+                                                             state.get("search_request", ""), triage)))
     elif not state.get("messages"):  # first call: the message with the incidents found
         candidates_text = build_summary_list(state.get("candidates", []))
         new.append(HumanMessage(prompts.user_message(state["description"], state.get("symptoms", []),
@@ -361,6 +378,8 @@ def enable_hybrid_mode() -> None:
 
 
 def route_start(state: ResearchState) -> Literal["initial_search", "agent"]:
+    if state.get("previous_findings"):  # refinement: always a new search in code (all modes)
+        return "initial_search"
     return "agent" if state.get("candidates") or AGENTIC_MODE else "initial_search"
 
 
@@ -429,7 +448,13 @@ def build_findings(state: ResearchState) -> dict:
     findings.sort(key=lambda r: (0, llm_order[r["incident_id"]])
                   if r["incident_id"] in llm_order and r["incident_id"] in deepened
                   else ((1, 0) if r["deepened"] else (2, 0)))
+    # Refinement: the incidents deepened in earlier rounds come back after the new deepened ones, as evidence
+    # (the others from earlier rounds do not: they would take the places of the new ones).
+    old = [r for r in state.get("previous_findings", []) if r.get("deepened") and r["incident_id"] not in done]
+    findings = [r for r in findings if r["incident_id"] in llm_order and r["incident_id"] in deepened] + old + \
+               [r for r in findings if not (r["incident_id"] in llm_order and r["incident_id"] in deepened)]
     findings = findings[:MAX_FINDINGS]  # the rest stay in seen_ids (they do not come back in a new search)
+    done |= {r["incident_id"] for r in state.get("previous_findings", [])}
     seen = sorted(set(state.get("seen_ids", [])) | done)
     return {"findings": findings, "deepened": deepened, "new_incidents": new_incidents, "plan": plan,
             "seen_ids": seen, "search_log": log}
@@ -483,11 +508,14 @@ def _show(node: str, delta: dict) -> None:
 
 
 def research(description: str, symptoms: list[str] | None = None, request: str = "", previous: dict | None = None,
-             no_llm: bool = False, show=None) -> dict:
+             no_llm: bool = False, show=None, triage: dict | None = None) -> dict:
     """Runs the agent once and returns its final state (the output is in state["findings"])."""
     entry: dict = {"description": description, "symptoms": symptoms or [], "search_request": request, "no_llm": no_llm}
+    if triage:
+        entry["triage"] = triage
     if previous:
-        entry.update({"candidates": previous["findings"], "seen_ids": previous.get("seen_ids", [])})
+        seen = set(previous.get("seen_ids", [])) | {r["incident_id"] for r in previous["findings"]}
+        entry.update({"previous_findings": previous["findings"], "seen_ids": sorted(seen)})
     state: dict = {}
     for part in build_graph().stream(entry, {"recursion_limit": 20}, stream_mode=["updates", "values"], version="v2"):
         if part["type"] == "values":

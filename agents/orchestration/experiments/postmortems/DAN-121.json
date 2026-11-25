@@ -1,0 +1,75 @@
+
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "At around 9:30 a.m., database load increased sharply.",
+      "Many metadata requests to our application servers started failing.",
+      "A separate caching pool failed at almost the same time.",
+      "Products served by the failed caching pool became inaccessible.",
+      "Our video and audio streaming applications are experiencing playback failures.",
+      "Some older applications that use metadata directly are failing.",
+      "Applications that cache metadata locally can continue serving some content while attempting to revalidate it.",
+      "Our main website homepage is affected.",
+      "Metadata service performance remains severely degraded."
+    ],
+    "affected_service": "Our programme and clip metadata service, alongside a separate failure in our shared caching layer.",
+    "dependent_impact": "Our video and audio streaming applications, playback on other parts of our website, and programme information modules are affected. Products relying directly on metadata are failing, while some products with local metadata caches can continue operating. Products served by the failed caching pool, including our main homepage and streaming platform, have become inaccessible.",
+    "scope": "Multiple streaming applications and website products are affected. Our applications support more than 1,200 device types, but the exact number of affected devices and users is not specified. Some older applications are particularly affected because they use metadata directly. No affected-user percentage or regional breakdown is available.",
+    "timing": "The database load increased sharply at approximately 9:30 a.m. The caching pool failed almost simultaneously. Both problems appeared suddenly.",
+    "trigger": null,
+    "environment": [
+      "58 application servers providing programme and clip metadata",
+      "10 database servers supporting the metadata service",
+      "Two data centres operating simultaneously in a hot-hot configuration",
+      "An architecture designed to operate from either data centre",
+      "Product-level metadata caching with revalidation",
+      "A shared caching layer in front of most website products",
+      "Multiple caching pools serving different products",
+      "Video and audio streaming applications across more than 1,200 supported device types",
+      "Website modules that consume programme information and clip metadata"
+    ],
+    "already_tried": [
+      "We investigated the source of the additional database load, but isolating it proved difficult.",
+      "We attempted to restore the affected caching layer, but the caching failure recurred."
+    ],
+    "misleading_signals": []
+  },
+  "complete_message": "At around 9:30 a.m., our programme and clip metadata database load increased sharply, and many requests to our application servers started failing. Almost simultaneously, one of our caching pools failed, making our main homepage and streaming platform inaccessible. Video and audio playback are affected across multiple applications and devices, especially older applications that depend directly on metadata, although we don't yet know the exact number of affected users. We haven't identified any specific deployment, configuration change, or other trigger immediately preceding the failures.",
+  "conversation": [
+    {
+      "analyst": "We're seeing failures when users try to play video and audio content."
+    },
+    {
+      "if_asked_about": "the affected service",
+      "analyst": "Our programme and clip metadata service is experiencing problems, and one of our shared caching pools has also failed. These services support our streaming applications and several parts of our website."
+    },
+    {
+      "if_asked_about": "what changed right before / the trigger",
+      "analyst": "We haven't identified a specific change immediately before the failures. There's no confirmed deployment, command, or configuration change that we can point to."
+    },
+    {
+      "if_asked_about": "when it started and who is affected",
+      "analyst": "The database load increased sharply at around 9:30 a.m., and the caching pool failed almost simultaneously. Users of our streaming applications and website are affected across multiple devices, particularly older applications, but we don't have an exact affected-user count or percentage."
+    },
+    {
+      "if_asked_about": "the errors or symptoms seen",
+      "analyst": "Database load is extremely high, and many metadata requests to our application servers are failing. One of our caching pools is also failing, making several products inaccessible, including our homepage and streaming platform. Applications that cache metadata locally can still serve some content, but applications that rely on direct metadata requests are failing."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "The definitive root causes were not established in the published post-mortem. The incident involved two nearly simultaneous problems: a sharp increase in database load that caused metadata requests to fail, and a separate caching-pool failure affecting multiple website products. The source of the additional database load was difficult to isolate, and forensic investigation of the recurring caching failure was still ongoing. The post-mortem does not establish whether the two failures were related.",
+    "fix": [
+      "The team prioritized restoring the failed caching layer.",
+      "The homepage was switched to a simplified emergency mode during caching failures. This emergency page was used multiple times and eventually remained active until the team was confident the cache had stabilized.",
+      "Significant remedial work was performed on the metadata service during the afternoon and into the evening. The post-mortem does not specify the individual technical actions.",
+      "After the remedial work, much of the website returned to near-normal operation, although the streaming application remained unavailable on some devices.",
+      "The team maintained this partially restored state while preparing a full restoration.",
+      "The planned full restoration was postponed to avoid introducing additional risk during peak usage. The post-mortem does not describe the final restoration procedure or explicitly confirm its completion."
+    ],
+    "prevention": [
+      "Complete forensic investigations to understand the root causes of the failures.",
+      "Identify and implement measures to minimize the likelihood of similar service interruptions. Specific preventive measures were not provided in the post-mortem."
+    ],
+    "changes": null
+  }
+}

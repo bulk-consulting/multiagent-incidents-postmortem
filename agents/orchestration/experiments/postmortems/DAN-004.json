@@ -1,0 +1,79 @@
+
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Customers are unable to access our web interface.",
+      "Customers cannot initiate new builds.",
+      "Monitoring shows degraded performance across multiple services.",
+      "We are seeing a drop in incoming webhooks from our code-hosting provider.",
+      "There are widespread connectivity issues between our frontend and backend APIs.",
+      "We are observing CORS errors when the frontend communicates with backend APIs."
+    ],
+    "affected_service": "Our continuous integration platform's web interface and build-triggering services.",
+    "dependent_impact": "Customers cannot start new builds, and incoming webhooks from our code-hosting provider have dropped.",
+    "scope": "Customers across multiple platform services are affected. The geographic scope and percentage of affected customers are not specified.",
+    "timing": "The disruption began at approximately 00:16 UTC. Monitoring detected degraded performance between 00:26 and 00:52 UTC.",
+    "trigger": null,
+    "environment": [
+      "Web Application Firewall (WAF)",
+      "Frontend services",
+      "Backend APIs",
+      "CDN distributions",
+      "CORS",
+      "Terraform",
+      "IAM",
+      "Webhooks from an external code-hosting provider"
+    ],
+    "already_tried": [
+      "We investigated whether the new symptoms were aftereffects of an unrelated incident that had just concluded, but established that this was a separate incident.",
+      "We opened a new incident and assembled a dedicated response team.",
+      "We investigated the connectivity issues between frontend services and backend APIs, including the CORS errors, without identifying the cause.",
+      "We examined recent deployments and infrastructure changes as possible explanations, but the cause remained unclear."
+    ],
+    "misleading_signals": [
+      "The disruption occurred while we were concluding an unrelated incident, initially making us suspect the new symptoms were connected to that earlier issue.",
+      "The symptoms appeared across several different services, complicating efforts to identify a common cause.",
+      "We expected infrastructure changes to pass through our Terraform pipeline, but there was no corresponding change record."
+    ]
+  },
+  "complete_message": "We're experiencing a major disruption to our continuous integration platform: customers cannot access the web interface or trigger new builds, and we're seeing degraded performance across multiple services. The issue started around 00:16 UTC, with monitoring also showing a drop in code-hosting webhooks, widespread frontend-to-backend connectivity problems, and CORS errors. We haven't identified a trigger yet, and although we were just wrapping up another incident, we've established that this is a separate issue.",
+  "conversation": [
+    {
+      "analyst": "Customers are reporting that they can't access the web interface."
+    },
+    {
+      "if_asked_about": "the affected service",
+      "analyst": "It's our continuous integration platform. Both the web interface and the ability to trigger new builds are affected."
+    },
+    {
+      "if_asked_about": "what changed right before / the trigger",
+      "analyst": "We haven't confirmed what triggered this. We were wrapping up an unrelated incident when these symptoms appeared, and we're investigating recent deployments and infrastructure changes."
+    },
+    {
+      "if_asked_about": "when it started and who is affected",
+      "analyst": "The disruption started around 00:16 UTC, and our monitoring detected degraded performance between 00:26 and 00:52 UTC. Customers are unable to access the interface or start builds, and multiple services are affected, but we don't have a confirmed regional or percentage breakdown."
+    },
+    {
+      "if_asked_about": "the errors or symptoms seen",
+      "analyst": "We're seeing widespread connectivity problems between our frontend and backend APIs, including CORS errors. Monitoring also shows degraded performance across multiple services and a drop in incoming webhooks from our code-hosting provider."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "An operator inadvertently modified a Web Application Firewall (WAF) rule while investigating routine security monitoring, believing the actions were read-only. A misconfiguration in IAM permissions allowed the operator's role to modify infrastructure directly, bypassing the standard Terraform deployment process. The modified rule blocked legitimate traffic to two CDN distributions serving the platform's web interface and API. Because the change occurred outside Terraform, investigators initially had no corresponding deployment record and did not prioritize investigating the WAF configuration. Automated Terraform drift detection eventually identified the unauthorized configuration difference approximately 80 minutes after the initial change.",
+    "fix": [
+      "At 01:35 UTC, automated Terraform drift detection identified the difference between the expected and actual WAF configurations.",
+      "At 01:41 UTC, the engineering team reverted the problematic WAF rule on both affected CDN distributions.",
+      "At 01:49 UTC, monitoring confirmed that error rates were decreasing across affected services as legitimate traffic was routed correctly again.",
+      "At 01:55 UTC, full service restoration was confirmed."
+    ],
+    "prevention": [
+      "Implemented stricter IAM policies to prevent direct modification of infrastructure managed through the infrastructure-as-code pipeline.",
+      "Enhancing Terraform drift detection to provide faster alerts when critical infrastructure configurations differ from their expected state.",
+      "Adding technical guardrails to ensure infrastructure configuration changes follow the standard infrastructure-as-code process.",
+      "Establishing improved protocols for implementing and testing WAF rules before production deployment.",
+      "Adding monitoring specifically for WAF behavior and traffic patterns to detect similar disruptions more quickly.",
+      "Investigating organization-wide Security Control Policies (SCPs) to restrict IAM role permissions and prevent unauthorized changes to critical infrastructure."
+    ],
+    "changes": "The immediate configuration correction was the reversal of an inadvertently modified WAF rule on two CDN distributions. Stricter IAM policies were subsequently implemented to restrict direct infrastructure modifications. Additional Terraform drift-detection improvements, WAF monitoring, configuration guardrails, and security-policy restrictions were identified as ongoing or planned improvements. No application code changes were reported."
+  }
+}

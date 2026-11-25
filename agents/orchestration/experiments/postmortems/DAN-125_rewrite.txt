@@ -1,0 +1,122 @@
+Below is a test case built from an incident post-mortem. I need the analyst-facing parts REWRITTEN so that a
+search engine cannot find the original post-mortem just by matching words. Imagine a DIFFERENT company had a
+similar incident and its on-call analyst describes it in their own words.
+
+Rewrite only these parts: "visible_during_incident", "complete_message" and "conversation".
+Copy "discovered_later" exactly as it is, without changes.
+
+Rules for the rewrite:
+- Keep the same facts and their meaning: the kind of failure, the kind of service, the trigger (or the lack of
+  one), the timing pattern (sudden or gradual, "a few days after", "right after a deploy") and the scope.
+- Do NOT reuse distinctive wording from the original: rephrase every sentence. Avoid copying phrases of 4 or
+  more words from the input.
+- Do NOT copy exact error messages, status texts or log lines: describe them in other words
+  (e.g. "the API rejects the request saying an input is invalid" instead of the exact message).
+- Do NOT copy exact numbers, versions, percentages, counts or times: use approximate or relative values
+  ("most of the network" instead of "85%", "in the early evening" instead of "17:57 UTC",
+  "a few hundred servers" instead of "900").
+- Do NOT use internal names of components, tools, settings, commands or endpoints from the input
+  (e.g. "Tenant Service", "pg_basebackup", "max_wal_senders", "/organizations"): use plain descriptions
+  ("the service that checks permissions", "the tool we use to copy the database to the replica").
+- Generic technology names are fine only when an analyst would naturally say them (Redis, Kubernetes, Postgres),
+  but prefer plain words when the technology is not essential to the symptom.
+- Change the business domain only if it would identify the company (e.g. an ad exchange can stay "our ad
+  serving platform"; a famous product name must go).
+- Keep the analyst's point of view ("our", "we"), during the incident: no root cause, no fix, no lessons,
+  no dates.
+- "complete_message": 2 to 4 sentences. "conversation": exactly 5 items in the same order, the first message
+  short and incomplete (one symptom, no service name, no trigger).
+- Return only JSON with the same keys and structure as the input. If you can create files, create a
+  downloadable file named DAN-125_rewrite.json; otherwise return only the JSON text, which will be saved as DAN-125_rewrite.json.
+
+TEST CASE (DAN-125):
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Our managed PostgreSQL database is struggling under load, with CPU utilization reaching its maximum.",
+      "Our web dashboard is unavailable. Users cannot log in, view build logs, or read documentation.",
+      "Our dashboard load balancer's HTTP health checks are returning 500 errors indicating database connection failures.",
+      "Dashboard servers are being marked out of service and removed from the load balancer.",
+      "New replacement servers are repeatedly launching, failing their health checks, and terminating without becoming available.",
+      "Our REST API and build agent API load balancers are experiencing some health-check issues, but their servers remain registered.",
+      "Build execution and code-review status updates are still functioning.",
+      "After partial web access is restored, response times remain very slow and some requests are being dropped.",
+      "Our on-call engineer was not awakened by a phone call from the alerting system. The team eventually discovered the outage through emails and messages."
+    ],
+    "affected_service": "Our build platform's web dashboard and website",
+    "dependent_impact": "Users cannot access build logs or documentation or log in to the platform. Build execution and code-review status updates continue to function.",
+    "scope": "All users attempting to log in, view build logs, or access documentation are affected. The post-mortem does not specify a geographic distribution or percentage of users.",
+    "timing": "Database performance began degrading around 16:00 UTC. The severe web outage began at 17:21 UTC. The team discovered the outage around 21:00 UTC.",
+    "trigger": "We recently downgraded our Multi-AZ managed PostgreSQL database from a larger instance to a smaller one to reduce infrastructure costs. We also moved database connection pooling from individual application hosts to a centralized pgbouncer server.",
+    "environment": [
+      "Managed Multi-AZ PostgreSQL database",
+      "A second SQL database",
+      "Centralized pgbouncer connection pooling",
+      "Redis",
+      "Memcached",
+      "Rails application",
+      "Three load balancers handling dashboard, REST API, and build agent API traffic separately",
+      "Auto Scaling Groups",
+      "HTTP health checks performed every 30 seconds",
+      "Cloud virtual-machine instances initialized from machine images",
+      "Cloud infrastructure monitoring",
+      "On-call alerting and escalation system"
+    ],
+    "already_tried": [
+      "We attempted to upgrade the managed PostgreSQL database through the cloud console, but the operation was blocked by problems with the cloud provider's identity and access-management service.",
+      "We checked the cloud provider's status page and confirmed that it was experiencing service issues, so we postponed the database upgrade.",
+      "We attempted to launch a test instance using a newly built server image, but the cloud console's instance-role selector was failing with an 'Internal server error'.",
+      "After the cloud provider's access-management issues subsided, we attempted to launch additional virtual-machine instances, but our account had reached its instance request limit."
+    ],
+    "misleading_signals": [
+      "Immediately after the database downgrade, the new instance appeared to perform normally.",
+      "Monitoring during the initial observation period and what we believed was the beginning of peak traffic showed acceptable performance, even though the configuration had not been tested under the full peak workload."
+    ]
+  },
+  "complete_message": "Our build platform's web dashboard is down, and nobody can log in, view build logs, or access documentation, although builds and code-review status updates are still working. Database CPU started maxing out around 16:00 UTC, and the severe web outage began at 17:21 UTC, with users unable to access the website. We recently downgraded our managed PostgreSQL instance and switched to centralized pgbouncer connection pooling.",
+  "conversation": [
+    {
+      "analyst": "Users are reporting that they can't log in."
+    },
+    {
+      "if_asked_about": "the affected service",
+      "analyst": "It's our build platform's web dashboard and website. Users also can't view build logs or read documentation, but builds and code-review status updates are still working."
+    },
+    {
+      "if_asked_about": "what changed right before / the trigger",
+      "analyst": "We recently downgraded our managed PostgreSQL database to a smaller instance to reduce costs. We also switched from per-host connection pooling to a centralized pgbouncer server."
+    },
+    {
+      "if_asked_about": "when it started and who is affected",
+      "analyst": "The database started struggling around 16:00 UTC, and the severe web outage began at 17:21 UTC. Nobody can log in, view build logs, or read documentation, and we haven't identified a specific geographic limitation."
+    },
+    {
+      "if_asked_about": "the errors or symptoms seen",
+      "analyst": "Our database CPU is maxed out, and dashboard health checks are returning HTTP 500 errors related to database connections. The load balancer is removing unhealthy servers, and newly launched replacements keep failing their health checks."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "The smaller managed PostgreSQL instance could not handle the production workload during peak traffic, causing CPU saturation and database performance degradation. The application's health-check endpoint depended on successful connections to both SQL databases, Redis, and Memcached. When database connections failed, the health checks returned HTTP 500 errors, causing the dashboard load balancer to remove its application servers. Auto Scaling Groups launched replacement servers, but the server bootstrap process attempted to retrieve the currently deployed code revision from an endpoint on the unavailable website. Because that endpoint could not be reached, replacement servers ran the older application version embedded in their machine images. That version's health check referenced a database that had already been decommissioned, so replacement servers also failed health checks and could not join the load balancer. The resulting repeated instance launches and terminations eventually exhausted cloud instance request limits. Recovery was further delayed by cloud provider access-management issues and an on-call alerting configuration that failed to wake the team. The centralized pgbouncer configuration was reverted during recovery, but the post-mortem did not establish it as a confirmed root cause.",
+    "fix": [
+      "Temporarily reassigned servers from the build agent API load balancer to the dashboard load balancer, restoring partial website availability. Requests remained slow because the database was still overloaded.",
+      "Waited until the cloud provider's access-management problems subsided and the instance request limits allowed additional launches.",
+      "Upgraded the managed PostgreSQL database to a larger instance type capable of handling the workload.",
+      "Built and deployed updated server images that no longer depended on the unavailable website to determine the current application revision.",
+      "Changed the server bootstrap process to retrieve the latest deployed revision from a file stored in object storage.",
+      "Removed the centralized pgbouncer server and restored the previously working per-host pgbouncer configuration.",
+      "Used the cloud provider's command-line interface for the final database and server changes because the web console was still experiencing problems."
+    ],
+    "prevention": [
+      "Changed the application health-check endpoint so it returns success when the application can be reached, without requiring successful database or dependent-service connections.",
+      "Considered introducing a separate external monitoring health check that verifies database and dependent-service connectivity.",
+      "Changed server initialization to retrieve the current deployed revision from object storage rather than the production website.",
+      "Planned load testing for significant infrastructure changes, including database instance changes and connection-pooling architecture.",
+      "Identified the need to monitor infrastructure credits and costs more closely to avoid rushed capacity changes.",
+      "Changed Auto Scaling Groups to use virtual-machine health checks and fixed desired instance counts during the high-churn situation.",
+      "Identified the ability to suspend and resume automatic scaling processes as an additional option for managing future high-churn incidents.",
+      "Manually tested on-call team members' notification settings to verify that phone calls were delivered correctly.",
+      "Considered regular company-wide alerting tests and automatic phone calls when engineers begin their on-call shifts."
+    ],
+    "changes": "Database: upgraded the managed PostgreSQL instance to a larger capacity. Connection pooling: reverted from centralized pgbouncer to per-host pgbouncer. Application health checks: removed database and dependent-service connectivity checks from the primary load-balancer endpoint. Server bootstrap: replaced the production website's deployed-revision endpoint with a revision file stored in object storage. Server images: built and deployed updated images supporting the new bootstrap process. Auto scaling: switched to virtual-machine health checks and locked desired instance counts during the incident. Alerting: corrected and manually tested on-call phone notification settings."
+  }
+}

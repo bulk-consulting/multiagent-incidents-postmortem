@@ -1,0 +1,1879 @@
+[
+ {
+  "id": "q02",
+  "type": "mari",
+  "expected": [
+   "DAN-104"
+  ],
+  "symptoms": [
+   "S3 storage is down"
+  ],
+  "expected_passages": {
+   "DAN-104": [
+    {
+     "source": "cause",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nS3 subsystems are designed to support the removal or failure of significant capacity with little or no customer impact. We build our systems with the assumption that things will occasionally fail, and we rely on the ability to remove and replace capacity as one of our core operational processes. While this is an operation that we have relied on to maintain our systems since the launch of S3, we have not completely restarted the index subsystem or the placement subsystem in our larger regions for many years. S3 has experienced massive growth over the last several years and the process of restarting these services and running the necessary safety checks to validate the integrity of the metadata took longer than expected. The index subsystem was the first of the two affected subsystems that needed to be restarted. By 12:26PM PST, the index subsystem had activated enough capacity to begin servicing S3 GET, LIST, and DELETE requests. By 1:18PM PST, the index subsystem was fully recovered and GET, LIST, and DELETE APIs were functioning normally. The S3 PUT API also required the placement subsystem. The placement subsystem began recovery when the index subsystem was functional and finished recovery at 1:54PM PST. At this point, S3 was operating normally. Other AWS services that were impacted by this event began recovering. Some of these services had accumulated a backlog of work during the S3 disruption and required additional time to fully recover."
+    },
+    {
+     "source": "fix",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nFrom the beginning of this event until 11:37AM PST, we were unable to update the individual services’ status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console has on Amazon S3. Instead, we used the AWS Twitter feed (@AWSCloud) and SHD banner text to communicate status until we were able to update the individual services’ status on the SHD. We understand that the SHD provides important visibility to our customers during operational events and we have changed the SHD administration console to run across multiple AWS regions.\n\nFinally, we want to apologize for the impact this event caused for our customers. While we are proud of our long track record of availability with Amazon S3, we know how critical this service is to our customers, their applications and end users, and their businesses. We will do everything we can to learn from this event and use it to improve our availability even further."
+    },
+    {
+     "source": "fix",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nOne of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region. This subsystem is necessary to serve all GET, LIST, PUT, and DELETE requests. The second subsystem, the placement subsystem, manages allocation of new storage and requires the index subsystem to be functioning properly to correctly operate. The placement subsystem is used during PUT requests to allocate storage for new objects. Removing a significant portion of the capacity caused each of these systems to require a full restart. While these subsystems were being restarted, S3 was unable to service requests. Other AWS services in the US-EAST-1 Region that rely on S3 for storage, including the S3 console, Amazon Elastic Compute Cloud (EC2) new instance launches, Amazon Elastic Block Store (EBS) volumes (when data was needed from a S3 snapshot), and AWS Lambda were also impacted while the S3 APIs were unavailable."
+    },
+    {
+     "source": "similar",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nWe’d like to give you some additional information about the service disruption that occurred in the Northern Virginia (US-EAST-1) Region on the morning of February 28th, 2017. The Amazon Simple Storage Service (S3) team was debugging an issue causing the S3 billing system to progress more slowly than expected. At 9:37AM PST, an authorized S3 team member using an established playbook executed a command which was intended to remove a small number of servers for one of the S3 subsystems that is used by the S3 billing process. Unfortunately, one of the inputs to the command was entered incorrectly and a larger set of servers was removed than intended. The servers that were inadvertently removed supported two other S3 subsystems. One of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region. This subsystem is necessary to serve all GET, LIST, PUT, and DELETE requests."
+    },
+    {
+     "source": "similar",
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "fix_title": false,
+     "text": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region\n\nWe are making several changes as a result of this operational event. While removal of capacity is a key operational practice, in this instance, the tool used allowed too much capacity to be removed too quickly. We have modified this tool to remove capacity more slowly and added safeguards to prevent capacity from being removed when it will take any subsystem below its minimum required capacity level. This will prevent an incorrect input from triggering a similar event in the future. We are also auditing our other operational tools to ensure we have similar safety checks. We will also make changes to improve the recovery time of key S3 subsystems. We employ multiple techniques to allow our services to recover from any failure quickly. One of the most important involves breaking services into small partitions which we call cells. By factoring services into cells, engineering teams can assess and thoroughly test recovery processes of even the largest service or subsystem. As S3 has scaled, the team has done considerable work to refactor parts of the service into smaller cells to reduce blast radius and improve recovery. During this event, the recovery time of the index subsystem still took longer than we expected. The S3 team had planned further partitioning of the index subsystem later this year. We are reprioritizing that work to begin immediately."
+    }
+   ]
+  },
+  "initial_search_position": null,
+  "expected_in_new": [
+   "DAN-104"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-104",
+   "DAN-105",
+   "DAN-230",
+   "DAN-073",
+   "DAN-125",
+   "DAN-044",
+   "DAN-103",
+   "DAN-064"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-104"
+  ],
+  "expected_deepened": [
+   "DAN-104"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-104",
+     "query": "root cause typo command removed servers S3 outage fix remediation",
+     "why": "This incident matches the current one exactly: a mistyped command removed too many servers supporting S3, causing an S3 outage. I need the detailed root cause and what changed after."
+    }
+   ],
+   "new_queries": [
+    "mistyped command removed servers S3 storage down",
+    "S3 storage outage accidental deletion servers command"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-104": [
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.638,
+     "query_source": "llm",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  We’d like to give you some additional information about the service disruption that occurred in the Northern Virginia (US-EAST-1) Region on the morning of February 28th, 2017. The Amazon Simple Storage Servic"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.63,
+     "query_source": "llm",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  We are making several changes as a result of this operational event. While removal of capacity is a key operational practice, in this instance, the tool used allowed too much capacity to be removed too quickl"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.312,
+     "query_source": "cause",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  S3 subsystems are designed to support the removal or failure of significant capacity with little or no customer impact. We build our systems with the assumption that things will occasionally fail, and we rely"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.303,
+     "query_source": "fix",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  From the beginning of this event until 11:37AM PST, we were unable to update the individual services’ status on the AWS Service Health Dashboard (SHD) because of a dependency the SHD administration console ha"
+    },
+    {
+     "section": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region",
+     "similarity": 0.219,
+     "query_source": "fix",
+     "start": "## Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region  One of these subsystems, the index subsystem, manages the metadata and location information of all S3 objects in the region. This subsystem is necessary to serve all GET, LIST, PUT, and DELETE requests. The s"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-104",
+   "DAN-105",
+   "DAN-230",
+   "DAN-073",
+   "DAN-125",
+   "DAN-044",
+   "DAN-103",
+   "DAN-064",
+   "DAN-164",
+   "DAN-106"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "mistyped command removed servers S3 storage down",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-104",
+     "DAN-105",
+     "DAN-230",
+     "DAN-073",
+     "DAN-125",
+     "DAN-044",
+     "DAN-103",
+     "DAN-064",
+     "DAN-164",
+     "DAN-106"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "S3 storage outage accidental deletion servers command",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-104",
+     "DAN-230",
+     "DAN-105",
+     "DAN-073",
+     "DAN-064",
+     "DAN-103",
+     "DAN-071",
+     "DAN-222",
+     "DAN-060",
+     "DAN-146"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause typo command removed servers S3 outage fix remediation",
+    "filter": {
+     "incident": "DAN-104"
+    },
+    "ids": [
+     "DAN-104"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-104"
+    },
+    "ids": [
+     "DAN-104"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-104"
+    },
+    "ids": [
+     "DAN-104"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 3.6,
+    "tokens": 1214,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 3.7,
+    "tokens": 2619,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 8
+ },
+ {
+  "id": "q03",
+  "type": "mari",
+  "expected": [
+   "DAN-090"
+  ],
+  "symptoms": [
+   "Firefox add-ons stopped working"
+  ],
+  "expected_passages": {
+   "DAN-090": [
+    {
+     "source": "cause",
+     "section": "Incomplete Fixes",
+     "fix_title": true,
+     "text": "## Incomplete Fixes\n\nOver the weeks following the incident, we released a large number of fixes, including eight versions of the system add-on and six dot releases. In some cases this was necessary because older deployment targets needed a separate fix. In other cases it was a result of defects in an earlier fix, which we then had to patch up in subsequent work. Of course, defects in software cannot be completely eliminated, but the technical report found that at least in some cases a high level of urgency combined with a lack of available QA resources (or at least coordination issues around QA) led to testing that was less thorough than we would have liked.\n\nThe lesson here is that during incidents of this kind we need to make sure that we not only recruit management, engineering, and operations personnel (which we did) but also to ensure that we have QA available to test the inevitable fixes."
+    },
+    {
+     "source": "fix",
+     "section": "Where to Learn More",
+     "fix_title": false,
+     "text": "## Where to Learn More\n\nIf you want to learn more about our findings, I would invite you to read the more detailed reports we produced. And as always, if those don’t answer your questions, feel free to email me at ekr-blog@mozilla.com.\n\n## About Eric Rescorla\n\nEric is CTO of the Firefox team at Mozilla."
+    },
+    {
+     "source": "fix",
+     "section": "Code Delivery",
+     "fix_title": false,
+     "text": "## Code Delivery\n\nAs I mentioned previously, once we had a fix, we decided to deliver it via the Studies system (this is one part of a system we internally call “Normandy”). The Studies system isn’t an obvious choice for this kind of deployment because it was intended for deploying experiments, not code fixes. Moreover, because Studies permission is coupled to Telemetry, this meant that some users needed to enable Telemetry in order to get the fix, leading to Mozilla temporarily over-collecting data that we didn’t actually want, which we then had to clean up.\n\nThis leads to the natural question: “isn’t there some other way you could have deployed the fix?” to which the answer is “sort of.” Our other main mechanisms for deploying new code to users are dot releases and a system called “Balrog”. Unfortunately, both of these are slower than Normandy: Balrog checks for updates every 12 hours (though there turns out to have been some confusion about whether this number was 12 or 24), whereas Normandy checks every 6. Because we had a lot of users who were affected, getting them fixed was a very high priority, which made Studies the best technical choice.\n\nThe lesson here is that we need a mechanism that allows fast updates that isn’t coupled to Telemetry and Studies. The property we want is the ability to quickly deploy updates to any user who has automatic updates enabled. This is something our engineers are already working on."
+    },
+    {
+     "source": "similar",
+     "section": "Root Cause Analysis",
+     "fix_title": false,
+     "text": "## Root Cause Analysis\n\nThe first question that everyone asks is “how did you let this happen?” At a high level, the story seems simple: we let the certificate expire. This seems like a simple failure of planning, but upon further investigation it turns out to be more complicated: the team responsible for the system which generated the signatures knew that the certificate was expiring but thought (incorrectly) that Firefox ignored the expiration dates. Part of the reason for this misunderstanding was that in a previous incident we had disabled end-entity certificate checking, and this led to confusion about the status of intermediate certificate checking. Moreover, the Firefox QA plan didn’t incorporate testing for certificate expiration (or generalized testing of how the browser will behave at future dates) and therefore the problem wasn’t detected. This seems to have been a fundamental oversight in our test plan.\n\nThe lesson here is that: (1) we need better communication and documentation of these parts of the system and (2) this information needs to get fed back into our engineering and QA work to make sure we’re not missing things. The technical report provides more details."
+    },
+    {
+     "source": "similar",
+     "section": "",
+     "fix_title": false,
+     "text": "*Editor’s Note: July 12, 1:52pm pt – Updated Balrog update frequency and added some more background.*\n\nAs I mentioned in my previous post, we’ve been conducting a post-mortem on the add-ons outage. Sorry this took so long to get out; we’d hoped to have this out within a week, but obviously that didn’t happen. There was just a lot more digging to do than we expected. In any case, we’re now ready to share the results. This post provides a high level overview of our findings, with more detail available in Sheila Mooney’s incident report and Matt Miller & Peter Saint-Andre’s technical report."
+    }
+   ]
+  },
+  "initial_search_position": null,
+  "expected_in_new": [
+   "DAN-090"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-090",
+   "DAN-086",
+   "DAN-025",
+   "DAN-216",
+   "DAN-136",
+   "DAN-154",
+   "DAN-032",
+   "DAN-124"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-090"
+  ],
+  "expected_deepened": [
+   "DAN-090"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-090",
+     "query": "root cause expired certificate Firefox add-ons fix privileged add-on injected valid certificate certificate store",
+     "why": "This incident matches exactly: an expired certificate caused Firefox add-ons to stop working, and the fix involved injecting a valid certificate. I need the detailed root cause and resolution steps."
+    }
+   ],
+   "new_queries": [
+    "Firefox add-ons stopped working expired certificate",
+    "browser extensions failed due to expired signing certificate Firefox"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-090": [
+    {
+     "section": "Root Cause Analysis",
+     "similarity": 0.703,
+     "query_source": "llm",
+     "start": "## Root Cause Analysis  The first question that everyone asks is “how did you let this happen?” At a high level, the story seems simple: we let the certificate expire. This seems like a simple failure of planning, but upon further investigation it turns out to be more complicated: the team responsib"
+    },
+    {
+     "section": "",
+     "similarity": 0.501,
+     "query_source": "llm",
+     "start": "*Editor’s Note: July 12, 1:52pm pt – Updated Balrog update frequency and added some more background.*  As I mentioned in my previous post, we’ve been conducting a post-mortem on the add-ons outage. Sorry this took so long to get out; we’d hoped to have this out within a week, but obviously that didn"
+    },
+    {
+     "section": "Incomplete Fixes",
+     "similarity": 0.422,
+     "query_source": "cause",
+     "start": "## Incomplete Fixes  Over the weeks following the incident, we released a large number of fixes, including eight versions of the system add-on and six dot releases. In some cases this was necessary because older deployment targets needed a separate fix. In other cases it was a result of defects in a"
+    },
+    {
+     "section": "Where to Learn More",
+     "similarity": 0.374,
+     "query_source": "fix",
+     "start": "## Where to Learn More  If you want to learn more about our findings, I would invite you to read the more detailed reports we produced. And as always, if those don’t answer your questions, feel free to email me at ekr-blog@mozilla.com.  ## About Eric Rescorla  Eric is CTO of the Firefox team at Mozi"
+    },
+    {
+     "section": "Code Delivery",
+     "similarity": 0.315,
+     "query_source": "fix",
+     "start": "## Code Delivery  As I mentioned previously, once we had a fix, we decided to deliver it via the Studies system (this is one part of a system we internally call “Normandy”). The Studies system isn’t an obvious choice for this kind of deployment because it was intended for deploying experiments, not "
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-090",
+   "DAN-086",
+   "DAN-025",
+   "DAN-216",
+   "DAN-136",
+   "DAN-154",
+   "DAN-032",
+   "DAN-124",
+   "DAN-126",
+   "DAN-024"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "Firefox add-ons stopped working expired certificate",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-090",
+     "DAN-086",
+     "DAN-025",
+     "DAN-216",
+     "DAN-136",
+     "DAN-032",
+     "DAN-049",
+     "DAN-126",
+     "DAN-024",
+     "DAN-154"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "browser extensions failed due to expired signing certificate Firefox",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-090",
+     "DAN-086",
+     "DAN-025",
+     "DAN-216",
+     "DAN-136",
+     "DAN-154",
+     "DAN-032",
+     "DAN-124",
+     "DAN-126",
+     "DAN-024"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause expired certificate Firefox add-ons fix privileged add-on injected valid certificate certificate store",
+    "filter": {
+     "incident": "DAN-090"
+    },
+    "ids": [
+     "DAN-090"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-090"
+    },
+    "ids": [
+     "DAN-090"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-090"
+    },
+    "ids": [
+     "DAN-090"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 2.4,
+    "tokens": 1237,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 5.6,
+    "tokens": 2254,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 8
+ },
+ {
+  "id": "q04",
+  "type": "mari",
+  "expected": [
+   "DAN-071"
+  ],
+  "symptoms": [
+   "power outage on disks caused by lightning"
+  ],
+  "expected_passages": {
+   "DAN-071": [
+    {
+     "source": "llm",
+     "section": "Google Compute Engine Incident #15056",
+     "fix_title": true,
+     "text": "# Google Compute Engine Incident #15056\n\nHowever, in a very few cases, recent writes were unrecoverable, leading to permanent data loss on the Persistent Disk. This outage is wholly Google's responsibility. However, we would like to take this opportunity to highlight an important reminder for our customers: GCE instances and Persistent Disks within a zone exist in a single Google datacenter and are therefore unavoidably vulnerable to datacenter-scale disasters. Customers who need maximum availability should be prepared to switch their operations to another GCE zone. For maximum durability we recommend GCE snapshots and Google Cloud Storage as resilient, geographically replicated repositories for your data. REMEDIATION AND PREVENTION: Google has an ongoing program of upgrading to storage hardware that is less susceptible to the power failure mode that triggered this incident. Most Persistent Disk storage is already running on this hardware. Since the incident began, Google engineers have conducted a wide-ranging review across all layers of the datacenter technology stack, from electrical distribution systems through computing hardware to the software controlling the GCE persistent disk layer. Several opportunities have been identified to increase physical and procedural resilience, including: Continue to upgrade our hardware to improve cache data retention during transient power loss. Implement multiple orthogonal schemes to increase Persistent Disk data durability for greater resilience. Improve response procedures for system engineers during possible future incidents. |  |  |\n|  | Aug 16, 2015 | 09:35 | At present, less than 0.05% of PD's are experiencing read failures in europe-west1-b."
+    },
+    {
+     "source": "cause",
+     "section": "Google Compute Engine Incident #15056",
+     "fix_title": false,
+     "text": "# Google Compute Engine Incident #15056\n\nGoogle Compute Engine Persistent Disk issue in europe-west1-b\n\nIncident began at **2015-08-13 09:25**\n\nand ended at **2015-08-16 09:35**\n\n(all times are **US/Pacific**)."
+    },
+    {
+     "source": "fix",
+     "section": "Google Compute Engine Incident #15056",
+     "fix_title": false,
+     "text": "# Google Compute Engine Incident #15056\n\nThe service has been partially recovered. Meanwhile, affected customers can restore from snapshots as a workaround solution. We will provide another status update by 15:00 US/Pacific with current details. |  |  |\n|  | Aug 13, 2015 | 12:00 | We are still actively working on mitigating the issue with Google Compute Engine Persistent Disks in europe-west1-b beginning at Thursday, 2015-08-13 09:25 US/Pacific. For everyone who is affected, we apologize for the impact to your systems. We will provide another status update by 13:00 US/Pacific with current details. |\n|  | We are still actively working on mitigating the issue with Google Compute Engine Persistent Disks in europe-west1-b beginning at Thursday, 2015-08-13 09:25 US/Pacific. For everyone who is affected, we apologize for the impact to your systems. We will provide another status update by 13:00 US/Pacific with current details. |  |  |\n|  | Aug 13, 2015 | 11:14 | We are experiencing an issue with Google Compute Engine Persistent Disks in europe-west1-b beginning at Thursday, 2015-08-13 09:25 US/Pacific. Customers who have machines running in this zone may see read errors. For everyone who is affected, we apologize for any inconvenience you may be experiencing. We will provide an update by 12:00 US/Pacific with current details. |\n|  | We are experiencing an issue with Google Compute Engine Persistent Disks in europe-west1-b beginning at Thursday, 2015-08-13 09:25 US/Pacific."
+    },
+    {
+     "source": "fix",
+     "section": "Google Compute Engine Incident #15056",
+     "fix_title": false,
+     "text": "# Google Compute Engine Incident #15056\n\nPlease also feel free to proactively contact support for more information. We will conduct an internal investigation of this issue and make appropriate improvements to our systems to prevent or minimize future recurrence. We will provide a more detailed analysis of this incident once we have completed our internal investigation. |  |  |\n|  | Aug 14, 2015 | 16:53 | At present, less than 0.05% of PD's are experiencing read failures in europe-west1-b. Neither restoring Persistent Disks from snapshots nor creating new Persistent Disks have been affected. If your PD is one of those 0.05% currently affected, you may restore it from a snapshot and continue using it at full availability. Given the low rate of read failures, we will be decreasing the velocity of updates. We will provide another status update on 17 August by 16:00 US/Pacific with current details. In addition, the Cloud Support team will be reaching out to affected customers within 3 business days. Please also feel free to proactively reach to Cloud Support for more information. |\n|  | At present, less than 0.05% of PD's are experiencing read failures in europe-west1-b. Neither restoring Persistent Disks from snapshots nor creating new Persistent Disks have been affected. If your PD is one of those 0.05% currently affected, you may restore it from a snapshot and continue using it at full availability. Given the low rate of read failures, we will be decreasing the velocity of updates. We will provide another status update on 17 August by 16:00 US/Pacific with current details."
+    },
+    {
+     "source": "similar",
+     "section": "Google Compute Engine Incident #15056",
+     "fix_title": false,
+     "text": "# Google Compute Engine Incident #15056\n\nSome management operations on the affected disks also failed, such as disk snapshot creation. From the start of the incident, the number of affected disks progressively declined as Google engineers carried out data recovery operations. By Monday 17 August, only a very small number of disks remained affected, totalling less than 0.000001% of the space of allocated persistent disks in europe-west1-b. In these cases, full recovery is not possible. The issue only affected Standard Persistent Disks that existed when the incident began at 09:19 PDT. There was no effect on Standard Persistent Disks created after 09:19. SSD Persistent Disks, disk snapshots, and Local SSDs were not affected by the incident. In particular, it was possible at all times to recreate new Persistent Disks from existing snapshots. ROOT CAUSE: At 09:19 PDT on Thursday 13 August 2015, four successive lightning strikes on the local utilities grid that powers our European datacenter caused a brief loss of power to storage systems which host disk capacity for GCE instances in the europe-west1-b zone. Although automatic auxiliary systems restored power quickly, and the storage systems are designed with battery backup, some recently written data was located on storage systems which were more susceptible to power failure from extended or repeated battery drain. In almost all cases the data was successfully committed to stable storage, although manual intervention was required in order to restore the systems to their normal serving state. However, in a very few cases, recent writes were unrecoverable, leading to permanent data loss on the Persistent Disk. This outage is wholly Google's responsibility."
+    },
+    {
+     "source": "similar",
+     "section": "Google Compute Engine Incident #15056",
+     "fix_title": false,
+     "text": "# Google Compute Engine Incident #15056\n\n|  | Date | Time | Description |\n|---|---|---|---|\n|  | Aug 18, 2015 | 02:18 | SUMMARY: From Thursday 13 August 2015 to Monday 17 August 2015, errors occurred on a small proportion of Google Compute Engine persistent disks in the europe-west1-b zone. The affected disks sporadically returned I/O errors to their attached GCE instances, and also typically returned errors for management operations such as snapshot creation. In a very small fraction of cases (less than 0.000001% of PD space in europe-west1-b), there was permanent data loss. Google takes availability very seriously, and the durability of storage is our highest priority. We apologise to all our customers who were affected by this exceptional incident. We have conducted a thorough analysis of the issue, in which we identified several contributory factors across the full range of our hardware and software technology stack, and we are working to improve these to maximise the reliability of GCE's whole storage layer. DETAILED DESCRIPTION OF IMPACT: From 09:19 PDT on Thursday 13 August 2015, to Monday 17 August 2015, some Standard Persistent Disks in the europe-west1-b zone began to return sporadic I/O errors to their connected GCE instances. In total, approximately 5% of the Standard Persistent Disks in the zone experienced at least one I/O read or write failure during the course of the incident. Some management operations on the affected disks also failed, such as disk snapshot creation. From the start of the incident, the number of affected disks progressively declined as Google engineers carried out data recovery operations."
+    }
+   ]
+  },
+  "initial_search_position": null,
+  "expected_in_new": [
+   "DAN-071"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-071",
+   "DAN-068",
+   "DAN-067",
+   "DAN-073",
+   "DAN-060",
+   "DAN-062",
+   "DAN-061",
+   "DAN-191"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-071"
+  ],
+  "expected_deepened": [
+   "DAN-071"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-071",
+     "query": "lightning strike power loss storage disks consequences data loss fix recovery",
+     "why": "This incident matches the current one: successive lightning strikes on a European datacenter caused loss of power to storage systems, with I/O errors on Standard Persistent Disks and permanent data loss on a small fraction."
+    }
+   ],
+   "new_queries": [
+    "lightning strike datacenter power outage disks storage failure",
+    "lightning caused power outage disk drives datacenter incident"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-071": [
+    {
+     "section": "Google Compute Engine Incident #15056",
+     "similarity": 0.646,
+     "query_source": "llm",
+     "start": "# Google Compute Engine Incident #15056  Some management operations on the affected disks also failed, such as disk snapshot creation. From the start of the incident, the number of affected disks progressively declined as Google engineers carried out data recovery operations. By Monday 17 August, on"
+    },
+    {
+     "section": "Google Compute Engine Incident #15056",
+     "similarity": 0.589,
+     "query_source": "llm",
+     "start": "# Google Compute Engine Incident #15056  However, in a very few cases, recent writes were unrecoverable, leading to permanent data loss on the Persistent Disk. This outage is wholly Google's responsibility. However, we would like to take this opportunity to highlight an important reminder for our cu"
+    },
+    {
+     "section": "Google Compute Engine Incident #15056",
+     "similarity": 0.415,
+     "query_source": "cause",
+     "start": "# Google Compute Engine Incident #15056  Google Compute Engine Persistent Disk issue in europe-west1-b  Incident began at **2015-08-13 09:25**  and ended at **2015-08-16 09:35**  (all times are **US/Pacific**)."
+    },
+    {
+     "section": "Google Compute Engine Incident #15056",
+     "similarity": 0.335,
+     "query_source": "fix",
+     "start": "# Google Compute Engine Incident #15056  The service has been partially recovered. Meanwhile, affected customers can restore from snapshots as a workaround solution. We will provide another status update by 15:00 US/Pacific with current details. |  |  | |  | Aug 13, 2015 | 12:00 | We are still activ"
+    },
+    {
+     "section": "Google Compute Engine Incident #15056",
+     "similarity": 0.324,
+     "query_source": "fix",
+     "start": "# Google Compute Engine Incident #15056  Please also feel free to proactively contact support for more information. We will conduct an internal investigation of this issue and make appropriate improvements to our systems to prevent or minimize future recurrence. We will provide a more detailed analy"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-071",
+   "DAN-068",
+   "DAN-067",
+   "DAN-073",
+   "DAN-060",
+   "DAN-062",
+   "DAN-061",
+   "DAN-191",
+   "DAN-070",
+   "DAN-209"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "lightning strike datacenter power outage disks storage failure",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-071",
+     "DAN-068",
+     "DAN-067",
+     "DAN-073",
+     "DAN-060",
+     "DAN-062",
+     "DAN-061",
+     "DAN-191",
+     "DAN-070",
+     "DAN-209"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "lightning caused power outage disk drives datacenter incident",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-071",
+     "DAN-068",
+     "DAN-067",
+     "DAN-062",
+     "DAN-060",
+     "DAN-070",
+     "DAN-064",
+     "DAN-061",
+     "DAN-191",
+     "DAN-209"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "lightning strike power loss storage disks consequences data loss fix recovery",
+    "filter": {
+     "incident": "DAN-071"
+    },
+    "ids": [
+     "DAN-071"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-071"
+    },
+    "ids": [
+     "DAN-071"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-071"
+    },
+    "ids": [
+     "DAN-071"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 2.8,
+    "tokens": 1266,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 14.4,
+    "tokens": 2382,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 18
+ },
+ {
+  "id": "q06",
+  "type": "mari",
+  "expected": [
+   "DAN-236"
+  ],
+  "symptoms": [
+   "Steam client deleted all user files"
+  ],
+  "expected_passages": {
+   "DAN-236": [
+    {
+     "source": "llm",
+     "section": "Activity",
+     "fix_title": false,
+     "text": "## Activity\n\n1. I am impressed how calm you stay about this. This is terrible. I just lost my home directory. All i did was start steam.sh with STEAM\\_DEBUG=1. I will investigate this and report back. edit1: I suspect steam.sh got some bugs(does not check own variables) and when it tried to do scary things it crapped himself.\nLine 468: rm -rf \"$STEAMROOT/\"\\*\nedit2: It gets better. Seems on windows Steam is overeager too! https://support.steampowered.com/kb\\_article.php?ref=9609-OBMP-2526 (The warning part is interesting. Because everybody reads this before uninstalling...) Reacted by Aaron Franke, Matti Schneider, Parker Reed, jasonszhao, Alex O'leary, catsocks, Niklas, Diego Peixoto, ikbenlike, Alisa Sireneva and 18 moreReacted by vantroy, Matthis Kruse, Siarhei Krukau, Luke Nelson, Gaurav Kumar, Pieter Vantorre, Parker Reed, geeknik, Jeyfel Brandauer M, Daniel Aleksandersen and 41 moreReacted by Paul \"Joey\" Clark, Fanfan54 and Tommy VercetyReacted by xyang, Aleksandar Puharic, Jonas Stein, Kyrylo V."
+    },
+    {
+     "source": "cause",
+     "section": "Activity",
+     "fix_title": false,
+     "text": "## Activity\n\nbut what exactly caused this? i've symlinked \\~/.local/share/steam to, so i am a bit afraid to start steam :/ Reacted by Shaun Henderson, Barry Haertel, Agustín Covarrubias and Eddie Antonio SantosReacted by Andrew Vorobyov, Pharap, Catalin Gheonea, Deri Herdianto, Mijyuoon, Marvin Cai, Maor Kadosh, pito-svk, Joanna Adeele Siig, Umedzhon Abdumuminov and 13 moreReacted by Pranav Reddy MamidiReacted by Gerard Madorell\n5. pythoneer, I believe the issue starts on line 19: ```\n# figure out the absolute path to the script being run a bit\n# non-obvious, the ${0%/*} pulls the path out of $0, cd's into the\n# specified directory, then uses $PWD to figure out where that\n# directory lives - and all this in a subshell, so we don't affect\n# $PWD\nSTEAMROOT=\"$(cd \"${0%/*}\" && echo $PWD)\"\nSTEAMDATA=\"$STEAMROOT\"\n```\nThis probably returns as empty which mean: `rm -rf \"$STEAMROOT/\"*` is the same ass `rm -rf \"/\"*`.\nReacted by J.M."
+    },
+    {
+     "source": "fix",
+     "section": "jthill commentedon Jan 15, 2015",
+     "fix_title": false,
+     "text": "## jthill commentedon Jan 15, 2015\n\n@minio Not \"only if\".\n\n`reset_steam`is also invoked by removing your`INITIAL_LAUNCH`\n## soren121 commentedon Jan 15, 2015\n\n@minio A script accidentally running\n\n`rm -rf /*`is unacceptable in any scenario.\n## gtmanfred commentedon Jan 15, 2015\n\nit is like bumblebee all over again!\n\nMrMEEE/bumblebee-Old-and-abbandoned#123"
+    },
+    {
+     "source": "fix",
+     "section": "Activity",
+     "fix_title": false,
+     "text": "## Activity\n\n8. I encountered Steam behaviour like with «--reset» for several times:\nwhen I added «--reset» AND when I didn't. So — not «only if», can\nconfirm this, even having not deleted \\~/.steam/ dir, too.\nReacted by Eugene Mikhaylov\n9. Can confirm; I have Steam bounded in an SELinux context (\"Steam\") and SELinux spits out: `Context violation: process  /home/indrora/.local/share/Steam/ubuntu12_32/steam is only allowed in context steam_context, attempted to remove /boot/efi/grub/efistub`\nOoops. I'll write a patch and PR it 🍺\n10. ### 248 remaining items Load more actions\n11. @craig-sanders Since you posted some cleaned-up code from the script and some good Bash scripting advice, a note: Always use the `[[ ]]` test syntax in Bash-specific scripts.  It's safer and cleaner in all cases."
+    },
+    {
+     "source": "similar",
+     "section": "doofy commentedon Jan 15, 2015",
+     "fix_title": false,
+     "text": "## doofy commentedon Jan 15, 2015\n\n## Tele42 commentedon Jan 15, 2015\n\n## keyvin commentedon Jan 15, 2015\n\n## CamilleScholtz commentedon Jan 15, 2015\n\nThis also happened to me a few weeks ago, my entire home was deleted by the steam.sh script."
+    },
+    {
+     "source": "similar",
+     "section": "nicklleite commentedon Apr 30, 2021",
+     "fix_title": false,
+     "text": "## nicklleite commentedon Apr 30, 2021\n\nIts still happening. It deleted almost everything on my Ubuntu."
+    }
+   ]
+  },
+  "initial_search_position": null,
+  "expected_in_new": [
+   "DAN-236"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-236",
+   "DAN-059",
+   "DAN-126",
+   "DAN-142",
+   "DAN-050",
+   "DAN-131",
+   "DAN-076",
+   "DAN-124"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-236"
+  ],
+  "expected_deepened": [
+   "DAN-236"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-236",
+     "query": "root cause why Steam deleted all user files rm -rf path bug",
+     "why": "This incident is exactly the current one: Steam client deleted all local files/directories owned by the user. I need the root cause and fix details."
+    }
+   ],
+   "new_queries": [
+    "Steam client deleted all user files bug",
+    "Steam client file deletion rm -rf path traversal",
+    "Steam client wiped user directory"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-236": [
+    {
+     "section": "Activity",
+     "similarity": 0.732,
+     "query_source": "llm",
+     "start": "## Activity  1. I am impressed how calm you stay about this. This is terrible. I just lost my home directory. All i did was start steam.sh with STEAM\\_DEBUG=1. I will investigate this and report back. edit1: I suspect steam.sh got some bugs(does not check own variables) and when it tried to do scary"
+    },
+    {
+     "section": "doofy commentedon Jan 15, 2015",
+     "similarity": 0.708,
+     "query_source": "llm",
+     "start": "## doofy commentedon Jan 15, 2015  ## Tele42 commentedon Jan 15, 2015  ## keyvin commentedon Jan 15, 2015  ## CamilleScholtz commentedon Jan 15, 2015  This also happened to me a few weeks ago, my entire home was deleted by the steam.sh script."
+    },
+    {
+     "section": "Activity",
+     "similarity": 0.274,
+     "query_source": "cause",
+     "start": "## Activity  but what exactly caused this? i've symlinked \\~/.local/share/steam to, so i am a bit afraid to start steam :/ Reacted by Shaun Henderson, Barry Haertel, Agustín Covarrubias and Eddie Antonio SantosReacted by Andrew Vorobyov, Pharap, Catalin Gheonea, Deri Herdianto, Mijyuoon, Marvin Cai,"
+    },
+    {
+     "section": "jthill commentedon Jan 15, 2015",
+     "similarity": 0.307,
+     "query_source": "fix",
+     "start": "## jthill commentedon Jan 15, 2015  @minio Not \"only if\".  `reset_steam`is also invoked by removing your`INITIAL_LAUNCH` ## soren121 commentedon Jan 15, 2015  @minio A script accidentally running  `rm -rf /*`is unacceptable in any scenario. ## gtmanfred commentedon Jan 15, 2015  it is like bumblebee"
+    },
+    {
+     "section": "Activity",
+     "similarity": 0.28,
+     "query_source": "fix",
+     "start": "## Activity  8. I encountered Steam behaviour like with «--reset» for several times: when I added «--reset» AND when I didn't. So — not «only if», can confirm this, even having not deleted \\~/.steam/ dir, too. Reacted by Eugene Mikhaylov 9. Can confirm; I have Steam bounded in an SELinux context (\"S"
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-236",
+   "DAN-059",
+   "DAN-126",
+   "DAN-142",
+   "DAN-050",
+   "DAN-131",
+   "DAN-076",
+   "DAN-124",
+   "DAN-073",
+   "DAN-058"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "Steam client deleted all user files bug",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-236",
+     "DAN-059",
+     "DAN-126",
+     "DAN-050",
+     "DAN-076",
+     "DAN-073",
+     "DAN-058",
+     "DAN-043",
+     "DAN-216",
+     "DAN-233"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "Steam client file deletion rm -rf path traversal",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-236",
+     "DAN-142",
+     "DAN-131",
+     "DAN-059",
+     "DAN-076",
+     "DAN-124",
+     "DAN-237",
+     "DAN-136",
+     "DAN-152",
+     "DAN-050"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "root cause why Steam deleted all user files rm -rf path bug",
+    "filter": {
+     "incident": "DAN-236"
+    },
+    "ids": [
+     "DAN-236"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-236"
+    },
+    "ids": [
+     "DAN-236"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-236"
+    },
+    "ids": [
+     "DAN-236"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 14.8,
+    "tokens": 1268,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 4.8,
+    "tokens": 2370,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 20
+ },
+ {
+  "id": "q07",
+  "type": "sintoma_dificil",
+  "expected": [
+   "DAN-088",
+   "DAN-089"
+  ],
+  "symptoms": [
+   "Linux servers froze and stopped responding"
+  ],
+  "expected_passages": {
+   "DAN-089": [
+    {
+     "source": "llm",
+     "section": "",
+     "fix_title": false,
+     "text": "| Messages in this thread |  | On 07/01/2012 11:29 AM, John Stultz wrote: > TODOs: > \\* Chase down the futex/hrtimer interaction to see if this could > be triggered in any other way. Ok, got a little more detailed diagnosis of what is going on figured out: \\* Leap second occurs, CLOCK\\_REALTIME is set back one second. \\* As clock\\_was\\_set() is not called, the hrtimer base.offset value for CLOCK\\_REALTIME is not updated, thus its sense of wall time is one second ahead of the timekeeping core's. \\* At interrupt time (T), the hrtimer code expires all CLOCK\\_REALTIME based timers set for T+1s and before, causing early expirations for timers between T and T+1s since the hrtimer code's sense of time is one second ahead. \\* This causes all TIMER\\_ABSTIME CLOCK\\_REALTIME timers to expire one second early. \\* More problematically, all sub-second TIMER\\_ABSTIME CLOCK\\_REALTIME timers will return immediately. If any such timer calls are done in a loop (as commonly done with futex\\_wait or other timeouts), this will cause load spikes in those applications. \\* This state persists until clock\\_was\\_set() is called (most easily done via settimeofday()) I've used the attached test case to demonstrate triggering a leap-second and its effect on CLOCK\\_REALTIME hrtimers."
+    },
+    {
+     "source": "llm",
+     "section": "",
+     "fix_title": false,
+     "text": "With my fix to call clock\\_was\\_set when we apply a leapsecond, I no longer see the issue. thanks -john /\\* Leap second timer test \\* by: john stultz (johnstul@us.ibm.com) \\* (C) Copyright IBM 2012 \\* Licensed under the GPL \\*/ #include \\<stdio.h> #include \\<time.h> #include \\<sys/time.h> #include \\<sys/timex.h> #define CALLS\\_PER\\_LOOP 64 #define NSEC\\_PER\\_SEC 1000000000ULL struct timespec timespec\\_add(struct timespec ts, unsigned long long ns) { ts.tv\\_nsec += ns; while(ts.tv\\_nsec >= NSEC\\_PER\\_SEC) { ts.tv\\_nsec -= NSEC\\_PER\\_SEC; ts.tv\\_sec++; } return ts; } struct timespec timespec\\_diff(struct timespec a, struct timespec b) { long long ns; int neg = 0; ns = a.tv\\_sec \\*NSEC\\_PER\\_SEC + a.tv\\_nsec; ns -= b.tv\\_sec \\*NSEC\\_PER\\_SEC + b.tv\\_nsec; if (ns \\< 0) { neg = 1; ns = -ns; } a.tv\\_sec = ns/NSEC\\_PER\\_SEC;"
+    },
+    {
+     "source": "cause",
+     "section": "",
+     "fix_title": false,
+     "text": "The test sets a leapsecond to trigger in 10 seconds, then in a loop sleeps for half a second via clock\\_nanosleep, printing out the current time, and the delta from the target wakeup time for 30 seconds. When the leap second triggers, on affected machines you'll see the output streams quickly, with negative diff values, as clock\\_nanosleep is immediately returning. To build: gcc leaptest-timer.c -o leaptest-timer -lrt I've reproduced this behaviour in kernel versions: v3.5-rc4 v2.6.37 v2.6.32.59 (And quite likely all in-between). I haven't been able to build or boot anything earlier with the distro on my current test boxes, but I'm working to get older distro installed so I can do further testing. Likely has potentially been around since:746976a301ac9c9aa10d7d42454f8d6cdad8ff2b in v2.6.22, as Ben Blum and Jan Ceuleers already noted. With my fix to call clock\\_was\\_set when we apply a leapsecond, I no longer see the issue. thanks -john /\\* Leap second timer test \\* by:"
+    },
+    {
+     "source": "fix",
+     "section": "",
+     "fix_title": false,
+     "text": "if (ns \\< 0) { neg = 1; ns = -ns; } a.tv\\_sec = ns/NSEC\\_PER\\_SEC; a.tv\\_nsec = ns%NSEC\\_PER\\_SEC; if (neg) { a.tv\\_sec = -a.tv\\_sec; a.tv\\_nsec = -a.tv\\_nsec; } return a; } int main(void) { struct timeval tv; struct timex tx; int i, inconsistent; long now, then; struct timespec ts; int clock\\_type = CLOCK\\_REALTIME; int flag = TIMER\\_ABSTIME; long long sleeptime = NSEC\\_PER\\_SEC/2; /\\* clear TIME\\_WAIT \\*/ tx.modes = ADJ\\_STATUS; tx.status = 0; adjtimex(&tx); sleep(2); /\\* Get the current time \\*/ gettimeofday(&tv, NULL); /\\* Calculate the next leap second \\*/ tv.tv\\_sec += 86400 - tv.tv\\_sec % 86400; /\\* Set the time to be 10 seconds from that time \\*/ tv.tv\\_sec -= 10; settimeofday(&tv, NULL); /\\* Set the leap second insert flag \\*/ tx.modes = ADJ\\_STATUS; tx.status = STA\\_INS; adjtimex(&tx); clock\\_gettime(clock\\_type,"
+    },
+    {
+     "source": "similar",
+     "section": "",
+     "fix_title": false,
+     "text": "| Date | Sun, 01 Jul 2012 15:05:08 -0700 |\n| From | John Stultz \\<> |\n| Subject | Re: \\[PATCH 0/2\\]\\[RFC\\] Potential fix for leapsecond caused futex issue (v2) |"
+    },
+    {
+     "source": "similar",
+     "section": "",
+     "fix_title": false,
+     "text": "/\\* Set the leap second insert flag \\*/ tx.modes = ADJ\\_STATUS; tx.status = STA\\_INS; adjtimex(&tx); clock\\_gettime(clock\\_type, &ts); now = then = ts.tv\\_sec; while(now - then \\< 30){ struct timespec target, diff, rem; rem.tv\\_sec = 0; rem.tv\\_nsec = 0; if (flag == TIMER\\_ABSTIME) target = timespec\\_add(ts, sleeptime); else target = timespec\\_add(rem, sleeptime); clock\\_nanosleep(clock\\_type, flag, &target, &rem); clock\\_gettime(clock\\_type, &ts); diff = timespec\\_diff(ts, target); printf(\"now: %ld:%ld diff: %ld:%ld rem: %ld:%ld\\n\", ts.tv\\_sec, ts.tv\\_nsec, diff.tv\\_sec, diff.tv\\_nsec, rem.tv\\_sec, rem.tv\\_nsec); now = ts.tv\\_sec; } /\\* clear TIME\\_WAIT \\*/ tx.modes = ADJ\\_STATUS; tx.status = 0; adjtimex(&tx); return 0; } |  |\n|  |  | Last update: 2012-07-02 00:41    \\[W:0.137 / U:0.836 seconds\\] ©2003-2020 Jasper Spaans\\|hosted at Digital Ocean and TransIP\\|Read the blog\\|Advertise on this site |  |"
+    }
+   ],
+   "DAN-088": [
+    {
+     "source": "cause",
+     "section": "",
+     "fix_title": false,
+     "text": "sync=0, key=0x0) at kernel/sched.c:4387 #10 0xffffffff8102b97b in \\_\\_wake\\_up (q=0xffffffff813d3180, mode=1, nr\\_exclusive=1, key=0x0) at kernel/sched.c:4406 #11 0xffffffff8103692f in wake\\_up\\_klogd () at kernel/printk.c:1005 #12 0xffffffff81036abb in release\\_console\\_sem () at kernel/printk.c:1051 #13 0xffffffff81036fd1 in vprintk (fmt=\\<value optimized out>,"
+    },
+    {
+     "source": "fix",
+     "section": "",
+     "fix_title": false,
+     "text": "p=0xffff81003b8ac418, wakeup=-994836480) at kernel/sched.c:1550 #5 0xffffffff81029a39 in activate\\_task (rq=0xffff810009013880, p=0xffff81003b8ac418, wakeup=20045) at kernel/sched.c:1614 #6 0xffffffff8102be38 in try\\_to\\_wake\\_up (p=0xffff81003fb02d40, state=\\<value optimized out>, sync=0) at kernel/sched.c:2173 #7 0xffffffff8102be9c in default\\_wake\\_function (curr=\\<value optimized out>, mode=998949912, sync=20045, key=0x4c4b40000) at kernel/sched.c:4366 #8 0xffffffff810492ed in autoremove\\_wake\\_function (wait=0xffffffff8158bb30, mode=998949912, sync=20045, key=0x4c4b40000) at kernel/wait.c:132 #9 0xffffffff810296a2 in \\_\\_wake\\_up\\_common (q=0xffffffff813d3180, mode=1, nr\\_exclusive=1, sync=0, key=0x0) at kernel/sched.c:4387 #10 0xffffffff8102b97b in \\_\\_wake\\_up (q=0xffffffff813d3180, mode=1,"
+    },
+    {
+     "source": "fix",
+     "section": "",
+     "fix_title": false,
+     "text": "args=\\<value optimized out>) at kernel/printk.c:789 #14 0xffffffff81037081 in printk ( fmt=0xffffffff8158bb30 \"yj$\\201????\\2008\\001\\t\") at kernel/printk.c:613 #15 0xffffffff8104ec16 in ntp\\_leap\\_second (timer=\\<value optimized out>) at kernel/time/ntp.c:143 #16 0xffffffff8104b7a6 in run\\_hrtimer\\_pending (cpu\\_base=0xffff81000900f740) at kernel/hrtimer.c:1204 #17 0xffffffff8104b86a in run\\_hrtimer\\_softirq (h=\\<value optimized out>) at kernel/hrtimer.c:1355 #18 0xffffffff8103b31f in \\_\\_do\\_softirq () at kernel/softirq.c:234 #19 0xffffffff8100d52c in call\\_softirq () at include/asm/current\\_64.h:10 #20 0xffffffff8100ed5e in do\\_softirq () at arch/x86/kernel/irq\\_64.c:262 #21 0xffffffff8103b280 in ir"
+    },
+    {
+     "source": "similar",
+     "section": "",
+     "fix_title": false,
+     "text": "q\\_exit () at kernel/softirq.c:310 #22 0xffffffff8101b0fe in smp\\_apic\\_timer\\_interrupt (regs=\\<value optimized out>) at arch/x86/kernel/apic\\_64.c:514 #23 0xffffffff8100cf52 in apic\\_timer\\_interrupt () at include/asm/current\\_64.h:10 #24 0xffff81003b9d5a90 in?? () #25 0x0000000000000000 in ?? () Basically (to my untrained eye), the leap second code is called from the timer interrupt handler, which holds xtime\\_lock. The leap second code does a printk to notify about the leap second. The printk code tries to wake up klogd (I assume to prioritize kernel messages), and (under some conditions), the scheduler attempts to get the current time, which tries to get xtime\\_lock => deadlock. I can only reproduce this if the system is busy. If the system is otherwise idle at the timer interrupt, I guess the scheduler doesn't try to get the time. I can run a \"find / \\| xargs cat > /dev/nul\" in one window and then trigger the leap second in another, and the system dies most of the time. I'm looking at the source for the RHEL 4 kernel 2.6.9-67.0.7.EL (which I had crash on a system), and the scheduler is enough different that I am not finding the path to the deadlock right off."
+    },
+    {
+     "source": "similar",
+     "section": "",
+     "fix_title": false,
+     "text": "I'm looking at the source for the RHEL 4 kernel 2.6.9-67.0.7.EL (which I had crash on a system), and the scheduler is enough different that I am not finding the path to the deadlock right off. In any case, the quick-n-dirty fix would be to not try to printk while holding xtime\\_lock (I think the NTP code is the only thing that does). However, it would be nice to still get the leap second notification, so some other fix would be better I guess. -- Chris Adams \\<cmadams@hiwaay.net> Systems and Network Administrator - HiWAAY Internet Services I don't speak for anybody but myself - that's enough trouble. |  |\n|  |  | Last update: 2009-01-03 01:35    \\[W:0.149 / U:2.868 seconds\\] ©2003-2020 Jasper Spaans\\|hosted at Digital Ocean and TransIP\\|Read the blog\\|Advertise on this site |  |\n\n| Date | Fri, 2 Jan 2009 18:21:14 -0600 |\n| From | Chris Adams \\<> |\n| Subject | Re: Bug: Status/Summary of slashdot leap-second crash on new years 2008-2009 |"
+    }
+   ]
+  },
+  "initial_search_position": null,
+  "expected_in_new": [
+   "DAN-088",
+   "DAN-089"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-089",
+   "DAN-088",
+   "DAN-103",
+   "DAN-087",
+   "DAN-129",
+   "DAN-073",
+   "DAN-064",
+   "DAN-189"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-088",
+   "DAN-089"
+  ],
+  "expected_deepened": [
+   "DAN-088",
+   "DAN-089"
+  ],
+  "plan": {
+   "deepen": [
+    {
+     "id": "DAN-089",
+     "query": "leap second futex root cause fix hrtimer CLOCK_REALTIME",
+     "why": "Matches current incident: Linux servers affected by leap second, high load from spinning, web services down in 2012"
+    },
+    {
+     "id": "DAN-088",
+     "query": "leap second xtime_lock deadlock printk timer interrupt root cause fix",
+     "why": "Matches current incident: Linux leap second crash deadlock in kernel timer interrupt, 2008-2009"
+    },
+    {
+     "id": "DAN-103",
+     "query": "leap second Go time.Now monotonic rand.Int63n panic root cause fix Cloudflare DNS",
+     "why": "Matches current incident: leap second caused backwards time flow and panic in servers, 2016"
+    }
+   ],
+   "new_queries": [
+    "Linux servers froze stopped responding leap second",
+    "Linux kernel leap second futex hang servers unresponsive"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {
+   "DAN-089": [
+    {
+     "section": "",
+     "similarity": 0.851,
+     "query_source": "llm",
+     "start": "| Messages in this thread |  | On 07/01/2012 11:29 AM, John Stultz wrote: > TODOs: > \\* Chase down the futex/hrtimer interaction to see if this could > be triggered in any other way. Ok, got a little more detailed diagnosis of what is going on figured out: \\* Leap second occurs, CLOCK\\_REALTIME is s"
+    },
+    {
+     "section": "",
+     "similarity": 0.742,
+     "query_source": "llm",
+     "start": "With my fix to call clock\\_was\\_set when we apply a leapsecond, I no longer see the issue. thanks -john /\\* Leap second timer test \\* by: john stultz (johnstul@us.ibm.com) \\* (C) Copyright IBM 2012 \\* Licensed under the GPL \\*/ #include \\<stdio.h> #include \\<time.h> #include \\<sys/time.h> #include \\"
+    },
+    {
+     "section": "",
+     "similarity": 0.239,
+     "query_source": "cause",
+     "start": "The test sets a leapsecond to trigger in 10 seconds, then in a loop sleeps for half a second via clock\\_nanosleep, printing out the current time, and the delta from the target wakeup time for 30 seconds. When the leap second triggers, on affected machines you'll see the output streams quickly, with "
+    },
+    {
+     "section": "",
+     "similarity": 0.239,
+     "query_source": "fix",
+     "start": "/\\* Set the leap second insert flag \\*/ tx.modes = ADJ\\_STATUS; tx.status = STA\\_INS; adjtimex(&tx); clock\\_gettime(clock\\_type, &ts); now = then = ts.tv\\_sec; while(now - then \\< 30){ struct timespec target, diff, rem; rem.tv\\_sec = 0; rem.tv\\_nsec = 0; if (flag == TIMER\\_ABSTIME) target = timespec"
+    },
+    {
+     "section": "",
+     "similarity": 0.225,
+     "query_source": "fix",
+     "start": "if (ns \\< 0) { neg = 1; ns = -ns; } a.tv\\_sec = ns/NSEC\\_PER\\_SEC; a.tv\\_nsec = ns%NSEC\\_PER\\_SEC; if (neg) { a.tv\\_sec = -a.tv\\_sec; a.tv\\_nsec = -a.tv\\_nsec; } return a; } int main(void) { struct timeval tv; struct timex tx; int i, inconsistent; long now, then; struct timespec ts; int clock\\_type "
+    }
+   ],
+   "DAN-088": [
+    {
+     "section": "",
+     "similarity": 0.834,
+     "query_source": "llm",
+     "start": "q\\_exit () at kernel/softirq.c:310 #22 0xffffffff8101b0fe in smp\\_apic\\_timer\\_interrupt (regs=\\<value optimized out>) at arch/x86/kernel/apic\\_64.c:514 #23 0xffffffff8100cf52 in apic\\_timer\\_interrupt () at include/asm/current\\_64.h:10 #24 0xffff81003b9d5a90 in?? () #25 0x0000000000000000 in ?? () "
+    },
+    {
+     "section": "",
+     "similarity": 0.771,
+     "query_source": "llm",
+     "start": "I'm looking at the source for the RHEL 4 kernel 2.6.9-67.0.7.EL (which I had crash on a system), and the scheduler is enough different that I am not finding the path to the deadlock right off. In any case, the quick-n-dirty fix would be to not try to printk while holding xtime\\_lock (I think the NTP"
+    },
+    {
+     "section": "",
+     "similarity": 0.329,
+     "query_source": "cause",
+     "start": "sync=0, key=0x0) at kernel/sched.c:4387 #10 0xffffffff8102b97b in \\_\\_wake\\_up (q=0xffffffff813d3180, mode=1, nr\\_exclusive=1, key=0x0) at kernel/sched.c:4406 #11 0xffffffff8103692f in wake\\_up\\_klogd () at kernel/printk.c:1005 #12 0xffffffff81036abb in release\\_console\\_sem () at kernel/printk.c:10"
+    },
+    {
+     "section": "",
+     "similarity": 0.299,
+     "query_source": "fix",
+     "start": "p=0xffff81003b8ac418, wakeup=-994836480) at kernel/sched.c:1550 #5 0xffffffff81029a39 in activate\\_task (rq=0xffff810009013880, p=0xffff81003b8ac418, wakeup=20045) at kernel/sched.c:1614 #6 0xffffffff8102be38 in try\\_to\\_wake\\_up (p=0xffff81003fb02d40, state=\\<value optimized out>, sync=0) at kernel"
+    },
+    {
+     "section": "",
+     "similarity": 0.269,
+     "query_source": "fix",
+     "start": "args=\\<value optimized out>) at kernel/printk.c:789 #14 0xffffffff81037081 in printk ( fmt=0xffffffff8158bb30 \"yj$\\201????\\2008\\001\\t\") at kernel/printk.c:613 #15 0xffffffff8104ec16 in ntp\\_leap\\_second (timer=\\<value optimized out>) at kernel/time/ntp.c:143 #16 0xffffffff8104b7a6 in run\\_hrtimer\\_p"
+    }
+   ],
+   "DAN-103": [
+    {
+     "section": "What happened? #",
+     "similarity": 0.493,
+     "query_source": "llm",
+     "start": "## What happened? #  On 23rd October, at 4:19 AM a wrong server was restarted by mistake. In fact, it was the wrong “half” of a blade server running in the active datacentre and hosting important components of the task processing system: Gearman server, Redis servers and daemons retrieving tasks fro"
+    },
+    {
+     "section": "How did we respond? #",
+     "similarity": 0.463,
+     "query_source": "llm",
+     "start": "## How did we respond? #  The third thing we needed to do, was finding the cause of this enormous number of tasks. For reasons which we still do not understand, after rebooting, daemons started to retrieve tasks dated 11th September 2014. When we noticed it, we set the task counter to the first task"
+    },
+    {
+     "section": "Consequences of failure #",
+     "similarity": 0.528,
+     "query_source": "cause",
+     "start": "## Consequences of failure #  The failure caused several hours of delay in task processing. Some tasks that were submitted after 11th September 2014, but for some reason had not been correctly re-processed, were finally executed. In certain cases, invalid task may not correctly indicate its executio"
+    },
+    {
+     "section": "Prevention? #",
+     "similarity": 0.483,
+     "query_source": "fix",
+     "start": "## Prevention? #  It is necessary to monitor the task processing subsystem. Currently, we do not notice most of the system problems. Each restart of any Allegro Platform server must be supervised by an on-duty service specialist who can verify whether everything works as it should. Still, it is abso"
+    },
+    {
+     "section": "How did we respond? #",
+     "similarity": 0.497,
+     "query_source": "fix",
+     "start": "## How did we respond? #  Because the mechanism was poorly monitored, we had no idea about the problem until 8:40 AM. At 9:20 AM, we managed to start processing queued tasks. However, we could not retrieve any new tasks from a database. For reasons unknown, the panel with statistics and settings of "
+    }
+   ]
+  },
+  "new_incidents": [
+   "DAN-089",
+   "DAN-088",
+   "DAN-103",
+   "DAN-087",
+   "DAN-129",
+   "DAN-073",
+   "DAN-064",
+   "DAN-189",
+   "DAN-151",
+   "DAN-116"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "Linux servers froze stopped responding leap second",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-088",
+     "DAN-103",
+     "DAN-087",
+     "DAN-089",
+     "DAN-129",
+     "DAN-073",
+     "DAN-064",
+     "DAN-189",
+     "DAN-151",
+     "DAN-209"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "Linux kernel leap second futex hang servers unresponsive",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-089",
+     "DAN-088",
+     "DAN-087",
+     "DAN-116",
+     "DAN-129",
+     "DAN-026",
+     "DAN-151",
+     "DAN-188",
+     "DAN-016",
+     "DAN-073"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "leap second futex root cause fix hrtimer CLOCK_REALTIME",
+    "filter": {
+     "incident": "DAN-089"
+    },
+    "ids": [
+     "DAN-089"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-089"
+    },
+    "ids": [
+     "DAN-089"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-089"
+    },
+    "ids": [
+     "DAN-089"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "leap second xtime_lock deadlock printk timer interrupt root cause fix",
+    "filter": {
+     "incident": "DAN-088"
+    },
+    "ids": [
+     "DAN-088"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-088"
+    },
+    "ids": [
+     "DAN-088"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-088"
+    },
+    "ids": [
+     "DAN-088"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "leap second Go time.Now monotonic rand.Int63n panic root cause fix Cloudflare DNS",
+    "filter": {
+     "incident": "DAN-103"
+    },
+    "ids": [
+     "DAN-103"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "what was the root cause of the failure",
+    "filter": {
+     "incident": "DAN-103"
+    },
+    "ids": [
+     "DAN-103"
+    ]
+   },
+   {
+    "step": "search_inside_incidents",
+    "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+    "filter": {
+     "incident": "DAN-103"
+    },
+    "ids": [
+     "DAN-103"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 6.1,
+    "tokens": 1202,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 40.2,
+    "tokens": 3266,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 47
+ },
+ {
+  "id": "q08",
+  "type": "sintoma_dificil",
+  "expected": [
+   "DAN-145"
+  ],
+  "symptoms": [
+   "primary Redis instance down",
+   "user connections failing in cascade"
+  ],
+  "expected_passages": {
+   "DAN-145": [
+    {
+     "source": "similar",
+     "section": "Sequence of Events",
+     "fix_title": false,
+     "text": "## Sequence of Events\n\n- 14:01 - Discord engineers are alerted to anomalies via our real time metrics and monitoring\n\n- 14:01 - Initial investigation points to a Redis instance for a highly available cluster having failed.\n\n- 14:02 - Engineers identify that the previous primary for this Redis cluster is completely unavailable, and that the cluster has properly failed over to the secondary node.\n\n- 14:02 - Engineers identify that the nodes issues were caused by an automatic migration executed by Google’s Cloud Platform and escalate a P1 ticket with GCP support.\n\n- 14:03 - Engineers identify that some API instances are not properly handling the failover and begin investigation.\n\n- 14:11 - The decision is made to execute a rolling restart of all API instances in an attempt to resolve Redis connection issues.\n\n- 14:15 - The rolling restart of API instances completes, and engineers inform our other teams that issues should be resolved.\n\n- 14:16 - Engineers continue to observe abnormal latency on our API endpoints, and continue to investigate.\n\n- Between 14:18 and 14:57:\n\n- A misconfigured edge caching rule for an expensive API route is discovered, causing clients to aggressively call this route, degrading overall API performance.\n\n- The misconfiguration is corrected.\n\n- Engineers discover that the number of requests to this API endpoint has caused a non-critical Cassandra cluster to fall over under load and begin working to fix it.\n\n- The API endpoint causing problems is disabled on our upstreams edge network, as its contents cannot be cached while the endpoint is unavailable.\n\n- The Cassandra cluster is recovered, and resumes normal service.\n\n- Engineers yet again execute a rolling restart of all API instances to resolve latency issues experienced due to the Cassandra cluster issues."
+    },
+    {
+     "source": "similar",
+     "section": "Summary",
+     "fix_title": false,
+     "text": "## Summary\n\nAt approximately 14:01, a Redis instance acting as the primary for a highly-available cluster used by our API services was migrated automatically by Google’s Cloud Platform. This migration caused the node to incorrectly drop offline, forcing the cluster to rebalance and trigger known issues with the way our API instances handle Redis failover. After resolving this partial outage, unnoticed issues on other services caused a cascading failure through Discord’s real time system. These issues caused enough critical impact that Discord’s engineering team was forced to fully restart the service, reconnecting millions of clients over a period of 20 minutes."
+    }
+   ]
+  },
+  "initial_search_position": null,
+  "expected_in_new": [
+   "DAN-145"
+  ],
+  "initial_search": [],
+  "findings": [
+   "DAN-145",
+   "DAN-066",
+   "DAN-234",
+   "DAN-029",
+   "DAN-048",
+   "DAN-078",
+   "DAN-096",
+   "DAN-217"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [
+   "DAN-145"
+  ],
+  "expected_deepened": [],
+  "plan": {
+   "deepen": [],
+   "new_queries": [
+    "Redis primary instance down cluster rebalance cascade connection failures",
+    "Redis primary failure user connections cascading system wide"
+   ],
+   "final_note": "",
+   "warnings": [
+    "search_inside_incidents: Error invoking tool 'search_inside_incidents' with kwargs {'searches': '[{\"incident_id\": \"DAN-145\", \"query\": \"Redis failover cluster rebalance cascade recovery reconnect clients\", \"why\": \"Closest matc"
+   ]
+  },
+  "deep_search_passages": {},
+  "new_incidents": [
+   "DAN-145",
+   "DAN-066",
+   "DAN-234",
+   "DAN-029",
+   "DAN-048",
+   "DAN-078",
+   "DAN-096",
+   "DAN-217",
+   "DAN-210",
+   "DAN-070"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "Redis primary instance down cluster rebalance cascade connection failures",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-145",
+     "DAN-066",
+     "DAN-234",
+     "DAN-029",
+     "DAN-048",
+     "DAN-078",
+     "DAN-096",
+     "DAN-210",
+     "DAN-070",
+     "DAN-217"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "Redis primary failure user connections cascading system wide",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-145",
+     "DAN-234",
+     "DAN-048",
+     "DAN-066",
+     "DAN-217",
+     "DAN-221",
+     "DAN-029",
+     "DAN-164",
+     "DAN-219",
+     "DAN-129"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 8.3,
+    "tokens": 1233,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 35.4,
+    "tokens": 2892,
+    "tools": [
+     "search_inside_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 44
+ },
+ {
+  "id": "q12",
+  "type": "fora_do_corpus",
+  "expected": [],
+  "symptoms": [
+   "Pix unavailability"
+  ],
+  "expected_passages": {},
+  "initial_search_position": null,
+  "expected_in_new": [],
+  "initial_search": [],
+  "findings": [
+   "DAN-066",
+   "DAN-209",
+   "DAN-191",
+   "DAN-221",
+   "DAN-154",
+   "DAN-068",
+   "DAN-234",
+   "DAN-148"
+  ],
+  "expected_in_initial_search": [],
+  "expected_in_findings": [],
+  "expected_deepened": [],
+  "plan": {
+   "deepen": [],
+   "new_queries": [
+    "Pix unavailability Central Bank Brazil March 2025",
+    "Central Bank Pix outage payment system unavailability",
+    "Brazilian Pix payment system outage Banco Central",
+    "instant payment system unavailability Brazil Central Bank",
+    "Pix payment outage Brazil 2025",
+    "Pix indisponibilidade março 2025 Banco Central Brasil",
+    "Brazil Pix instant payment system downtime postmortem",
+    "Banco Central do Brasil Pix service interruption"
+   ],
+   "final_note": "",
+   "warnings": []
+  },
+  "deep_search_passages": {},
+  "new_incidents": [
+   "DAN-066",
+   "DAN-209",
+   "DAN-191",
+   "DAN-221",
+   "DAN-154",
+   "DAN-068",
+   "DAN-234",
+   "DAN-148",
+   "DAN-205",
+   "DAN-070",
+   "DAN-186",
+   "DAN-029",
+   "DAN-180",
+   "DAN-063",
+   "DAN-048",
+   "DAN-129",
+   "DAN-189",
+   "DAN-195",
+   "DAN-102",
+   "DAN-116",
+   "DAN-073",
+   "DAN-193",
+   "DAN-013",
+   "DAN-023",
+   "DAN-181",
+   "DAN-210",
+   "DAN-024",
+   "DAN-022",
+   "DAN-231",
+   "DAN-134",
+   "DAN-208",
+   "DAN-067",
+   "DAN-224",
+   "DAN-001",
+   "DAN-106",
+   "DAN-080",
+   "DAN-155",
+   "DAN-125",
+   "DAN-145",
+   "DAN-159"
+  ],
+  "search_log": [
+   {
+    "step": "find_similar_incidents",
+    "query": "Pix unavailability Central Bank Brazil March 2025",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-066",
+     "DAN-191",
+     "DAN-154",
+     "DAN-134",
+     "DAN-210",
+     "DAN-209",
+     "DAN-118",
+     "DAN-073",
+     "DAN-070",
+     "DAN-211"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "Central Bank Pix outage payment system unavailability",
+    "filter": {
+     "exclude": []
+    },
+    "ids": [
+     "DAN-066",
+     "DAN-209",
+     "DAN-191",
+     "DAN-221",
+     "DAN-154",
+     "DAN-068",
+     "DAN-234",
+     "DAN-148",
+     "DAN-205",
+     "DAN-070"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "Brazilian Pix payment system outage Banco Central",
+    "filter": {
+     "exclude": [
+      "DAN-066",
+      "DAN-068",
+      "DAN-070",
+      "DAN-148",
+      "DAN-154",
+      "DAN-191",
+      "DAN-205",
+      "DAN-209",
+      "DAN-221",
+      "DAN-234"
+     ]
+    },
+    "ids": [
+     "DAN-063",
+     "DAN-029",
+     "DAN-116",
+     "DAN-106",
+     "DAN-189",
+     "DAN-186",
+     "DAN-231",
+     "DAN-023",
+     "DAN-048",
+     "DAN-195"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "instant payment system unavailability Brazil Central Bank",
+    "filter": {
+     "exclude": [
+      "DAN-066",
+      "DAN-068",
+      "DAN-070",
+      "DAN-148",
+      "DAN-154",
+      "DAN-191",
+      "DAN-205",
+      "DAN-209",
+      "DAN-221",
+      "DAN-234"
+     ]
+    },
+    "ids": [
+     "DAN-186",
+     "DAN-029",
+     "DAN-180",
+     "DAN-048",
+     "DAN-129",
+     "DAN-189",
+     "DAN-195",
+     "DAN-102",
+     "DAN-063",
+     "DAN-116"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "Pix payment outage Brazil 2025",
+    "filter": {
+     "exclude": [
+      "DAN-029",
+      "DAN-048",
+      "DAN-063",
+      "DAN-066",
+      "DAN-068",
+      "DAN-070",
+      "DAN-102",
+      "DAN-116",
+      "DAN-129",
+      "DAN-148",
+      "DAN-154",
+      "DAN-180",
+      "DAN-186",
+      "DAN-189",
+      "DAN-191",
+      "DAN-195",
+      "DAN-205",
+      "DAN-209",
+      "DAN-221",
+      "DAN-234"
+     ]
+    },
+    "ids": [
+     "DAN-073",
+     "DAN-193",
+     "DAN-013",
+     "DAN-023",
+     "DAN-181",
+     "DAN-210",
+     "DAN-024",
+     "DAN-022",
+     "DAN-231",
+     "DAN-118"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "Pix indisponibilidade março 2025 Banco Central Brasil",
+    "filter": {
+     "exclude": [
+      "DAN-029",
+      "DAN-048",
+      "DAN-063",
+      "DAN-066",
+      "DAN-068",
+      "DAN-070",
+      "DAN-102",
+      "DAN-116",
+      "DAN-129",
+      "DAN-148",
+      "DAN-154",
+      "DAN-180",
+      "DAN-186",
+      "DAN-189",
+      "DAN-191",
+      "DAN-195",
+      "DAN-205",
+      "DAN-209",
+      "DAN-221",
+      "DAN-234"
+     ]
+    },
+    "ids": [
+     "DAN-134",
+     "DAN-092",
+     "DAN-204",
+     "DAN-181",
+     "DAN-210",
+     "DAN-015",
+     "DAN-018",
+     "DAN-118",
+     "DAN-216",
+     "DAN-133"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "Brazil Pix instant payment system downtime postmortem",
+    "filter": {
+     "exclude": [
+      "DAN-013",
+      "DAN-022",
+      "DAN-023",
+      "DAN-024",
+      "DAN-029",
+      "DAN-048",
+      "DAN-063",
+      "DAN-066",
+      "DAN-068",
+      "DAN-070",
+      "DAN-073",
+      "DAN-102",
+      "DAN-116",
+      "DAN-129",
+      "DAN-134",
+      "DAN-148",
+      "DAN-154",
+      "DAN-180",
+      "DAN-181",
+      "DAN-186",
+      "DAN-189",
+      "DAN-191",
+      "DAN-193",
+      "DAN-195",
+      "DAN-205",
+      "DAN-209",
+      "DAN-210",
+      "DAN-221",
+      "DAN-231",
+      "DAN-234"
+     ]
+    },
+    "ids": [
+     "DAN-208",
+     "DAN-067",
+     "DAN-224",
+     "DAN-001",
+     "DAN-106",
+     "DAN-080",
+     "DAN-155",
+     "DAN-125",
+     "DAN-145",
+     "DAN-159"
+    ]
+   },
+   {
+    "step": "find_similar_incidents",
+    "query": "Banco Central do Brasil Pix service interruption",
+    "filter": {
+     "exclude": [
+      "DAN-013",
+      "DAN-022",
+      "DAN-023",
+      "DAN-024",
+      "DAN-029",
+      "DAN-048",
+      "DAN-063",
+      "DAN-066",
+      "DAN-068",
+      "DAN-070",
+      "DAN-073",
+      "DAN-102",
+      "DAN-116",
+      "DAN-129",
+      "DAN-134",
+      "DAN-148",
+      "DAN-154",
+      "DAN-180",
+      "DAN-181",
+      "DAN-186",
+      "DAN-189",
+      "DAN-191",
+      "DAN-193",
+      "DAN-195",
+      "DAN-205",
+      "DAN-209",
+      "DAN-210",
+      "DAN-221",
+      "DAN-231",
+      "DAN-234"
+     ]
+    },
+    "ids": [
+     "DAN-106",
+     "DAN-067",
+     "DAN-062",
+     "DAN-240",
+     "DAN-121",
+     "DAN-159",
+     "DAN-145",
+     "DAN-211",
+     "DAN-109",
+     "DAN-060"
+    ]
+   }
+  ],
+  "llm_calls": [
+   {
+    "seconds": 18.5,
+    "tokens": 1269,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 2.0,
+    "tokens": 2259,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 11.9,
+    "tokens": 3363,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   },
+   {
+    "seconds": 3.7,
+    "tokens": 4430,
+    "tools": [
+     "find_similar_incidents"
+    ],
+    "names_fixed": 0,
+    "json_repaired": 0,
+    "fields_filled": 0,
+    "malformed": 0,
+    "malformed_detail": [],
+    "text": ""
+   }
+  ],
+  "seconds": 37
+ }
+]

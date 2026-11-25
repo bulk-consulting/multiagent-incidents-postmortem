@@ -24,15 +24,15 @@ MAX_TOKENS = 8192     # the model "thinks" before it answers, and the message an
 def fallback_report(state, problems):
     """A simple inconclusive report built by code, used when the model could not write a valid one.
     It uses only data the other agents already delivered."""
-    findings = state["findings"]
-    diagnosis = _as_dict(state["diagnosis"])
-    gaps = list(diagnosis["gaps"]) or ["The report could not be written automatically."]
+    findings = state.get("findings") or []
+    diagnosis = _as_dict(state.get("diagnosis"))
+    gaps = list(diagnosis.get("gaps") or []) or ["The report could not be written automatically."]
 
     lines = ["I could not write the full report this time. This is what the investigation found so far.", ""]
     lines += ["**What is missing**"] + [f"- {gap}" for gap in gaps]
     if findings:
         lines += ["", "**Past incidents that may help (not confirmed as the cause)**"]
-        lines += [f"- [{f['title']}]({f['url']})" for f in findings[:3]]
+        lines += [f"- [{f.get('title', f.get('incident_id', ''))}]({f.get('url', '')})" for f in findings[:3]]
 
     return Report(
         incident_id=state.get("incident_id", ""),
@@ -51,8 +51,11 @@ def run_reporting_agent(state):
     Returns (report, messages_history, attempts, problems). `problems` is empty when the model's report was valid,
     and lists what was still wrong when the code had to build the fallback report.
     """
-    findings = state["findings"]
-    diagnosis = _as_dict(state["diagnosis"])
+    findings = state.get("findings") or []
+    diagnosis = state.get("diagnosis")
+    if diagnosis is None:  # an agent before failed: nothing to present, no model call
+        return fallback_report(state, ["there is no diagnosis"]), [], 0, ["there is no diagnosis"]
+    diagnosis = _as_dict(diagnosis)
 
     # The messages history: this is the agent's memory during one run.
     messages = [

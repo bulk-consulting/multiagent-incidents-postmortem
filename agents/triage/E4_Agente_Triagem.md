@@ -18,7 +18,8 @@ trabalho dos agentes seguintes.
 |---|---|
 | Extrair os sintomas e o serviço afetado | o LLM lê a mensagem e preenche `symptoms` e `affected_service` |
 | Decidir se a informação basta | o LLM preenche `enough_information`; precisa de um sintoma **e** de onde ocorre |
-| Pedir o que falta | `missing_information`, com perguntas no idioma do analista |
+| Pedir o que falta | `missing_information`, com perguntas no idioma do analista; inclui, uma única vez, se algo mudou logo antes do problema (E5) |
+| Registrar as mudanças citadas | `triggers` (E5): cada mudança que o analista citou (deploy, comando, configuração...), todas, não só a mais recente |
 | Evitar investigação duplicada | consulta `list_investigations` e preenche `related_incident` se achar a mesma |
 | Dar uma pista de categoria | `category` (opcional), só quando a mensagem deixa claro; ajuda a pesquisa depois |
 
@@ -32,6 +33,7 @@ trabalho dos agentes seguintes.
 |---|---|---|
 | `symptoms` | lista de texto | sintomas, em inglês |
 | `affected_service` | texto ou `null` | serviço afetado, curto e em minúsculas |
+| `triggers` | lista de texto | (E5) o que mudou logo antes do problema, como o analista disse, em inglês; vazia se ele não citou nenhuma mudança |
 | `category` | uma de 5, ou `null` | Config Errors, Hardware/Power Failures, Conflicts, Database, Time. Quase sempre `null` |
 | `enough_information` | verdadeiro/falso | se dá para seguir sem perguntar |
 | `missing_information` | lista de texto | perguntas ao analista (vazia quando `enough_information` é verdadeiro) |
@@ -221,7 +223,7 @@ O agente mantém o próprio laço (`agent.py`). O arquivo `node.py` só o embrul
 
 | Função | O que faz |
 |---|---|
-| `triage_node(state)` | lê `descricao` do estado, roda o agente e escreve `triage_result` (o `TriageResult` completo) e `sintomas` (a entrada que o Agente Pesquisa já espera) |
+| `triage_node(state)` | lê `description` do estado, roda o agente e escreve `triage_result` (o `TriageResult` completo) e `symptoms` (a entrada do Agente Pesquisa) |
 | `route_after_triage(state)` | aresta condicional: devolve `ask_user`, `tell_related_incident` ou `go_to_research`, a mesma decisão do `routing.py` |
 
 A Messages history fica dentro do agente e não entra no estado compartilhado, porque o Agente Pesquisa tem a

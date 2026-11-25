@@ -67,4 +67,15 @@ final = build_graph().invoke(state)
 checker.check("when the model call crashes, there is still a report", final["report"].kind == "inconclusive")
 checker.check("the crash is recorded as an error", final["errors"] and "model call failed" in final["errors"][0]["error"])
 
+
+# 4) An agent before failed: no diagnosis, no findings, no triage result. The real agent must not crash
+#    and must not call the model.
+from agents.reporting.agent import run_reporting_agent  # noqa: E402
+
+node.run_reporting_agent = run_reporting_agent
+final = build_graph().invoke({"incident_id": "INC-9", "description": "Our object store is down."})
+checker.check("without a diagnosis: an inconclusive report, no crash", final["report"].kind == "inconclusive"
+              and final["report"].incident_id == "INC-9")
+checker.check("and it says why", final["report_problems"] == ["there is no diagnosis"])
+
 checker.finish()

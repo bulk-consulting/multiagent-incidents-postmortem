@@ -1,0 +1,92 @@
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Our live dashboards flagged unusual activity shortly after the afternoon began.",
+      "The active Redis machine went entirely out of reach, but its standby took over as intended.",
+      "Several backend API workers struggled to establish Redis connections following the switch.",
+      "Even after cycling the API workers in batches, response times remained unusually long.",
+      "Clients were hammering a resource-intensive API operation, slowing down the API more broadly.",
+      "A lower-priority Cassandra deployment was struggling with demand.",
+      "Roughly an hour and a half after the first alert, our metrics flagged fresh trouble.",
+      "People told us that certain chat communities looked disconnected and that joining them was difficult.",
+      "One machine hosting chat communities was not operating normally.",
+      "Several workers responsible for keeping users' sessions active were also acting strangely.",
+      "Our push-delivery backend stopped working further into the outage."
+    ],
+    "affected_service": "Our live messaging application, especially the infrastructure hosting chat communities, the API backend and the workers maintaining user sessions.",
+    "dependent_impact": "People struggled to connect to certain communities. API calls slowed down, heavy demand strained a lower-priority Cassandra deployment, and both session handling and push delivery developed faults.",
+    "scope": "Only some communities appeared unreachable; we have no measured share of affected users. When we subsequently cycled the service, several million active clients had to establish connections again.",
+    "timing": "The first alert came early in the afternoon. Roughly an hour passed before API behavior normalized; about three quarters of an hour afterward, fresh irregularities surfaced, with community access complaints arriving almost immediately and further backend trouble following.",
+    "trigger": "Early in the afternoon, our hosting platform automatically moved the machine acting as the active Redis server. That machine went out of reach, prompting the standby to assume its duties.",
+    "environment": [
+      "Redundant Redis deployment with an active server and standby",
+      "Backend workers serving API calls",
+      "Hosted machines subject to automatic relocation",
+      "Peripheral caching and an external network layer handling incoming requests",
+      "Cassandra storage",
+      "Live messaging backend",
+      "Community hosting workers distributed through consistent hashing",
+      "Workers maintaining client sessions",
+      "Push delivery backend",
+      "Live telemetry dashboards"
+    ],
+    "already_tried": [
+      "We traced the first alert to an unreachable active Redis machine.",
+      "We verified that the standby took control, although several API workers still could not connect reliably.",
+      "We opened a highest-priority case with our hosting vendor.",
+      "We examined why certain API workers struggled with the switch to the standby.",
+      "We kept looking into slow responses after cycling the API workers in batches.",
+      "After the fresh alert, we looked into complaints about unreachable chat communities.",
+      "We isolated an unhealthy community hosting worker and explored ways to contain the disruption.",
+      "We manually excluded that worker from the hashing-based routing pool, hoping it would shut itself down gracefully.",
+      "We spotted further unhealthy session workers and started examining their behavior.",
+      "When push delivery broke down, we explored recovery options and tried blocking requests reliant on that backend to ease demand."
+    ],
+    "misleading_signals": []
+  },
+  "complete_message": "Our live messaging dashboards started flagging fresh trouble in the afternoon, with people unable to connect to certain chat communities that look disconnected. Roughly an hour and a half beforehand, our hosting provider automatically relocated the active Redis machine; it became unreachable, the standby took over, and several API workers developed connectivity and response-time problems. API behavior normalized in between, but workers hosting communities and maintaining user sessions are now acting strangely, and we still cannot quantify how many people are affected.",
+  "conversation": [
+    {
+      "analyst": "People are reporting failed connections."
+    },
+    {
+      "if_asked_about": "which system is involved",
+      "analyst": "We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join."
+    },
+    {
+      "if_asked_about": "what preceded the disruption",
+      "analyst": "Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role."
+    },
+    {
+      "if_asked_about": "onset and extent of impact",
+      "analyst": "The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact."
+    },
+    {
+      "if_asked_about": "observed failures and warning signs",
+      "analyst": "Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "The initial disruption began when an automatic cloud infrastructure migration caused the primary node of a highly available Redis cluster to become unavailable. Although the cluster correctly failed over to its secondary, a previously known bug in how API instances handled Redis failover caused significant API degradation. This disruption also exposed an incorrectly configured edge caching rule for an expensive API endpoint, leading clients to make excessive requests and overloading a non-critical Cassandra cluster. The initial disruption was followed by failures in the real-time infrastructure: nodes in other services entered abnormal states, eventually ran out of memory, and contributed to a cascading system failure. The exact mechanism connecting the initial API disruption to the wider cascading failure was not determined. A later investigation identified potential flaws in a library used by an affected service, but their precise role in the cascade remained uncertain.",
+    "fix": [
+      "We performed an initial rolling restart of all API instances to address Redis connection issues.",
+      "We corrected the misconfigured edge caching rule affecting the expensive API endpoint.",
+      "We disabled the problematic API endpoint at the upstream edge network.",
+      "We recovered the overloaded Cassandra cluster and restored its normal operation.",
+      "We performed another rolling restart of all API instances to address latency associated with the Cassandra cluster problems.",
+      "We forcefully restarted the misbehaving community-server node, which succeeded.",
+      "When additional services began failing, we initiated a full service restart to reset invalid states across the affected components.",
+      "We investigated the push service failure and attempted to reduce dependent traffic while recovery was underway.",
+      "We corrected an improperly configured API setting that was needed to allow users to reconnect quickly and safely.",
+      "We monitored and addressed remaining instabilities as the platform recovered, with full service restored at approximately 16:52 PDT."
+    ],
+    "prevention": [
+      "Increase the priority of fixing the known Redis failover handling bug so individual node failures do not cause major API degradation.",
+      "Improve the behavior of the expensive API route so similar failures do not degrade other services.",
+      "Add monitoring for signals associated with the cascading failure to provide earlier warnings and more time for investigation.",
+      "Continue improving reliability and failure handling across the affected services.",
+      "Investigate potential flaws in a library used by an affected service and roll out an update believed to address those problems, while continuing to investigate the unresolved failure mechanism."
+    ],
+    "changes": "During the incident, we corrected the edge caching configuration, disabled the problematic API endpoint at the upstream edge network, and corrected the API setting required for safe and rapid client reconnection. Afterward, we modified the problematic route's behavior to handle similar errors without degrading other services and added monitoring for signals associated with cascading failures. A library update was also being prepared based on subsequent investigation, but its effectiveness had not yet been confirmed."
+  }
+}

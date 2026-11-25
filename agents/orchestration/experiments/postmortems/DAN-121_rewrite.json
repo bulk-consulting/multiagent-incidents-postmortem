@@ -1,0 +1,74 @@
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Database activity jumped abruptly during the morning.",
+      "A large share of requests for media descriptions are no longer succeeding at the application tier.",
+      "Around the same moment, an independent group of cache servers stopped working.",
+      "The offerings behind that group can no longer be reached.",
+      "Viewers and listeners are having trouble starting streams.",
+      "Certain legacy clients break when fetching descriptive media data themselves.",
+      "Clients holding their own copies of that information can still deliver limited material while checking its freshness.",
+      "Visitors are having trouble reaching the front page of our site.",
+      "Responses from the media information backend are still performing very poorly."
+    ],
+    "affected_service": "The backend supplying descriptive information about shows and short media segments, plus an independent outage among our common cache servers.",
+    "dependent_impact": "Our listening and viewing apps, embedded website players and sections displaying show details are all suffering. Clients fetching information straight from the backend are breaking, whereas locally stored copies allow certain clients to keep working to a degree. Offerings behind the unavailable cache group cannot be reached, notably our landing page and online streaming service.",
+    "scope": "The disruption spans several media clients and web offerings. Our apps cover well over a thousand kinds of devices, although we cannot quantify how many devices or people are experiencing trouble. Legacy clients are especially vulnerable as they fetch descriptive information themselves. We have neither a geographic split nor an estimate of the proportion of users impacted.",
+    "timing": "Database demand spiked in the middle of the morning, with the cache group going down at nearly the same moment. Neither issue developed gradually.",
+    "trigger": null,
+    "environment": [
+      "Several dozen application hosts supplying details about shows and short media segments",
+      "Roughly a dozen database hosts backing the media information system",
+      "A pair of hosting sites handling live traffic concurrently",
+      "Either hosting site can sustain operations by design",
+      "Individual products retain media descriptions and periodically check whether they are current",
+      "A common cache tier sits ahead of the majority of our web offerings",
+      "Distinct groups of cache hosts handle different offerings",
+      "Listening and viewing clients covering well over a thousand kinds of devices",
+      "Web page sections drawing on descriptive information about shows and short segments"
+    ],
+    "already_tried": [
+      "We have been trying to pinpoint where the extra database demand is coming from, without much success.",
+      "We tried bringing the unavailable cache tier back online, but it went down again."
+    ],
+    "misleading_signals": []
+  },
+  "complete_message": "By midmorning, demand on the database behind our show and segment information jumped abruptly, leaving numerous application requests unsuccessful. At nearly the same moment, a group of cache hosts went down and took our landing page and online streaming service out of reach. Listening and viewing are disrupted on various clients and devices, with legacy clients fetching media descriptions themselves particularly hard hit, though the number of people impacted is unknown. So far we cannot link either issue to a rollout, a settings adjustment or any other preceding event.",
+  "conversation": [
+    {
+      "analyst": "Media playback keeps breaking."
+    },
+    {
+      "if_asked_about": "the affected service",
+      "analyst": "The backend that supplies details about shows and short segments is struggling, while a group of common cache hosts has independently gone offline. Our media clients and various web features depend on these systems."
+    },
+    {
+      "if_asked_about": "what changed right before / the trigger",
+      "analyst": "Nothing immediately beforehand stands out so far. We cannot tie the onset to a rollout, an administrative action or an adjustment to settings."
+    },
+    {
+      "if_asked_about": "when it started and who is affected",
+      "analyst": "It began midmorning with an abrupt jump in database demand and a cache outage at nearly the same moment. People using our media clients or web offerings on various devices are having trouble, notably those using legacy clients; we cannot quantify the audience impacted."
+    },
+    {
+      "if_asked_about": "the errors or symptoms seen",
+      "analyst": "The database is under intense pressure and numerous calls for media descriptions are unsuccessful at the application tier. A group of cache hosts is down too, cutting off several offerings such as our landing page and online streaming service. Clients retaining their own copies of media descriptions can deliver limited material, whereas those fetching it straight from the backend are breaking."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "The definitive root causes were not established in the published post-mortem. The incident involved two nearly simultaneous problems: a sharp increase in database load that caused metadata requests to fail, and a separate caching-pool failure affecting multiple website products. The source of the additional database load was difficult to isolate, and forensic investigation of the recurring caching failure was still ongoing. The post-mortem does not establish whether the two failures were related.",
+    "fix": [
+      "The team prioritized restoring the failed caching layer.",
+      "The homepage was switched to a simplified emergency mode during caching failures. This emergency page was used multiple times and eventually remained active until the team was confident the cache had stabilized.",
+      "Significant remedial work was performed on the metadata service during the afternoon and into the evening. The post-mortem does not specify the individual technical actions.",
+      "After the remedial work, much of the website returned to near-normal operation, although the streaming application remained unavailable on some devices.",
+      "The team maintained this partially restored state while preparing a full restoration.",
+      "The planned full restoration was postponed to avoid introducing additional risk during peak usage. The post-mortem does not describe the final restoration procedure or explicitly confirm its completion."
+    ],
+    "prevention": [
+      "Complete forensic investigations to understand the root causes of the failures.",
+      "Identify and implement measures to minimize the likelihood of similar service interruptions. Specific preventive measures were not provided in the post-mortem."
+    ],
+    "changes": null
+  }
+}

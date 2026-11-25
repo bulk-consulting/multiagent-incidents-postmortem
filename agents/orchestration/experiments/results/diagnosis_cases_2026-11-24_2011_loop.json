@@ -1,0 +1,4526 @@
+[
+ {
+  "case": "DAN-104",
+  "round": 1,
+  "hidden": [],
+  "description": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either.",
+  "triage": {
+   "affected_service": "cloud object store",
+   "trigger": "An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting the billing process",
+   "symptoms": [
+    "cannot read, enumerate, write or erase objects through APIs",
+    "virtual machine provisioning failing",
+    "disk volumes fetching snapshot contents failing",
+    "on-demand function execution failing",
+    "storage control panel failing",
+    "status page controls cannot post product-specific notices"
+   ],
+   "category": null
+  },
+  "real_root_cause": "An authorized team member entered an incorrect input when executing a standard operational command intended to remove a small number of servers from a subsystem used by the object storage billing process. The incorrect input caused a much larger set of servers to be removed than intended, including servers supporting the metadata index and storage placement subsystems. The index subsystem manages object metadata and location information and is required for GET, LIST, PUT, and DELETE requests. The placement subsystem allocates storage for new objects during PUT requests and depends on the index subsystem. The loss of significant capacity forced both subsystems to undergo full restarts. Because of the service's growth, restarting the subsystems and performing metadata integrity checks took longer than expected.",
+  "findings": [
+   {
+    "id": "DAN-104",
+    "deepened": true,
+    "title": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region"
+   },
+   {
+    "id": "DAN-072",
+    "deepened": false,
+    "title": "Incident details | Google Cloud Service Health — On Tuesday, 19 July 2022 at 06:33 US/Pacific, a simultaneous failure of multiple, redundant cooling systems in one..."
+   },
+   {
+    "id": "DAN-106",
+    "deepened": false,
+    "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+   },
+   {
+    "id": "DAN-037",
+    "deepened": false,
+    "title": "Google Cloud Status Dashboard — Two misconfigurations, plus a software bug, caused a massive Google Cloud Network failure on the US East Coast"
+   },
+   {
+    "id": "DAN-008",
+    "deepened": false,
+    "title": "Partial Cloudflare outage on October 25, 2022"
+   },
+   {
+    "id": "DAN-151",
+    "deepened": false,
+    "title": "Elastic Cloud Incident Report: February 4, 2019 | Elastic Blog"
+   },
+   {
+    "id": "DAN-073",
+    "deepened": false,
+    "title": "Outage report 7 July 2020 - PythonAnywhere News"
+   },
+   {
+    "id": "DAN-071",
+    "deepened": false,
+    "title": "Google Cloud Status Dashboard — Successive lightning strikes on their European datacenter (europe-west1-b) caused loss of power to Google Compute..."
+   }
+  ],
+  "right_incident_in_findings": true,
+  "right_incident_deepened": true,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "A routine capacity-removal command for the billing process removed too many servers supporting the object store's index and placement subsystems, forcing those subsystems to restart and making the object store unable to serve GET, LIST, PUT, and DELETE requests across the region.",
+     "based_on": [
+      "DAN-104"
+     ],
+     "matches": "Same trigger (routine procedure to remove a small number of servers for the billing process), same component (cloud object store in US East), same symptoms (all object APIs failing; dependent services such as VM provisioning, snapshot-backed volumes, functions and console failing; status dashboard unable to post notices because it depends on the object store).",
+     "differs": "The current analyst did not mention a typo or wrong input, only that the usual procedure was followed; the exact subsystems affected in the current environment are not confirmed.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "high"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "No confirmation that a wrong input or typo was part of the current capacity-removal command.",
+    "No confirmation that the object store's index/placement subsystems were restarted or are the ones failing.",
+    "No timeline of when the machines were removed versus when failures appeared."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 10380,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We wer",
+      "ids": [
+       "DAN-072",
+       "DAN-106",
+       "DAN-037",
+       "DAN-008",
+       "DAN-151",
+       "DAN-073",
+       "DAN-104",
+       "DAN-071",
+       "DAN-060",
+       "DAN-197"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "cloud object store region-wide API failure cannot read write enumerate delete objects",
+      "ids": [
+       "DAN-072",
+       "DAN-015",
+       "DAN-166",
+       "DAN-139",
+       "DAN-105",
+       "DAN-104",
+       "DAN-222",
+       "DAN-044",
+       "DAN-014",
+       "DAN-073"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "S3 us-east-1 outage human error removed instances billing maintenance",
+      "ids": [
+       "DAN-104",
+       "DAN-106",
+       "DAN-189",
+       "DAN-230",
+       "DAN-109",
+       "DAN-060",
+       "DAN-234",
+       "DAN-105",
+       "DAN-029",
+       "DAN-154"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause human error typo command removed servers S3 fix recovery playbook",
+      "ids": [
+       "DAN-104"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-104"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-104"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-104",
+      "deepened": true,
+      "title": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region"
+     },
+     {
+      "id": "DAN-072",
+      "deepened": false,
+      "title": "Incident details | Google Cloud Service Health — On Tuesday, 19 July 2022 at 06:33 US/Pacific, a simultaneous failure of multiple, redundant cooling systems in one..."
+     },
+     {
+      "id": "DAN-106",
+      "deepened": false,
+      "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+     },
+     {
+      "id": "DAN-037",
+      "deepened": false,
+      "title": "Google Cloud Status Dashboard — Two misconfigurations, plus a software bug, caused a massive Google Cloud Network failure on the US East Coast"
+     },
+     {
+      "id": "DAN-008",
+      "deepened": false,
+      "title": "Partial Cloudflare outage on October 25, 2022"
+     },
+     {
+      "id": "DAN-151",
+      "deepened": false,
+      "title": "Elastic Cloud Incident Report: February 4, 2019 | Elastic Blog"
+     },
+     {
+      "id": "DAN-073",
+      "deepened": false,
+      "title": "Outage report 7 July 2020 - PythonAnywhere News"
+     },
+     {
+      "id": "DAN-071",
+      "deepened": false,
+      "title": "Google Cloud Status Dashboard — Successive lightning strikes on their European datacenter (europe-west1-b) caused loss of power to Google Compute..."
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A routine capacity-removal command for the billing process removed too many servers supporting the object store's index and placement subsystems, forcing those subsystems to restart and making the object store unable to serve GET, LIST, PUT, and DELETE requests across the region.",
+       "based_on": [
+        "DAN-104"
+       ],
+       "matches": "Same trigger (routine procedure to remove a small number of servers for the billing process), same component (cloud object store in US East), same symptoms (all object APIs failing; dependent services such as VM provisioning, snapshot-backed volumes, functions and console failing; status dashboard unable to post notices because it depends on the object store).",
+       "differs": "The current analyst did not mention a typo or wrong input, only that the usual procedure was followed; the exact subsystems affected in the current environment are not confirmed.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "high"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "No confirmation that a wrong input or typo was part of the current capacity-removal command.",
+      "No confirmation that the object store's index/placement subsystems were restarted or are the ones failing.",
+      "No timeline of when the machines were removed versus when failures appeared."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 10380
+   }
+  ],
+  "seconds": 68
+ },
+ {
+  "case": "DAN-145",
+  "round": 1,
+  "hidden": [],
+  "description": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely.",
+  "triage": {
+   "affected_service": "redis",
+   "trigger": "our hosting vendor automatically relocated the machine serving as our active Redis server",
+   "symptoms": [
+    "failed connections",
+    "chat communities disconnected",
+    "hosting workers acting strangely",
+    "people struggling to join",
+    "API workers unable to connect to Redis",
+    "slow API calls",
+    "one hosting worker unhealthy",
+    "workers maintaining client sessions acting strangely"
+   ],
+   "category": null
+  },
+  "real_root_cause": "The initial disruption began when an automatic cloud infrastructure migration caused the primary node of a highly available Redis cluster to become unavailable. Although the cluster correctly failed over to its secondary, a previously known bug in how API instances handled Redis failover caused significant API degradation. This disruption also exposed an incorrectly configured edge caching rule for an expensive API endpoint, leading clients to make excessive requests and overloading a non-critical Cassandra cluster. The initial disruption was followed by failures in the real-time infrastructure: nodes in other services entered abnormal states, eventually ran out of memory, and contributed to a cascading system failure. The exact mechanism connecting the initial API disruption to the wider cascading failure was not determined. A later investigation identified potential flaws in a library used by an affected service, but their precise role in the cascade remained uncertain.",
+  "findings": [
+   {
+    "id": "DAN-145",
+    "deepened": true,
+    "title": "Discord Status - Unavailable Guilds & Connection Issues"
+   },
+   {
+    "id": "DAN-066",
+    "deepened": false,
+    "title": "A Byzantine failure in the real world"
+   },
+   {
+    "id": "DAN-144",
+    "deepened": false,
+    "title": "Discord Status - Connectivity Issues"
+   },
+   {
+    "id": "DAN-217",
+    "deepened": false,
+    "title": "This was not normal. Really. | The Official Slack Blog"
+   },
+   {
+    "id": "DAN-129",
+    "deepened": false,
+    "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef"
+   },
+   {
+    "id": "DAN-029",
+    "deepened": false,
+    "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+   },
+   {
+    "id": "DAN-133",
+    "deepened": false,
+    "title": "Postmortem: March 26 - April 10 Workflow Delay Incidents - Announcements - CircleCI Discuss"
+   },
+   {
+    "id": "DAN-234",
+    "deepened": false,
+    "title": "Billing Incident Post-Mortem: Breakdown, Analysis and Root Cause | Twilio"
+   }
+  ],
+  "right_incident_in_findings": true,
+  "right_incident_deepened": true,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "The hosting vendor's automatic relocation of the active Redis server caused it to drop offline, triggering a failover that the API workers and session workers did not handle correctly, leading to slow calls, unhealthy workers, and partial community disconnection.",
+     "based_on": [
+      "DAN-145"
+     ],
+     "matches": "Same trigger (automatic migration of the active Redis primary by the hosting vendor), same component (Redis primary/standby cluster), and same symptoms (API workers unable to connect to Redis, slow calls, workers behaving incorrectly, partial real-time service disruption).",
+     "differs": "The current analyst reports only some communities are affected and one hosting worker is unhealthy, whereas the past incident involved a broader API degradation and a later full cascading failure; the current incident's second wave of trouble about 45 minutes after normalization is not explicitly described in the past incident.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "high"
+    },
+    {
+     "cause": "After the Redis failover, clients and API workers reconnected in a thundering herd, overwhelming some workers and causing costly API operations to slow down, which left certain chat communities disconnected while others remained functional.",
+     "based_on": [
+      "DAN-145",
+      "DAN-144"
+     ],
+     "matches": "Same component (Redis-backed real-time messaging service) and similar symptoms (clients struggling to join, workers acting strangely, partial community impact).",
+     "differs": "The current trigger is explicitly a vendor-initiated Redis migration, while DAN-144's trigger is a flapping service; the thundering herd in the current incident is inferred from client behavior, not directly confirmed, and DAN-144 is not deepened so its mechanism is only a summary.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "medium"
+    },
+    {
+     "cause": "A cache misconfiguration or connection-pool issue exposed by the Redis failover caused some API workers to fail or behave erratically, affecting only the communities served by those workers.",
+     "based_on": [
+      "DAN-145"
+     ],
+     "matches": "Same trigger (Redis primary migration/failover) and same component (Redis cluster used by API services); the past incident explicitly mentions a cache misconfiguration uncovered by the failover and API instances not handling failover properly.",
+     "differs": "The current analyst does not mention any cache misconfiguration or specific misconfigured API setting, and the partial community scope is not detailed in the past incident's passages.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "medium"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "We do not know whether the current incident involved a thundering herd of client reconnections after the Redis failover.",
+    "We do not know if any cache misconfiguration or API setting was implicated in the current incident.",
+    "We do not know whether the second wave of trouble 45 minutes after normalization was caused by the same Redis failover or by a separate issue.",
+    "We do not know which specific workers are unhealthy or what errors they are logging."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "medium",
+   "medium"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 9590,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosti",
+      "ids": [
+       "DAN-145",
+       "DAN-066",
+       "DAN-144",
+       "DAN-217",
+       "DAN-129",
+       "DAN-029",
+       "DAN-133",
+       "DAN-234",
+       "DAN-148",
+       "DAN-205"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "Redis failover standby active role messaging application workers unable to connect",
+      "ids": [
+       "DAN-145",
+       "DAN-048",
+       "DAN-234",
+       "DAN-217",
+       "DAN-077",
+       "DAN-210",
+       "DAN-205",
+       "DAN-221",
+       "DAN-029",
+       "DAN-066"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "Redis server relocation standby assumed active role API workers slow calls chat communities disconnected",
+      "ids": [
+       "DAN-145",
+       "DAN-234",
+       "DAN-217",
+       "DAN-144",
+       "DAN-221",
+       "DAN-066",
+       "DAN-129",
+       "DAN-219",
+       "DAN-148",
+       "DAN-164"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "Redis failover root cause API workers unable to connect fix",
+      "ids": [
+       "DAN-145"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-145"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-145"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-145",
+      "deepened": true,
+      "title": "Discord Status - Unavailable Guilds & Connection Issues"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     },
+     {
+      "id": "DAN-144",
+      "deepened": false,
+      "title": "Discord Status - Connectivity Issues"
+     },
+     {
+      "id": "DAN-217",
+      "deepened": false,
+      "title": "This was not normal. Really. | The Official Slack Blog"
+     },
+     {
+      "id": "DAN-129",
+      "deepened": false,
+      "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef"
+     },
+     {
+      "id": "DAN-029",
+      "deepened": false,
+      "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+     },
+     {
+      "id": "DAN-133",
+      "deepened": false,
+      "title": "Postmortem: March 26 - April 10 Workflow Delay Incidents - Announcements - CircleCI Discuss"
+     },
+     {
+      "id": "DAN-234",
+      "deepened": false,
+      "title": "Billing Incident Post-Mortem: Breakdown, Analysis and Root Cause | Twilio"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "The hosting vendor's automatic relocation of the active Redis server caused it to drop offline, triggering a failover that the API workers and session workers did not handle correctly, leading to slow calls, unhealthy workers, and partial community disconnection.",
+       "based_on": [
+        "DAN-145"
+       ],
+       "matches": "Same trigger (automatic migration of the active Redis primary by the hosting vendor), same component (Redis primary/standby cluster), and same symptoms (API workers unable to connect to Redis, slow calls, workers behaving incorrectly, partial real-time service disruption).",
+       "differs": "The current analyst reports only some communities are affected and one hosting worker is unhealthy, whereas the past incident involved a broader API degradation and a later full cascading failure; the current incident's second wave of trouble about 45 minutes after normalization is not explicitly described in the past incident.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "high"
+      },
+      {
+       "cause": "After the Redis failover, clients and API workers reconnected in a thundering herd, overwhelming some workers and causing costly API operations to slow down, which left certain chat communities disconnected while others remained functional.",
+       "based_on": [
+        "DAN-145",
+        "DAN-144"
+       ],
+       "matches": "Same component (Redis-backed real-time messaging service) and similar symptoms (clients struggling to join, workers acting strangely, partial community impact).",
+       "differs": "The current trigger is explicitly a vendor-initiated Redis migration, while DAN-144's trigger is a flapping service; the thundering herd in the current incident is inferred from client behavior, not directly confirmed, and DAN-144 is not deepened so its mechanism is only a summary.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A cache misconfiguration or connection-pool issue exposed by the Redis failover caused some API workers to fail or behave erratically, affecting only the communities served by those workers.",
+       "based_on": [
+        "DAN-145"
+       ],
+       "matches": "Same trigger (Redis primary migration/failover) and same component (Redis cluster used by API services); the past incident explicitly mentions a cache misconfiguration uncovered by the failover and API instances not handling failover properly.",
+       "differs": "The current analyst does not mention any cache misconfiguration or specific misconfigured API setting, and the partial community scope is not detailed in the past incident's passages.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "We do not know whether the current incident involved a thundering herd of client reconnections after the Redis failover.",
+      "We do not know if any cache misconfiguration or API setting was implicated in the current incident.",
+      "We do not know whether the second wave of trouble 45 minutes after normalization was caused by the same Redis failover or by a separate issue.",
+      "We do not know which specific workers are unhealthy or what errors they are logging."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium",
+     "medium"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 9590
+   }
+  ],
+  "seconds": 66
+ },
+ {
+  "case": "DAN-211",
+  "round": 1,
+  "hidden": [],
+  "description": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure. During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain. Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening.",
+  "triage": {
+   "affected_service": "service-discovery",
+   "trigger": "we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half",
+   "symptoms": [
+    "updates are taking much longer than usual",
+    "credential delivery is sluggish",
+    "shared service-discovery cluster is in poor health"
+   ],
+   "category": null
+  },
+  "real_root_cause": "The outage resulted from two primarily independent performance problems within Consul. First, the recently enabled streaming implementation suffered excessive contention under the combination of very high read and write loads. The streaming implementation used fewer Go channels for concurrency control than the previous long-polling approach. At this workload scale, contention on a shared channel blocked writes, increased CPU usage, and severely degraded Consul performance. The 128-core replacement servers, which used a dual-socket NUMA architecture, aggravated contention on shared resources. Second, the workload exposed a pathological BoltDB performance problem affecting Consul's Raft log persistence. BoltDB retained free pages from deleted log entries in an increasingly large freelist. The database contained approximately 3.8 GB of unused space and a 7.8 MB freelist, which was rewritten during small log appends, causing excessive write latency. Backpressure and full TCP buffers contributed to write times of 2 to 3 seconds on unhealthy leaders. Both problems affected a single shared Consul cluster that supported numerous critical services, amplifying the outage. Monitoring systems also depended on Consul, reducing visibility during diagnosis.",
+  "findings": [
+   {
+    "id": "DAN-211",
+    "deepened": true,
+    "title": "Roblox Return to Service  | Roblox"
+   },
+   {
+    "id": "DAN-020",
+    "deepened": true,
+    "title": "2020-09-25 Incident: Infrastructure connectivity issue impacting multiple systems | Datadog"
+   },
+   {
+    "id": "DAN-109",
+    "deepened": true,
+    "title": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region"
+   },
+   {
+    "id": "DAN-205",
+    "deepened": false,
+    "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+   },
+   {
+    "id": "DAN-145",
+    "deepened": false,
+    "title": "Discord Status - Unavailable Guilds & Connection Issues"
+   },
+   {
+    "id": "DAN-148",
+    "deepened": false,
+    "title": "Postmortem of Service Outage at 3.4M CCU"
+   },
+   {
+    "id": "DAN-144",
+    "deepened": false,
+    "title": "Discord Status - Connectivity Issues"
+   },
+   {
+    "id": "DAN-066",
+    "deepened": false,
+    "title": "A Byzantine failure in the real world"
+   }
+  ],
+  "right_incident_in_findings": true,
+  "right_incident_deepened": true,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "Enabling continuous Consul streaming on the request-routing application and growing its fleet by 50% created excessive read/write load on the shared Consul service-discovery cluster, causing BoltDB write-ahead-log contention and slow snapshots that degraded updates and credential delivery.",
+     "based_on": [
+      "DAN-211"
+     ],
+     "matches": "Same trigger kind (enabling a Consul streaming feature on a traffic-routing service and increasing its nodes by 50%), same component kind (shared Consul service-discovery/coordination cluster), and same symptom pattern (slow updates, sluggish dependent services, delayed onset after roughly a day of apparent stability).",
+     "differs": "The current analyst did not explicitly name Consul or BoltDB, and the current incident's player impact appeared several hours after the change rather than after a full day; the exact mechanism (BoltDB free-page growth vs. another Consul overload path) is not confirmed for the current incident.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "high"
+    },
+    {
+     "cause": "The request-routing application's continuous updates generated a thundering herd of service-discovery registrations and DNS queries that overwhelmed the shared cluster, causing it to lose quorum and slowing credential delivery and backend lookups.",
+     "based_on": [
+      "DAN-020"
+     ],
+     "matches": "Same component kind (shared service-discovery cluster) and same symptom pattern (cluster poor health, slow updates, sluggish credential delivery, widespread backend impact).",
+     "differs": "The past trigger was a cluster recycle/scale event causing a DNS request surge, whereas the current trigger is enabling continuous updates and fleet growth; no passage confirms that continuous updates specifically caused a thundering herd in the past incident.",
+     "same_trigger": "no",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "medium"
+    },
+    {
+     "cause": "A network disruption or metadata-service overload in the coordination layer caused timeouts and retries that cascaded into slow updates and sluggish credential delivery across dependent backend applications.",
+     "based_on": [
+      "DAN-109"
+     ],
+     "matches": "Same symptom pattern (slow responses, timeouts, retry load worsening an overloaded coordination/metadata service, widespread dependent impact).",
+     "differs": "The past trigger was an external network disruption, not a deliberate application change or fleet scaling; the component is a DynamoDB metadata service rather than a service-discovery/coordination cluster, and no passage ties it to continuous updates or request routing.",
+     "same_trigger": "no",
+     "same_component": "no",
+     "same_mechanism": "no",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "The analyst did not name the coordination technology (e.g., Consul, etcd, ZooKeeper) or confirm whether continuous updates were enabled on the request-routing application.",
+    "No current metrics are provided for the service-discovery cluster (write latency, snapshot duration, quorum status, node health).",
+    "It is unclear whether credential delivery depends on the same service-discovery cluster or on a separate system that is also affected.",
+    "The exact timing between the change, the onset of slowness, and the player drop is not precise enough to confirm the delayed-onset pattern seen in DAN-211."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "medium",
+   "low"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 20423,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Updates are taking much longer than usual.\n\nAnalyst answer: The shared cluster that lets our applications locate one another is in poor health. Creden",
+      "ids": [
+       "DAN-205",
+       "DAN-145",
+       "DAN-148",
+       "DAN-144",
+       "DAN-066",
+       "DAN-106",
+       "DAN-211",
+       "DAN-096",
+       "DAN-029",
+       "DAN-129"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "service discovery cluster poor health slow updates credential delivery sluggish",
+      "ids": [
+       "DAN-020",
+       "DAN-219",
+       "DAN-109",
+       "DAN-145",
+       "DAN-066",
+       "DAN-220",
+       "DAN-029",
+       "DAN-211",
+       "DAN-210",
+       "DAN-222"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "coordination system continuous updates request routing application scaled fleet degraded performance",
+      "ids": [
+       "DAN-205",
+       "DAN-106",
+       "DAN-218",
+       "DAN-184",
+       "DAN-018",
+       "DAN-151",
+       "DAN-066",
+       "DAN-209",
+       "DAN-147",
+       "DAN-001"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "Consul streaming BoltDB service discovery coordination root cause fix",
+      "ids": [
+       "DAN-211"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-211"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-211"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "service discovery config dependent client global outage root cause fix",
+      "ids": [
+       "DAN-020"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-020"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-020"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "metadata services load response time timeout storage nodes retry fix",
+      "ids": [
+       "DAN-109"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-109"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-109"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-211",
+      "deepened": true,
+      "title": "Roblox Return to Service  | Roblox"
+     },
+     {
+      "id": "DAN-020",
+      "deepened": true,
+      "title": "2020-09-25 Incident: Infrastructure connectivity issue impacting multiple systems | Datadog"
+     },
+     {
+      "id": "DAN-109",
+      "deepened": true,
+      "title": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region"
+     },
+     {
+      "id": "DAN-205",
+      "deepened": false,
+      "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+     },
+     {
+      "id": "DAN-145",
+      "deepened": false,
+      "title": "Discord Status - Unavailable Guilds & Connection Issues"
+     },
+     {
+      "id": "DAN-148",
+      "deepened": false,
+      "title": "Postmortem of Service Outage at 3.4M CCU"
+     },
+     {
+      "id": "DAN-144",
+      "deepened": false,
+      "title": "Discord Status - Connectivity Issues"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "Enabling continuous Consul streaming on the request-routing application and growing its fleet by 50% created excessive read/write load on the shared Consul service-discovery cluster, causing BoltDB write-ahead-log contention and slow snapshots that degraded updates and credential delivery.",
+       "based_on": [
+        "DAN-211"
+       ],
+       "matches": "Same trigger kind (enabling a Consul streaming feature on a traffic-routing service and increasing its nodes by 50%), same component kind (shared Consul service-discovery/coordination cluster), and same symptom pattern (slow updates, sluggish dependent services, delayed onset after roughly a day of apparent stability).",
+       "differs": "The current analyst did not explicitly name Consul or BoltDB, and the current incident's player impact appeared several hours after the change rather than after a full day; the exact mechanism (BoltDB free-page growth vs. another Consul overload path) is not confirmed for the current incident.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "high"
+      },
+      {
+       "cause": "The request-routing application's continuous updates generated a thundering herd of service-discovery registrations and DNS queries that overwhelmed the shared cluster, causing it to lose quorum and slowing credential delivery and backend lookups.",
+       "based_on": [
+        "DAN-020"
+       ],
+       "matches": "Same component kind (shared service-discovery cluster) and same symptom pattern (cluster poor health, slow updates, sluggish credential delivery, widespread backend impact).",
+       "differs": "The past trigger was a cluster recycle/scale event causing a DNS request surge, whereas the current trigger is enabling continuous updates and fleet growth; no passage confirms that continuous updates specifically caused a thundering herd in the past incident.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A network disruption or metadata-service overload in the coordination layer caused timeouts and retries that cascaded into slow updates and sluggish credential delivery across dependent backend applications.",
+       "based_on": [
+        "DAN-109"
+       ],
+       "matches": "Same symptom pattern (slow responses, timeouts, retry load worsening an overloaded coordination/metadata service, widespread dependent impact).",
+       "differs": "The past trigger was an external network disruption, not a deliberate application change or fleet scaling; the component is a DynamoDB metadata service rather than a service-discovery/coordination cluster, and no passage ties it to continuous updates or request routing.",
+       "same_trigger": "no",
+       "same_component": "no",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "The analyst did not name the coordination technology (e.g., Consul, etcd, ZooKeeper) or confirm whether continuous updates were enabled on the request-routing application.",
+      "No current metrics are provided for the service-discovery cluster (write latency, snapshot duration, quorum status, node health).",
+      "It is unclear whether credential delivery depends on the same service-discovery cluster or on a separate system that is also affected.",
+      "The exact timing between the change, the onset of slowness, and the player drop is not precise enough to confirm the delayed-onset pattern seen in DAN-211."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 20423
+   }
+  ],
+  "seconds": 55
+ },
+ {
+  "case": "DAN-125",
+  "round": 1,
+  "hidden": [],
+  "description": "People are locked out of their accounts.\n\nAnalyst answer: The browser side of our CI offering is unavailable, including job output and help pages. Jobs themselves keep running and review results are still posted. We cut hosting expenses by moving our hosted Postgres deployment onto a less powerful tier recently. Instead of maintaining a pool on each app machine, we now share one pooling host. Postgres began slowing in the late afternoon UTC, with the site becoming largely unreachable roughly an hour and a half afterward. Account access, job output and help pages are unavailable to everyone trying to reach them; we have no evidence of a regional boundary.",
+  "triage": {
+   "affected_service": "ci",
+   "trigger": "We cut hosting expenses by moving our hosted Postgres deployment onto a less powerful tier recently. Instead of maintaining a pool on each app machine, we now share one pooling host.",
+   "symptoms": [
+    "people are locked out of their accounts",
+    "CI browser side unavailable including job output and help pages"
+   ],
+   "category": "Database"
+  },
+  "real_root_cause": "The smaller managed PostgreSQL instance could not handle the production workload during peak traffic, causing CPU saturation and database performance degradation. The application's health-check endpoint depended on successful connections to both SQL databases, Redis, and Memcached. When database connections failed, the health checks returned HTTP 500 errors, causing the dashboard load balancer to remove its application servers. Auto Scaling Groups launched replacement servers, but the server bootstrap process attempted to retrieve the currently deployed code revision from an endpoint on the unavailable website. Because that endpoint could not be reached, replacement servers ran the older application version embedded in their machine images. That version's health check referenced a database that had already been decommissioned, so replacement servers also failed health checks and could not join the load balancer. The resulting repeated instance launches and terminations eventually exhausted cloud instance request limits. Recovery was further delayed by cloud provider access-management issues and an on-call alerting configuration that failed to wake the team. The centralized pgbouncer configuration was reverted during recovery, but the post-mortem did not establish it as a confirmed root cause.",
+  "findings": [
+   {
+    "id": "DAN-096",
+    "deepened": true,
+    "title": "An update on recent service disruptions - The GitHub Blog"
+   },
+   {
+    "id": "DAN-183",
+    "deepened": true,
+    "title": "Clouds, caches and connection conundrums | Blog | incident.io"
+   },
+   {
+    "id": "DAN-101",
+    "deepened": true,
+    "title": "Battling database performance | Blog | incident.io"
+   },
+   {
+    "id": "DAN-209",
+    "deepened": false,
+    "title": "Why Reddit was down on Aug 11 : announcements"
+   },
+   {
+    "id": "DAN-129",
+    "deepened": false,
+    "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef"
+   },
+   {
+    "id": "DAN-073",
+    "deepened": false,
+    "title": "Outage report 7 July 2020 - PythonAnywhere News"
+   },
+   {
+    "id": "DAN-029",
+    "deepened": false,
+    "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+   },
+   {
+    "id": "DAN-205",
+    "deepened": false,
+    "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+   }
+  ],
+  "right_incident_in_findings": false,
+  "right_incident_deepened": false,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "Downgrading Postgres to a smaller tier and consolidating all app connections through a single shared pooling host exhausted the database/proxy connection capacity under peak load, making the CI site unreachable while background jobs kept running.",
+     "based_on": [
+      "DAN-096",
+      "DAN-183",
+      "DAN-101"
+     ],
+     "matches": "Same trigger (infrastructure change to a smaller/shared database tier with shared pooling), same component kind (relational database with connection pooling), same symptoms (widespread site unavailability while asynchronous jobs continue), and same mechanism (connection exhaustion causing client connection failures).",
+     "differs": "The current analyst did not report explicit connection-timeout or pool-exhaustion errors, and the past incidents involve MySQL/Postgres on different cloud providers and runtimes.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "high"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "No explicit Postgres or proxy connection errors, pool saturation metrics, or error messages from the current incident.",
+    "Unclear whether the tier downgrade and pooling-host consolidation happened immediately before the outage or some time earlier.",
+    "No confirmation that the single pooling host is the bottleneck versus the smaller Postgres tier itself."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 16174,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "People are locked out of their accounts.\n\nAnalyst answer: The browser side of our CI offering is unavailable, including job output and help pages. Job",
+      "ids": [
+       "DAN-209",
+       "DAN-129",
+       "DAN-073",
+       "DAN-029",
+       "DAN-205",
+       "DAN-217",
+       "DAN-066",
+       "DAN-148",
+       "DAN-164",
+       "DAN-162"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "Postgres slowdown shared connection pool account lockout CI unavailable",
+      "ids": [
+       "DAN-080",
+       "DAN-101",
+       "DAN-148",
+       "DAN-188",
+       "DAN-195",
+       "DAN-096",
+       "DAN-134",
+       "DAN-183",
+       "DAN-102",
+       "DAN-130"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "PostgreSQL connection pooling exhaustion site unreachable after tier downgrade",
+      "ids": [
+       "DAN-096",
+       "DAN-183",
+       "DAN-148",
+       "DAN-147",
+       "DAN-134",
+       "DAN-156",
+       "DAN-195",
+       "DAN-094",
+       "DAN-164",
+       "DAN-101"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "shared database cluster connection exhaustion ProxySQL peak hour failover root cause fix",
+      "ids": [
+       "DAN-096"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-096"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-096"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "Postgres connection timeouts pool tuning infrastructure move Google Cloud root cause fix",
+      "ids": [
+       "DAN-183"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-183"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-183"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "connection pool exhaustion app timeouts root cause fix database/sql pool",
+      "ids": [
+       "DAN-101"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-101"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-101"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-096",
+      "deepened": true,
+      "title": "An update on recent service disruptions - The GitHub Blog"
+     },
+     {
+      "id": "DAN-183",
+      "deepened": true,
+      "title": "Clouds, caches and connection conundrums | Blog | incident.io"
+     },
+     {
+      "id": "DAN-101",
+      "deepened": true,
+      "title": "Battling database performance | Blog | incident.io"
+     },
+     {
+      "id": "DAN-209",
+      "deepened": false,
+      "title": "Why Reddit was down on Aug 11 : announcements"
+     },
+     {
+      "id": "DAN-129",
+      "deepened": false,
+      "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef"
+     },
+     {
+      "id": "DAN-073",
+      "deepened": false,
+      "title": "Outage report 7 July 2020 - PythonAnywhere News"
+     },
+     {
+      "id": "DAN-029",
+      "deepened": false,
+      "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+     },
+     {
+      "id": "DAN-205",
+      "deepened": false,
+      "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+     }
+    ],
+    "right_incident_in_findings": false,
+    "right_incident_deepened": false,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "Downgrading Postgres to a smaller tier and consolidating all app connections through a single shared pooling host exhausted the database/proxy connection capacity under peak load, making the CI site unreachable while background jobs kept running.",
+       "based_on": [
+        "DAN-096",
+        "DAN-183",
+        "DAN-101"
+       ],
+       "matches": "Same trigger (infrastructure change to a smaller/shared database tier with shared pooling), same component kind (relational database with connection pooling), same symptoms (widespread site unavailability while asynchronous jobs continue), and same mechanism (connection exhaustion causing client connection failures).",
+       "differs": "The current analyst did not report explicit connection-timeout or pool-exhaustion errors, and the past incidents involve MySQL/Postgres on different cloud providers and runtimes.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "high"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "No explicit Postgres or proxy connection errors, pool saturation metrics, or error messages from the current incident.",
+      "Unclear whether the tier downgrade and pooling-host consolidation happened immediately before the outage or some time earlier.",
+      "No confirmation that the single pooling host is the bottleneck versus the smaller Postgres tier itself."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 16174
+   }
+  ],
+  "seconds": 41
+ },
+ {
+  "case": "DAN-018",
+  "round": 1,
+  "hidden": [],
+  "description": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access checks means that the management console and numerous API operations are failing too. We shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared. Things went downhill late in the UTC afternoon. People opening the console or updating settings programmatically are having trouble, whereas our production traffic handling still seems normal.",
+  "triage": {
+   "affected_service": "account",
+   "trigger": "we shipped a console update roughly an hour and a half earlier, followed by an account backend revision just minutes before the failures appeared",
+   "symptoms": [
+    "availability plummeted",
+    "management console failing",
+    "numerous API operations failing"
+   ],
+   "category": null
+  },
+  "real_root_cause": "A bug introduced in the React dashboard caused excessive, unnecessary requests to the tenant API service. A React useEffect hook included an object in its dependency array that was recreated whenever component state or props changed. React therefore treated the object as a new dependency and repeatedly executed the effect, causing multiple requests to the /organizations endpoint during a single dashboard render instead of one. This behavior, combined with a concurrent tenant service update and insufficient capacity to handle traffic spikes, overwhelmed the tenant service. Because the tenant service participated in API authorization, its failure prevented authorization evaluation and caused widespread HTTP 5xx responses. Service restarts also triggered a thundering-herd pattern, with dashboards attempting to re-authenticate simultaneously, further amplified by the request-loop bug. During recovery, a patch intended to eliminate remaining service errors worsened availability and caused a second period of API impact.",
+  "findings": [
+   {
+    "id": "DAN-221",
+    "deepened": true,
+    "title": "Incident Summary: 2017–03–16. Authors: Erik Bourget, Toby Reyelts… | by Square Engineering | Square Corner Blog | Medium"
+   },
+   {
+    "id": "DAN-217",
+    "deepened": true,
+    "title": "This was not normal. Really. | The Official Slack Blog"
+   },
+   {
+    "id": "DAN-098",
+    "deepened": true,
+    "title": "Addressing GitHub’s recent availability issues - The GitHub Blog — Two popular client apps had been quietly increasing read traffic 10×, then a Saturday change shortened a..."
+   },
+   {
+    "id": "DAN-018",
+    "deepened": true,
+    "title": "A deep dive into Cloudflare’s September 12, 2025 dashboard and API outage | Cloudflare Blog"
+   },
+   {
+    "id": "DAN-029",
+    "deepened": true,
+    "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+   },
+   {
+    "id": "DAN-144",
+    "deepened": false,
+    "title": "Discord Status - Connectivity Issues"
+   },
+   {
+    "id": "DAN-148",
+    "deepened": false,
+    "title": "Postmortem of Service Outage at 3.4M CCU"
+   },
+   {
+    "id": "DAN-218",
+    "deepened": false,
+    "title": "Slack’s Outage on January 4th 2021 |  Engineering at Slack"
+   }
+  ],
+  "right_incident_in_findings": true,
+  "right_incident_deepened": true,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "The account backend revision introduced a bug that overloaded the account service, causing cascading failures to the management console and API operations while production traffic handling remained unaffected.",
+     "based_on": [
+      "DAN-221"
+     ],
+     "matches": "A service revision (Roster rollout) preceded failures in a dependent authentication service (Multipass), which then cascaded to dashboard and API failures; production traffic handling was not mentioned as affected, matching the current incident.",
+     "differs": "The past incident involved an adjacent service (Roster) overloading Multipass, whereas the current incident's trigger is the account backend revision itself; the timing pattern (console update 1.5h before, backend revision minutes before) is not described in the past incident.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "high"
+    },
+    {
+     "cause": "The console update caused excessive or malformed calls to the account backend, overwhelming it and cascading to API failures, while production traffic handling remained normal.",
+     "based_on": [
+      "DAN-018"
+     ],
+     "matches": "A dashboard/frontend change caused excessive API calls to a backend service (Tenant Service), overwhelming it and cascading into broader API and dashboard failures; production traffic handling was not mentioned as affected.",
+     "differs": "The current incident's most recent change before failures was the account backend revision, not the console update; the past incident's trigger was a React component bug causing repeated API calls, which is not described in the current incident.",
+     "same_trigger": "no",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "medium"
+    },
+    {
+     "cause": "The account backend revision changed cache or request patterns that overwhelmed a shared database or dependency, cascading to console and API failures while production traffic handling remained normal.",
+     "based_on": [
+      "DAN-098"
+     ],
+     "matches": "A change to user/account management (cache TTL) overwhelmed a core database cluster supporting authentication and user management, cascading to API and dashboard failures; production traffic handling was not mentioned as affected.",
+     "differs": "The past incident involved a cache TTL change combined with increased client app read traffic, whereas the current incident involves a backend revision with no mention of cache changes or client app traffic increases.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "medium"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "We do not know what the account backend revision changed (code, config, cache settings, dependencies).",
+    "We do not know whether the console update increased calls to the account backend or changed its access-check pattern.",
+    "We do not have error messages or logs showing whether the account backend is overloaded, returning errors, or failing to respond.",
+    "We do not know if production traffic handling truly uses a different code path or is simply not yet affected.",
+    "We do not know the exact timing relationship between the console update, the backend revision, and the onset of failures."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "medium",
+   "medium"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 28818,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access che",
+      "ids": [
+       "DAN-066",
+       "DAN-129",
+       "DAN-209",
+       "DAN-029",
+       "DAN-154",
+       "DAN-106",
+       "DAN-098",
+       "DAN-008",
+       "DAN-220",
+       "DAN-001"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "account backend revision causing management console API failures availability",
+      "ids": [
+       "DAN-066",
+       "DAN-029",
+       "DAN-018",
+       "DAN-220",
+       "DAN-189",
+       "DAN-210",
+       "DAN-008",
+       "DAN-017",
+       "DAN-133",
+       "DAN-129"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "access check backend failure console API operations down after deployment",
+      "ids": [
+       "DAN-029",
+       "DAN-066",
+       "DAN-017",
+       "DAN-129",
+       "DAN-210",
+       "DAN-067",
+       "DAN-209",
+       "DAN-139",
+       "DAN-133",
+       "DAN-220"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause user-settings cache TTL change auth database cluster overwhelmed cascading fix",
+      "ids": [
+       "DAN-098"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-098"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-098"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause dashboard React component excessive API calls Tenant Service overwhelming cascading fix",
+      "ids": [
+       "DAN-018"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-018"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-018"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause bad config database cluster outage API Dashboard offline fix",
+      "ids": [
+       "DAN-029"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-029"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-029"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-098",
+      "deepened": true,
+      "title": "Addressing GitHub’s recent availability issues - The GitHub Blog — Two popular client apps had been quietly increasing read traffic 10×, then a Saturday change shortened a..."
+     },
+     {
+      "id": "DAN-018",
+      "deepened": true,
+      "title": "A deep dive into Cloudflare’s September 12, 2025 dashboard and API outage | Cloudflare Blog"
+     },
+     {
+      "id": "DAN-029",
+      "deepened": true,
+      "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     },
+     {
+      "id": "DAN-129",
+      "deepened": false,
+      "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef"
+     },
+     {
+      "id": "DAN-209",
+      "deepened": false,
+      "title": "Why Reddit was down on Aug 11 : announcements"
+     },
+     {
+      "id": "DAN-154",
+      "deepened": false,
+      "title": "Summary of June 8 outage | Fastly"
+     },
+     {
+      "id": "DAN-106",
+      "deepened": false,
+      "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "The account backend revision introduced a bug or configuration change that made the account service fail or become overloaded, and because the management console and many API operations depend on it for access checks, they failed too while production traffic handling stayed normal.",
+       "based_on": [
+        "DAN-018"
+       ],
+       "matches": "A console/frontend update was shipped shortly before failures, followed by a backend service revision; the backend service then struggled and cascaded to dashboard/API failures while other traffic handling remained normal.",
+       "differs": "In DAN-018 the trigger was a React component bug causing excessive API calls to the Tenant Service; here the analyst only reports an account backend revision without specifying the mechanism.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "The account backend revision changed cache or load behavior in a way that overwhelmed the account database or service cluster, cascading to every service that depends on account/access checks.",
+       "based_on": [
+        "DAN-098"
+       ],
+       "matches": "A change to an account/user-management component preceded overload of a core account/auth database cluster, cascading to API and dashboard failures.",
+       "differs": "DAN-098 involved a cache TTL change plus a 10× read traffic increase from client apps; the current incident has no evidence of increased client traffic or a cache TTL change.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A database cluster failure in the account backend (for example a primary node failure with failed failover) took the account service offline, bringing down the console and API operations that depend on it.",
+       "based_on": [
+        "DAN-029"
+       ],
+       "matches": "A database cluster outage took the API and Dashboard offline while other traffic handling was unaffected.",
+       "differs": "DAN-029 was triggered by a hardware disk array failure and failed automated failover, not by a software revision; the current incident follows a backend revision minutes before failure.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": false,
+     "gaps": [
+      "The exact nature of the account backend revision is unknown (code change, config change, cache TTL, dependency change, etc.).",
+      "It is unknown whether the console update or the account backend revision was the primary trigger, or whether both contributed.",
+      "No error messages, logs, or metrics are provided to distinguish between a backend crash, overload, or database failover failure.",
+      "It is unknown whether production traffic handling truly remained normal or was simply not yet affected."
+     ],
+     "next_step": "refine_search",
+     "search_request": "backend service revision caused account service overload cascading to dashboard and API failures",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "medium",
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 18864
+   },
+   {
+    "research_round": 2,
+    "request": "backend service revision caused account service overload cascading to dashboard and API failures",
+    "research_warnings": [],
+    "research_llm_calls": 1,
+    "searches": [
+     {
+      "step": "initial_search",
+      "query": "backend service revision caused account service overload cascading to dashboard and API failures",
+      "ids": [
+       "DAN-144",
+       "DAN-148",
+       "DAN-221",
+       "DAN-218",
+       "DAN-133",
+       "DAN-164",
+       "DAN-169",
+       "DAN-145",
+       "DAN-234",
+       "DAN-219"
+      ]
+     },
+     {
+      "step": "initial_search",
+      "query": "Availability has suddenly plummeted.\n\nAnalyst answer: The backend that supplies customer account information is struggling, and its role in access che",
+      "ids": [
+       "DAN-218",
+       "DAN-208",
+       "DAN-035",
+       "DAN-133",
+       "DAN-217",
+       "DAN-093",
+       "DAN-211",
+       "DAN-148",
+       "DAN-073",
+       "DAN-164"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "adjacent service overload authentication service cascading failure root cause fix",
+      "ids": [
+       "DAN-221"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-221"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-221"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "cascading connection failures database capacity overload root cause",
+      "ids": [
+       "DAN-217"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-217"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-217"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-221",
+      "deepened": true,
+      "title": "Incident Summary: 2017–03–16. Authors: Erik Bourget, Toby Reyelts… | by Square Engineering | Square Corner Blog | Medium"
+     },
+     {
+      "id": "DAN-217",
+      "deepened": true,
+      "title": "This was not normal. Really. | The Official Slack Blog"
+     },
+     {
+      "id": "DAN-098",
+      "deepened": true,
+      "title": "Addressing GitHub’s recent availability issues - The GitHub Blog — Two popular client apps had been quietly increasing read traffic 10×, then a Saturday change shortened a..."
+     },
+     {
+      "id": "DAN-018",
+      "deepened": true,
+      "title": "A deep dive into Cloudflare’s September 12, 2025 dashboard and API outage | Cloudflare Blog"
+     },
+     {
+      "id": "DAN-029",
+      "deepened": true,
+      "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+     },
+     {
+      "id": "DAN-144",
+      "deepened": false,
+      "title": "Discord Status - Connectivity Issues"
+     },
+     {
+      "id": "DAN-148",
+      "deepened": false,
+      "title": "Postmortem of Service Outage at 3.4M CCU"
+     },
+     {
+      "id": "DAN-218",
+      "deepened": false,
+      "title": "Slack’s Outage on January 4th 2021 |  Engineering at Slack"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "The account backend revision introduced a bug that overloaded the account service, causing cascading failures to the management console and API operations while production traffic handling remained unaffected.",
+       "based_on": [
+        "DAN-221"
+       ],
+       "matches": "A service revision (Roster rollout) preceded failures in a dependent authentication service (Multipass), which then cascaded to dashboard and API failures; production traffic handling was not mentioned as affected, matching the current incident.",
+       "differs": "The past incident involved an adjacent service (Roster) overloading Multipass, whereas the current incident's trigger is the account backend revision itself; the timing pattern (console update 1.5h before, backend revision minutes before) is not described in the past incident.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "high"
+      },
+      {
+       "cause": "The console update caused excessive or malformed calls to the account backend, overwhelming it and cascading to API failures, while production traffic handling remained normal.",
+       "based_on": [
+        "DAN-018"
+       ],
+       "matches": "A dashboard/frontend change caused excessive API calls to a backend service (Tenant Service), overwhelming it and cascading into broader API and dashboard failures; production traffic handling was not mentioned as affected.",
+       "differs": "The current incident's most recent change before failures was the account backend revision, not the console update; the past incident's trigger was a React component bug causing repeated API calls, which is not described in the current incident.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "The account backend revision changed cache or request patterns that overwhelmed a shared database or dependency, cascading to console and API failures while production traffic handling remained normal.",
+       "based_on": [
+        "DAN-098"
+       ],
+       "matches": "A change to user/account management (cache TTL) overwhelmed a core database cluster supporting authentication and user management, cascading to API and dashboard failures; production traffic handling was not mentioned as affected.",
+       "differs": "The past incident involved a cache TTL change combined with increased client app read traffic, whereas the current incident involves a backend revision with no mention of cache changes or client app traffic increases.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "We do not know what the account backend revision changed (code, config, cache settings, dependencies).",
+      "We do not know whether the console update increased calls to the account backend or changed its access-check pattern.",
+      "We do not have error messages or logs showing whether the account backend is overloaded, returning errors, or failing to respond.",
+      "We do not know if production traffic handling truly uses a different code path or is simply not yet affected.",
+      "We do not know the exact timing relationship between the console update, the backend revision, and the onset of failures."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium",
+     "medium"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 28818
+   }
+  ],
+  "seconds": 91
+ },
+ {
+  "case": "DAN-017",
+  "round": 1,
+  "hidden": [],
+  "description": "We suddenly have a surge of authorization failures.\n\nAnalyst answer: The errors are coming from our worldwide key-based data store. Web publishing, identity checks and releases of edge workloads are among the products relying on it. We were introducing a fresh storage build in stages. As the rollout advanced, monitoring warned of requests heading toward an unintended target; we tried to revert and the disruption quickly widened. Routing warnings appeared in the evening UTC, roughly a quarter of an hour before the broader disruption. Several products used by customers are impaired, but workloads independent of this storage layer and certain established login sessions continue to function. Storage reads, writes, removals and key enumeration are rejected as unauthorized. Hosted static websites throw server-side errors, sign-in is unreliable, publishing edge programs fails and other dependent features are down. Identity failures are also keeping us from using our regular release reversal tools.",
+  "triage": {
+   "affected_service": "key-value store",
+   "trigger": "we were introducing a fresh storage build in stages",
+   "symptoms": [
+    "surge of authorization failures on worldwide key-based data store",
+    "storage reads writes removals and key enumeration rejected as unauthorized"
+   ],
+   "category": null
+  },
+  "real_root_cause": "A latent bug in our progressive deployment tool caused its release-listing API to return builds from both staging and production instead of restricting results to the requested environment. During the production rollout, the deployment automation incorrectly selected a script deployed to the staging account rather than the intended production-account build. The production routing configuration consequently pointed to a version that was not running in the production environment and was not authorized for production access. Requests to the key-value store were effectively routed into a black hole and returned HTTP 401 errors, causing failures across dependent services. Recovery was further delayed because our dashboard and CI authentication mechanisms themselves depended on the unavailable key-value store, preventing the normal rollback process from accessing the necessary secrets.",
+  "findings": [
+   {
+    "id": "DAN-017",
+    "deepened": true,
+    "title": "Cloudflare incident on October 30, 2023 | Cloudflare Blog"
+   },
+   {
+    "id": "DAN-015",
+    "deepened": true,
+    "title": "Cloudflare incident on March 21, 2025 | Cloudflare Blog"
+   },
+   {
+    "id": "DAN-139",
+    "deepened": true,
+    "title": "Cloudflare service outage June 12, 2025 | Cloudflare Blog"
+   },
+   {
+    "id": "DAN-073",
+    "deepened": false,
+    "title": "Outage report 7 July 2020 - PythonAnywhere News"
+   },
+   {
+    "id": "DAN-221",
+    "deepened": false,
+    "title": "Incident Summary: 2017–03–16. Authors: Erik Bourget, Toby Reyelts… | by Square Engineering | Square Corner Blog | Medium"
+   },
+   {
+    "id": "DAN-066",
+    "deepened": false,
+    "title": "A Byzantine failure in the real world"
+   },
+   {
+    "id": "DAN-164",
+    "deepened": false,
+    "title": "Postmortem of database outage of January 31"
+   },
+   {
+    "id": "DAN-147",
+    "deepened": false,
+    "title": "Duo Status - Authentication Latency on DUO1 Deployment"
+   }
+  ],
+  "right_incident_in_findings": true,
+  "right_incident_deepened": true,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "A staged rollout of a new Workers KV build pointed production traffic at an unintended/unauthorized endpoint, causing global authorization failures on reads, writes, removals and key enumeration; the attempted rollback then widened the disruption because the rollback tooling itself depends on Workers KV.",
+     "based_on": [
+      "DAN-017"
+     ],
+     "matches": "Same trigger (staged storage build rollout), same component (worldwide key-value store), same symptoms (authorization failures on reads/writes/removals/enumeration, static sites erroring, identity checks failing, edge workload publishing failing), same timing pattern (routing warnings ~15 minutes before broader disruption), and same rollback-worsens-impact behavior.",
+     "differs": "The current analyst did not explicitly state that traffic was routed to a staging build or an unauthorized endpoint, only that requests headed toward an unintended target; the exact build version mismatch is not confirmed.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "high"
+    },
+    {
+     "cause": "New storage credentials were deployed to the wrong environment during the build rollout, so the key-value store rejected all requests as unauthorized once the old credentials were removed or no longer matched.",
+     "based_on": [
+      "DAN-015"
+     ],
+     "matches": "Same component (key-based storage), same symptom (authorization failures on reads/writes), same kind of human error during a storage change (deploying to the wrong target/environment).",
+     "differs": "The current trigger is explicitly a fresh storage build rollout, not a credential rotation; there is no mention of old credentials being deleted or of a missing --env flag.",
+     "same_trigger": "no",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "low"
+    },
+    {
+     "cause": "A third-party backing store for the key-value service failed, causing cold reads and writes to be rejected globally while cached requests continued to work.",
+     "based_on": [
+      "DAN-139"
+     ],
+     "matches": "Same component (Workers KV key-value store), same symptoms (reads and writes failing globally, identity checks failing, some cached/established sessions still working).",
+     "differs": "The current incident has a clear staged build rollout as the trigger, whereas DAN-139 was caused by a third-party cloud provider failure with no build deployment involved.",
+     "same_trigger": "no",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "The analyst did not confirm whether the new build referenced a staging version or an unintended endpoint, or what the exact authorization error message is.",
+    "It is unclear whether any credential or secret change accompanied the build rollout.",
+    "We do not know if the rollback attempt itself failed because the rollback tooling depends on the same key-value store."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "low",
+   "low"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 19479,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "We suddenly have a surge of authorization failures.\n\nAnalyst answer: The errors are coming from our worldwide key-based data store. Web publishing, id",
+      "ids": [
+       "DAN-015",
+       "DAN-017",
+       "DAN-073",
+       "DAN-139",
+       "DAN-221",
+       "DAN-066",
+       "DAN-164",
+       "DAN-147",
+       "DAN-014",
+       "DAN-036"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "authorization failures worldwide key-value storage staged rollout routing unintended target",
+      "ids": [
+       "DAN-017",
+       "DAN-015",
+       "DAN-035",
+       "DAN-115",
+       "DAN-018",
+       "DAN-014",
+       "DAN-106",
+       "DAN-066",
+       "DAN-116",
+       "DAN-104"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "storage reads writes key enumeration unauthorized global data store rollback disruption",
+      "ids": [
+       "DAN-058",
+       "DAN-166",
+       "DAN-036",
+       "DAN-204",
+       "DAN-139",
+       "DAN-048",
+       "DAN-071",
+       "DAN-118",
+       "DAN-164",
+       "DAN-186"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause staging build rollout routing unauthorized endpoint 401 fix rollback",
+      "ids": [
+       "DAN-017"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-017"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-017"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause credential rotation wrong environment authentication failure R2 Gateway fix",
+      "ids": [
+       "DAN-015"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-015"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-015"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause Workers KV central data store outage cold reads writes fix third-party provider",
+      "ids": [
+       "DAN-139"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-139"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-139"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-017",
+      "deepened": true,
+      "title": "Cloudflare incident on October 30, 2023 | Cloudflare Blog"
+     },
+     {
+      "id": "DAN-015",
+      "deepened": true,
+      "title": "Cloudflare incident on March 21, 2025 | Cloudflare Blog"
+     },
+     {
+      "id": "DAN-139",
+      "deepened": true,
+      "title": "Cloudflare service outage June 12, 2025 | Cloudflare Blog"
+     },
+     {
+      "id": "DAN-073",
+      "deepened": false,
+      "title": "Outage report 7 July 2020 - PythonAnywhere News"
+     },
+     {
+      "id": "DAN-221",
+      "deepened": false,
+      "title": "Incident Summary: 2017–03–16. Authors: Erik Bourget, Toby Reyelts… | by Square Engineering | Square Corner Blog | Medium"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     },
+     {
+      "id": "DAN-164",
+      "deepened": false,
+      "title": "Postmortem of database outage of January 31"
+     },
+     {
+      "id": "DAN-147",
+      "deepened": false,
+      "title": "Duo Status - Authentication Latency on DUO1 Deployment"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A staged rollout of a new Workers KV build pointed production traffic at an unintended/unauthorized endpoint, causing global authorization failures on reads, writes, removals and key enumeration; the attempted rollback then widened the disruption because the rollback tooling itself depends on Workers KV.",
+       "based_on": [
+        "DAN-017"
+       ],
+       "matches": "Same trigger (staged storage build rollout), same component (worldwide key-value store), same symptoms (authorization failures on reads/writes/removals/enumeration, static sites erroring, identity checks failing, edge workload publishing failing), same timing pattern (routing warnings ~15 minutes before broader disruption), and same rollback-worsens-impact behavior.",
+       "differs": "The current analyst did not explicitly state that traffic was routed to a staging build or an unauthorized endpoint, only that requests headed toward an unintended target; the exact build version mismatch is not confirmed.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "high"
+      },
+      {
+       "cause": "New storage credentials were deployed to the wrong environment during the build rollout, so the key-value store rejected all requests as unauthorized once the old credentials were removed or no longer matched.",
+       "based_on": [
+        "DAN-015"
+       ],
+       "matches": "Same component (key-based storage), same symptom (authorization failures on reads/writes), same kind of human error during a storage change (deploying to the wrong target/environment).",
+       "differs": "The current trigger is explicitly a fresh storage build rollout, not a credential rotation; there is no mention of old credentials being deleted or of a missing --env flag.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "low"
+      },
+      {
+       "cause": "A third-party backing store for the key-value service failed, causing cold reads and writes to be rejected globally while cached requests continued to work.",
+       "based_on": [
+        "DAN-139"
+       ],
+       "matches": "Same component (Workers KV key-value store), same symptoms (reads and writes failing globally, identity checks failing, some cached/established sessions still working).",
+       "differs": "The current incident has a clear staged build rollout as the trigger, whereas DAN-139 was caused by a third-party cloud provider failure with no build deployment involved.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "The analyst did not confirm whether the new build referenced a staging version or an unintended endpoint, or what the exact authorization error message is.",
+      "It is unclear whether any credential or secret change accompanied the build rollout.",
+      "We do not know if the rollback attempt itself failed because the rollback tooling depends on the same key-value store."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "low",
+     "low"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 19479
+   }
+  ],
+  "seconds": 28
+ },
+ {
+  "case": "DAN-116",
+  "round": 1,
+  "hidden": [],
+  "description": "Groups of servers are dropping together.\n\nAnalyst answer: Our advertising gateway is down: it accepts requests, handles competitive bidding and delivers the selected creative. All traffic entering our advertising platform goes through it. We had started pushing a change from our internal data store to machines around the globe after it cleared the live-environment checks. We do not yet know whether that change explains the failures. It came on abruptly in the early evening UTC. Nearly a thousand instances at roughly half a dozen sites went down together; neither direct deals nor outside exchanges are getting ads delivered anywhere.",
+  "triage": {
+   "affected_service": "advertising gateway",
+   "trigger": "we had started pushing a change from our internal data store to machines around the globe after it cleared the live-environment checks",
+   "symptoms": [
+    "advertising gateway down",
+    "ads not being delivered anywhere"
+   ],
+   "category": null
+  },
+  "real_root_cause": "An old double-free bug in the ad auction and serving service was triggered by an internal database update that deleted a rarely changed in-memory object. The service used time-based memory reclamation, which deferred freeing the object's memory until a later time. A defect caused the object to be deleted twice, resulting in a crash when the deferred deletion executed. The production validation systems initially accepted the update because the deletion had been scheduled but had not yet executed. The validation process did not wait for the deferred deletion window to pass before authorizing distribution, so the faulty update reached the production servers worldwide before the delayed crashes became visible. Test coverage for this rarely changed portion of the data model was also incomplete.",
+  "findings": [
+   {
+    "id": "DAN-116",
+    "deepened": true,
+    "title": "2013–09–17 Outage Postmortem. On September 17, 2013 starting at 17:54… | by Xandr Engineering | Xandr-Tech | Medium"
+   },
+   {
+    "id": "DAN-001",
+    "deepened": false,
+    "title": "Postmortem — why Allegro went down | blog.allegro.tech"
+   },
+   {
+    "id": "DAN-007",
+    "deepened": false,
+    "title": "Cloudflare outage on June 21, 2022"
+   },
+   {
+    "id": "DAN-209",
+    "deepened": false,
+    "title": "Why Reddit was down on Aug 11 : announcements"
+   },
+   {
+    "id": "DAN-024",
+    "deepened": false,
+    "title": "Facebook Outage Deep Dive | ThousandEyes"
+   },
+   {
+    "id": "DAN-154",
+    "deepened": false,
+    "title": "Summary of June 8 outage | Fastly"
+   },
+   {
+    "id": "DAN-066",
+    "deepened": false,
+    "title": "A Byzantine failure in the real world"
+   },
+   {
+    "id": "DAN-023",
+    "deepened": false,
+    "title": "More details about the October 4 outage - Engineering at Meta"
+   }
+  ],
+  "right_incident_in_findings": true,
+  "right_incident_deepened": true,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "A data update from the internal data store triggered a latent bug in the advertising gateway (for example a double-free or unsafe deferred memory reclamation) that only manifests after a time delay, causing all gateway instances worldwide to crash together shortly after the change was pushed.",
+     "based_on": [
+      "DAN-116"
+     ],
+     "matches": "Same kind of trigger (a data/config change from an internal data store pushed globally after passing validation), same kind of component (advertising serving infrastructure that accepts requests, runs auctions/bidding and delivers creatives), same abrupt global symptom (roughly 1,000 instances at half a dozen sites down together, all ad delivery stopped), and same timing pattern (failure appeared after the change had been distributed, not instantly at push time).",
+     "differs": "The current analyst has not confirmed a crash, a memory bug, or that the change was a delete on a rarely-changed object; the past incident involved approximately 900 impression-bus servers and a specific double-free, while the current report describes groups of servers dropping without specifying the failure mode.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "high"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "The analyst did not report whether the gateway instances are crashing, returning errors, or becoming unresponsive, and no error messages or logs are provided.",
+    "It is unknown whether the pushed change was a data update, a configuration change, or a code deploy, and whether it contained a delete or modification of a rarely-changed object.",
+    "We do not know if the change passed through validation engines or canaries before the global push, or whether those validations would have caught a time-delayed bug."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 10115,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Groups of servers are dropping together.\n\nAnalyst answer: Our advertising gateway is down: it accepts requests, handles competitive bidding and delive",
+      "ids": [
+       "DAN-001",
+       "DAN-116",
+       "DAN-007",
+       "DAN-209",
+       "DAN-024",
+       "DAN-154",
+       "DAN-066",
+       "DAN-023",
+       "DAN-205",
+       "DAN-159"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "advertising gateway down global outage after config push rollout",
+      "ids": [
+       "DAN-154",
+       "DAN-037",
+       "DAN-029",
+       "DAN-007",
+       "DAN-031",
+       "DAN-001",
+       "DAN-015",
+       "DAN-014",
+       "DAN-013",
+       "DAN-209"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "ad creative bidding platform instances down sites worldwide",
+      "ids": [
+       "DAN-116",
+       "DAN-024",
+       "DAN-001",
+       "DAN-209",
+       "DAN-129",
+       "DAN-007",
+       "DAN-208",
+       "DAN-154",
+       "DAN-125",
+       "DAN-218"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause database update double free impression bus crash staging production delay fix rollback",
+      "ids": [
+       "DAN-116"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-116"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-116"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-116",
+      "deepened": true,
+      "title": "2013–09–17 Outage Postmortem. On September 17, 2013 starting at 17:54… | by Xandr Engineering | Xandr-Tech | Medium"
+     },
+     {
+      "id": "DAN-001",
+      "deepened": false,
+      "title": "Postmortem — why Allegro went down | blog.allegro.tech"
+     },
+     {
+      "id": "DAN-007",
+      "deepened": false,
+      "title": "Cloudflare outage on June 21, 2022"
+     },
+     {
+      "id": "DAN-209",
+      "deepened": false,
+      "title": "Why Reddit was down on Aug 11 : announcements"
+     },
+     {
+      "id": "DAN-024",
+      "deepened": false,
+      "title": "Facebook Outage Deep Dive | ThousandEyes"
+     },
+     {
+      "id": "DAN-154",
+      "deepened": false,
+      "title": "Summary of June 8 outage | Fastly"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     },
+     {
+      "id": "DAN-023",
+      "deepened": false,
+      "title": "More details about the October 4 outage - Engineering at Meta"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A data update from the internal data store triggered a latent bug in the advertising gateway (for example a double-free or unsafe deferred memory reclamation) that only manifests after a time delay, causing all gateway instances worldwide to crash together shortly after the change was pushed.",
+       "based_on": [
+        "DAN-116"
+       ],
+       "matches": "Same kind of trigger (a data/config change from an internal data store pushed globally after passing validation), same kind of component (advertising serving infrastructure that accepts requests, runs auctions/bidding and delivers creatives), same abrupt global symptom (roughly 1,000 instances at half a dozen sites down together, all ad delivery stopped), and same timing pattern (failure appeared after the change had been distributed, not instantly at push time).",
+       "differs": "The current analyst has not confirmed a crash, a memory bug, or that the change was a delete on a rarely-changed object; the past incident involved approximately 900 impression-bus servers and a specific double-free, while the current report describes groups of servers dropping without specifying the failure mode.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "high"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "The analyst did not report whether the gateway instances are crashing, returning errors, or becoming unresponsive, and no error messages or logs are provided.",
+      "It is unknown whether the pushed change was a data update, a configuration change, or a code deploy, and whether it contained a delete or modification of a rarely-changed object.",
+      "We do not know if the change passed through validation engines or canaries before the global push, or whether those validations would have caught a time-delayed bug."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 10115
+   }
+  ],
+  "seconds": 51
+ },
+ {
+  "case": "DAN-164",
+  "round": 1,
+  "hidden": [],
+  "description": "People can't open their code projects.\n\nAnalyst answer: It's our online workspace for software teams, running on Postgres with a main instance paired with a live replica. Synchronization had failed, so we were reconstructing the replica by hand. We tried taking a fresh physical copy and adjusted the limits for replication streams and client sessions. Database demand spiked in the evening; synchronization trouble emerged roughly four hours afterward, with widespread downtime about half an hour later. Our shared hosted offering is affected, whereas independent installations and dedicated customer deployments are working.",
+  "triage": {
+   "affected_service": "workspace",
+   "trigger": "Database demand spiked in the evening; we were reconstructing the Postgres replica by hand, took a fresh physical copy, and adjusted limits for replication streams and client sessions",
+   "symptoms": [
+    "users cannot open their code projects"
+   ],
+   "category": "Database"
+  },
+  "real_root_cause": "During manual recovery of the PostgreSQL standby, an engineer accidentally executed a data-directory removal operation on the primary database server instead of the secondary. The operation was stopped within seconds, but approximately 300 GB of production database data had already been removed. The repair work had been necessary because increased database load caused replication lag, and WAL segments required by the standby had already been removed from the primary without WAL archiving. The increased load involved both spam activity and a background process attempting to remove an employee account and its associated data after an erroneous abuse report. Recovery was severely complicated by unavailable backups: the logical backup job was using pg_dump 9.2 against PostgreSQL 9.6, causing the backups to fail. Failure notifications were rejected because the automated emails lacked the required DMARC configuration, leaving the team unaware of the problem. Database disk snapshots were not enabled, and the secondary had already been cleared during the replication repair. As a result, the team had to recover from an older LVM snapshot in staging, losing subsequent database modifications.",
+  "findings": [
+   {
+    "id": "DAN-164",
+    "deepened": true,
+    "title": "Postmortem of database outage of January 31"
+   },
+   {
+    "id": "DAN-186",
+    "deepened": true,
+    "title": "Instapaper Outage Cause & Recovery | by Brian Donohue | Making Instapaper | Medium"
+   },
+   {
+    "id": "DAN-094",
+    "deepened": true,
+    "title": "February service disruptions post-incident analysis - The GitHub Blog"
+   },
+   {
+    "id": "DAN-066",
+    "deepened": false,
+    "title": "A Byzantine failure in the real world"
+   },
+   {
+    "id": "DAN-078",
+    "deepened": false,
+    "title": "October 21 post-incident analysis - The GitHub Blog"
+   },
+   {
+    "id": "DAN-048",
+    "deepened": false,
+    "title": "The Day of the RDS Multi-AZ Failover - Razorpay Tech"
+   },
+   {
+    "id": "DAN-146",
+    "deepened": false,
+    "title": "Outage post-mortem | Dropbox Tech Blog"
+   },
+   {
+    "id": "DAN-217",
+    "deepened": false,
+    "title": "This was not normal. Really. | The Official Slack Blog"
+   }
+  ],
+  "right_incident_in_findings": true,
+  "right_incident_deepened": true,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "A spike in database demand caused PostgreSQL replication to break (WAL segments removed on the primary), and the manual replica rebuild using pg_basebackup failed because max_wal_senders / max_connections limits were too low, leaving the primary unable to serve the workspace.",
+     "based_on": [
+      "DAN-164"
+     ],
+     "matches": "Same component (PostgreSQL primary with live replica), same trigger pattern (evening database demand spike followed by replication trouble), same manual replica reconstruction with physical copy and adjusted replication/connection limits, same affected scope (shared hosted offering down while other deployments work).",
+     "differs": "The current analyst did not report an accidental deletion of the primary data directory or data loss; the current outage appears to be a service-wide inability to open projects rather than a six-hour restore with data loss.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "high"
+    },
+    {
+     "cause": "The adjusted limits for replication streams and client sessions were too low for the evening demand spike, exhausting replication connections or client slots and causing widespread database unavailability.",
+     "based_on": [
+      "DAN-094"
+     ],
+     "matches": "Same component (relational database cluster), same kind of change (adjusting database/process limits), same symptom pattern (high load leading to connection failures and downtime).",
+     "differs": "The past incident involved MySQL/ProxySQL with a silently capped file-descriptor limit, not PostgreSQL replication streams; the mechanism was connection exhaustion at the proxy layer, not replica rebuild failure.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "medium"
+    },
+    {
+     "cause": "A hosted-database limit (such as a file-size or connection ceiling) was reached during the evening demand spike, making the shared workspace database unusable while self-hosted and dedicated deployments remained unaffected.",
+     "based_on": [
+      "DAN-186"
+     ],
+     "matches": "Same affected scope (shared hosted offering down, independent installations working), same kind of component (hosted relational database), same trigger (demand growth hitting a limit).",
+     "differs": "The past incident was a MySQL RDS 2TB filesystem file-size limit on a bookmarks table, not PostgreSQL replication; no passage describes replication streams or client-session limits causing the failure.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "The exact PostgreSQL error messages from the primary and replica during the outage are unknown.",
+    "It is unclear whether the adjusted max_wal_senders / max_connections values were sufficient for the observed demand spike.",
+    "We do not know if WAL segments were removed from the primary before the replica rebuild, or if pg_basebackup failed due to insufficient replication connections.",
+    "The timeline between the demand spike, replication trouble, and widespread downtime needs confirmation."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "medium",
+   "low"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 17256,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "People can't open their code projects.\n\nAnalyst answer: It's our online workspace for software teams, running on Postgres with a main instance paired ",
+      "ids": [
+       "DAN-186",
+       "DAN-164",
+       "DAN-066",
+       "DAN-078",
+       "DAN-048",
+       "DAN-146",
+       "DAN-217",
+       "DAN-162",
+       "DAN-145",
+       "DAN-209"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "PostgreSQL replica synchronization failure causing widespread downtime shared hosted service",
+      "ids": [
+       "DAN-029",
+       "DAN-164",
+       "DAN-066",
+       "DAN-048",
+       "DAN-209",
+       "DAN-145",
+       "DAN-205",
+       "DAN-078",
+       "DAN-146",
+       "DAN-186"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "Postgres main instance live replica reconstruction physical copy replication stream limits client sessions",
+      "ids": [
+       "DAN-164",
+       "DAN-195",
+       "DAN-029",
+       "DAN-186",
+       "DAN-094",
+       "DAN-048",
+       "DAN-066",
+       "DAN-078",
+       "DAN-083",
+       "DAN-188"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "Postgres replication lag overload replica root cause fix recovery",
+      "ids": [
+       "DAN-164"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-164"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-164"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "hosted database limits reached migration recovery root cause",
+      "ids": [
+       "DAN-186"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-186"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-186"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "LimitNOFILE cap replication streams client sessions database overload root cause fix",
+      "ids": [
+       "DAN-094"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-094"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-094"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-164",
+      "deepened": true,
+      "title": "Postmortem of database outage of January 31"
+     },
+     {
+      "id": "DAN-186",
+      "deepened": true,
+      "title": "Instapaper Outage Cause & Recovery | by Brian Donohue | Making Instapaper | Medium"
+     },
+     {
+      "id": "DAN-094",
+      "deepened": true,
+      "title": "February service disruptions post-incident analysis - The GitHub Blog"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     },
+     {
+      "id": "DAN-078",
+      "deepened": false,
+      "title": "October 21 post-incident analysis - The GitHub Blog"
+     },
+     {
+      "id": "DAN-048",
+      "deepened": false,
+      "title": "The Day of the RDS Multi-AZ Failover - Razorpay Tech"
+     },
+     {
+      "id": "DAN-146",
+      "deepened": false,
+      "title": "Outage post-mortem | Dropbox Tech Blog"
+     },
+     {
+      "id": "DAN-217",
+      "deepened": false,
+      "title": "This was not normal. Really. | The Official Slack Blog"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A spike in database demand caused PostgreSQL replication to break (WAL segments removed on the primary), and the manual replica rebuild using pg_basebackup failed because max_wal_senders / max_connections limits were too low, leaving the primary unable to serve the workspace.",
+       "based_on": [
+        "DAN-164"
+       ],
+       "matches": "Same component (PostgreSQL primary with live replica), same trigger pattern (evening database demand spike followed by replication trouble), same manual replica reconstruction with physical copy and adjusted replication/connection limits, same affected scope (shared hosted offering down while other deployments work).",
+       "differs": "The current analyst did not report an accidental deletion of the primary data directory or data loss; the current outage appears to be a service-wide inability to open projects rather than a six-hour restore with data loss.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "high"
+      },
+      {
+       "cause": "The adjusted limits for replication streams and client sessions were too low for the evening demand spike, exhausting replication connections or client slots and causing widespread database unavailability.",
+       "based_on": [
+        "DAN-094"
+       ],
+       "matches": "Same component (relational database cluster), same kind of change (adjusting database/process limits), same symptom pattern (high load leading to connection failures and downtime).",
+       "differs": "The past incident involved MySQL/ProxySQL with a silently capped file-descriptor limit, not PostgreSQL replication streams; the mechanism was connection exhaustion at the proxy layer, not replica rebuild failure.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A hosted-database limit (such as a file-size or connection ceiling) was reached during the evening demand spike, making the shared workspace database unusable while self-hosted and dedicated deployments remained unaffected.",
+       "based_on": [
+        "DAN-186"
+       ],
+       "matches": "Same affected scope (shared hosted offering down, independent installations working), same kind of component (hosted relational database), same trigger (demand growth hitting a limit).",
+       "differs": "The past incident was a MySQL RDS 2TB filesystem file-size limit on a bookmarks table, not PostgreSQL replication; no passage describes replication streams or client-session limits causing the failure.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "The exact PostgreSQL error messages from the primary and replica during the outage are unknown.",
+      "It is unclear whether the adjusted max_wal_senders / max_connections values were sufficient for the observed demand spike.",
+      "We do not know if WAL segments were removed from the primary before the replica rebuild, or if pg_basebackup failed due to insufficient replication connections.",
+      "The timeline between the demand spike, replication trouble, and widespread downtime needs confirmation."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 17256
+   }
+  ],
+  "seconds": 46
+ },
+ {
+  "case": "DAN-004",
+  "round": 1,
+  "hidden": [],
+  "description": "Users say the page will not load.\n\nAnalyst answer: Our automated software integration system is affected. People cannot open the dashboard or launch build jobs. We still have no confirmed trigger. The failures surfaced as we were finishing a separate outage, and we are reviewing recent releases and infrastructure modifications. Trouble began shortly after midnight UTC. Our telemetry flagged poor performance roughly ten minutes later and kept showing it for about half an hour. Users cannot reach the dashboard or launch builds; several services are involved, but we have no reliable breakdown by region or affected user share.",
+  "triage": {
+   "affected_service": "automated software integration",
+   "trigger": null,
+   "symptoms": [
+    "page will not load",
+    "cannot open dashboard",
+    "cannot launch build jobs"
+   ],
+   "category": null
+  },
+  "real_root_cause": "An operator inadvertently modified a Web Application Firewall (WAF) rule while investigating routine security monitoring, believing the actions were read-only. A misconfiguration in IAM permissions allowed the operator's role to modify infrastructure directly, bypassing the standard Terraform deployment process. The modified rule blocked legitimate traffic to two CDN distributions serving the platform's web interface and API. Because the change occurred outside Terraform, investigators initially had no corresponding deployment record and did not prioritize investigating the WAF configuration. Automated Terraform drift detection eventually identified the unauthorized configuration difference approximately 80 minutes after the initial change.",
+  "findings": [
+   {
+    "id": "DAN-012",
+    "deepened": true,
+    "title": "Cloudflare outage on December 5, 2025 | Cloudflare Blog"
+   },
+   {
+    "id": "DAN-137",
+    "deepened": true,
+    "title": "Details of the Cloudflare outage on July 2, 2019"
+   },
+   {
+    "id": "DAN-017",
+    "deepened": true,
+    "title": "Cloudflare incident on October 30, 2023 | Cloudflare Blog"
+   },
+   {
+    "id": "DAN-004",
+    "deepened": true,
+    "title": "Post Incident Report: April 4, 2025 - CircleCI UI Loading & build triggering issues - Announcements - CircleCI Discuss"
+   },
+   {
+    "id": "DAN-133",
+    "deepened": true,
+    "title": "Postmortem: March 26 - April 10 Workflow Delay Incidents - Announcements - CircleCI Discuss"
+   },
+   {
+    "id": "DAN-102",
+    "deepened": true,
+    "title": "Intermittent failures - incident.io Status"
+   },
+   {
+    "id": "DAN-005",
+    "deepened": false,
+    "title": "Today's Outage Post Mortem"
+   },
+   {
+    "id": "DAN-205",
+    "deepened": false,
+    "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+   }
+  ],
+  "right_incident_in_findings": true,
+  "right_incident_deepened": true,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "A WAF or edge configuration change (possibly made outside the normal deployment pipeline) began blocking legitimate traffic to the CI/CD dashboard and build services, causing the page to fail to load and builds to be unlaunchable.",
+     "based_on": [
+      "DAN-004"
+     ],
+     "matches": "Same affected service kind (automated software integration / CI/CD), same symptoms (dashboard unreachable, cannot launch build jobs), same timing pattern (trouble began shortly after midnight UTC, degraded performance flagged ~10 minutes later and lasted ~30 minutes), same context (reviewing recent releases and infrastructure modifications, occurring while finishing a separate unrelated outage).",
+     "differs": "The current analyst reports no known trigger, whereas DAN-004 had an operator manually modifying WAF outside Terraform; the current incident's component breakdown by region or user share is unknown.",
+     "same_trigger": "unknown",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "medium"
+    },
+    {
+     "cause": "A global configuration or ruleset change propagated without a gradual rollout and triggered an exception in the proxy/rules layer, returning HTTP 500 errors and making the dashboard and build API unreachable.",
+     "based_on": [
+      "DAN-012"
+     ],
+     "matches": "Same symptom pattern (page will not load, services failing at once), same kind of trigger (infrastructure/configuration change), similar short impact window (~25-30 minutes), multi-service impact.",
+     "differs": "DAN-012 was a public edge/CDN WAF affecting customer traffic, while the current incident is an internal CI/CD dashboard; the current analyst has not confirmed any config change or HTTP 500 errors.",
+     "same_trigger": "unknown",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "medium"
+    },
+    {
+     "cause": "A deployment tool bug routed production traffic to a stale or staging build, causing cascading failures across multiple CI/CD services including the dashboard and build launcher.",
+     "based_on": [
+      "DAN-017"
+     ],
+     "matches": "Same affected service kind (CI/CD), same context (reviewing recent releases), multi-service cascading failure, dashboard and build-related capabilities impacted.",
+     "differs": "DAN-017 returned HTTP 401 errors from an unauthorized endpoint and involved a specific deployment tool referencing a staging build; the current analyst reports no confirmed trigger and no 401 errors.",
+     "same_trigger": "unknown",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "medium"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "No confirmed trigger or recent change is known for the current incident.",
+    "No error messages or HTTP status codes are reported (e.g., 500, 401, CORS, TLS).",
+    "No breakdown by region, affected user share, or specific failing service is available.",
+    "It is unclear whether WAF, edge, or proxy configuration exists in front of the current CI/CD services."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "medium",
+   "medium"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 29587,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Users say the page will not load.\n\nAnalyst answer: Our automated software integration system is affected. People cannot open the dashboard or launch b",
+      "ids": [
+       "DAN-066",
+       "DAN-154",
+       "DAN-129",
+       "DAN-208",
+       "DAN-102",
+       "DAN-218",
+       "DAN-029",
+       "DAN-180",
+       "DAN-035",
+       "DAN-004"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "page will not load cannot open dashboard cannot launch build jobs automated software integration system",
+      "ids": [
+       "DAN-129",
+       "DAN-017",
+       "DAN-125",
+       "DAN-208",
+       "DAN-164",
+       "DAN-066",
+       "DAN-029",
+       "DAN-218",
+       "DAN-135",
+       "DAN-004"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "CI CD dashboard build jobs outage midnight UTC poor performance telemetry recent releases infrastructure changes",
+      "ids": [
+       "DAN-133",
+       "DAN-091",
+       "DAN-056",
+       "DAN-209",
+       "DAN-125",
+       "DAN-222",
+       "DAN-029",
+       "DAN-055",
+       "DAN-211",
+       "DAN-004"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause WAF change blocking traffic dashboard UI build triggering fix rollback Terraform",
+      "ids": [
+       "DAN-004"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-004"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-004"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause JVM upgrade thread connection pools MongoDB build queue workflow delay fix",
+      "ids": [
+       "DAN-133"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-133"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-133"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause Postgres PGAudit migration locks blocked dashboard API fix remove PGAudit restart",
+      "ids": [
+       "DAN-102"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-102"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-102"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-004",
+      "deepened": true,
+      "title": "Post Incident Report: April 4, 2025 - CircleCI UI Loading & build triggering issues - Announcements - CircleCI Discuss"
+     },
+     {
+      "id": "DAN-133",
+      "deepened": true,
+      "title": "Postmortem: March 26 - April 10 Workflow Delay Incidents - Announcements - CircleCI Discuss"
+     },
+     {
+      "id": "DAN-102",
+      "deepened": true,
+      "title": "Intermittent failures - incident.io Status"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     },
+     {
+      "id": "DAN-154",
+      "deepened": false,
+      "title": "Summary of June 8 outage | Fastly"
+     },
+     {
+      "id": "DAN-129",
+      "deepened": false,
+      "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef"
+     },
+     {
+      "id": "DAN-208",
+      "deepened": false,
+      "title": "Technical post-mortem of the August incident | by Florian Margaine | Medium"
+     },
+     {
+      "id": "DAN-218",
+      "deepened": false,
+      "title": "Slack’s Outage on January 4th 2021 |  Engineering at Slack"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "An out-of-band infrastructure change (for example a WAF or edge rule modified outside the normal deployment pipeline) began blocking legitimate traffic to the dashboard and build APIs, so users cannot load the page or start jobs.",
+       "based_on": [
+        "DAN-004"
+       ],
+       "matches": "Same affected service kind (automated software integration / CI/CD), same symptoms (dashboard unreachable and build jobs cannot be launched), same timing pattern (trouble began shortly after midnight UTC while finishing a separate outage), and same context (team reviewing recent releases and infrastructure modifications).",
+       "differs": "The current analyst reports no known trigger, whereas DAN-004 had a specific WAF change made by an operator outside Terraform; the current incident does not mention CloudFront, CORS errors, or drift detection.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A recent release or minor-version upgrade (for example a JVM or runtime change) silently reduced service capacity or thread/connection pools, causing the dashboard and build services to fail under load.",
+       "based_on": [
+        "DAN-133"
+       ],
+       "matches": "Same affected service kind (CI/CD), same symptom area (build jobs affected), and same context (reviewing recent releases).",
+       "differs": "DAN-133 involved slowdowns and queue backups over two weeks rather than a sudden total inability to load the page shortly after midnight; the current incident has no confirmed release or JVM change.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A database change or extension interaction (for example after a Postgres upgrade) locked or blocked the database that backs the dashboard and API, making the page fail to load across multiple services.",
+       "based_on": [
+        "DAN-102"
+       ],
+       "matches": "Same symptom (dashboard/API unreachable) and same context (reviewing recent releases/upgrades).",
+       "differs": "DAN-102 involved a specific Postgres/PGAudit lock after a migration, with a hard 2-minute outage; the current incident involves a CI/CD system with build jobs, no database change is known, and the degradation lasted about 30 minutes.",
+       "same_trigger": "unknown",
+       "same_component": "no",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": false,
+     "gaps": [
+      "No confirmed trigger or recent change is known for the current incident.",
+      "No error messages, logs, or component-level breakdown are available.",
+      "It is unclear whether an edge/WAF layer, a release, or a database is involved."
+     ],
+     "next_step": "refine_search",
+     "search_request": "CI/CD dashboard and build jobs unreachable after infrastructure change WAF edge rule blocked traffic",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 16653
+   },
+   {
+    "research_round": 2,
+    "request": "CI/CD dashboard and build jobs unreachable after infrastructure change WAF edge rule blocked traffic",
+    "research_warnings": [],
+    "research_llm_calls": 1,
+    "searches": [
+     {
+      "step": "initial_search",
+      "query": "CI/CD dashboard and build jobs unreachable after infrastructure change WAF edge rule blocked traffic",
+      "ids": [
+       "DAN-012",
+       "DAN-005",
+       "DAN-137",
+       "DAN-017",
+       "DAN-018",
+       "DAN-015",
+       "DAN-027",
+       "DAN-143",
+       "DAN-067",
+       "DAN-011"
+      ]
+     },
+     {
+      "step": "initial_search",
+      "query": "Users say the page will not load.\n\nAnalyst answer: Our automated software integration system is affected. People cannot open the dashboard or launch b",
+      "ids": [
+       "DAN-205",
+       "DAN-211",
+       "DAN-217",
+       "DAN-092",
+       "DAN-070",
+       "DAN-135",
+       "DAN-037",
+       "DAN-106",
+       "DAN-008",
+       "DAN-219"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "WAF configuration change rulesets module Lua exception HTTP 500 rollback gradual rollout fix",
+      "ids": [
+       "DAN-012"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-012"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-012"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "WAF rule regular expression backtracking CPU exhaustion deployed to production fix disable rule",
+      "ids": [
+       "DAN-137"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-137"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-137"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "deployment tool bug staging build version HTTP 401 cascading failures rollback fix",
+      "ids": [
+       "DAN-017"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-017"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-017"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-012",
+      "deepened": true,
+      "title": "Cloudflare outage on December 5, 2025 | Cloudflare Blog"
+     },
+     {
+      "id": "DAN-137",
+      "deepened": true,
+      "title": "Details of the Cloudflare outage on July 2, 2019"
+     },
+     {
+      "id": "DAN-017",
+      "deepened": true,
+      "title": "Cloudflare incident on October 30, 2023 | Cloudflare Blog"
+     },
+     {
+      "id": "DAN-004",
+      "deepened": true,
+      "title": "Post Incident Report: April 4, 2025 - CircleCI UI Loading & build triggering issues - Announcements - CircleCI Discuss"
+     },
+     {
+      "id": "DAN-133",
+      "deepened": true,
+      "title": "Postmortem: March 26 - April 10 Workflow Delay Incidents - Announcements - CircleCI Discuss"
+     },
+     {
+      "id": "DAN-102",
+      "deepened": true,
+      "title": "Intermittent failures - incident.io Status"
+     },
+     {
+      "id": "DAN-005",
+      "deepened": false,
+      "title": "Today's Outage Post Mortem"
+     },
+     {
+      "id": "DAN-205",
+      "deepened": false,
+      "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A WAF or edge configuration change (possibly made outside the normal deployment pipeline) began blocking legitimate traffic to the CI/CD dashboard and build services, causing the page to fail to load and builds to be unlaunchable.",
+       "based_on": [
+        "DAN-004"
+       ],
+       "matches": "Same affected service kind (automated software integration / CI/CD), same symptoms (dashboard unreachable, cannot launch build jobs), same timing pattern (trouble began shortly after midnight UTC, degraded performance flagged ~10 minutes later and lasted ~30 minutes), same context (reviewing recent releases and infrastructure modifications, occurring while finishing a separate unrelated outage).",
+       "differs": "The current analyst reports no known trigger, whereas DAN-004 had an operator manually modifying WAF outside Terraform; the current incident's component breakdown by region or user share is unknown.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A global configuration or ruleset change propagated without a gradual rollout and triggered an exception in the proxy/rules layer, returning HTTP 500 errors and making the dashboard and build API unreachable.",
+       "based_on": [
+        "DAN-012"
+       ],
+       "matches": "Same symptom pattern (page will not load, services failing at once), same kind of trigger (infrastructure/configuration change), similar short impact window (~25-30 minutes), multi-service impact.",
+       "differs": "DAN-012 was a public edge/CDN WAF affecting customer traffic, while the current incident is an internal CI/CD dashboard; the current analyst has not confirmed any config change or HTTP 500 errors.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A deployment tool bug routed production traffic to a stale or staging build, causing cascading failures across multiple CI/CD services including the dashboard and build launcher.",
+       "based_on": [
+        "DAN-017"
+       ],
+       "matches": "Same affected service kind (CI/CD), same context (reviewing recent releases), multi-service cascading failure, dashboard and build-related capabilities impacted.",
+       "differs": "DAN-017 returned HTTP 401 errors from an unauthorized endpoint and involved a specific deployment tool referencing a staging build; the current analyst reports no confirmed trigger and no 401 errors.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "No confirmed trigger or recent change is known for the current incident.",
+      "No error messages or HTTP status codes are reported (e.g., 500, 401, CORS, TLS).",
+      "No breakdown by region, affected user share, or specific failing service is available.",
+      "It is unclear whether WAF, edge, or proxy configuration exists in front of the current CI/CD services."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium",
+     "medium"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 29587
+   }
+  ],
+  "seconds": 83
+ },
+ {
+  "case": "DAN-121",
+  "round": 1,
+  "hidden": [],
+  "description": "Media playback keeps breaking.\n\nAnalyst answer: The backend that supplies details about shows and short segments is struggling, while a group of common cache hosts has independently gone offline. Our media clients and various web features depend on these systems. Nothing immediately beforehand stands out so far. We cannot tie the onset to a rollout, an administrative action or an adjustment to settings. It began midmorning with an abrupt jump in database demand and a cache outage at nearly the same moment. People using our media clients or web offerings on various devices are having trouble, notably those using legacy clients; we cannot quantify the audience impacted.",
+  "triage": {
+   "affected_service": "media",
+   "trigger": null,
+   "symptoms": [
+    "media playback keeps breaking",
+    "backend supplying details about shows and short segments is struggling",
+    "common cache hosts have gone offline",
+    "abrupt jump in database demand"
+   ],
+   "category": null
+  },
+  "real_root_cause": "The definitive root causes were not established in the published post-mortem. The incident involved two nearly simultaneous problems: a sharp increase in database load that caused metadata requests to fail, and a separate caching-pool failure affecting multiple website products. The source of the additional database load was difficult to isolate, and forensic investigation of the recurring caching failure was still ongoing. The post-mortem does not establish whether the two failures were related.",
+  "findings": [
+   {
+    "id": "DAN-109",
+    "deepened": true,
+    "title": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region"
+   },
+   {
+    "id": "DAN-098",
+    "deepened": true,
+    "title": "Addressing GitHub’s recent availability issues - The GitHub Blog — Two popular client apps had been quietly increasing read traffic 10×, then a Saturday change shortened a..."
+   },
+   {
+    "id": "DAN-145",
+    "deepened": true,
+    "title": "Discord Status - Unavailable Guilds & Connection Issues"
+   },
+   {
+    "id": "DAN-121",
+    "deepened": true,
+    "title": "BBC Blogs - Technology + Creativity at the BBC - BBC Online outage on Saturday 19th July 2014"
+   },
+   {
+    "id": "DAN-066",
+    "deepened": false,
+    "title": "A Byzantine failure in the real world"
+   },
+   {
+    "id": "DAN-154",
+    "deepened": false,
+    "title": "Summary of June 8 outage | Fastly"
+   },
+   {
+    "id": "DAN-073",
+    "deepened": false,
+    "title": "Outage report 7 July 2020 - PythonAnywhere News"
+   },
+   {
+    "id": "DAN-208",
+    "deepened": false,
+    "title": "Technical post-mortem of the August incident | by Florian Margaine | Medium"
+   }
+  ],
+  "right_incident_in_findings": true,
+  "right_incident_deepened": true,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "A sudden spike in database demand overwhelmed the metadata backend that supplies show and segment details, while the same load or a related failure caused common cache hosts to go offline, cascading into media playback failures for clients and web features.",
+     "based_on": [
+      "DAN-109",
+      "DAN-121"
+     ],
+     "matches": "Both past incidents show an abrupt database/metadata load spike coinciding with cache/storage hosts going offline, with no rollout or settings change tied to onset, and media or client-facing playback features affected.",
+     "differs": "DAN-109 was triggered by a network disruption causing storage nodes to fail and retry; DAN-121 involved a known database backend overload with cache responses unavailable. The current incident has no identified trigger and the exact relationship between the database spike and cache outage is not yet known.",
+     "same_trigger": "unknown",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "medium"
+    },
+    {
+     "cause": "A cache host failure or coordinated cache outage forced clients to bypass the cache and hit the metadata database directly, causing an abrupt jump in database demand that then overwhelmed the backend serving show and segment details.",
+     "based_on": [
+      "DAN-098"
+     ],
+     "matches": "DAN-098 shows a cache TTL change causing cache rewrites plus read load that overwhelmed a database cluster, cascading to clients and services.",
+     "differs": "DAN-098 was preceded by a deliberate TTL change and client app traffic growth; the current incident has no known change before onset, and the cache hosts went offline independently rather than being overwhelmed by rewrite traffic.",
+     "same_trigger": "no",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "medium"
+    },
+    {
+     "cause": "An automatic infrastructure event (such as a node migration or failover) caused common cache hosts to drop offline, and the resulting failover/rebalance behavior in API or media instances cascaded into database overload and media playback failures.",
+     "based_on": [
+      "DAN-145"
+     ],
+     "matches": "DAN-145 shows cache hosts going offline and a cascading failure through API services affecting clients.",
+     "differs": "DAN-145 was triggered by an automatic cloud platform migration; the current incident has no known infrastructure event or migration before onset.",
+     "same_trigger": "no",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "No known trigger or change before the incident onset.",
+    "Unclear whether the database demand spike caused the cache outage, the cache outage caused the database spike, or both were caused by a third event.",
+    "No specific error messages or logs from the metadata backend or cache hosts.",
+    "Unclear which devices or client versions are affected beyond 'legacy clients'."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "medium",
+   "low"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 23301,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Media playback keeps breaking.\n\nAnalyst answer: The backend that supplies details about shows and short segments is struggling, while a group of commo",
+      "ids": [
+       "DAN-029",
+       "DAN-121",
+       "DAN-129",
+       "DAN-008",
+       "DAN-220",
+       "DAN-209",
+       "DAN-183",
+       "DAN-205",
+       "DAN-001",
+       "DAN-147"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "media playback failure backend database demand spike cache hosts offline",
+      "ids": [
+       "DAN-164",
+       "DAN-181",
+       "DAN-129",
+       "DAN-147",
+       "DAN-156",
+       "DAN-029",
+       "DAN-094",
+       "DAN-121",
+       "DAN-130",
+       "DAN-221"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "content backend struggling cache outage sudden database load media clients web features",
+      "ids": [
+       "DAN-129",
+       "DAN-164",
+       "DAN-181",
+       "DAN-219",
+       "DAN-098",
+       "DAN-029",
+       "DAN-121",
+       "DAN-156",
+       "DAN-008",
+       "DAN-148"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "database overload cache failure root cause fix",
+      "ids": [
+       "DAN-121"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-121"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-121"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-121",
+      "deepened": true,
+      "title": "BBC Blogs - Technology + Creativity at the BBC - BBC Online outage on Saturday 19th July 2014"
+     },
+     {
+      "id": "DAN-029",
+      "deepened": false,
+      "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+     },
+     {
+      "id": "DAN-129",
+      "deepened": false,
+      "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef"
+     },
+     {
+      "id": "DAN-008",
+      "deepened": false,
+      "title": "Partial Cloudflare outage on October 25, 2022"
+     },
+     {
+      "id": "DAN-220",
+      "deepened": false,
+      "title": "Incident Management at Spotify | Spotify Engineering"
+     },
+     {
+      "id": "DAN-209",
+      "deepened": false,
+      "title": "Why Reddit was down on Aug 11 : announcements"
+     },
+     {
+      "id": "DAN-183",
+      "deepened": false,
+      "title": "Clouds, caches and connection conundrums | Blog | incident.io"
+     },
+     {
+      "id": "DAN-205",
+      "deepened": false,
+      "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A sudden spike in database demand overwhelmed the metadata backend that supplies show and segment details, causing it to throttle or fail; the cache hosts then went offline because they could not serve or refresh the metadata, so media clients and web features lost playback.",
+       "based_on": [
+        "DAN-121"
+       ],
+       "matches": "Same affected service kind (media playback), same component kind (metadata/database backend plus cache layer), same symptom pattern (abrupt database demand spike, cache hosts offline, clients and web features failing, legacy clients notably affected), and same timing (abrupt onset midmorning with no known preceding change).",
+       "differs": "The current analyst reports cache hosts going offline independently, whereas in the past incident the cache failure was a consequence of database overload; no passage confirms the exact root cause of the current spike, and the current incident does not mention a data-centre failover or hot-hot configuration.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A shared infrastructure fault (for example network or platform saturation) simultaneously spiked database demand and knocked cache hosts offline, producing a cascading failure across media clients and web features.",
+       "based_on": [
+        "DAN-183"
+       ],
+       "matches": "Same symptom combination (database demand spike plus cache errors at nearly the same moment) and same affected service kind (media clients and web features).",
+       "differs": "The past incident involved a specific cloud dataplane agent saturating CPU and dropping packets, which is not described in the current incident; no network or platform change is known before the current failure, so the trigger kind cannot be confirmed as the same.",
+       "same_trigger": "unknown",
+       "same_component": "no",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": false,
+     "gaps": [
+      "No known trigger or change before the onset, so we cannot confirm whether the database spike was caused by a deploy, config change, traffic surge, or something else.",
+      "It is unclear whether the cache hosts went offline because of the database overload or from an independent cause.",
+      "No error messages or logs are provided to distinguish between database overload, cache failure, or a shared infrastructure fault.",
+      "The extent of the impact and which legacy clients are affected is not quantified."
+     ],
+     "next_step": "refine_search",
+     "search_request": "media metadata database overload cache hosts offline abrupt spike playback breaking",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "low"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 7633
+   },
+   {
+    "research_round": 2,
+    "request": "media metadata database overload cache hosts offline abrupt spike playback breaking",
+    "research_warnings": [],
+    "research_llm_calls": 1,
+    "searches": [
+     {
+      "step": "initial_search",
+      "query": "media metadata database overload cache hosts offline abrupt spike playback breaking",
+      "ids": [
+       "DAN-109",
+       "DAN-180",
+       "DAN-221",
+       "DAN-194",
+       "DAN-107",
+       "DAN-195",
+       "DAN-043",
+       "DAN-208",
+       "DAN-073",
+       "DAN-112"
+      ]
+     },
+     {
+      "step": "initial_search",
+      "query": "Media playback keeps breaking.\n\nAnalyst answer: The backend that supplies details about shows and short segments is struggling, while a group of commo",
+      "ids": [
+       "DAN-145",
+       "DAN-066",
+       "DAN-154",
+       "DAN-109",
+       "DAN-098",
+       "DAN-073",
+       "DAN-208",
+       "DAN-221",
+       "DAN-023",
+       "DAN-204"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "metadata service load storage nodes shut themselves down retry loop root cause fix",
+      "ids": [
+       "DAN-109"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-109"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-109"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "cache TTL change read traffic spike database overload cascading fix clients",
+      "ids": [
+       "DAN-098"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-098"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-098"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "Redis primary node dropped offline cluster rebalance cascading failover fix",
+      "ids": [
+       "DAN-145"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-145"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-145"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-109",
+      "deepened": true,
+      "title": "Summary of the Amazon DynamoDB Service Disruption and Related Impacts in the US-East Region"
+     },
+     {
+      "id": "DAN-098",
+      "deepened": true,
+      "title": "Addressing GitHub’s recent availability issues - The GitHub Blog — Two popular client apps had been quietly increasing read traffic 10×, then a Saturday change shortened a..."
+     },
+     {
+      "id": "DAN-145",
+      "deepened": true,
+      "title": "Discord Status - Unavailable Guilds & Connection Issues"
+     },
+     {
+      "id": "DAN-121",
+      "deepened": true,
+      "title": "BBC Blogs - Technology + Creativity at the BBC - BBC Online outage on Saturday 19th July 2014"
+     },
+     {
+      "id": "DAN-066",
+      "deepened": false,
+      "title": "A Byzantine failure in the real world"
+     },
+     {
+      "id": "DAN-154",
+      "deepened": false,
+      "title": "Summary of June 8 outage | Fastly"
+     },
+     {
+      "id": "DAN-073",
+      "deepened": false,
+      "title": "Outage report 7 July 2020 - PythonAnywhere News"
+     },
+     {
+      "id": "DAN-208",
+      "deepened": false,
+      "title": "Technical post-mortem of the August incident | by Florian Margaine | Medium"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A sudden spike in database demand overwhelmed the metadata backend that supplies show and segment details, while the same load or a related failure caused common cache hosts to go offline, cascading into media playback failures for clients and web features.",
+       "based_on": [
+        "DAN-109",
+        "DAN-121"
+       ],
+       "matches": "Both past incidents show an abrupt database/metadata load spike coinciding with cache/storage hosts going offline, with no rollout or settings change tied to onset, and media or client-facing playback features affected.",
+       "differs": "DAN-109 was triggered by a network disruption causing storage nodes to fail and retry; DAN-121 involved a known database backend overload with cache responses unavailable. The current incident has no identified trigger and the exact relationship between the database spike and cache outage is not yet known.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A cache host failure or coordinated cache outage forced clients to bypass the cache and hit the metadata database directly, causing an abrupt jump in database demand that then overwhelmed the backend serving show and segment details.",
+       "based_on": [
+        "DAN-098"
+       ],
+       "matches": "DAN-098 shows a cache TTL change causing cache rewrites plus read load that overwhelmed a database cluster, cascading to clients and services.",
+       "differs": "DAN-098 was preceded by a deliberate TTL change and client app traffic growth; the current incident has no known change before onset, and the cache hosts went offline independently rather than being overwhelmed by rewrite traffic.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "An automatic infrastructure event (such as a node migration or failover) caused common cache hosts to drop offline, and the resulting failover/rebalance behavior in API or media instances cascaded into database overload and media playback failures.",
+       "based_on": [
+        "DAN-145"
+       ],
+       "matches": "DAN-145 shows cache hosts going offline and a cascading failure through API services affecting clients.",
+       "differs": "DAN-145 was triggered by an automatic cloud platform migration; the current incident has no known infrastructure event or migration before onset.",
+       "same_trigger": "no",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "No known trigger or change before the incident onset.",
+      "Unclear whether the database demand spike caused the cache outage, the cache outage caused the database spike, or both were caused by a third event.",
+      "No specific error messages or logs from the metadata backend or cache hosts.",
+      "Unclear which devices or client versions are affected beyond 'legacy clients'."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 23301
+   }
+  ],
+  "seconds": 64
+ },
+ {
+  "case": "DAN-154",
+  "round": 1,
+  "hidden": [],
+  "description": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is producing errors. We have not established whether anything changed just beforehand. Failures appeared abruptly in the morning UTC, and alerts followed almost immediately. Most of our worldwide infrastructure is affected, along with clients and their end users. Errors are coming back from the vast majority of our network worldwide. Our alerts corroborate the broad impact.",
+  "triage": {
+   "affected_service": "edge",
+   "trigger": null,
+   "symptoms": [
+    "widespread errors on edge infrastructure",
+    "more than 75% of edge infrastructure producing errors"
+   ],
+   "category": null
+  },
+  "real_root_cause": "A previously undiscovered software bug had been introduced during an earlier software deployment. The bug could be triggered by a specific customer configuration under specific circumstances. A customer pushed a valid configuration change that met those conditions, triggering the bug and causing 85% of the global network to return errors.",
+  "findings": [
+   {
+    "id": "DAN-137",
+    "deepened": true,
+    "title": "Details of the Cloudflare outage on July 2, 2019"
+   },
+   {
+    "id": "DAN-007",
+    "deepened": true,
+    "title": "Cloudflare outage on June 21, 2022"
+   },
+   {
+    "id": "DAN-023",
+    "deepened": true,
+    "title": "More details about the October 4 outage - Engineering at Meta"
+   },
+   {
+    "id": "DAN-154",
+    "deepened": true,
+    "title": "Summary of June 8 outage | Fastly"
+   },
+   {
+    "id": "DAN-005",
+    "deepened": true,
+    "title": "Today's Outage Post Mortem"
+   },
+   {
+    "id": "DAN-011",
+    "deepened": true,
+    "title": "Cloudflare outage on November 18, 2025 | Cloudflare Blog"
+   },
+   {
+    "id": "DAN-031",
+    "deepened": false,
+    "title": "Google Cloud Status Dashboard — A bad config (autogenerated) removed all Google Compute Engine IP blocks from BGP announcements"
+   },
+   {
+    "id": "DAN-019",
+    "deepened": false,
+    "title": "Route leak incident on January 22, 2026 | Cloudflare Blog"
+   }
+  ],
+  "right_incident_in_findings": true,
+  "right_incident_deepened": true,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "A valid configuration change triggered a latent software bug in the edge network, causing the vast majority of edge nodes to return errors abruptly and globally.",
+     "based_on": [
+      "DAN-154"
+     ],
+     "matches": "Same component (edge/CDN content delivery network), same symptom (85% of network returning errors, abrupt onset in the morning UTC, global impact), and same pattern (a configuration change surfacing an undiscovered bug).",
+     "differs": "The current analyst reports no known change right before the failure, whereas the Fastly outage was triggered by a customer configuration change; the current incident's trigger is unknown.",
+     "same_trigger": "unknown",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "medium"
+    },
+    {
+     "cause": "A bad router configuration rule propagated to edge routers caused them to crash or fail, taking down the edge network worldwide.",
+     "based_on": [
+      "DAN-005"
+     ],
+     "matches": "Same component (edge routers), same symptom (abrupt widespread edge infrastructure errors, global impact, morning UTC onset), and same pattern (a configuration change causing edge routers to fail).",
+     "differs": "The current analyst reports no known change right before the failure, whereas the Cloudflare outage was caused by an ops team adding a packet-drop rule to edge routers; the current incident's trigger is unknown.",
+     "same_trigger": "unknown",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "medium"
+    },
+    {
+     "cause": "A configuration change to BGP routing policies removed prefix advertisements, causing edge locations to lose connectivity and produce errors globally.",
+     "based_on": [
+      "DAN-007"
+     ],
+     "matches": "Same component (edge infrastructure / datacenter networking), same symptom (widespread errors across many locations, abrupt onset), and same pattern (a configuration change to routing policies causing widespread impact).",
+     "differs": "The past incident affected 19 datacenters (4% of network) rather than over 75% of worldwide edge infrastructure; the current analyst reports no known change right before the failure.",
+     "same_trigger": "unknown",
+     "same_component": "yes",
+     "same_mechanism": "no",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "The current analyst reports no known change right before the failure, so we cannot confirm whether a configuration change, deploy, or other trigger preceded the errors.",
+    "We do not know the specific error messages or error codes being returned by the edge infrastructure.",
+    "We do not know whether the edge infrastructure uses BGP routing, router rules, or a software configuration system similar to the past incidents."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "medium",
+   "low"
+  ],
+  "diagnosis_turns": 2,
+  "prompt_chars": 29947,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is prod",
+      "ids": [
+       "DAN-106",
+       "DAN-020",
+       "DAN-205",
+       "DAN-154",
+       "DAN-078",
+       "DAN-006",
+       "DAN-037",
+       "DAN-116",
+       "DAN-184",
+       "DAN-183"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "widespread errors edge infrastructure global majority",
+      "ids": [
+       "DAN-106",
+       "DAN-189",
+       "DAN-067",
+       "DAN-020",
+       "DAN-116",
+       "DAN-006",
+       "DAN-191",
+       "DAN-183",
+       "DAN-209",
+       "DAN-037"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "edge CDN sudden global outage high error rate abrupt",
+      "ids": [
+       "DAN-011",
+       "DAN-008",
+       "DAN-106",
+       "DAN-209",
+       "DAN-005",
+       "DAN-016",
+       "DAN-205",
+       "DAN-007",
+       "DAN-188",
+       "DAN-148"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause fix global edge CDN outage configuration change software bug",
+      "ids": [
+       "DAN-154"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-154"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-154"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause fix edge routers crash bad config global outage",
+      "ids": [
+       "DAN-005"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-005"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-005"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause fix permissions change file output systemwide outage Cloudflare network",
+      "ids": [
+       "DAN-011"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-011"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-011"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-154",
+      "deepened": true,
+      "title": "Summary of June 8 outage | Fastly"
+     },
+     {
+      "id": "DAN-005",
+      "deepened": true,
+      "title": "Today's Outage Post Mortem"
+     },
+     {
+      "id": "DAN-011",
+      "deepened": true,
+      "title": "Cloudflare outage on November 18, 2025 | Cloudflare Blog"
+     },
+     {
+      "id": "DAN-106",
+      "deepened": false,
+      "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+     },
+     {
+      "id": "DAN-020",
+      "deepened": false,
+      "title": "2020-09-25 Incident: Infrastructure connectivity issue impacting multiple systems | Datadog"
+     },
+     {
+      "id": "DAN-205",
+      "deepened": false,
+      "title": "Outage Post-Mortem – April 13, 2013 | PagerDuty"
+     },
+     {
+      "id": "DAN-078",
+      "deepened": false,
+      "title": "October 21 post-incident analysis - The GitHub Blog"
+     },
+     {
+      "id": "DAN-006",
+      "deepened": false,
+      "title": "Cloudflare outage on July 17, 2020"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A valid configuration change pushed to the edge network triggered a latent software bug, causing most edge nodes to return errors simultaneously.",
+       "based_on": [
+        "DAN-154"
+       ],
+       "matches": "Same kind of component (global edge/CDN network delivering content), same abrupt worldwide symptom (>75% of network returning errors), same timing pattern (morning UTC onset with immediate alerts).",
+       "differs": "The current analyst reports no known change right before the failure, whereas DAN-154 was triggered by a valid customer configuration change; the current incident does not mention a specific configuration trigger.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A bad router rule or configuration change propagated to edge routers, causing them to crash or consume resources until they failed, taking down most of the edge network.",
+       "based_on": [
+        "DAN-005"
+       ],
+       "matches": "Same kind of component (edge routers/CDN edge infrastructure), same abrupt global failure pattern, same immediate alerting and widespread client impact.",
+       "differs": "DAN-005 involved a specific router rule that consumed RAM and crashed Juniper routers; the current incident has no known change and no mention of router crashes or packet-length rules.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A permission or configuration change in a backend database generated an oversized feature file that was propagated to all edge machines, causing them to fail while serving traffic.",
+       "based_on": [
+        "DAN-011"
+       ],
+       "matches": "Same kind of component (global edge network), same abrupt systemwide outage with HTTP errors, same propagation of a bad configuration file across the network.",
+       "differs": "DAN-011 was triggered by a database permissions change and a specific feature file size limit; the current incident reports no known change and no database or feature file involvement.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      }
+     ],
+     "evidence_sufficient": false,
+     "gaps": [
+      "No known change or trigger is reported for the current incident, so it is unclear whether a configuration, deploy, or other change preceded the errors.",
+      "The analyst did not specify the exact error messages, error codes, or whether edge nodes are crashing versus returning application errors.",
+      "It is unknown whether the edge infrastructure uses a single vendor/platform or multiple, which affects which past incident is most relevant."
+     ],
+     "next_step": "refine_search",
+     "search_request": "global edge CDN widespread errors sudden outage no known change configuration bug",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium",
+     "medium"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 16730
+   },
+   {
+    "research_round": 2,
+    "request": "global edge CDN widespread errors sudden outage no known change configuration bug",
+    "research_warnings": [],
+    "research_llm_calls": 1,
+    "searches": [
+     {
+      "step": "initial_search",
+      "query": "global edge CDN widespread errors sudden outage no known change configuration bug",
+      "ids": [
+       "DAN-007",
+       "DAN-137",
+       "DAN-031",
+       "DAN-019",
+       "DAN-023",
+       "DAN-018",
+       "DAN-193",
+       "DAN-067",
+       "DAN-035",
+       "DAN-049"
+      ]
+     },
+     {
+      "step": "initial_search",
+      "query": "Errors are suddenly widespread.\n\nAnalyst answer: It is our worldwide edge infrastructure that delivers content. Well over three quarters of it is prod",
+      "ids": [
+       "DAN-218",
+       "DAN-067",
+       "DAN-137",
+       "DAN-217",
+       "DAN-102",
+       "DAN-191",
+       "DAN-023",
+       "DAN-148",
+       "DAN-066",
+       "DAN-007"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "WAF rule regex deployment root cause fix global outage Cloudflare",
+      "ids": [
+       "DAN-137"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-137"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-137"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "BGP communities configuration rollout root cause fix datacenter malfunction Cloudflare",
+      "ids": [
+       "DAN-007"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-007"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-007"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "backbone router configuration changes root cause fix global outage Facebook",
+      "ids": [
+       "DAN-023"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-023"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-023"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-137",
+      "deepened": true,
+      "title": "Details of the Cloudflare outage on July 2, 2019"
+     },
+     {
+      "id": "DAN-007",
+      "deepened": true,
+      "title": "Cloudflare outage on June 21, 2022"
+     },
+     {
+      "id": "DAN-023",
+      "deepened": true,
+      "title": "More details about the October 4 outage - Engineering at Meta"
+     },
+     {
+      "id": "DAN-154",
+      "deepened": true,
+      "title": "Summary of June 8 outage | Fastly"
+     },
+     {
+      "id": "DAN-005",
+      "deepened": true,
+      "title": "Today's Outage Post Mortem"
+     },
+     {
+      "id": "DAN-011",
+      "deepened": true,
+      "title": "Cloudflare outage on November 18, 2025 | Cloudflare Blog"
+     },
+     {
+      "id": "DAN-031",
+      "deepened": false,
+      "title": "Google Cloud Status Dashboard — A bad config (autogenerated) removed all Google Compute Engine IP blocks from BGP announcements"
+     },
+     {
+      "id": "DAN-019",
+      "deepened": false,
+      "title": "Route leak incident on January 22, 2026 | Cloudflare Blog"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A valid configuration change triggered a latent software bug in the edge network, causing the vast majority of edge nodes to return errors abruptly and globally.",
+       "based_on": [
+        "DAN-154"
+       ],
+       "matches": "Same component (edge/CDN content delivery network), same symptom (85% of network returning errors, abrupt onset in the morning UTC, global impact), and same pattern (a configuration change surfacing an undiscovered bug).",
+       "differs": "The current analyst reports no known change right before the failure, whereas the Fastly outage was triggered by a customer configuration change; the current incident's trigger is unknown.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A bad router configuration rule propagated to edge routers caused them to crash or fail, taking down the edge network worldwide.",
+       "based_on": [
+        "DAN-005"
+       ],
+       "matches": "Same component (edge routers), same symptom (abrupt widespread edge infrastructure errors, global impact, morning UTC onset), and same pattern (a configuration change causing edge routers to fail).",
+       "differs": "The current analyst reports no known change right before the failure, whereas the Cloudflare outage was caused by an ops team adding a packet-drop rule to edge routers; the current incident's trigger is unknown.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "medium"
+      },
+      {
+       "cause": "A configuration change to BGP routing policies removed prefix advertisements, causing edge locations to lose connectivity and produce errors globally.",
+       "based_on": [
+        "DAN-007"
+       ],
+       "matches": "Same component (edge infrastructure / datacenter networking), same symptom (widespread errors across many locations, abrupt onset), and same pattern (a configuration change to routing policies causing widespread impact).",
+       "differs": "The past incident affected 19 datacenters (4% of network) rather than over 75% of worldwide edge infrastructure; the current analyst reports no known change right before the failure.",
+       "same_trigger": "unknown",
+       "same_component": "yes",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "The current analyst reports no known change right before the failure, so we cannot confirm whether a configuration change, deploy, or other trigger preceded the errors.",
+      "We do not know the specific error messages or error codes being returned by the edge infrastructure.",
+      "We do not know whether the edge infrastructure uses BGP routing, router rules, or a software configuration system similar to the past incidents."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium",
+     "low"
+    ],
+    "diagnosis_turns": 2,
+    "prompt_chars": 29947
+   }
+  ],
+  "seconds": 106
+ },
+ {
+  "case": "DAN-197",
+  "round": 1,
+  "hidden": [],
+  "description": "Our automated checks are failing sporadically.\n\nAnalyst answer: We monitor a hosted database offering, and the failing step is the probe that provisions a new container. Our provisioning logic and request method have been unchanged for months. We are unaware of anything changing just before the errors appeared. We noticed the first rejection in the early evening UTC and marked availability as degraded roughly half an hour afterward. US East was hit first, with roughly three quarters of probes unsuccessful; locations elsewhere remained healthy. Requests to provision containers keep getting rejected because a parameter is deemed unacceptable. Some attempts pass, and the diagnostics do not tell us which parameter caused the rejection.",
+  "triage": {
+   "affected_service": "database",
+   "trigger": null,
+   "symptoms": [
+    "automated checks failing sporadically",
+    "container provisioning requests rejected because a parameter is deemed unacceptable"
+   ],
+   "category": null
+  },
+  "real_root_cause": "The cloud database provider introduced an unannounced breaking change to its API contract. A partition key field that had previously been optional became mandatory when creating database containers. Our existing SDK-based implementation did not explicitly supply this field, causing container creation requests to fail as the change progressively affected different regions.",
+  "findings": [
+   {
+    "id": "DAN-197",
+    "deepened": true,
+    "title": "How We Found Azure’s Unannounced Breaking Change - Metrist"
+   },
+   {
+    "id": "DAN-134",
+    "deepened": true,
+    "title": "Postmortem: May 21, 2021 - Delay in starting Docker Jobs. Machine & remote Docker environments blocked - Announcements - CircleCI Discuss"
+   },
+   {
+    "id": "DAN-114",
+    "deepened": true,
+    "title": "Summary of the AWS Service Event in the Northern Virginia (US-EAST-1) Region — As the Lambda Frontend fleet scaled in response to normal daily traffic growth, it crossed a capacity threshold..."
+   },
+   {
+    "id": "DAN-035",
+    "deepened": false,
+    "title": "Google Cloud Status Dashboard — A bug in configuration roll-out to a load balancer lead to increased error rates for 22 minutes"
+   },
+   {
+    "id": "DAN-106",
+    "deepened": false,
+    "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+   },
+   {
+    "id": "DAN-002",
+    "deepened": false,
+    "title": "Summary of the Amazon EC2 DNS Resolution Issues in the Asia Pacific (Seoul) Region (AP-NORTHEAST-2)"
+   },
+   {
+    "id": "DAN-101",
+    "deepened": false,
+    "title": "Battling database performance | Blog | incident.io"
+   },
+   {
+    "id": "DAN-029",
+    "deepened": false,
+    "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+   }
+  ],
+  "right_incident_in_findings": true,
+  "right_incident_deepened": true,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "The hosted database provider made an unannounced breaking API change (for example making a previously optional provisioning parameter mandatory), so container creation requests are rejected with an unacceptable-parameter error in one region while others remain healthy.",
+     "based_on": [
+      "DAN-197"
+     ],
+     "matches": "Same component (hosted database / container provisioning API), same trigger kind (provider-side change with no customer-visible change), same symptoms (sporadic rejections, diagnostics do not name the bad parameter, some attempts pass), same timing pattern (first error in early evening UTC, degradation declared ~30 minutes later), same regional pattern (US East hit first with ~75% failures, other regions healthy), and same spread (started sporadic, then became widespread).",
+     "differs": "The current analyst did not report any error details or diagnostics that identify the rejected parameter, whereas the past incident eventually obtained error details showing the new mandatory field.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "high"
+    },
+    {
+     "cause": "A capacity threshold was crossed in the US East cell of the database service, triggering a latent provisioning defect that rejects container creation requests while other regions remain unaffected.",
+     "based_on": [
+      "DAN-101",
+      "DAN-114"
+     ],
+     "matches": "Same regional pattern (US East affected, elsewhere healthy) and same symptom (provisioning requests rejected while some attempts pass).",
+     "differs": "The past incidents involve compute/container provisioning (Lambda execution environments, VMs) rather than database container provisioning, and the current analyst reported no traffic growth or scaling event before the failures; the mechanism (latent defect triggered by capacity) is not described in a passage that fits the unacceptable-parameter rejection.",
+     "same_trigger": "unknown",
+     "same_component": "no",
+     "same_mechanism": "no",
+     "confidence": "low"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "The exact error message or error code returned by the provisioning API is unknown, so we cannot confirm which parameter is deemed unacceptable.",
+    "It is unknown whether the database provider deployed any API or configuration change around the time the first rejection occurred.",
+    "It is unknown whether the failure rate in US East rose from sporadic to near-total over time, as in the past incident."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "low"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 19388,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Our automated checks are failing sporadically.\n\nAnalyst answer: We monitor a hosted database offering, and the failing step is the probe that provisio",
+      "ids": [
+       "DAN-197",
+       "DAN-035",
+       "DAN-106",
+       "DAN-002",
+       "DAN-101",
+       "DAN-029",
+       "DAN-096",
+       "DAN-147",
+       "DAN-134",
+       "DAN-008"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "container provisioning request rejected parameter unacceptable sporadic failures",
+      "ids": [
+       "DAN-147",
+       "DAN-029",
+       "DAN-114",
+       "DAN-134",
+       "DAN-191",
+       "DAN-033",
+       "DAN-035",
+       "DAN-218",
+       "DAN-014",
+       "DAN-220"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "container provisioning parameter validation failure region-specific US East",
+      "ids": [
+       "DAN-151",
+       "DAN-002",
+       "DAN-037",
+       "DAN-114",
+       "DAN-106",
+       "DAN-064",
+       "DAN-042",
+       "DAN-197",
+       "DAN-029",
+       "DAN-015"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "breaking change container provisioning parameter API validation rejection root cause fix",
+      "ids": [
+       "DAN-197"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-197"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-197"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "provisioning blocked one region container VM creation failure root cause fix",
+      "ids": [
+       "DAN-134"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-134"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-134"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "execution environment provisioning failure US-EAST-1 latent defect root cause fix",
+      "ids": [
+       "DAN-114"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-114"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-114"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-197",
+      "deepened": true,
+      "title": "How We Found Azure’s Unannounced Breaking Change - Metrist"
+     },
+     {
+      "id": "DAN-134",
+      "deepened": true,
+      "title": "Postmortem: May 21, 2021 - Delay in starting Docker Jobs. Machine & remote Docker environments blocked - Announcements - CircleCI Discuss"
+     },
+     {
+      "id": "DAN-114",
+      "deepened": true,
+      "title": "Summary of the AWS Service Event in the Northern Virginia (US-EAST-1) Region — As the Lambda Frontend fleet scaled in response to normal daily traffic growth, it crossed a capacity threshold..."
+     },
+     {
+      "id": "DAN-035",
+      "deepened": false,
+      "title": "Google Cloud Status Dashboard — A bug in configuration roll-out to a load balancer lead to increased error rates for 22 minutes"
+     },
+     {
+      "id": "DAN-106",
+      "deepened": false,
+      "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+     },
+     {
+      "id": "DAN-002",
+      "deepened": false,
+      "title": "Summary of the Amazon EC2 DNS Resolution Issues in the Asia Pacific (Seoul) Region (AP-NORTHEAST-2)"
+     },
+     {
+      "id": "DAN-101",
+      "deepened": false,
+      "title": "Battling database performance | Blog | incident.io"
+     },
+     {
+      "id": "DAN-029",
+      "deepened": false,
+      "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "The hosted database provider made an unannounced breaking API change (for example making a previously optional provisioning parameter mandatory), so container creation requests are rejected with an unacceptable-parameter error in one region while others remain healthy.",
+       "based_on": [
+        "DAN-197"
+       ],
+       "matches": "Same component (hosted database / container provisioning API), same trigger kind (provider-side change with no customer-visible change), same symptoms (sporadic rejections, diagnostics do not name the bad parameter, some attempts pass), same timing pattern (first error in early evening UTC, degradation declared ~30 minutes later), same regional pattern (US East hit first with ~75% failures, other regions healthy), and same spread (started sporadic, then became widespread).",
+       "differs": "The current analyst did not report any error details or diagnostics that identify the rejected parameter, whereas the past incident eventually obtained error details showing the new mandatory field.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "high"
+      },
+      {
+       "cause": "A capacity threshold was crossed in the US East cell of the database service, triggering a latent provisioning defect that rejects container creation requests while other regions remain unaffected.",
+       "based_on": [
+        "DAN-101",
+        "DAN-114"
+       ],
+       "matches": "Same regional pattern (US East affected, elsewhere healthy) and same symptom (provisioning requests rejected while some attempts pass).",
+       "differs": "The past incidents involve compute/container provisioning (Lambda execution environments, VMs) rather than database container provisioning, and the current analyst reported no traffic growth or scaling event before the failures; the mechanism (latent defect triggered by capacity) is not described in a passage that fits the unacceptable-parameter rejection.",
+       "same_trigger": "unknown",
+       "same_component": "no",
+       "same_mechanism": "no",
+       "confidence": "low"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "The exact error message or error code returned by the provisioning API is unknown, so we cannot confirm which parameter is deemed unacceptable.",
+      "It is unknown whether the database provider deployed any API or configuration change around the time the first rejection occurred.",
+      "It is unknown whether the failure rate in US East rose from sporadic to near-total over time, as in the past incident."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "low"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 19388
+   }
+  ],
+  "seconds": 82
+ }
+]

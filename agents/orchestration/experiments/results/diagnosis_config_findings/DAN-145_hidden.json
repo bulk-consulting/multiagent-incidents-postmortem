@@ -1,0 +1,351 @@
+{
+ "case": "DAN-145",
+ "hidden": true,
+ "description": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely.",
+ "triage": {
+  "affected_service": "redis",
+  "trigger": "our hosting vendor automatically relocated the machine serving as our active Redis server",
+  "symptoms": [
+   "failed connections",
+   "chat communities disconnected",
+   "hosting workers acting strangely",
+   "people struggling to join",
+   "API workers unable to connect to Redis",
+   "slow API calls",
+   "one hosting worker unhealthy",
+   "workers maintaining client sessions acting strangely"
+  ],
+  "category": null
+ },
+ "warnings": [],
+ "findings": [
+  {
+   "incident_id": "DAN-234",
+   "company": "Twilio",
+   "title": "Billing Incident Post-Mortem: Breakdown, Analysis and Root Cause | Twilio",
+   "url": "https://www.twilio.com/blog/2013/07/billing-incident-post-mortem-breakdown-analysis-and-root-cause.html",
+   "summary": "In 2013, a temporary network partition in the redis cluster used for billing operations, caused a massive resynchronization from slaves. The overloaded master crashed and when it was restarted, it started up in read-only mode. The auto-recharge component in This resulted in failed transactions from Twilio's auto-recharge service, which unfortunately billed the customers before updating their balance internally. So the auto-recharge system continued to retry the transaction again and again, resulting in multiple charges to customer's credit cards.",
+   "similarity": 0.6696501402695666,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "In 2013, a temporary network partition in the redis cluster used for billing operations, caused a massive resynchronization from slaves. The overloaded master crashed and when it was restarted, it started up in read-only mode. The auto-recharge component in This resulted in failed transactions from Twilio's auto-recharge service, which unfortunately billed the customers before updating their balance internally. So the auto-recharge system continued to retry the transaction again and again, resulting in multiple charges to customer's credit cards."
+   },
+   "passages": [
+    {
+     "section": "What We’re Doing About It",
+     "content": "## What We’re Doing About It\n\nIn the process of resolving the incident, we replaced the original redis cluster that triggered the incident. The incorrect configuration for redis-master was identified and corrected. As a further preventative measure, Redis restarts on redis-master are disabled and future redis-master recoveries will be accomplished by pivoting a slave. The simultaneous loss of in-flight balance data and the ability to update balances also exposed a critical flaw in our auto-recharge system. It failed dangerously, exposing customer accounts to incorrect charges and suspensions. We are now introducing robust fail-safes, so that if billing balances don’t exist or cannot be written, the system will not suspend accounts or charge credit cards. Finally, we will be updating the billing system to validate against our double-bookkeeping databases in real-time.\n\nAll of us here at Twilio apologize for the impact this had on you, your business and your customers. We look forward to these steps to earn back your trust, and all the steps that follow.",
+     "similarity": 0.6279414509407303,
+     "origin": "deep_search",
+     "query": "Redis cluster network partition failover root cause fix",
+     "query_source": "llm"
+    },
+    {
+     "section": "Root Cause",
+     "content": "## Root Cause\n\nWith all account balances at zero and read-only, Twilio usage that resulted in a billing transaction (e.g. 1 cent for a SMS message or a phone call) triggered the billing system to attempt a recharge using the credit card associated with the customer’s account. This only affected accounts with auto-recharge enabled.\n\nConsequently, the billing system charged customer credit cards to increase account balances without being able to update the balances themselves. This root cause produced the billing incident of customer credit cards being charged repeatedly. At 3:28 AM PDT, the billing system monitoring reported the anomalous activity. At 4:10 AM PDT, on-call engineers responding to the incident shut down the billing system to prevent further charges.\n\nThe billing system maintains independent double-bookkeeping for all balance data in a separate relational datastore. Following the shutdown of the billing system, this independent record was used to restore the account balances lost in the failed recovery of the redis-master. Once these balances were properly restored, the billing system was turned on at 11:58 AM PDT. Observing further anomalous behavior, the billing system was shut back down and engineering work focused on restoring service and refunding customers accounts.\n\nThat work completed the following day and the billing service was restored slowly across the customer base, reaching full restoration at 9:15 AM PDT.",
+     "similarity": 0.48925878362099384,
+     "origin": "deep_search",
+     "query": "what was the root cause of the failure",
+     "query_source": "cause"
+    },
+    {
+     "section": "Billing Incident Post-Mortem: Breakdown, Analysis and Root Cause",
+     "content": "## Billing Incident Post-Mortem: Breakdown, Analysis and Root Cause\n\nTime to read:\n\nJuly 23, 2013\n\nWritten by\n\nTwilio\n\nTwilion\n\nTwilio experienced an incident with its billing system on July 18, 2013. Although we’ve shared how the incident unfolded, and the impact on our customers, we’d like to detail the root cause, how we fixed it, and what we’re doing to ensure this doesn’t happen in the future.",
+     "similarity": 0.453548382369483,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Timeline",
+     "content": "## Timeline\n\nJuly 18, 2013\n\n- 1:35 AM PDT / 8:35 UTC: We experienced a loss of network connectivity between all of our billing redis-slaves and our redis-master. This caused all redis-slaves to reconnect and request full synchronization with the master at the same time.\n\n- 2:39 AM PDT / 9:39 UTC: Services relying on the redis-master began to fail due to the load generated by the slave synchronization.\n\n- 2:42 AM PDT / 9:42 UTC: Our on-call engineers restarted the redis-master to address the high load.\n\n- 3:28 AM PDT / 10:28 UTC: Our monitoring systems detected an anomaly in our billing systems, which resulted in erroneous credit card charges and in some cases account suspensions. 1.1% of all Twilio customers were impacted. The on call team immediately began our incident response.\n\n- 4:10 AM PDT / 11:10 UTC: Our billing system was taken offline to avoid additional credit card charges.\n\n- 6:24 AM PDT / 13:24 UTC: Service restored to all suspended accounts. The billing system remained offline, while our engineers investigated the root cause.\n\n- 11:58 AM PDT / 18:58 UTC: Billing system was brought back online.\n\n- 12:36 PM PDT / 19:36 UTC: Monitoring detected a recurrence of the original billing anomalies, affecting another 0.3% of all Twilio customers. The billing system was taken offline again. Suspended accounts were immediately reactivated.\n\n- 2:57 PM PDT / 21:57 UTC: We began processing refunds for the erroneous credit card charges. This work continued for the following 24 hours.\n\nJuly 19, 2013\n\n- 3:00 PM PDT / 22:00 UTC: We finished processing refunds for all erroneous credit card charges.",
+     "similarity": 0.6497283827105433,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    },
+    {
+     "section": "Root Cause",
+     "content": "## Root Cause\n\nTwilio’s billing system uses an in-memory Redis cluster to store in-flight account balances. This cluster is configured with a single master and multiple slaves distributed across data-centers for resiliency in the event of a host or data-center failure.\n\nAt 1:35 AM PDT on July 18, a loss of network connectivity caused all billing redis-slaves to simultaneously disconnect from the master. This caused all redis-slaves to reconnect and request full synchronization with the master at the same time. Receiving full sync requests from each redis-slave caused the master to suffer extreme load, resulting in performance degradation of the master and timeouts from redis-slaves to redis-master.\n\nBy 2:39 AM PDT the host’s load became so extreme, services relying on redis-master began to fail. At 2:42 AM PDT, our monitoring system alerted our on-call engineering team of a failure in the Redis cluster. Observing extreme load on the host, the redis process on redis-master was misdiagnosed as requiring a restart to recover. This caused redis-master to read an incorrect configuration file, which in turn caused Redis to attempt to recover from a non-existent AOF file, instead of the binary snapshot. As a result of that failed recovery, redis-master dropped all balance data. In addition to forcing recovery from a non-existent AOF, an incorrect configuration also caused redis-master to boot as a slave of itself, putting it in read-only mode and preventing the billing system from updating account balances.",
+     "similarity": 0.6036019768691465,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    }
+   ],
+   "found_by": "description",
+   "deepened": true,
+   "why": "Directly involves Redis cluster failover from master to slaves, similar to the current incident's Redis server relocation and standby assumption"
+  },
+  {
+   "incident_id": "DAN-217",
+   "company": "Slack",
+   "title": "This was not normal. Really. | The Official Slack Blog",
+   "url": "https://web.archive.org/web/20181208123409/https://slackhq.com/this-was-not-normal-really",
+   "summary": "A combination of factor results in a large number of Slack's users being disconnected to the server. The subsequent massive disconnection-reconnection process exceeded the database capacity and caused cascading connection failures, leading to 5% of Slack's users not being able to connect to the server for up to 2 hours.",
+   "similarity": 0.6984097702103612,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "A combination of factor results in a large number of Slack's users being disconnected to the server. The subsequent massive disconnection-reconnection process exceeded the database capacity and caused cascading connection failures, leading to 5% of Slack's users not being able to connect to the server for up to 2 hours."
+   },
+   "passages": [
+    {
+     "section": "",
+     "content": "It’s been a rough couple of days at Slack HQ. We’ve had two separate incidents where too many users were unable to connect for too long a time. Firstly, and most importantly, we want to apologize. While we’re glad it didn’t affect more users, any downtime is too much downtime.\n\nIn the first event on Tuesday (October 14th), all users were locked out of Slack for 14 minutes (users who had already established connections could continue to work) and, following that, 13% of users had poor or no availability for periods of up to two hours. Today, at 11.27am, there was a separate incident with a similar effect for a subset of users. That one was resolved an hour later, at 12.28pm (all times and dates are San Francisco local time).\n\nWhile working hard on restoring the service to what you expect it to be, we were also reading the feedback coming in. We know that people worry when they can’t get into a service they rely on. It’s hard to know whether it’s a blip or the start of an unpleasant new trend. We’re working very hard to make sure it’s the former, but we wanted to give some detail as to what happened and what we’re doing to address it. At the bottom of this post, you’ll find a day-by-day breakdown of the events.",
+     "similarity": 0.5733463884827706,
+     "origin": "deep_search",
+     "query": "users disconnected massive reconnection database capacity cascading connection failures root cause fix",
+     "query_source": "llm"
+    },
+    {
+     "section": "WEDNESDAY",
+     "content": "### WEDNESDAY\n\n- Late on Tuesday night, Google released a statement about the POODLE vulnerability, which necessitated a disabling of SSLv3, as reflected in our tweet at the time.\n- We reconfigured internal services and then our API to disable SSLv3 support without incident.\n- We then updated the real-time message servers that support Slack’s real-time features and in the build process introduced a bug that would cause each message server to crash once at some time in the future.\n- We began gracefully restarting real-time message servers but one particularly heavily-used server crashed before we got to it.\n- The simultaneous reconnections from all of those users overwhelmed the databases backing their teams and prolonged the outage.\n- The situation was exacerbated by a change to the web and desktop software clients made late on Tuesday. In order to ensure correct appearance of historical messages following Tuesday’s incident, each client cleared its internal cache and reloaded all history from scratch, which increased the strain on database servers when they all re-connected en masse.\n\nWe know you depend on Slack, and that any downtime in a service you’ve come to love and trust is worrisome. It will take time to rebuild the trust we’ve lost. We can’t change history to make the little red squares from this week’s status calendar back into little green ones: but we want you to know that we’re invested and working around the clock to keep you consistently, confidently connected on Slack.",
+     "similarity": 0.42908909823705654,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "",
+     "content": "Slack has grown extremely quickly. With the exception of national holidays, we’ve broken a usage record every single day for the last year (every Monday has been our best-ever Monday, every Tuesday our best-ever Tuesday, and so on). Throughout that year, up to this week, we’ve had a grand total of 89 minutes where Slack was functioning at any level lower than “perfect” (and the majority of those minutes were things like “slow posting from integrations”, which were minimally disruptive.)\n\nYou can see the quarterly history summarized in the chart above and view every little detail on our status site’s calendar. Incidents, which we mark in yellow and red on the calendar, typically only affect certain integrations or users. Almost all of our scheduled maintenance is conducted in a way that goes totally unnoticed by users, even when their team is migrated to another server cluster mid-conversation.\n\nThis week’s performance, however, was far worse and it was far below the standard to which we hold ourselves. Nevertheless, we feel confident — and want you to feel confident — that this is neither typical for Slack nor indicative of future performance.\n\nWe’ll be continuing to monitor and improve things, and in the interests of transparency, wanted to share with Slack users the details we shared internally in our initial post-mortem.",
+     "similarity": 0.3235015711233302,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "TUESDAY",
+     "content": "### TUESDAY\n\n- We undertook some routine maintenance, during which, as a result of an automation malfunction, corrupted code was deployed to our web servers and “job queue workers” (machines which process asynchronous tasks, such as link unfurling).\n- This was noticed immediately internally, and fixed within 14 minutes. However, 13% of Slack’s users were disconnected from Slack during this window.\n- Those users all immediately attempted reconnecting simultaneously.\n- The massive number of simultaneous reconnections demanded more database capacity than we had readily available, which caused cascading connection failures.\n- We immediately began to add additional database capacity to cover this kind of situation. We anticipate completing this provisioning in the next two days.\n- Most users were able to reconnect within 30 minutes, but 5% of users remained disconnected for up to 2 hours while we recovered their database cluster.\n- We also immediately made optimizations and other changes to methods by which people reconnect which should help reduce the total capacity needed to recover from massive disconnection-reconnection processes.",
+     "similarity": 0.6945947505725858,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    },
+    {
+     "section": "MONDAY",
+     "content": "### MONDAY\n\n- A portion of the internal network of our hosting provider suddenly became unavailable. Most of the affected machines were in our search clusters.\n- This caused a large backlog of message and file data which needed to be re-fed into our search index (about 10 hours worth of data for 2% of teams).\n- This event was unrelated to the following day’s problems (and was almost completely unnoticed by users) but was an exacerbating factor in what followed because our work queues had a steady stream of events to process.",
+     "similarity": 0.6399706014076071,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    }
+   ],
+   "found_by": "description",
+   "deepened": true,
+   "why": "Messaging app with users disconnected and reconnection cascading failures, similar to chat communities struggling to join"
+  },
+  {
+   "incident_id": "DAN-144",
+   "company": "Discord",
+   "title": "Discord Status - Connectivity Issues",
+   "url": "https://status.discordapp.com/incidents/dj3l6lw926kl",
+   "summary": "A flapping service lead to a thundering herd reconnecting to it once it came up. This lead to a cascading error where frontend services ran out of memory due to internal queues filling up.",
+   "similarity": 0.7029107292487318,
+   "best_chunk": {
+    "type": "text",
+    "section": "Summary",
+    "content": "## Summary\n\nAt 11:38 on March 20, a server for one of the internal services (presence) at Discord which tracks real time state and presence information for all connected users, disconnected from its other cluster members. Shortly thereafter the nodes of another service (sessions) which handles the real time state and processing for all websocket connections to Discord attempted a reconnection, triggering a massive “thundering herd” towards the existing members of the presence cluster. Due to an implicit requirement in sessions on data in presence, this caused 1/3rd of all connected sessions on Discord to effectively stall, queuing events in memory (an intended behavior of our sessions service, see below). Once the event queues on these session nodes reached a limit, they ran out of available memory and crashed. After engineers recovered the situation around 13:56, a subsequent disconnection on the presence service caused the same incident to occur again at 14:52."
+   },
+   "passages": [
+    {
+     "section": "Investigation and Analysis",
+     "content": "## Investigation and Analysis\n\nThe initial issue which caused this outage can be boiled down to the CPU soft lockups that we observed on the individual presence server. Although we’ve previously seen these CPU soft lockups on other servers and services, this incident caused around 40 20-30 second lockups. Although we had previously opened an issue which Google has actively been investigating, they’ve escalated it to P0 after this incident. These soft lockups fully stalled the network stack of that machine for upwards of 20 seconds. Unfortunately due to a bug that was fixed but not yet deployed, the presence cluster did not properly handle the lost node, and instead caused the entire cluster to split brain.\n\nThe failure of the individual presence node caused all the Erlang processes living in our session service to attempt a reconnection to the aforementioned presence service. The effect of millions of processes reconnecting quickly overloaded the remaining presence servers and slowed the system to a halt. Our session servers were built to help users maintain persistent connections over choppy or unreliable internet connections. As such, they are built to buffer and retransmit messages to clients when a client disconnects for brief periods. This buffering mechanism works great, and is one of the reasons Discord is so responsive even when participating in many large servers. However, during this incident ⅓ of all user connections halted the sending of messages to clients due to the dependency on our presence service. The events and messages for these connections quickly filled the in-memory buffers of our session servers and caused many of them to run out of memory and fail. Due to the way Erlang works, the throughput and contention on these servers also prevented our engineers from being able to thoroughly investigate or mitigate these effects.",
+     "similarity": 0.45519693861601307,
+     "origin": "deep_search",
+     "query": "what was the root cause of the failure",
+     "query_source": "cause"
+    },
+    {
+     "section": "Action Items / Response",
+     "content": "## Action Items / Response\n\nDuring the outage, engineers were able to roll out upgrades to our presence server (which had previously been untouched for almost a year). These changes fix the split-brain bug previously mentioned, and include other planned upgrades. We’ve added a hard limit to the number of in-flight connections from our sessions cluster to our presence server, and have also added a fast-fail mechanism to this dependency which should prevent a cascading failure like this from occurring in the future while also resolving the problems developers experienced accessing debug information. These changes were deployed at 1AM on Tuesday. As previously mentioned, we’re actively working with Google Cloud Platform’s hypervisor team to ensure the root cause of the CPU soft lockups is investigated and resolved. We’re working on adding additional tooling which should help automate the process of detecting and alerting around anomalous and hard to track problems like CPU soft lockups.\n\nThe last time Discord had an outage which forced us to effectively “reboot” Discord as a whole, was September 2016. Since then the improvements and time we’ve invested in improving the performance of our core services and databases caused this experience to be much less painful. While we’re generally unhappy with any outage, and always strive to do better, our services took under 16 minutes to reconnect millions of concurrent Discord users.\n\nPosted Mar 21, 2017 - 16:15 PDT",
+     "similarity": 0.4414543428830908,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Resolved",
+     "content": "## Resolved\n\nWe look to be back to nominal operation. We've isolated the issue to within the GCP hypervisor causing a soft-cpu lock on one of our services - causing a cascading failure throughout our system which triggered us to have to do a full-restart of our realtime services. We're actively investigating why the failure cascaded throughout the system - however Discord is operating as normal again.\n\nApologies for the outage - our team is working on a postmorterm of the incident.\n\nPosted Mar 20, 2017 - 16:54 PDT",
+     "similarity": 0.38162680057839815,
+     "origin": "deep_search",
+     "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+     "query_source": "fix"
+    },
+    {
+     "section": "Summary",
+     "content": "## Summary\n\nAt 11:38 on March 20, a server for one of the internal services (presence) at Discord which tracks real time state and presence information for all connected users, disconnected from its other cluster members. Shortly thereafter the nodes of another service (sessions) which handles the real time state and processing for all websocket connections to Discord attempted a reconnection, triggering a massive “thundering herd” towards the existing members of the presence cluster. Due to an implicit requirement in sessions on data in presence, this caused 1/3rd of all connected sessions on Discord to effectively stall, queuing events in memory (an intended behavior of our sessions service, see below). Once the event queues on these session nodes reached a limit, they ran out of available memory and crashed. After engineers recovered the situation around 13:56, a subsequent disconnection on the presence service caused the same incident to occur again at 14:52.",
+     "similarity": 0.7029107292487318,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    },
+    {
+     "section": "Investigation and Analysis",
+     "content": "## Investigation and Analysis\n\nWhile we’ve invested immense effort and engineering in scaling and improving the performance of many core services and database over the past months, we’ve also seen immense growth. As such, our engineers were concerned with simply letting the thundering herd that is millions of Discord clients reconnect to our service at once. This caused us to spend time during the incident to add and roll out changes to our API which limited the potential of this effect. Although we’re pleased with the result and believe the initial choice was correct, issues with recently added configuration code caused this process to take much longer than expected.",
+     "similarity": 0.6731279727383337,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    }
+   ],
+   "found_by": "description",
+   "deepened": true,
+   "why": "Flapping service causing thundering herd reconnect, similar to clients hammering costly API and workers acting strangely"
+  },
+  {
+   "incident_id": "DAN-066",
+   "company": "Cloudflare",
+   "title": "A Byzantine failure in the real world",
+   "url": "https://web.archive.org/web/20211015231917/https://blog.cloudflare.com/a-byzantine-failure-in-the-real-world/",
+   "summary": "A partial switch misbehavior caused a cascading Byzantine failure which impacted the availability of the API and dashboard for six hours and 33 minutes.",
+   "similarity": 0.7130486020073293,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "A partial switch misbehavior caused a cascading Byzantine failure which impacted the availability of the API and dashboard for six hours and 33 minutes."
+   },
+   "passages": [
+    {
+     "section": "The Dashboard",
+     "content": "### The Dashboard\n\nThe Cloudflare dashboard, like most web applications, has the notion of a user session. When user sessions are created (each time a user logs in) we perform some database operations and keep data in a Redis cluster for the duration of that user’s session. Unlike our API calls, our user sessions cannot currently be moved across the ocean without disruption. As we took actions to improve the availability of our API calls, we were unfortunately making the user experience on the dashboard worse.\n\nThis is an area of the system that is currently designed to be able to fail over across data centers in the event of a disaster, but has not yet been designed to work in both data centers at the same time. After a first period in which users on the dashboard became increasingly frustrated, we failed the authentication calls fully back to our primary data center, and kept working on our primary database to ensure we could provide the best service levels possible in that degraded state.",
+     "similarity": 0.6647302468868894,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    },
+    {
+     "section": "2020-11-02 21:20 UTC Database Replica Rebuilt",
+     "content": "### 2020-11-02 21:20 UTC Database Replica Rebuilt\n\nThe instant the first database replica rebuilt, it put itself back into service, and performance resumed to normal levels. We re-ramped all of the services that had been turned down, so all asynchronous processing could catch up, and after a period of monitoring marked the end of the incident.",
+     "similarity": 0.6136467222138055,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-129",
+   "company": "Chef.io",
+   "title": "Supermarket Intermittent Unresponsiveness Postmortem - Chef Blog | Chef",
+   "url": "https://www.chef.io/blog/2014/07/10/supermarket-intermittent-unresponsiveness-postmortem/",
+   "summary": "The recipe community site Supermarket crashed two hours after launch due to intermittent unresponsiveness and increased latency. One of the main reasons for failure identified in the post mortem was very low health check timeouts.",
+   "similarity": 0.6861400875342012,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "The recipe community site Supermarket crashed two hours after launch due to intermittent unresponsiveness and increased latency. One of the main reasons for failure identified in the post mortem was very low health check timeouts."
+   },
+   "passages": [
+    {
+     "section": "Health Check Timeouts",
+     "content": "### Health Check Timeouts\n\nThe health check timeouts were set too low to be effective. We ended up in a state where nodes were being taken out of the pool causing a domino effect. As one node would be pulled out, the other nodes would see a significant increase in traffic, causing them to time out and fall out of the pool.",
+     "similarity": 0.642300807592038,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    },
+    {
+     "section": "",
+     "content": "Approximately two hours after Supermarket became the official community site it started to experience increased latency and intermittent unresponsiveness. This made downloading cookbooks problematic and effected various sites including supermarket.getchef.com, community.opscode.com, cookbooks.opscode.com, and api.berkshelf.com. We are sorry for the problems this caused.\n\nIn this post, I will explain what happened and what we are doing to make sure this doesn’t happen in the future.\n\nThis unresponsiveness caused a number of issues including:\n\n- Berkshelf v3.x was unable to connect to api.berkshelf.com to get a list of cookbooks and versions needed for depsolving\n- An inability to browse cookbooks\n- Uploading and downloading of cookbooks either broken or extremely latent\n- The Supermarket API was inaccessible",
+     "similarity": 0.6118964954413706,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-029",
+   "company": "GoCardless",
+   "title": "Incident review: API and Dashboard outage on 10 October 2017 | GoCardless",
+   "url": "https://gocardless.com/blog/incident-review-api-and-dashboard-outage-on-10th-october/",
+   "summary": "A bad config combined with an uncommon set of failures led to an outage of a database cluster, taking the API and Dashboard offline.",
+   "similarity": 0.6832197315081604,
+   "best_chunk": {
+    "type": "summary",
+    "section": "",
+    "content": "A bad config combined with an uncommon set of failures led to an outage of a database cluster, taking the API and Dashboard offline."
+   },
+   "passages": [
+    {
+     "section": "Incident timeline",
+     "content": "## Incident timeline\n\nSo, how did all this go wrong?\n\nAll times in this section are in British Summer Time (UTC+1).\n\n- 15:09: Our monitoring detects the total outage of our API and Dashboard; engineers begin to investigate.\n- 15:11: We see evidence of a disk array failure on the primary. We are unsure why the cluster hasn't already failed over to the synchronous replica.\n- 15:17: We power off the broken primary Postgres node. This is done so that we don't have a machine in the cluster that is online, but with a broken disk array. We believe that with only the synchronous and asynchronous nodes online, the cluster software will promote a new primary. It quickly becomes clear that this is not the case.\n- 15:18: We clear the error counts (`crm resource cleanup`) in Pacemaker to prompt it to rediscover the state of the Postgres instances. Doing so has no effect. The cluster will not promote the synchronous replica.\nWe spend the next hour trying a variety of approaches to promote a new primary. Our last few attempts centre around editing the configuration on the synchronous replica to try to promote it ourselves.",
+     "similarity": 0.6313492246086574,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    },
+    {
+     "section": "Moving to a new database cluster",
+     "content": "### Moving to a new database cluster\n\nThe subteam responsible for getting us into a new cluster spent the next couple of weeks making those adjustments and performing practice runs. Once they were totally comfortable, we put together a plan to do it in production.",
+     "similarity": 0.625625995754627,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-133",
+   "company": "CircleCI",
+   "title": "Postmortem: March 26 - April 10 Workflow Delay Incidents - Announcements - CircleCI Discuss",
+   "url": "https://discuss.circleci.com/t/postmortem-march-26-april-10-workflow-delay-incidents/30060",
+   "summary": "Slow queries on the MongoDB replica sets backing the build queue caused workflows to back up over a two-week run of incidents. A roughly concurrent minor-version JVM upgrade enabled Docker-awareness by default, which silently shrank thread and connection pools across most JVM services and constrained throughput, masking the underlying MongoDB capacity problem. Tuning thread/connection pools and upsizing MongoDB stabilized the platform after multiple cascading outages on March 26, April 2, April 3, and April 10.",
+   "similarity": 0.6764753359182794,
+   "best_chunk": {
+    "type": "text",
+    "section": "Incident Report",
+    "content": "## Incident Report\n\nOn April 03, 2019 at 18:57 UTC, we saw severe degradation of our primary public and private API service. Not only did response time increase, but the deployed API service containers began crashing with Out of Memory errors. We scaled up the number of API service containers to little effect. Our incident team was able to get the queue moving again while SRE continued to investigate the underlying causes of these issues.\n\nOn April 04, 2019 at 22:30 UTC workflows were again slow to start. We found two of our read-only replicas for MongoDB were unresponsive: one for approximately 10 minutes and the other for 42 minutes. The below graphs show stacked bars of operations (by type) for each of the locked MongoDB hosts.\n\nThe unresponsive replicas were accepting requests, but not responding, thus causing queries targeted to these systems to back up, thus slowing down the calling services. Once we restarted the replicas, traffic began to flow again. The job queue began to drain, but because the length of the backlog was much larger than normal, it took nearly an hour to complete. We declared the incident “fixed” once we restarted the replicas and jobs were flowing. This queued job backlog was a source of confusion with customers because we declared the incident resolved when it was evident they still had queued jobs.\n\nOn April 05, 2019 at 18:36 UTC we saw delays in starting workflows. The primary in our MongoDB cluster experienced total saturation for several periods, likely due to high contention. One of our attempts to remediate the MongoDB cluster saturation was to change to a local SSD backed volume, but that did not help with the issue."
+   },
+   "passages": [
+    {
+     "section": "Incident Report",
+     "content": "## Incident Report\n\nOn April 03, 2019 at 18:57 UTC, we saw severe degradation of our primary public and private API service. Not only did response time increase, but the deployed API service containers began crashing with Out of Memory errors. We scaled up the number of API service containers to little effect. Our incident team was able to get the queue moving again while SRE continued to investigate the underlying causes of these issues.\n\nOn April 04, 2019 at 22:30 UTC workflows were again slow to start. We found two of our read-only replicas for MongoDB were unresponsive: one for approximately 10 minutes and the other for 42 minutes. The below graphs show stacked bars of operations (by type) for each of the locked MongoDB hosts.\n\nThe unresponsive replicas were accepting requests, but not responding, thus causing queries targeted to these systems to back up, thus slowing down the calling services. Once we restarted the replicas, traffic began to flow again. The job queue began to drain, but because the length of the backlog was much larger than normal, it took nearly an hour to complete. We declared the incident “fixed” once we restarted the replicas and jobs were flowing. This queued job backlog was a source of confusion with customers because we declared the incident resolved when it was evident they still had queued jobs.\n\nOn April 05, 2019 at 18:36 UTC we saw delays in starting workflows. The primary in our MongoDB cluster experienced total saturation for several periods, likely due to high contention. One of our attempts to remediate the MongoDB cluster saturation was to change to a local SSD backed volume, but that did not help with the issue.",
+     "similarity": 0.6764753359182794,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    },
+    {
+     "section": "Incident Report",
+     "content": "## Incident Report\n\nBetween March 26 and April 10, 2019, our platform experienced instability and downtime primarily due to issues with the datastore backing our builds queue. These datastore issues resulted in jobs and workflows that were unable to move through the system, as well as degradation in our public APIs. Resolving this has been our top priority, and we have now experienced platform stability for over 2 weeks. In the interest of transparency, and to help our customers understand what we have learned during our troubleshooting and recovery process, we are sharing this incident report and the actions we are taking to prevent these issues in the future. Thank you for your continued patience and support as our team has worked to improve the stability of our systems. You can also find this report on our Status Page here.\n\n**Timeline**\n\nOn March 26, 2019 at 21:29 UTC we saw delays in workflow processing. While workflows were backing up, we saw degradation at several points in the system. Our first course of action was to scale our production environment. As we continued our investigation into what was causing the degradation, we discovered slow timings across multiple MongoDB replica sets. These replica sets store the majority of our centralized data and their health is critical to the functioning of CircleCI as a whole. As we were attempting to resolve the incident, we scaled up many of our services in an effort to minimize the impact of slow query responses on the overall build throughput of the system. Ultimately, we decided we needed more MongoDB capacity and began to work on upsizing that replica set.",
+     "similarity": 0.5951267990966028,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  },
+  {
+   "incident_id": "DAN-148",
+   "company": "Epic Games",
+   "title": "Postmortem of Service Outage at 3.4M CCU",
+   "url": "https://web.archive.org/web/20220430011642/https://www.epicgames.com/fortnite/en-US/news/postmortem-of-service-outage-at-3-4m-ccu",
+   "summary": "Extreme load (a new peak of 3.4 million concurrent users) resulted in a mix of partial and total service disruptions.",
+   "similarity": 0.6645203687102883,
+   "best_chunk": {
+    "type": "text",
+    "section": "**XMPP outage**",
+    "content": "### **XMPP outage**\n\nAnd at 22:00 UTC on Sunday we started losing cluster nodes and disconnecting players.\n  - A decision was made to immediately failover to a stand-by cluster via green/blue deployment strategy, when we instantly flip all the traffic to another set of endpoints.\n  - Unfortunately, landrush of reconnecting people at the time has effectively killed one of the **Friends Service** load balancers paralyzing our ability to setup presence flow on new connections.\n- Impact:\n\t  - As a result, though people did actually connect to XMPP, the UI showed everyone as offline due to missing presence flow.\n  - Effectively, a “dark room” situation.\n- Next steps:\n\t  - We’re in a process of upgrading load-balancer solution for Friends Service and other platform services to address issues like above.\n  - We’re fixing our VPC configuration to ensure subnet capacity.\n  - There are also longer-term problems team is actively working on. For example with current architecture XMPP cluster represents a full mesh. Each cluster node is connected to each other. With 10 connections between each node and 101 nodes in cluster it effectively spends 1k sockets per node just on cluster connections.\n  - Each XMPP node can hold only up to N connections with current solution. Hence there is a theoretical limit on optimal number of cluster nodes (and hence CCU capacity) we can maintain without solution redesign."
+   },
+   "passages": [
+    {
+     "section": "**XMPP outage**",
+     "content": "### **XMPP outage**\n\nAnd at 22:00 UTC on Sunday we started losing cluster nodes and disconnecting players.\n  - A decision was made to immediately failover to a stand-by cluster via green/blue deployment strategy, when we instantly flip all the traffic to another set of endpoints.\n  - Unfortunately, landrush of reconnecting people at the time has effectively killed one of the **Friends Service** load balancers paralyzing our ability to setup presence flow on new connections.\n- Impact:\n\t  - As a result, though people did actually connect to XMPP, the UI showed everyone as offline due to missing presence flow.\n  - Effectively, a “dark room” situation.\n- Next steps:\n\t  - We’re in a process of upgrading load-balancer solution for Friends Service and other platform services to address issues like above.\n  - We’re fixing our VPC configuration to ensure subnet capacity.\n  - There are also longer-term problems team is actively working on. For example with current architecture XMPP cluster represents a full mesh. Each cluster node is connected to each other. With 10 connections between each node and 101 nodes in cluster it effectively spends 1k sockets per node just on cluster connections.\n  - Each XMPP node can hold only up to N connections with current solution. Hence there is a theoretical limit on optimal number of cluster nodes (and hence CCU capacity) we can maintain without solution redesign.",
+     "similarity": 0.6645203687102883,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    },
+    {
+     "section": "**XMPP outage**",
+     "content": "### **XMPP outage**\n\nOn Sunday we had a situation while mitigating a known instability problem that resulted in overloading a downstream system component and effectively paralyzing presence flow.  Without presence, a user who is your friend cannot see that you are online, breaking most of our social features including the ability to form parties.\n\nGraphs below:\n- At the top - instability and connection migration from Blue cluster to Green cluster (time in UTC).\n- On the left - calls made by stand-by XMPP cluster to Friends Service. XMPP perspective.\n- On the right - traffic handled by Friends load balancer. Once recovered, it was able to handle all queued traffic.\n\nHere is a quick summary of the incident:\n- Timeline:\n\t  - 2018-02-04 22:00 UTC - 2018-02-05 00:15 UTC\n- Root cause:\n\t  - Friends Service internal load balancer - the one on critical path for XMPP - got overloaded and pushed into an error state.\n  - ELB could not quickly recover due to specifics of failover process and outdated network configuration - ELB subnet was short on free IPs to provision replacement.\n- Incident Details:\n\t  - Due to a recently introduced memory leak, XMPP was on a monitored path to falling into unstable state.\n  - We planned to replace it with another ready and stand-by cluster with the leak already fixed.\n  - We expected cluster to survive through weekend, so that we could schedule a proper maintenance during working week days.\n  - Unfortunately, Game Services and Account Service instability significantly increased the effect of the leak. And at 22:00 UTC on Sunday we started losing cluster nodes and disconnecting players.\n  - A decision was made to immediately failover to a stand-by cluster via green/blue deployment strategy, when we instantly flip all the traffic to another set of endpoints.",
+     "similarity": 0.6447305782287586,
+     "origin": "similar",
+     "query": "People are reporting failed connections.\n\nAnalyst answer: We run a live messaging application. Certain chat communities look disconnected, their hosting workers are acting strangely, and people are struggling to join. Early this afternoon our hosting vendor automatically relocated the machine serving as our active Redis server. It went out of reach and its standby assumed the active role. The first alert came early in the afternoon, and API behavior normalized roughly an hour afterward. About three quarters of an hour later, our dashboards flagged fresh trouble and community access complaints arrived almost immediately; only some communities appear affected, and we cannot quantify the user impact. Several API workers initially struggled to connect to Redis, calls were slow, and clients were hammering a costly API operation. Now certain chat communities look disconnected, one hosting worker is unhealthy, and several workers maintaining client sessions are acting strangely."
+    }
+   ],
+   "found_by": "description",
+   "deepened": false,
+   "why": null
+  }
+ ]
+}

@@ -1,0 +1,84 @@
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Basic reads, writes, removals and key enumeration against our distributed data store are being rejected as unauthorized.",
+      "Products built on this storage layer are either throwing more errors than usual or no longer responding successfully.",
+      "Published static web apps and attempts to release new ones are encountering server-side failures.",
+      "People without an active login cannot sign in through our authorization platform; apps that verify signed token certificates or check device compliance also break.",
+      "Certain customers are unable to enroll additional devices or reach protected resources governed by device compliance and session expiry rules.",
+      "Calls to our image administration interface fail, but previously available images are still being served.",
+      "Requests to invalidate individual cached files fail at certain network locations.",
+      "Users cannot publish or modify programs running at the network edge, whether they use the web console, a terminal client or direct API calls.",
+      "Our gateway for forwarding AI traffic is unable to relay incoming calls.",
+      "The system that queues visitors cannot retrieve its settings and is letting traffic through without enforcement.",
+      "The browser verification component cannot fetch its initial script, and certain security checks prevent visitors from proceeding.",
+      "Some sections of the operations console fail to respond correctly.",
+      "The regular release reversal process and automated build-system sign-in are not functioning."
+    ],
+    "affected_service": "Our worldwide storage platform for records indexed by key",
+    "dependent_impact": "The shared storage outage is disrupting web publishing, identity checks, protected network access, image administration, targeted cache invalidation, publishing edge programs, forwarding AI calls, visitor queues, browser validation, security checks and portions of the management console.",
+    "scope": "Several products used by customers are degraded. Programs relying on this storage layer break, whereas independent edge workloads continue to run. Previously published images still load, and locations retaining settings in their local cache may still invalidate individual files. Depending on applicable rules, existing logins and devices already registered may continue to work. We have neither a quantified user impact nor a breakdown by geography.",
+    "timing": "We began rolling out the release in the early evening UTC. Roughly three quarters of an hour afterward, monitoring warned us that some requests were going somewhere we did not expect. About a quarter of an hour later, we tried to reverse the release and the disruption quickly spread to other products.",
+    "trigger": "We were introducing a fresh storage build in stages through our release management interface. As we advanced the release, monitoring showed requests heading toward an unintended target. We opted to revert, and widespread errors appeared as we made that attempt.",
+    "environment": [
+      "Worldwide key-based data storage",
+      "Preproduction and live release environments",
+      "Staged release automation and its programmatic interface",
+      "Programs executing at network edge locations",
+      "REST-style interfaces",
+      "HTTP transport",
+      "Signed JWT credentials and associated certificate checks",
+      "Endpoint device compliance checks",
+      "Automated build and integration infrastructure",
+      "Private operations console",
+      "Configuration retained in local caches"
+    ],
+    "already_tried": [
+      "We requested a release reversal through the staged rollout interface later that evening, but request failures became widespread rather than subsiding.",
+      "We tried our regular internal recovery path, only to find that both the management console and identity systems were impaired.",
+      "We also tried reverting through the automated build pipeline, but sign-in problems kept us from retrieving the required secret credentials."
+    ],
+    "misleading_signals": []
+  },
+  "complete_message": "Our worldwide key-based data store is rejecting requests as unauthorized, and downstream products are breaking, with server-side errors on static websites as well as problems with sign-in and publishing edge workloads. Earlier this evening we began a staged release, then received warnings about unexpected routing roughly three quarters of an hour into it. When we tried to revert about a quarter of an hour afterward, the disruption quickly widened and the usual recovery interfaces also stopped functioning. Several customer products are impaired, though independent workloads and certain established login sessions continue to work.",
+  "conversation": [
+    {
+      "analyst": "We suddenly have a surge of authorization failures."
+    },
+    {
+      "if_asked_about": "which system is having trouble",
+      "analyst": "The errors are coming from our worldwide key-based data store. Web publishing, identity checks and releases of edge workloads are among the products relying on it."
+    },
+    {
+      "if_asked_about": "recent changes and possible trigger",
+      "analyst": "We were introducing a fresh storage build in stages. As the rollout advanced, monitoring warned of requests heading toward an unintended target; we tried to revert and the disruption quickly widened."
+    },
+    {
+      "if_asked_about": "onset and extent of impact",
+      "analyst": "Routing warnings appeared in the evening UTC, roughly a quarter of an hour before the broader disruption. Several products used by customers are impaired, but workloads independent of this storage layer and certain established login sessions continue to function."
+    },
+    {
+      "if_asked_about": "observed failures and error behavior",
+      "analyst": "Storage reads, writes, removals and key enumeration are rejected as unauthorized. Hosted static websites throw server-side errors, sign-in is unreliable, publishing edge programs fails and other dependent features are down. Identity failures are also keeping us from using our regular release reversal tools."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "A latent bug in our progressive deployment tool caused its release-listing API to return builds from both staging and production instead of restricting results to the requested environment. During the production rollout, the deployment automation incorrectly selected a script deployed to the staging account rather than the intended production-account build. The production routing configuration consequently pointed to a version that was not running in the production environment and was not authorized for production access. Requests to the key-value store were effectively routed into a black hole and returned HTTP 401 errors, causing failures across dependent services. Recovery was further delayed because our dashboard and CI authentication mechanisms themselves depended on the unavailable key-value store, preventing the normal rollback process from accessing the necessary secrets.",
+    "fix": [
+      "Engineers used an emergency break-glass mechanism to bypass the unavailable normal deployment tooling.",
+      "At approximately 20:15 UTC, engineers manually changed production deployment routes to point back to the previously deployed, known-good build, restoring the majority of traffic to a working version.",
+      "By approximately 20:29 UTC, key-value store error rates had returned to pre-incident levels, and dependent services recovered within the following minute.",
+      "The incident was fully resolved by approximately 20:31 UTC."
+    ],
+    "prevention": [
+      "Plan to move key-value store deployments onto standardized deployment models with automated impact detection and recovery.",
+      "Ensure rollback mechanisms always have access to a known-good deployment identifier.",
+      "Make rollback procedures work independently of the access control service so they remain usable during authentication outages.",
+      "Introduce deployment pre-checks that validate input parameters and prevent version mismatches from reaching production.",
+      "Harden progressive deployment tooling for multi-tenant environments rather than relying on single-tenant assumptions.",
+      "Add validation to progressive deployment scripts to verify that each selected deployment belongs to the intended environment, such as staging or production.",
+      "Improve deployment tooling and product-level dependency controls to reduce the impact of failures in shared infrastructure."
+    ],
+    "changes": "During recovery, engineers manually changed the production routing configuration from the incorrect deployment target to the previous known-good production build using emergency access mechanisms. The post-mortem describes additional deployment-tool validation, rollback improvements, and deployment standardization as planned follow-up work, not as changes already completed."
+  }
+}

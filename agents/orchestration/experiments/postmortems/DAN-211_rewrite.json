@@ -1,0 +1,105 @@
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Our credential storage and distribution system has become sluggish.",
+      "Processor utilization on a single member of the coordination cluster is abnormally elevated.",
+      "Half of the updates to our shared key-value database take roughly a couple of seconds or longer; ordinarily the midpoint is a fraction of a second.",
+      "By late afternoon, concurrent player activity is down to roughly half its usual level.",
+      "Eventually nobody can access our gaming platform.",
+      "Most cluster members are falling behind on incoming updates.",
+      "The primary member keeps losing synchronization with its voting peers.",
+      "Several applications relying on this infrastructure are failing their own health assessments.",
+      "The coordination system keeps slowing down despite the absence of player requests.",
+      "Low-level diagnostics and host statistics indicate lengthy stalls while persisting key-value updates."
+    ],
+    "affected_service": "Our shared infrastructure for locating services and distributing configuration, backed by a clustered key-value database.",
+    "dependent_impact": "Credential delivery is slow, and backend applications struggle to locate and reach one another. Launching containers and obtaining live-environment credentials are both affected; downstream applications are failing health checks. Players eventually lose access entirely, and our cache infrastructure is still in a bad state during recovery.",
+    "scope": "Numerous backend workloads rely on the same coordination system. Players see no immediate effect, but within a few hours concurrency falls to roughly half its usual level before the entire gaming platform goes offline. Our fleet comprises tens of thousands of hosts and well over a hundred thousand containers.",
+    "timing": "Internal slowdowns begin in the early afternoon. Customers start feeling the effects several hours afterward, with the partial disruption eventually escalating into total loss of platform access.",
+    "trigger": "During the preceding afternoon we switched a routing backend to a continuous update feed from the coordination system and expanded its fleet by roughly half. Operations looked normal for close to a day following the rollout; we cannot yet connect it to the failure.",
+    "environment": [
+      "We operate our own physical facilities and manage the underlying machines, disks and network ourselves.",
+      "Tens of thousands of hosts running well over a hundred thousand containers.",
+      "A coordination system handling endpoint lookup, health reporting, session-based locks and key-value data.",
+      "The coordination cluster has a handful of voting members and a similarly sized group of read-only, non-voting replicas.",
+      "Raft provides consensus for choosing the primary and copying state among members.",
+      "A container orchestrator assigns workloads to hosts and checks their health.",
+      "A dedicated system handles sensitive credentials.",
+      "Numerous backend applications use one common coordination cluster.",
+      "A continuous update mechanism was recently made available through an incremental software upgrade.",
+      "Backend request-routing applications rely on the coordination infrastructure.",
+      "Our applications query service locations, submit updates and report their health."
+    ],
+    "already_tried": [
+      "We swapped out a cluster member because we thought the machine was underperforming; the slowdown persisted.",
+      "We shifted most members onto hosts with roughly a hundred processor cores and faster solid-state storage, but the system stayed unhealthy and typical database updates still took a couple of seconds.",
+      "We took the cluster offline, loaded a previous state backup and used temporary firewall restrictions to limit requests while bringing it up. Measurements were good at first, then worsened once connections were allowed again.",
+      "We cut off the external requests that were still arriving and prepared settings to eliminate optional calls to the coordination layer.",
+      "We scaled applications from hundreds of copies down to only a handful each.",
+      "We changed health reporting from roughly once a minute to once every several minutes; even with fewer requests, cluster health deteriorated again.",
+      "We inspected verbose diagnostics, host counters, live process statistics and profiling information, which revealed prolonged stalls on key-value updates.",
+      "We thought the higher-core-count hosts might be making things worse, so we returned to machines with roughly half as many cores. The slowdown remained."
+    ],
+    "misleading_signals": [
+      "An overloaded processor on a single member alongside slow database updates made a failing machine seem plausible, but swapping it out brought no relief.",
+      "The widespread disruption looked like a throughput ceiling; moving to faster hosts failed to restore normal operation.",
+      "Loading an older backup made the measurements look good briefly, until backend applications resumed communicating with the cluster.",
+      "Heavy lookup and health-reporting activity seemed responsible, yet even drastic reductions in request volume did not keep the system healthy.",
+      "The machines with more processor cores seemed capable of worsening resource contention, but switching back to lower-core-count hosts left the issue intact."
+    ]
+  },
+  "complete_message": "Our shared service lookup and configuration system is struggling: typical database updates now take a couple of seconds rather than a small fraction of one, a single host is using unusually large amounts of CPU, and credential delivery is slow. Internal trouble surfaced in the early afternoon, and within a few hours we had roughly half our usual concurrent players. The preceding afternoon we switched a routing backend to a continuous update feed and expanded its fleet by roughly half; we cannot tell whether that rollout contributed.",
+  "conversation": [
+    {
+      "analyst": "Updates are taking much longer than usual."
+    },
+    {
+      "if_asked_about": "which system is struggling",
+      "analyst": "The shared cluster that lets our applications locate one another is in poor health. Credential delivery is sluggish too, and numerous backend applications rely on that infrastructure."
+    },
+    {
+      "if_asked_about": "recent rollouts or possible initiating events",
+      "analyst": "During the preceding afternoon we switched a request-routing application to continuous updates from the coordination system and grew its fleet by roughly half. Operations seemed fine for close to a day, so the connection remains uncertain."
+    },
+    {
+      "if_asked_about": "onset and extent of disruption",
+      "analyst": "Internal trouble surfaced in the early afternoon without affecting players initially. Several hours later we had roughly half our usual concurrent players, and conditions are still worsening."
+    },
+    {
+      "if_asked_about": "observed failures and diagnostic indicators",
+      "analyst": "Typical key-value updates are taking a couple of seconds rather than a fraction of one, and a single host has elevated processor utilization. Members are falling behind on updates, the primary keeps losing synchronization with voting peers, and downstream applications are failing health assessments."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "The outage resulted from two primarily independent performance problems within Consul. First, the recently enabled streaming implementation suffered excessive contention under the combination of very high read and write loads. The streaming implementation used fewer Go channels for concurrency control than the previous long-polling approach. At this workload scale, contention on a shared channel blocked writes, increased CPU usage, and severely degraded Consul performance. The 128-core replacement servers, which used a dual-socket NUMA architecture, aggravated contention on shared resources. Second, the workload exposed a pathological BoltDB performance problem affecting Consul's Raft log persistence. BoltDB retained free pages from deleted log entries in an increasingly large freelist. The database contained approximately 3.8 GB of unused space and a 7.8 MB freelist, which was rewritten during small log appends, causing excessive write latency. Backpressure and full TCP buffers contributed to write times of 2 to 3 seconds on unhealthy leaders. Both problems affected a single shared Consul cluster that supported numerous critical services, amplifying the outage. Monitoring systems also depended on Consul, reducing visibility during diagnosis.",
+    "fix": [
+      "Disabled the Consul streaming feature across all services, including traffic-routing nodes. When the configuration finished propagating at 15:51, median KV write latency dropped to approximately 300 milliseconds.",
+      "Implemented a workaround to prevent Consul leaders exhibiting excessive latency from remaining elected, allowing the cluster to operate consistently while the remaining performance issue was investigated.",
+      "With Consul stable, began restoring dependent services, starting with the caching infrastructure.",
+      "Redeployed the caching system, addressing incorrect scheduling metadata, an unhealthy node that the scheduler incorrectly considered available, and difficulties bootstrapping large cache deployments.",
+      "Verified the health and correctness of the restored caching system and the Consul cluster.",
+      "Restarted the remaining internal services at appropriate capacity levels and verified their operation.",
+      "Used DNS steering to gradually reintroduce player traffic, increasing access in approximately 10% increments while checking database load, cache performance, and overall stability.",
+      "Restored full player access after successfully validating the system under increasing traffic.",
+      "After the outage, developed and deployed a BoltDB compaction process using existing tooling to address the underlying database performance issue."
+    ],
+    "prevention": [
+      "Removed the circular dependency between telemetry systems and Consul so monitoring remains available when the monitored infrastructure fails.",
+      "Extended monitoring to provide deeper visibility into Consul and BoltDB performance, including targeted alerts for conditions associated with the outage.",
+      "Improved monitoring of traffic patterns between internal services and Consul.",
+      "Built infrastructure for an additional geographically distinct data center and began efforts to distribute services across multiple availability zones and data centers.",
+      "Separated some critical services into dedicated Consul clusters to reduce the load and failure impact on the central cluster.",
+      "Began migrating data stored directly in Consul's KV store to more appropriate storage systems.",
+      "Deleted obsolete Consul KV data, improving cluster performance.",
+      "Began testing a Consul upgrade that replaces BoltDB with bbolt, addressing the unbounded freelist growth issue.",
+      "Developed and deployed a database-compaction process to address BoltDB performance degradation.",
+      "Started developing redesigned caching deployment mechanisms to support faster, more reliable recovery from a completely stopped state.",
+      "Identified Nomad improvements to make restarting large jobs easier after extended unavailability, with deployment planned for a future upgrade.",
+      "Developed and deployed mechanisms for faster machine configuration changes.",
+      "Began developing new streaming benchmarks and additional scale tests reproducing the combination of a large number of streams and high update churn.",
+      "Began improving the Consul streaming implementation to avoid excessive contention under extreme workloads.",
+      "Planned to reintroduce streaming only after a revised implementation had been tested against the actual workload at the required scale."
+    ],
+    "changes": "During recovery, Consul streaming was disabled across all affected services. Temporary configuration changes included restricting cluster access with iptables, disabling non-essential Consul usage, reducing service instance counts, and increasing health-check intervals from 60 seconds to 10 minutes. Traffic access was subsequently controlled through DNS steering. After the incident, the team removed monitoring dependencies on Consul, expanded telemetry and alerting, placed some critical services into dedicated Consul clusters, deleted obsolete KV data, and deployed a BoltDB compaction process. Additional changes, including replacement of BoltDB with bbolt, redesigned cache bootstrapping, streaming improvements, and broader infrastructure distribution, were in progress or planned rather than fully completed at the time of the report."
+  }
+}

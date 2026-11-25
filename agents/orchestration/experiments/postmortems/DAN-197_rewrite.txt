@@ -1,0 +1,111 @@
+Below is a test case built from an incident post-mortem. I need the analyst-facing parts REWRITTEN so that a
+search engine cannot find the original post-mortem just by matching words. Imagine a DIFFERENT company had a
+similar incident and its on-call analyst describes it in their own words.
+
+Rewrite only these parts: "visible_during_incident", "complete_message" and "conversation".
+Copy "discovered_later" exactly as it is, without changes.
+
+Rules for the rewrite:
+- Keep the same facts and their meaning: the kind of failure, the kind of service, the trigger (or the lack of
+  one), the timing pattern (sudden or gradual, "a few days after", "right after a deploy") and the scope.
+- Do NOT reuse distinctive wording from the original: rephrase every sentence. Avoid copying phrases of 4 or
+  more words from the input.
+- Do NOT copy exact error messages, status texts or log lines: describe them in other words
+  (e.g. "the API rejects the request saying an input is invalid" instead of the exact message).
+- Do NOT copy exact numbers, versions, percentages, counts or times: use approximate or relative values
+  ("most of the network" instead of "85%", "in the early evening" instead of "17:57 UTC",
+  "a few hundred servers" instead of "900").
+- Do NOT use internal names of components, tools, settings, commands or endpoints from the input
+  (e.g. "Tenant Service", "pg_basebackup", "max_wal_senders", "/organizations"): use plain descriptions
+  ("the service that checks permissions", "the tool we use to copy the database to the replica").
+- Generic technology names are fine only when an analyst would naturally say them (Redis, Kubernetes, Postgres),
+  but prefer plain words when the technology is not essential to the symptom.
+- Change the business domain only if it would identify the company (e.g. an ad exchange can stay "our ad
+  serving platform"; a famous product name must go).
+- Keep the analyst's point of view ("our", "we"), during the incident: no root cause, no fix, no lessons,
+  no dates.
+- "complete_message": 2 to 4 sentences. "conversation": exactly 5 items in the same order, the first message
+  short and incomplete (one symptom, no service name, no trigger).
+- Return only JSON with the same keys and structure as the input. If you can create files, create a
+  downloadable file named DAN-197_rewrite.json; otherwise return only the JSON text, which will be saved as DAN-197_rewrite.json.
+
+TEST CASE (DAN-197):
+{
+  "visible_during_incident": {
+    "symptoms": [
+      "Our cloud database service monitor is intermittently failing when attempting to create database containers.",
+      "The CreateContainer operation returns errors stating 'One of the specified inputs is invalid'.",
+      "Following the first error, approximately 75% of test runs failed, while 25% succeeded.",
+      "The failure rate later increased to approximately 90% of 140 daily tests in the eastern US region.",
+      "Failures subsequently appeared in the central US region, initially with occasional successful tests before reaching 100% failure.",
+      "Eventually, 100% of test runs in the eastern US region were also failing."
+    ],
+    "affected_service": "Our cloud database service monitor, specifically its database container creation checks",
+    "dependent_impact": "Our monitoring platform reported the cloud database service as partially down to users because its functional tests could not consistently complete.",
+    "scope": "Initially affected the eastern US region, with 75% of test runs failing, later rising to 90% and eventually 100%. The central US region subsequently experienced similar failures, eventually reaching 100%. Other regions continued working.",
+    "timing": "The first error appeared at 18:42 UTC, and we declared a partial outage at 19:12 UTC. Failures began intermittently and progressively worsened over several days, eventually spreading to another region.",
+    "trigger": null,
+    "environment": [
+      "Cloud database service",
+      "Cloud database management API",
+      "SDK used to manage database resources",
+      "Scripted functional monitoring tests",
+      "SQL databases and containers",
+      "Database container creation operations",
+      "Database throughput configuration"
+    ],
+    "already_tried": [
+      "We inspected the functional test error logs and identified repeated CreateContainer errors reporting invalid inputs.",
+      "We reviewed our container creation code and confirmed that it had not changed in several months.",
+      "We updated our outdated SDK, but the errors persisted.",
+      "We investigated whether the permitted throughput values had changed, but found no resolution.",
+      "We tried changing the configured throughput value of 400, but the errors continued.",
+      "We investigated whether database containers could still be created, but this did not resolve the issue.",
+      "We checked the provider's status page, which did not report an incident."
+    ],
+    "misleading_signals": [
+      "The failures initially affected only one region, resembling regional capacity issues we had encountered previously.",
+      "Some test runs continued succeeding despite repeated failures.",
+      "Other regions continued functioning normally.",
+      "The provider's status page showed no reported incident.",
+      "The container creation code had not changed in several months, and nothing appeared obviously wrong with the existing implementation."
+    ]
+  },
+  "complete_message": "We're seeing intermittent failures in our cloud database service monitor when creating database containers in the eastern US region, starting at 18:42 UTC, and we declared a partial outage at 19:12 UTC. Around 75% of our test runs are failing with the error 'One of the specified inputs is invalid', although some requests still succeed. We haven't changed our container creation code in months, other regions appear to be working, and the provider's status page shows no reported incident.",
+  "conversation": [
+    {
+      "analyst": "We're seeing intermittent failures in our functional monitoring tests. Some requests succeed, but most are returning errors."
+    },
+    {
+      "if_asked_about": "the affected service",
+      "analyst": "It's our cloud database service monitor. The failures occur specifically when our tests attempt to create database containers."
+    },
+    {
+      "if_asked_about": "what changed right before / the trigger",
+      "analyst": "We haven't changed our container creation code or the way we make these requests in several months. We don't know of any change immediately before the failures started."
+    },
+    {
+      "if_asked_about": "when it started and who is affected",
+      "analyst": "The first error appeared at 18:42 UTC, and we declared the service partially down at 19:12 UTC. The eastern US region was initially affected, with about 75% of test runs failing, while other regions continued working."
+    },
+    {
+      "if_asked_about": "the errors or symptoms seen",
+      "analyst": "Our CreateContainer operation repeatedly returns 'One of the specified inputs is invalid'. The failures are intermittent, and the error logs don't identify which input is invalid."
+    }
+  ],
+  "discovered_later": {
+    "root_cause": "The cloud database provider introduced an unannounced breaking change to its API contract. A partition key field that had previously been optional became mandatory when creating database containers. Our existing SDK-based implementation did not explicitly supply this field, causing container creation requests to fail as the change progressively affected different regions.",
+    "fix": [
+      "Investigated container creation through the provider's web console and discovered that the Partition Key field was required, with '/id' as its default value.",
+      "Explicitly supplied the partition key in the container creation code using .WithPartitionKey(\"/id\").",
+      "Applied similar changes to the InsertItem and DeleteItem monitoring checks.",
+      "Updated the affected monitoring operations so their requests matched the provider's new requirements."
+    ],
+    "prevention": [
+      "The post-mortem recommends following cloud providers' best practices and configuration recommendations.",
+      "The post-mortem recommends obtaining alerts about upcoming provider changes to reduce the risk of unexpected API compatibility failures.",
+      "No additional implemented preventive measures are documented."
+    ],
+    "changes": "Modified the database container creation code to explicitly include .WithPartitionKey(\"/id\") rather than relying on the previously optional partition key behavior. Similar changes were applied to the InsertItem and DeleteItem checks."
+  }
+}

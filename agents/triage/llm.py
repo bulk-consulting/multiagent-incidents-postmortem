@@ -26,15 +26,21 @@ ATTEMPTS = 3
 WAIT_SECONDS = 15
 
 
-def chat(messages, tools=None, max_tokens=2048):
+def chat(messages, tools=None, max_tokens=2048, temperature=None, **options):
     """Send the messages history to the model and return its reply message.
 
     If the model wants to use a tool, the reply has a "tool_calls" entry.
+    temperature: None keeps the model's default (the Triage agent uses the default).
+    options: other fields for the NIM request, passed as they are (e.g. top_p=0.95, or
+    chat_template_kwargs={"enable_thinking": False} to turn the model's reasoning off).
     """
     if not API_KEY:
         raise RuntimeError(f"NVIDIA_API_KEY not found in {ROOT / '.env'}")
 
     body = {"model": MODEL, "messages": messages, "max_tokens": max_tokens}
+    if temperature is not None:
+        body["temperature"] = temperature
+    body.update(options)
     if tools:
         body["tools"] = tools
         body["tool_choice"] = "auto"  # the model decides if it needs a tool

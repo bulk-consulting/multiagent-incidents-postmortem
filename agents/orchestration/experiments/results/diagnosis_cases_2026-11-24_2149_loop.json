@@ -1,0 +1,318 @@
+[
+ {
+  "case": "DAN-104",
+  "round": 1,
+  "hidden": [],
+  "description": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East location, affecting users of the object store and products relying on it. We cannot read, enumerate, write or erase objects through the APIs. Virtual machine provisioning, disk volumes that fetch snapshot contents from the object store, on-demand function execution and the storage control panel are having trouble. Our status page controls will not let us post product-specific notices either.",
+  "triage": {
+   "affected_service": "cloud object store",
+   "trigger": "An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting the billing process",
+   "symptoms": [
+    "cannot read, enumerate, write or erase objects through APIs",
+    "virtual machine provisioning failing",
+    "disk volumes fetching snapshot contents failing",
+    "on-demand function execution failing",
+    "storage control panel failing",
+    "status page controls cannot post product-specific notices"
+   ],
+   "category": null
+  },
+  "real_root_cause": "An authorized team member entered an incorrect input when executing a standard operational command intended to remove a small number of servers from a subsystem used by the object storage billing process. The incorrect input caused a much larger set of servers to be removed than intended, including servers supporting the metadata index and storage placement subsystems. The index subsystem manages object metadata and location information and is required for GET, LIST, PUT, and DELETE requests. The placement subsystem allocates storage for new objects during PUT requests and depends on the index subsystem. The loss of significant capacity forced both subsystems to undergo full restarts. Because of the service's growth, restarting the subsystems and performing metadata integrity checks took longer than expected.",
+  "findings": [
+   {
+    "id": "DAN-104",
+    "deepened": true,
+    "title": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region"
+   },
+   {
+    "id": "DAN-106",
+    "deepened": true,
+    "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+   },
+   {
+    "id": "DAN-114",
+    "deepened": true,
+    "title": "Summary of the AWS Service Event in the Northern Virginia (US-EAST-1) Region — As the Lambda Frontend fleet scaled in response to normal daily traffic growth, it crossed a capacity threshold..."
+   },
+   {
+    "id": "DAN-072",
+    "deepened": false,
+    "title": "Incident details | Google Cloud Service Health — On Tuesday, 19 July 2022 at 06:33 US/Pacific, a simultaneous failure of multiple, redundant cooling systems in one..."
+   },
+   {
+    "id": "DAN-037",
+    "deepened": false,
+    "title": "Google Cloud Status Dashboard — Two misconfigurations, plus a software bug, caused a massive Google Cloud Network failure on the US East Coast"
+   },
+   {
+    "id": "DAN-008",
+    "deepened": false,
+    "title": "Partial Cloudflare outage on October 25, 2022"
+   },
+   {
+    "id": "DAN-151",
+    "deepened": false,
+    "title": "Elastic Cloud Incident Report: February 4, 2019 | Elastic Blog"
+   },
+   {
+    "id": "DAN-073",
+    "deepened": false,
+    "title": "Outage report 7 July 2020 - PythonAnywhere News"
+   }
+  ],
+  "right_incident_in_findings": true,
+  "right_incident_deepened": true,
+  "diagnosis": {
+   "hypotheses": [
+    {
+     "cause": "A routine command to remove a small number of servers supporting the billing process removed too much capacity from S3 subsystems in US-EAST-1, forcing the index and placement subsystems to restart and making the object store unable to serve GET, LIST, PUT, and DELETE requests, with cascading failures to EC2, EBS, Lambda and the console.",
+     "based_on": [
+      "DAN-104"
+     ],
+     "matches": "Same trigger (routine removal of a handful of machines during a billing-related procedure), same component (cloud object store in US East), same symptoms (cannot read, enumerate, write or erase objects; dependent services such as VM provisioning, disk volumes, functions and control panel failing), and same cascading pattern.",
+     "differs": "The current analyst did not mention a typo or incorrect input; they said the engineer followed the usual operating procedure, so it is unclear whether the removal was accidental or simply larger than expected.",
+     "same_trigger": "yes",
+     "same_component": "yes",
+     "same_mechanism": "yes",
+     "confidence": "high"
+    },
+    {
+     "cause": "A routine infrastructure change in US East caused a regional resource crunch or control-plane thread starvation that cascaded to the object store and its dependents, rather than the object store being the primary failing component.",
+     "based_on": [
+      "DAN-106"
+     ],
+     "matches": "Same region (US East), same kind of trigger (human error during a routine infrastructure change), and same regional cascading failure pattern affecting multiple dependent services.",
+     "differs": "The past incident primarily affected EC2/RDS/EBS, not an object store, and the mechanism involved EBS re-mirroring storms and thread starvation rather than removal of object-store subsystems.",
+     "same_trigger": "yes",
+     "same_component": "no",
+     "same_mechanism": "no",
+     "confidence": "medium"
+    }
+   ],
+   "evidence_sufficient": true,
+   "gaps": [
+    "Whether the current removal command had an incorrect input or removed more machines than intended.",
+    "Which object-store subsystems (index, placement, or other) were affected and whether they required restart.",
+    "Whether the current object store is the same kind of service as Amazon S3 or a different implementation."
+   ],
+   "next_step": "report",
+   "search_request": "",
+   "questions_for_analyst": []
+  },
+  "model_confidence": [
+   "high",
+   "medium"
+  ],
+  "diagnosis_turns": 1,
+  "prompt_chars": 21979,
+  "rounds": [
+   {
+    "research_round": 1,
+    "request": "",
+    "research_warnings": [],
+    "research_llm_calls": 2,
+    "searches": [
+     {
+      "step": "find_similar_incidents (description)",
+      "query": "Requests are failing across an entire region.\n\nAnalyst answer: It is our cloud object store, and products relying on it are having trouble too. We wer",
+      "ids": [
+       "DAN-072",
+       "DAN-106",
+       "DAN-037",
+       "DAN-008",
+       "DAN-151",
+       "DAN-073",
+       "DAN-104",
+       "DAN-071",
+       "DAN-060",
+       "DAN-197"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "cloud object store API read write enumerate delete failures entire region",
+      "ids": [
+       "DAN-072",
+       "DAN-015",
+       "DAN-071",
+       "DAN-166",
+       "DAN-014",
+       "DAN-139",
+       "DAN-073",
+       "DAN-104",
+       "DAN-222",
+       "DAN-036"
+      ]
+     },
+     {
+      "step": "find_similar_incidents",
+      "query": "S3 object store outage cascading failure virtual machine provisioning function execution",
+      "ids": [
+       "DAN-104",
+       "DAN-073",
+       "DAN-230",
+       "DAN-222",
+       "DAN-105",
+       "DAN-060",
+       "DAN-114",
+       "DAN-064",
+       "DAN-106",
+       "DAN-139"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause human error removed servers S3 critical systems fix restart recovery",
+      "ids": [
+       "DAN-104"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-104"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-104"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause human error networking upgrade resource crunch fix US East EC2 RDS",
+      "ids": [
+       "DAN-106"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-106"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-106"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "root cause Lambda Frontend capacity threshold latent defect fix scaling cascading failure STS EKS Console",
+      "ids": [
+       "DAN-114"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "what was the root cause of the failure",
+      "ids": [
+       "DAN-114"
+      ]
+     },
+     {
+      "step": "search_inside_incidents",
+      "query": "how the problem was corrected, remediation, action items, prevention, next steps",
+      "ids": [
+       "DAN-114"
+      ]
+     }
+    ],
+    "findings": [
+     {
+      "id": "DAN-104",
+      "deepened": true,
+      "title": "Summary of the Amazon S3 Service Disruption in the Northern Virginia (US-EAST-1) Region"
+     },
+     {
+      "id": "DAN-106",
+      "deepened": true,
+      "title": "Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US East Region"
+     },
+     {
+      "id": "DAN-114",
+      "deepened": true,
+      "title": "Summary of the AWS Service Event in the Northern Virginia (US-EAST-1) Region — As the Lambda Frontend fleet scaled in response to normal daily traffic growth, it crossed a capacity threshold..."
+     },
+     {
+      "id": "DAN-072",
+      "deepened": false,
+      "title": "Incident details | Google Cloud Service Health — On Tuesday, 19 July 2022 at 06:33 US/Pacific, a simultaneous failure of multiple, redundant cooling systems in one..."
+     },
+     {
+      "id": "DAN-037",
+      "deepened": false,
+      "title": "Google Cloud Status Dashboard — Two misconfigurations, plus a software bug, caused a massive Google Cloud Network failure on the US East Coast"
+     },
+     {
+      "id": "DAN-008",
+      "deepened": false,
+      "title": "Partial Cloudflare outage on October 25, 2022"
+     },
+     {
+      "id": "DAN-151",
+      "deepened": false,
+      "title": "Elastic Cloud Incident Report: February 4, 2019 | Elastic Blog"
+     },
+     {
+      "id": "DAN-073",
+      "deepened": false,
+      "title": "Outage report 7 July 2020 - PythonAnywhere News"
+     }
+    ],
+    "right_incident_in_findings": true,
+    "right_incident_deepened": true,
+    "diagnosis": {
+     "hypotheses": [
+      {
+       "cause": "A routine command to remove a small number of servers supporting the billing process removed too much capacity from S3 subsystems in US-EAST-1, forcing the index and placement subsystems to restart and making the object store unable to serve GET, LIST, PUT, and DELETE requests, with cascading failures to EC2, EBS, Lambda and the console.",
+       "based_on": [
+        "DAN-104"
+       ],
+       "matches": "Same trigger (routine removal of a handful of machines during a billing-related procedure), same component (cloud object store in US East), same symptoms (cannot read, enumerate, write or erase objects; dependent services such as VM provisioning, disk volumes, functions and control panel failing), and same cascading pattern.",
+       "differs": "The current analyst did not mention a typo or incorrect input; they said the engineer followed the usual operating procedure, so it is unclear whether the removal was accidental or simply larger than expected.",
+       "same_trigger": "yes",
+       "same_component": "yes",
+       "same_mechanism": "yes",
+       "confidence": "high"
+      },
+      {
+       "cause": "A routine infrastructure change in US East caused a regional resource crunch or control-plane thread starvation that cascaded to the object store and its dependents, rather than the object store being the primary failing component.",
+       "based_on": [
+        "DAN-106"
+       ],
+       "matches": "Same region (US East), same kind of trigger (human error during a routine infrastructure change), and same regional cascading failure pattern affecting multiple dependent services.",
+       "differs": "The past incident primarily affected EC2/RDS/EBS, not an object store, and the mechanism involved EBS re-mirroring storms and thread starvation rather than removal of object-store subsystems.",
+       "same_trigger": "yes",
+       "same_component": "no",
+       "same_mechanism": "no",
+       "confidence": "medium"
+      }
+     ],
+     "evidence_sufficient": true,
+     "gaps": [
+      "Whether the current removal command had an incorrect input or removed more machines than intended.",
+      "Which object-store subsystems (index, placement, or other) were affected and whether they required restart.",
+      "Whether the current object store is the same kind of service as Amazon S3 or a different implementation."
+     ],
+     "next_step": "report",
+     "search_request": "",
+     "questions_for_analyst": []
+    },
+    "model_confidence": [
+     "high",
+     "medium"
+    ],
+    "diagnosis_turns": 1,
+    "prompt_chars": 21979
+   }
+  ],
+  "seconds": 122
+ }
+]
