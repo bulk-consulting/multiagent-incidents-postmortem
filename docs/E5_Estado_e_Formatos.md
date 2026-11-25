@@ -1,6 +1,8 @@
 # E5 — Esboço do estado compartilhado e dos formatos dos agentes
 
-**Situação:** proposta para a semana 5, para a equipe revisar antes de implementar. Os nomes de código estão
+**Situação (25/11):** estado, Diagnóstico e grafo implementados (`agents/orchestration/graph.py`, com demo e testes
+de integração — ver `agents/orchestration/README.md`); Relatório, validação e incidente duplicado ainda em versões
+provisórias no grafo, até os nós da Mari ficarem prontos. Começou como proposta para a equipe revisar. Os nomes de código estão
 em inglês, como nos agentes Triagem e Pesquisa; o texto do documento, em português.
 
 **Objetivo:** fixar o que cada agente lê e escreve, para que o Diagnóstico, o Relatório e o grafo possam ser
@@ -25,7 +27,9 @@ feitos em paralelo sem um esperar o outro.
 ```
 START → triage ─┬─ ask_user ──────────────► ask_analyst (interrupt) ──► triage
                 ├─ tell_related_incident ─► related_incident (código) ──► END
+                ├─ erro no Triagem ───────► report (inconclusivo)
                 └─ go_to_research ────────► research ──► diagnosis ─┬─ evidência suficiente ─────────► report
+                                               │ (falhou, nada encontrado ──► report inconclusivo)
                                                ▲                    ├─ refinar e ainda há tentativa ─► research
                                                └────────────────────┤
                                                                     ├─ faltam dados do incidente ────► ask_analyst
@@ -43,7 +47,7 @@ e escrevem o mesmo estado, salvo por `incident_id`.
 
 | Nó | Tipo | Dono | O que faz |
 |---|---|---|---|
-| `triage` | agente | Mari | o `triage_node` atual, com os nomes do estado abaixo |
+| `triage` | agente | Mari | o `triage_node` atual; no grafo, um adaptador traduz `description` → `descricao` e `sintomas` → `symptoms` até o `node.py` usar os nomes do estado |
 | `related_incident` | código | Mari | monta a resposta "já existe a investigação X", sem LLM |
 | `research` | agente | André | chama o subgrafo do Agente Pesquisa com `description`, `symptoms` e, no refinamento, `search_request` e os achados anteriores |
 | `diagnosis` | agente | André | lê os achados e escreve o `DiagnosisResult` |
@@ -285,6 +289,11 @@ def ask_analyst(state):
 - O nó **roda de novo do começo** quando o grafo é retomado, por isso não há nada caro (chamada ao LLM) antes
   do `interrupt()`.
 - Retomar: `graph.invoke(Command(resume=resposta), {"configurable": {"thread_id": incident_id}})`.
+- **Depois da resposta, a investigação recomeça** com a descrição enriquecida: o Triagem lê de novo e o Pesquisa
+  busca do zero (`research_rounds`, `findings`, `seen_ids` e `search_request` zerados). Assim, uma pergunta feita
+  pelo Diagnóstico na última rodada ainda leva a uma busca nova.
+- **No máximo `MAX_ANALYST_ROUNDS = 3` respostas** por investigação (contadas em `analyst_answers`, perguntas do
+  Triagem e do Diagnóstico juntas); depois disso, o relatório sai inconclusivo em vez de outra pergunta.
 - Com o Postgres, a pausa sobrevive ao fim do programa: o analista pode responder depois, em outra execução.
 
 ## 8. Tratamento de erros
@@ -293,6 +302,8 @@ def ask_analyst(state):
 |---|---|
 | erro passageiro do NIM (tempo esgotado, 429, 5xx) | `limite_llm` espera e tenta de novo; o nó tem `RetryPolicy` |
 | agente esgota as tentativas | o nó grava o erro em `errors` e o roteamento segue para o `report` inconclusivo |
+| Pesquisa falha na 1ª rodada (nada encontrado) | vai direto ao `report` inconclusivo, sem chamar o Diagnóstico |
+| Pesquisa falha num refinamento | a rodada conta; o Diagnóstico segue com os achados anteriores |
 | resposta fora do formato | o erro volta ao modelo dentro do agente (como no Triagem e no Pesquisa) |
 | relatório inválido | volta ao `report` até 2 vezes; depois, relatório inconclusivo montado em código |
 | laço de refinamento | no máximo `MAX_RESEARCH_ROUNDS = 3` rodadas do Pesquisa (1ª + 2 refinamentos) |
@@ -301,17 +312,21 @@ def ask_analyst(state):
 
 ```
 agents/
-  triage/          (existe)  node.py com os nomes do estado em inglês
-  research/        (existe)  node.py novo: research_node
-  diagnosis/       (novo)    agent.py, prompts.py, schema.py, node.py, tests/, doc
-  report/          (novo)    agent.py, prompts.py, schema.py, validate.py, node.py, tests/, doc
-  orchestration/   (novo)    state.py, graph.py, run.py (demonstração), tests/ (integração)
+  triage/          (existe)  node.py (ainda com descricao/sintomas; o grafo traduz)
+  research/        (existe)  o subgrafo; o nó research fica em orchestration/graph.py
+  diagnosis/       (feito)   agent.py, prompts.py, schema.py, tests/ (o nó diagnosis fica em graph.py)
+  report/          (Mari)    agent.py, prompts.py, schema.py, validate.py, node.py, tests/, doc
+  orchestration/   (feito)   state.py, graph.py, run.py (demonstração), tests/ (estado e integração),
+                             experiments/ (testes com o modelo real), README.md
 ```
 
 ## 10. Testes de integração (5.5)
 
 Com `InMemorySaver` e, quando possível, agentes falsos (como o `agents/triage/tests/test_node.py`), além de
-algumas rodadas com o modelo real:
+algumas rodadas com o modelo real. **Situação (25/11):** os 8 cenários estão em
+`agents/orchestration/tests/test_graph.py` com agentes falsos (33 verificações, todas passando; o 6 com o mesmo
+`InMemorySaver` e um grafo novo); com o modelo real e o Postgres, a demo rodou o 2 + 6 (pausa e retomada em outra
+execução) e o 4 (fora do corpus → 3 rodadas → pergunta ao analista). O 8 depende do Relatório da Mari.
 
 1. problema novo com caso parecido no corpus → relatório de diagnóstico com fontes válidas;
 2. mensagem vaga → pausa com perguntas; retomada com a resposta → segue até o relatório;

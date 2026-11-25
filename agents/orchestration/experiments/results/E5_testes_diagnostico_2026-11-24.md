@@ -238,6 +238,5 @@ analista, 6/12 deram "basta" com resposta aceitável, 1/12 (DAN-004) deu "basta"
 | `experiments/run_diagnosis_config.py` | novo: teste de configurações do modelo sobre achados fixos |
 | `docs/E5_Estado_e_Formatos.md` | seção 5 (regras, modelo, refinamento) e seção 11 (pontos 3 e 4 para a Mari) |
 
-Arquivos de resultado de testes interrompidos ou substituídos que podem ser apagados: `diagnosis_cases_2026-11-24_1031.json`,
-`_1032.json` (execuções avulsas do DAN-104, uma com o exemplo enviesado no prompt) e `_1504_hidden.json` (1 caso, conferência
-da opção `--hide-right`).
+Os resultados avulsos das conferências (duas execuções isoladas do DAN-104 e uma da opção `--hide-right`) foram
+apagados em 25/11.

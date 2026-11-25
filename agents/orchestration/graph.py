@@ -262,13 +262,13 @@ def route_after_validation(state: InvestigationState) -> Literal["report", "__en
 
 # ---------------------------------------------------------------- the graph
 
-def build_graph(checkpointer=None, report=None, validate_report=None):
+def build_graph(checkpointer=None, report=None, validate_report=None, related_incident=None):
     """The compiled main graph. checkpointer: InMemorySaver in the tests, PostgresSaver in the demo (needed for the
-    pause: interrupt). report / validate_report: Mari's nodes; the provisional ones are used while they do not
-    exist."""
+    pause: interrupt). report / validate_report / related_incident: Mari's nodes; the provisional ones are used
+    while they do not exist."""
     g = StateGraph(InvestigationState)
     g.add_node("triage", triage_node)
-    g.add_node("related_incident", related_incident_node)
+    g.add_node("related_incident", related_incident or related_incident_node)
     g.add_node("research", research_node)
     g.add_node("diagnosis", diagnosis_node)
     g.add_node("ask_analyst", ask_analyst_node)
