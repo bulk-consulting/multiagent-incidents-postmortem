@@ -7,7 +7,8 @@ node, which routing rule chose the next one. The agents are not changed: the scr
 uses to call them (graph.run_triage, run_research, run_diagnosis, run_reporting).
 
 Scenarios: a vague message → the Triage agent asks → pause → the analyst answers → Research → Diagnosis (with the
-refinement loop) → Reporting. dan104 (default) and dan197, from the demos of the E5 tests.
+refinement loop) → Reporting. Every pause is answered (up to MAX_ANALYST_ROUNDS): the first answer is the scenario's,
+the next ones come from the case's script (simulated analyst). dan104 (default) and dan197, from the demos of the E5 tests.
 
 Usage (from the repository root, database up):
     multiagent_env/bin/python -I agents/orchestration/experiments/capture_walkthrough.py [dan104|dan197]
@@ -34,6 +35,7 @@ from agents.diagnosis.schema import parse_diagnosis_answer  # noqa: E402
 from agents.orchestration.state import make_serializer  # noqa: E402
 from agents.reporting.agent import run_reporting_agent  # noqa: E402
 from agents.triage.agent import run_agent as run_triage_agent  # noqa: E402
+from agents.orchestration.experiments.run_trigger_policy import answer_for, load_case  # noqa: E402
 
 SCENARIOS = {
     # FINAL-EN of the E5 tests (DAN-197): a vague message about failing checks
@@ -52,6 +54,7 @@ SCENARIOS = {
                "enumerate, write or erase objects through the APIs."),
 }
 SCENARIO = sys.argv[1] if len(sys.argv) > 1 else "dan104"
+CASE_IDS = {"dan197": "DAN-197", "dan104": "DAN-104"}
 FIRST_MESSAGE, ANSWER = SCENARIOS[SCENARIO]
 
 inside = []  # what each agent did, in call order (the graph's node update comes separately)
@@ -149,9 +152,17 @@ def main() -> None:
     config = {"configurable": {"thread_id": f"WALK-{time.time():.0f}"}}
     steps = []
     paused = run_phase(g, {"incident_id": "WALK-1", "description": FIRST_MESSAGE}, config, steps)
-    if paused:
-        steps.append({"node": "analyst", "answer": ANSWER})
-        run_phase(g, Command(resume=ANSWER), config, steps)
+    # The analyst answers every pause, up to the graph's limit: the first answer is the scenario's; the next ones
+    # (questions of the Diagnosis agent) come from the case's script, matched by topic (the simulated analyst of
+    # run_trigger_policy.py).
+    conversation = load_case(CASE_IDS[SCENARIO])["conversation"]
+    answers = 0
+    while paused and answers < graph.MAX_ANALYST_ROUNDS:
+        questions = steps[-1]["interrupt"].get("questions", [])
+        answer = ANSWER if answers == 0 else answer_for(questions, conversation)[0]
+        steps.append({"node": "analyst", "answer": answer})
+        answers += 1
+        paused = run_phase(g, Command(resume=answer), config, steps)
     # the next node of each step is the node of the following step (the pause stands for ask_analyst)
     real = [s for s in steps if s["node"] not in ("analyst",)]
     for a, b in zip(real, real[1:]):
