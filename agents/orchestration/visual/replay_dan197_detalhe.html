@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Incident Copilot · replay detalhado</title>
+<style>
+:root {
+  --bg: #F3F2EE; --surface: #FFFDF9; --ink: #18202E; --muted: #5A6476; --line: #D9D4C8;
+  --node: #FFFFFF; --node-stroke: #9AA3B2; --visited: #2F6DB5; --active: #D9691F; --active-bg: #FFF1E6;
+  --pause: #9A6A00; --pause-bg: #FFF4D9; --code-bg: #EEF0F4; --code-ink: #1F2A3C; --ok: #2E7D4F; --no: #B5471B;
+  --mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10151E; --surface: #161D29; --ink: #E6E9EF; --muted: #A2ABBA; --line: #2B3444;
+    --node: #1B2331; --node-stroke: #4A5568; --visited: #7FB0EC; --active: #F39A57; --active-bg: #3A2617;
+    --pause: #F2C36B; --pause-bg: #33290F; --code-bg: #0D1219; --code-ink: #D3D9E4; --ok: #6FCF97; --no: #F28B6B;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10151E; --surface: #161D29; --ink: #E6E9EF; --muted: #A2ABBA; --line: #2B3444;
+  --node: #1B2331; --node-stroke: #4A5568; --visited: #7FB0EC; --active: #F39A57; --active-bg: #3A2617;
+  --pause: #F2C36B; --pause-bg: #33290F; --code-bg: #0D1219; --code-ink: #D3D9E4; --ok: #6FCF97; --no: #F28B6B;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; overflow: hidden; }
+/* one screen, no page scroll: header / graph + state / controls + panel */
+.wrap { height: 100vh; max-width: 1600px; margin: 0 auto; box-sizing: border-box;
+  padding: 12px max(16px, env(safe-area-inset-left, 0px)) 12px max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 12px; grid-template-columns: 210px minmax(0, 1fr) 230px;
+  grid-template-rows: auto minmax(0, 1.35fr) minmax(0, 1fr);
+  grid-template-areas: "head head head" "graph graph state" "ctrl panel panel"; }
+header { grid-area: head; }
+.graph { grid-area: graph; min-height: 0; display: flex; }
+.state { grid-area: state; min-height: 0; overflow: auto; }
+.controls { grid-area: ctrl; min-height: 0; }
+.panel { grid-area: panel; min-height: 0; overflow: auto; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; }
+h1 { margin: 0; font-size: 20px; }
+.sub { color: var(--muted); font-size: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+
+/* graph: main graph + the inside of the active agent (zoom) */
+.graph { padding: 6px; gap: 6px; }
+svg { display: block; width: 100%; height: 100%; }
+.gmain { flex: 1 1 100%; min-width: 0; transition: flex-basis 450ms ease; }
+.gsub { flex: 0 0 0%; min-width: 0; overflow: hidden; opacity: 0; display: flex; flex-direction: column;
+  border-left: 1px dashed var(--line); transition: flex-basis 450ms ease, opacity 300ms ease; }
+.graph.zoom .gmain { flex-basis: 57%; }
+.graph.zoom .gsub { flex: 1 1 43%; opacity: 1; padding-left: 8px; }
+.subtitle { margin: 4px 0 0; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--active); }
+.subsvg { display: none; flex: 1; min-height: 0; }
+.subsvg.on { display: block; }
+.subsvg .node text { font-size: 15px; }
+.subsvg .node .tag { font-size: 11.5px; }
+.node rect { fill: var(--node); stroke: var(--node-stroke); stroke-width: 1.5; transition: fill 300ms, stroke 300ms; }
+.node text { fill: var(--muted); font: 600 15px var(--sans); text-anchor: middle; dominant-baseline: middle; transition: fill 300ms; }
+.node .tag { font: 500 11px var(--sans); }
+.node.visited rect { stroke: var(--visited); stroke-width: 2; }
+.node.visited text { fill: var(--ink); }
+.node.active rect { fill: var(--active-bg); stroke: var(--active); stroke-width: 3; }
+.node.active text { fill: var(--ink); }
+.node.active.pause rect { fill: var(--pause-bg); stroke: var(--pause); }
+.node rect.halo, .node.visited rect.halo, .node.active rect.halo, .node.active.pause rect.halo { fill: none; stroke: var(--active); stroke-width: 2; opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .node.active rect.halo { animation: halo 1.4s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes halo { from { opacity: 0.8; transform: scale(1); } to { opacity: 0; transform: scale(1.18); } }
+}
+.edge { fill: none; stroke: var(--line); stroke-width: 2; marker-end: url(#arrow); transition: stroke 300ms; }
+.edge.visited { stroke: var(--visited); stroke-width: 2.5; marker-end: url(#arrow-v); }
+.edge.flow { stroke: var(--active); stroke-width: 3.5; stroke-dasharray: 10 8; marker-end: url(#arrow-a); }
+@media (prefers-reduced-motion: no-preference) {
+  .edge.flow { animation: flow 0.8s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -18; } }
+}
+.elabel { fill: var(--muted); font: 500 12px var(--sans); text-anchor: middle; }
+.count { fill: var(--active); font: 700 13px var(--sans); text-anchor: middle; }
+
+/* bottom: panel + state */
+.panel { padding: 14px 18px; display: grid; gap: 10px; align-content: start; }
+.ptitle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.ptitle h2 { margin: 0; font-size: 18px; }
+.badge { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); }
+.badge.agent { color: var(--active); border-color: var(--active); }
+.badge.pause { color: var(--pause); border-color: var(--pause); background: var(--pause-bg); }
+.who { font-size: 13px; color: var(--muted); }
+.secs { margin-left: auto; font: 13px var(--mono); color: var(--muted); }
+.lines { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.lines li { overflow-wrap: anywhere; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.tbl th, .tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl th { color: var(--muted); font-weight: 600; font-size: 12px; white-space: nowrap; }
+.tbl td.base { white-space: nowrap; font-family: var(--mono); font-size: 12.5px; }
+.y { color: var(--ok); font-weight: 600; } .n { color: var(--no); font-weight: 600; } .u { color: var(--muted); font-weight: 600; }
+.tablewrap { overflow-x: auto; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chips .lbl { font-size: 12px; color: var(--muted); }
+.chip { font: 12px var(--mono); padding: 2px 8px; border-radius: 6px; background: var(--code-bg); color: var(--code-ink); border: 1px solid var(--line); }
+.rule { font-size: 13px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; }
+.rule code { font: 12.5px var(--mono); background: var(--code-bg); color: var(--code-ink); padding: 1px 6px; border-radius: 5px; }
+
+.state { padding: 12px; display: grid; gap: 2px; align-content: start; }
+.state h3 { margin: 0; font-size: 14px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.field { display: flex; align-items: center; gap: 8px; font: 12.5px var(--mono); color: var(--muted); padding: 2px 8px; border-radius: 6px; border: 1px solid transparent; transition: background 300ms, color 300ms; }
+.field::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--node-stroke); flex: none; }
+.field.filled { color: var(--ink); }
+.field.filled::before { background: var(--visited); border-color: var(--visited); }
+.field.fresh { background: var(--active-bg); border-color: var(--active); }
+
+/* controls */
+.controls { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.controls .row { display: flex; gap: 8px; }
+.controls .row button { flex: 1; }
+button, select { font: 600 14px var(--sans); color: var(--ink); background: var(--node); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover { border-color: var(--visited); }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--visited); outline-offset: 2px; }
+button.primary { background: var(--active); color: #FFFFFF; border-color: var(--active); width: 100%; }
+.progress { display: flex; flex-direction: column; gap: 4px; }
+input[type=range] { width: 100%; accent-color: var(--active); }
+.speedrow { display: flex; align-items: center; gap: 8px; }
+.speedrow select { flex: 1; }
+.pos { font: 13px var(--mono); color: var(--muted); white-space: nowrap; }
+.hint { font-size: 12px; color: var(--muted); }
+
+@media (max-width: 860px) {
+  body { overflow: auto; }
+  .wrap { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto;
+    grid-template-areas: "head" "graph" "ctrl" "panel" "state"; }
+  .graph { min-height: 300px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Incident Copilot · replay detalhado</h1>
+  <span class="sub" id="sub"></span>
+</header>
+
+<div class="card graph" id="graph">
+<div class="gmain">
+<svg viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid meet" role="img" aria-label="O grafo da investigação: Triagem, Pesquisa, Diagnóstico e Relatório, com a pergunta ao analista e o laço de nova busca">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--line)"/></marker>
+    <marker id="arrow-v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--visited)"/></marker>
+    <marker id="arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--active)"/></marker>
+  </defs>
+  <!-- edges -->
+  <path id="e-start-triage" class="edge" d="M112,212 L148,212"/>
+  <path id="e-triage-research" class="edge" d="M302,212 L358,212"/>
+  <path id="e-research-diagnosis" class="edge" d="M512,212 L568,212"/>
+  <path id="e-diagnosis-report" class="edge" d="M722,212 L778,212"/>
+  <path id="e-report-end" class="edge" d="M855,246 L855,328"/>
+  <path id="e-triage-ask_analyst" class="edge" d="M250,178 C250,120 300,74 343,72"/>
+  <path id="e-ask_analyst-triage" class="edge" d="M345,92 C290,104 214,126 206,176"/>
+  <path id="e-diagnosis-ask_analyst" class="edge" d="M640,178 C640,120 590,74 547,72"/>
+  <path id="e-diagnosis-research" class="edge" d="M630,246 C610,312 460,312 442,248"/>
+  <path id="e-triage-related_incident" class="edge" d="M225,246 L225,328"/>
+  <path id="e-related_incident-end" class="edge" d="M317,362 L803,362"/>
+  <text class="elabel" x="536" y="326">nova busca (até 3 rodadas)</text>
+  <text class="count" id="rounds" x="536" y="346"></text>
+  <!-- nodes -->
+  <g class="node" id="n-start"><rect class="halo" x="20" y="186" width="90" height="52" rx="26"/><rect x="20" y="186" width="90" height="52" rx="26"/><text x="65" y="212">Início</text></g>
+  <g class="node" id="n-triage"><rect class="halo" x="150" y="180" width="150" height="64" rx="12"/><rect x="150" y="180" width="150" height="64" rx="12"/><text x="225" y="204">Triagem</text><text class="tag" x="225" y="226">agente</text></g>
+  <g class="node" id="n-research"><rect class="halo" x="360" y="180" width="150" height="64" rx="12"/><rect x="360" y="180" width="150" height="64" rx="12"/><text x="435" y="204">Pesquisa</text><text class="tag" x="435" y="226">agente + RAG</text></g>
+  <g class="node" id="n-diagnosis"><rect class="halo" x="570" y="180" width="150" height="64" rx="12"/><rect x="570" y="180" width="150" height="64" rx="12"/><text x="645" y="204">Diagnóstico</text><text class="tag" x="645" y="226">agente + regras</text></g>
+  <g class="node" id="n-report"><rect class="halo" x="780" y="180" width="150" height="64" rx="12"/><rect x="780" y="180" width="150" height="64" rx="12"/><text x="855" y="204">Relatório</text><text class="tag" x="855" y="226">agente</text></g>
+  <g class="node pause" id="n-ask_analyst"><rect class="halo" x="345" y="40" width="200" height="60" rx="12"/><rect x="345" y="40" width="200" height="60" rx="12"/><text x="445" y="62">Pergunta ao analista</text><text class="tag" x="445" y="84">pausa (interrupt)</text></g>
+  <g class="node" id="n-related_incident"><rect class="halo" x="135" y="330" width="180" height="64" rx="12"/><rect x="135" y="330" width="180" height="64" rx="12"/><text x="225" y="354">Já em investigação</text><text class="tag" x="225" y="376">código</text></g>
+  <g class="node" id="n-end"><rect class="halo" x="805" y="336" width="100" height="52" rx="26"/><rect x="805" y="336" width="100" height="52" rx="26"/><text x="855" y="362">Fim</text></g>
+</svg>
+</div>
+<div class="gsub" aria-live="polite">
+<p class="subtitle" id="subtitle"></p>
+<svg class="subsvg" id="sub-triage" viewBox="0 0 380 370" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Dentro da Triagem"><path id="es-triage-read-tool" class="edge" d="M180,82 L180,118"/><path id="es-triage-tool-compare" class="edge" d="M180,172 L180,208"/><path id="es-triage-compare-out" class="edge" d="M180,262 L180,298"/><path id="es-triage-read-out" class="edge" d="M58,55 C14,60 14,320 58,325"/><text class="elabel" x="34" y="196" transform="rotate(-90 34 196)">sem serviço: pergunta</text><g class="node" id="s-triage-read"><rect class="halo" x="60" y="30" width="240" height="50" rx="10"/><rect x="60" y="30" width="240" height="50" rx="10"/><text x="180" y="49">Modelo lê a mensagem</text><text class="tag" x="180" y="68">chamada ao modelo</text></g><g class="node" id="s-triage-tool"><rect class="halo" x="60" y="120" width="240" height="50" rx="10"/><rect x="60" y="120" width="240" height="50" rx="10"/><text x="180" y="139">list_investigations</text><text class="tag" x="180" y="158">ferramenta (código)</text></g><g class="node" id="s-triage-compare"><rect class="halo" x="60" y="210" width="240" height="50" rx="10"/><rect x="60" y="210" width="240" height="50" rx="10"/><text x="180" y="229">Modelo compara</text><text class="tag" x="180" y="248">é o mesmo problema?</text></g><g class="node" id="s-triage-out"><rect class="halo" x="60" y="300" width="240" height="50" rx="10"/><rect x="60" y="300" width="240" height="50" rx="10"/><text x="180" y="319">Resultado validado</text><text class="tag" x="180" y="338">JSON (Pydantic) + regras</text></g></svg>
+<svg class="subsvg" id="sub-research" viewBox="0 0 380 370" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Dentro do Pesquisa"><path id="es-research-code-find" class="edge" d="M180,82 L180,118"/><path id="es-research-find-inside" class="edge" d="M180,172 L180,208"/><path id="es-research-inside-build" class="edge" d="M180,262 L180,298"/><path id="es-research-find-find" class="edge" d="M300,132 C352,118 352,166 302,156"/><path id="es-research-code-inside" class="edge" d="M58,55 C16,70 16,220 58,235"/><path id="es-research-find-build" class="edge" d="M300,162 C352,210 352,300 302,325"/><text class="elabel" x="340" y="112">de novo</text><text class="count" id="sc-research" x="64" y="114" style="text-anchor:start"></text><g class="node" id="s-research-code"><rect class="halo" x="60" y="30" width="240" height="50" rx="10"/><rect x="60" y="30" width="240" height="50" rx="10"/><text x="180" y="49">Busca em código</text><text class="tag" x="180" y="68">texto do analista (rede de segurança)</text></g><g class="node" id="s-research-find"><rect class="halo" x="60" y="120" width="240" height="50" rx="10"/><rect x="60" y="120" width="240" height="50" rx="10"/><text x="180" y="139">Modelo busca</text><text class="tag" x="180" y="158">find_similar_incidents</text></g><g class="node" id="s-research-inside"><rect class="halo" x="60" y="210" width="240" height="50" rx="10"/><rect x="60" y="210" width="240" height="50" rx="10"/><text x="180" y="229">Modelo aprofunda</text><text class="tag" x="180" y="248">search_inside_incidents</text></g><g class="node" id="s-research-build"><rect class="halo" x="60" y="300" width="240" height="50" rx="10"/><rect x="60" y="300" width="240" height="50" rx="10"/><text x="180" y="319">Monta os achados</text><text class="tag" x="180" y="338">código: até 8 incidentes</text></g></svg>
+<svg class="subsvg" id="sub-diagnosis" viewBox="0 0 380 370" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Dentro do Diagnóstico"><path id="es-diagnosis-text-llm" class="edge" d="M180,82 L180,118"/><path id="es-diagnosis-llm-check" class="edge" d="M180,172 L180,208"/><path id="es-diagnosis-check-decide" class="edge" d="M180,262 L180,298"/><path id="es-diagnosis-check-llm" class="edge" d="M300,228 C350,214 350,152 302,142"/><text class="elabel" x="342" y="190">corrige</text><text class="count" id="sc-diagnosis" x="64" y="114" style="text-anchor:start"></text><g class="node" id="s-diagnosis-text"><rect class="halo" x="60" y="30" width="240" height="50" rx="10"/><rect x="60" y="30" width="240" height="50" rx="10"/><text x="180" y="49">Monta o texto</text><text class="tag" x="180" y="68">incidente + triagem + achados</text></g><g class="node" id="s-diagnosis-llm"><rect class="halo" x="60" y="120" width="240" height="50" rx="10"/><rect x="60" y="120" width="240" height="50" rx="10"/><text x="180" y="139">Modelo escreve hipóteses</text><text class="tag" x="180" y="158">+ 3 comparações por hipótese</text></g><g class="node" id="s-diagnosis-check"><rect class="halo" x="60" y="210" width="240" height="50" rx="10"/><rect x="60" y="210" width="240" height="50" rx="10"/><text x="180" y="229">Validação</text><text class="tag" x="180" y="248">JSON e IDs dos achados</text></g><g class="node" id="s-diagnosis-decide"><rect class="halo" x="60" y="300" width="240" height="50" rx="10"/><rect x="60" y="300" width="240" height="50" rx="10"/><text x="180" y="319">decide()</text><text class="tag" x="180" y="338">regras em código: basta? próximo passo</text></g></svg>
+<svg class="subsvg" id="sub-report" viewBox="0 0 380 370" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Dentro do Relatório"><path id="es-report-text-llm" class="edge" d="M180,82 L180,118"/><path id="es-report-llm-check" class="edge" d="M180,172 L180,208"/><path id="es-report-check-out" class="edge" d="M180,262 L180,298"/><path id="es-report-check-llm" class="edge" d="M300,228 C350,214 350,152 302,142"/><text class="elabel" x="342" y="190">corrige</text><text class="count" id="sc-report" x="64" y="114" style="text-anchor:start"></text><g class="node" id="s-report-text"><rect class="halo" x="60" y="30" width="240" height="50" rx="10"/><rect x="60" y="30" width="240" height="50" rx="10"/><text x="180" y="49">Monta o texto</text><text class="tag" x="180" y="68">hipóteses + achados + idioma</text></g><g class="node" id="s-report-llm"><rect class="halo" x="60" y="120" width="240" height="50" rx="10"/><rect x="60" y="120" width="240" height="50" rx="10"/><text x="180" y="139">Modelo escreve</text><text class="tag" x="180" y="158">relatório + mensagem do chat</text></g><g class="node" id="s-report-check"><rect class="halo" x="60" y="210" width="240" height="50" rx="10"/><rect x="60" y="210" width="240" height="50" rx="10"/><text x="180" y="229">Conferência em código</text><text class="tag" x="180" y="248">fontes, links, causas = hipóteses</text></g><g class="node" id="s-report-out"><rect class="halo" x="60" y="300" width="240" height="50" rx="10"/><rect x="60" y="300" width="240" height="50" rx="10"/><text x="180" y="319">Relatório</text><text class="tag" x="180" y="338">válido: vai para o analista</text></g></svg>
+</div>
+</div>
+
+  <section class="card panel" aria-live="polite">
+    <div class="ptitle"><span class="badge" id="badge"></span><h2 id="title"></h2><span class="secs" id="secs"></span></div>
+    <div class="who" id="who"></div>
+    <ul class="lines" id="lines"></ul>
+    <div class="tablewrap" id="table"></div>
+    <div class="chips" id="chips"></div>
+    <div class="rule" id="rule" hidden></div>
+  </section>
+  <aside class="card state">
+    <h3>Estado compartilhado</h3>
+    <div id="fields"></div>
+  </aside>
+
+<div class="card controls">
+  <button id="play" class="primary" type="button">▶ Play</button>
+  <div class="row">
+    <button id="prev" type="button" aria-label="Passo anterior">◀</button>
+    <button id="next" type="button" aria-label="Próximo passo">▶</button>
+  </div>
+  <div class="speedrow"><label class="hint" for="speed">velocidade</label>
+  <select id="speed"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></div>
+  <div class="progress"><input id="seek" type="range" min="0" value="0" aria-label="Posição no replay"><span class="pos" id="pos"></span></div>
+  <span class="hint">espaço: play/pausa<br>← →: passo a passo</span>
+</div>
+</div>
+
+<script id="data" type="application/json">{"case": "DAN-197", "source": "walkthrough_dan197_2026-11-26_0825.json", "frames": [{"node": "start", "kind": "code", "title": "Início: o analista escreve", "lines": ["“Our automated checks are failing sporadically.”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": null, "subcount": null}, {"node": "triage", "kind": "agent", "title": "A Triagem lê o que o analista escreveu", "lines": ["“Our automated checks are failing sporadically.”", "1 chamada ao modelo, com o prompt de agents/triage/prompts.py"], "state": [], "edge": ["start", "triage"], "seconds": 5.0, "rule": null, "table": null, "wait": 1.2, "sub": "read", "subcount": null}, {"node": "triage", "kind": "agent", "title": "Resultado da Triagem", "lines": ["informação suficiente: não", "serviço: —", "sintomas: automated checks failing sporadically", "mudanças citadas: nenhuma", "pergunta: Which service or system are the automated checks failing for?", "pergunta: Did anything change right before the problem started (for example a deploy, a command, a configuration or data change, or a migration)?"], "state": ["triage_result", "symptoms", "pending_questions"], "edge": null, "seconds": null, "rule": "route_after_triage", "table": null, "wait": 1.6, "sub": "out", "subcount": null}, {"node": "ask_analyst", "kind": "pause", "title": "Pausa: o grafo espera o analista", "lines": ["pergunta: Which service or system are the automated checks failing for?", "pergunta: Did anything change right before the problem started (for example a deploy, a command, a configuration or data change, or a migration)?", "o estado fica salvo (no run.py, no Postgres)"], "state": ["pending_questions"], "edge": ["triage", "ask_analyst"], "seconds": null, "rule": null, "table": null, "wait": 1.8, "sub": null, "subcount": null}, {"node": "ask_analyst", "kind": "pause", "title": "O analista responde", "lines": ["“We monitor a hosted database offering, and the failing step is the probe that provisions a new container. Our provisioning logic and request method have been unchanged for months. We are unaware of anything changing just before the errors appeared. Requests to provision containers keep getting rejected because a …”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.8, "sub": null, "subcount": null}, {"node": "ask_analyst", "kind": "code", "title": "A resposta entra na investigação", "lines": ["junta “Analyst answer: …” à descrição", "zera as rodadas e os achados: busca do zero"], "state": ["description", "analyst_answers", "pending_questions", "research_rounds", "findings", "seen_ids", "search_request", "diagnosis"], "edge": null, "seconds": null, "rule": "aresta fixa ask_analyst → triage", "table": null, "wait": 1.0, "sub": null, "subcount": null}, {"node": "triage", "kind": "agent", "title": "A Triagem lê o que o analista escreveu", "lines": ["“Our automated checks are failing sporadically. Analyst answer: We monitor a hosted database offering, and the failing step is the probe that provisions a new container. Our provisioning logic and request method have been unchanged for months. We are unaware …”", "1 chamada ao modelo, com o prompt de agents/triage/prompts.py"], "state": [], "edge": ["ask_analyst", "triage"], "seconds": 9.3, "rule": null, "table": null, "wait": 1.2, "sub": "read", "subcount": null}, {"node": "triage", "kind": "agent", "title": "Chama a ferramenta list_investigations", "lines": ["argumentos: {\"service\":\"database\"}", "procura investigações abertas do mesmo serviço (duplicado?)"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "tool", "subcount": null}, {"node": "triage", "kind": "code", "title": "A ferramenta devolve as investigações", "lines": ["INC-041 · payments-api · open", "INC-042 · login · open", "INC-043 · batch-jobs · closed", "INC-044 · search · open"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "compare", "subcount": null}, {"node": "triage", "kind": "agent", "title": "Resultado da Triagem", "lines": ["informação suficiente: sim", "serviço: database", "sintomas: container provisioning requests rejected due to unacceptable parameter; automated checks failing sporadically", "mudanças citadas: nenhuma"], "state": ["triage_result", "symptoms"], "edge": null, "seconds": null, "rule": "route_after_triage", "table": null, "wait": 1.6, "sub": "out", "subcount": null}, {"node": "research", "kind": "agent", "title": "O Pesquisa procura post-mortems parecidos", "lines": ["rodada 1 de 3"], "state": [], "edge": ["triage", "research"], "seconds": 38.2, "rule": null, "table": null, "wait": 1.2, "sub": "code", "subcount": null, "round": 1}, {"node": "research", "kind": "code", "title": "Busca em código (rede de segurança)", "lines": ["Our automated checks are failing sporadically. Analyst answer: We monitor a hosted … → DAN-029, DAN-197, DAN-147, DAN-035, DAN-101, DAN-183"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.2, "sub": "code", "subcount": null}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 1: busca com outras palavras", "lines": ["“container provisioning rejected unacceptable parameter intermittent”", "“hosted database provisioning request parameter validation failure sporadic”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 1"}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 2: busca com outras palavras", "lines": ["“API provisioning container invalid parameter rejected sporadic”", "“database service container creation parameter validation failure intermittent”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 2"}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 3: busca com outras palavras", "lines": ["“provisioning probe request rejected parameter unacceptable some attempts pass”", "“container provisioning API parameter validation intermittent success failure”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 3"}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 4: busca com outras palavras", "lines": ["“hosted database service API breaking change container provisioning parameter”", "“DBaaS provisioning request parameter validation changed without notice”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 4"}, {"node": "research", "kind": "agent", "title": "Achados: 8 incidentes, 0 aprofundados", "lines": ["nenhum incidente aprofundado nesta rodada", "DAN-029 · Incident review: API and Dashboard outage on 10 October 2017 | …", "DAN-197 · How We Found Azure’s Unannounced Breaking Change - Metrist", "DAN-147 · Duo Status - Authentication Latency on DUO1 Deployment", "DAN-035 · Google Cloud Status Dashboard — A bug in configuration roll-out to a …"], "state": ["findings", "seen_ids", "research_rounds"], "edge": null, "seconds": null, "rule": "route_after_research", "table": null, "wait": 1.6, "sub": "build", "subcount": null}, {"node": "diagnosis", "kind": "agent", "title": "O Diagnóstico compara o incidente com os casos passados", "lines": ["rodada 1 de 3", "8 achados, 0 com trechos", "mudanças citadas: nenhuma"], "state": [], "edge": ["research", "diagnosis"], "seconds": 3.4, "rule": null, "table": null, "wait": 1.2, "sub": "text", "subcount": null}, {"node": "diagnosis", "kind": "agent", "title": "O modelo escreve hipóteses e responde 3 perguntas", "lines": ["mesmo tipo de gatilho? mesmo componente? mesmo mecanismo?"], "state": [], "edge": null, "seconds": null, "rule": null, "table": [{"cause": "An unannounced breaking change to the hosted database provider's provisioning API made some …", "based_on": "DAN-197", "t": "yes", "c": "yes", "m": "no", "model": "medium", "code": "medium"}], "wait": 2.2, "sub": "llm", "subcount": null}, {"node": "diagnosis", "kind": "code", "title": "Validação da resposta do modelo", "lines": ["o JSON tem o formato do DiagnosisDraft (Pydantic)", "cada hipótese se apoia em incidentes que estão nos achados", "tentativas até ficar válido: 1"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "check", "subcount": null}, {"node": "diagnosis", "kind": "code", "title": "O código decide (schema.py → decide)", "lines": ["evidência suficiente: não", "próximo passo: nova busca", "pedido de busca: “hosted database container provisioning API parameter rejected intermittent failures”"], "state": ["diagnosis", "search_request", "pending_questions"], "edge": null, "seconds": null, "rule": "route_after_diagnosis", "table": null, "wait": 1.8, "sub": "decide", "subcount": null}, {"node": "research", "kind": "agent", "title": "O Pesquisa procura post-mortems parecidos", "lines": ["rodada 2 de 3", "pedido do Diagnóstico: “hosted database container provisioning API parameter rejected intermittent failures”", "deixa de fora 8 incidentes já vistos"], "state": [], "edge": ["diagnosis", "research"], "seconds": 18.5, "rule": null, "table": null, "wait": 1.2, "sub": "code", "subcount": null, "round": 2}, {"node": "research", "kind": "code", "title": "Busca em código (rede de segurança)", "lines": ["hosted database container provisioning API parameter rejected intermittent failures → DAN-102, DAN-067, DAN-208, DAN-097, DAN-064, DAN-180", "Our automated checks are failing sporadically. Analyst answer: We monitor a hosted … → DAN-002, DAN-102, DAN-107, DAN-064, DAN-113, DAN-179", "Our automated checks are failing sporadically. Analyst answer: We monitor a hosted … → DAN-002, DAN-107, DAN-113, DAN-179, DAN-125, DAN-020"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.2, "sub": "code", "subcount": null}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 1: busca com outras palavras", "lines": ["“container provisioning API parameter rejected intermittent failures hosted database”", "“API validation parameter invalid container creation sporadic database service”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 1"}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 2: busca com outras palavras", "lines": ["“hosted database container creation API invalid parameter intermittent validation”", "“database service provisioning container API parameter rejection gradual rollout”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 2"}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 3: busca com outras palavras", "lines": ["“invalid parameter provisioning container database API intermittent”", "“container provisioning request rejected parameter unacceptable API validation”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 3"}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 4: busca com outras palavras", "lines": ["“hosted database instance provisioning API invalid parameter rejected intermittent”", "“managed database container provisioning API parameter validation failure sporadic”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 4"}, {"node": "research", "kind": "agent", "title": "Achados: 8 incidentes, 0 aprofundados", "lines": ["nenhum incidente aprofundado nesta rodada", "DAN-102 · Intermittent failures - incident.io Status", "DAN-067 · Post mortem on the Cloudflare Control Plane and Analytics Outage | …", "DAN-208 · Technical post-mortem of the August incident | by Florian Margaine | …", "DAN-097 · Addressing GitHub’s recent availability issues - The GitHub Blog — …"], "state": ["findings", "seen_ids", "research_rounds"], "edge": null, "seconds": null, "rule": "route_after_research", "table": null, "wait": 1.6, "sub": "build", "subcount": null}, {"node": "diagnosis", "kind": "agent", "title": "O Diagnóstico compara o incidente com os casos passados", "lines": ["rodada 2 de 3", "8 achados, 0 com trechos", "mudanças citadas: nenhuma", "pedido anterior: “hosted database container provisioning API parameter rejected intermittent failures”"], "state": [], "edge": ["research", "diagnosis"], "seconds": 1.9, "rule": null, "table": null, "wait": 1.2, "sub": "text", "subcount": null}, {"node": "diagnosis", "kind": "agent", "title": "O modelo escreve hipóteses e responde 3 perguntas", "lines": ["nenhuma hipótese: nada nos achados explica o incidente"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 2.2, "sub": "llm", "subcount": null}, {"node": "diagnosis", "kind": "code", "title": "Validação da resposta do modelo", "lines": ["o JSON tem o formato do DiagnosisDraft (Pydantic)", "cada hipótese se apoia em incidentes que estão nos achados", "tentativas até ficar válido: 1"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "check", "subcount": null}, {"node": "diagnosis", "kind": "code", "title": "O código decide (schema.py → decide)", "lines": ["evidência suficiente: não", "próximo passo: nova busca", "pedido de busca: “hosted database container provisioning API rejects request invalid parameter intermittent”"], "state": ["diagnosis", "search_request", "pending_questions"], "edge": null, "seconds": null, "rule": "route_after_diagnosis", "table": null, "wait": 1.8, "sub": "decide", "subcount": null}, {"node": "research", "kind": "agent", "title": "O Pesquisa procura post-mortems parecidos", "lines": ["rodada 3 de 3", "pedido do Diagnóstico: “hosted database container provisioning API rejects request invalid parameter intermittent”", "deixa de fora 8 incidentes já vistos"], "state": [], "edge": ["diagnosis", "research"], "seconds": 31.9, "rule": null, "table": null, "wait": 1.2, "sub": "code", "subcount": null, "round": 3}, {"node": "research", "kind": "code", "title": "Busca em código (rede de segurança)", "lines": ["hosted database container provisioning API rejects request invalid parameter intermittent → DAN-098, DAN-050, DAN-011, DAN-032, DAN-104, DAN-151", "Our automated checks are failing sporadically. Analyst answer: We monitor a hosted … → DAN-151, DAN-217, DAN-011, DAN-078, DAN-010, DAN-050", "Our automated checks are failing sporadically. Analyst answer: We monitor a hosted … → DAN-137, DAN-143, DAN-216, DAN-054, DAN-005, DAN-103"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.2, "sub": "code", "subcount": null}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 1: busca com outras palavras", "lines": ["“container provisioning API invalid parameter intermittent rejection”", "“hosted database container creation API unacceptable parameter sporadic”", "“provisioning container request rejected parameter validation some attempts pass”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 1"}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 2: busca com outras palavras", "lines": ["“API request rejected invalid parameter intermittent some attempts succeed”", "“container API bad request parameter validation sporadic failure”", "“provisioning API parameter deemed unacceptable intermittent rejection”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 2"}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 3: busca com outras palavras", "lines": ["“container provisioning API bad request 400 invalid parameter”", "“database instance creation API parameter validation error intermittent”", "“managed database service container provisioning request rejected parameter”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 3"}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 4: busca com outras palavras", "lines": ["“container creation API rejected unacceptable parameter diagnostics missing”", "“automated probe provisioning container intermittent failure invalid parameter”", "“hosted service provisioning API parameter validation sporadic rejection”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 4"}, {"node": "research", "kind": "agent", "title": "Achados: 8 incidentes, 0 aprofundados", "lines": ["nenhum incidente aprofundado nesta rodada", "DAN-151 · Elastic Cloud Incident Report: February 4, 2019 | Elastic Blog", "DAN-217 · This was not normal. Really. | The Official Slack Blog", "DAN-011 · Cloudflare outage on November 18, 2025 | Cloudflare Blog", "DAN-078 · October 21 post-incident analysis - The GitHub Blog"], "state": ["findings", "seen_ids", "research_rounds"], "edge": null, "seconds": null, "rule": "route_after_research", "table": null, "wait": 1.6, "sub": "build", "subcount": null}, {"node": "diagnosis", "kind": "agent", "title": "O Diagnóstico compara o incidente com os casos passados", "lines": ["rodada 3 de 3", "8 achados, 0 com trechos", "mudanças citadas: nenhuma", "pedido anterior: “hosted database container provisioning API rejects request invalid parameter intermittent”"], "state": [], "edge": ["research", "diagnosis"], "seconds": 4.1, "rule": null, "table": null, "wait": 1.2, "sub": "text", "subcount": null}, {"node": "diagnosis", "kind": "agent", "title": "O modelo escreve hipóteses e responde 3 perguntas", "lines": ["nenhuma hipótese: nada nos achados explica o incidente"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 2.2, "sub": "llm", "subcount": null}, {"node": "diagnosis", "kind": "code", "title": "Validação da resposta do modelo", "lines": ["o JSON tem o formato do DiagnosisDraft (Pydantic)", "cada hipótese se apoia em incidentes que estão nos achados", "tentativas até ficar válido: 1"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "check", "subcount": null}, {"node": "diagnosis", "kind": "code", "title": "O código decide (schema.py → decide)", "lines": ["evidência suficiente: não", "próximo passo: perguntar ao analista", "pergunta: Which parameter is being rejected by the provisioning API?"], "state": ["diagnosis", "search_request", "pending_questions"], "edge": null, "seconds": null, "rule": "route_after_diagnosis", "table": null, "wait": 1.8, "sub": "decide", "subcount": null}, {"node": "ask_analyst", "kind": "pause", "title": "Pausa: o grafo espera o analista", "lines": ["pergunta: Which parameter is being rejected by the provisioning API?", "o estado fica salvo (no run.py, no Postgres)"], "state": ["pending_questions"], "edge": ["diagnosis", "ask_analyst"], "seconds": null, "rule": null, "table": null, "wait": 1.8, "sub": null, "subcount": null}, {"node": "ask_analyst", "kind": "pause", "title": "O analista responde", "lines": ["“We monitor a hosted database offering, and the failing step is the probe that provisions a new container.”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.8, "sub": null, "subcount": null}, {"node": "ask_analyst", "kind": "code", "title": "A resposta entra na investigação", "lines": ["junta “Analyst answer: …” à descrição", "zera as rodadas e os achados: busca do zero"], "state": ["description", "analyst_answers", "pending_questions", "research_rounds", "findings", "seen_ids", "search_request", "diagnosis"], "edge": null, "seconds": null, "rule": "aresta fixa ask_analyst → triage", "table": null, "wait": 1.0, "sub": null, "subcount": null}, {"node": "triage", "kind": "agent", "title": "A Triagem lê o que o analista escreveu", "lines": ["“Our automated checks are failing sporadically. Analyst answer: We monitor a hosted database offering, and the failing step is the probe that provisions a new container. Our provisioning logic and request method have been unchanged for months. We are unaware …”", "1 chamada ao modelo, com o prompt de agents/triage/prompts.py"], "state": [], "edge": ["ask_analyst", "triage"], "seconds": 11.3, "rule": null, "table": null, "wait": 1.2, "sub": "read", "subcount": null}, {"node": "triage", "kind": "agent", "title": "Chama a ferramenta list_investigations", "lines": ["argumentos: {\"service\":\"database\"}", "procura investigações abertas do mesmo serviço (duplicado?)"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "tool", "subcount": null}, {"node": "triage", "kind": "code", "title": "A ferramenta devolve as investigações", "lines": ["INC-041 · payments-api · open", "INC-042 · login · open", "INC-043 · batch-jobs · closed", "INC-044 · search · open"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "compare", "subcount": null}, {"node": "triage", "kind": "agent", "title": "Resultado da Triagem", "lines": ["informação suficiente: sim", "serviço: database", "sintomas: automated checks failing sporadically; container provisioning requests rejected due to unacceptable parameter", "mudanças citadas: nenhuma"], "state": ["triage_result", "symptoms"], "edge": null, "seconds": null, "rule": "route_after_triage", "table": null, "wait": 1.6, "sub": "out", "subcount": null}, {"node": "research", "kind": "agent", "title": "O Pesquisa procura post-mortems parecidos", "lines": ["rodada 1 de 3"], "state": [], "edge": ["triage", "research"], "seconds": 24.8, "rule": null, "table": null, "wait": 1.2, "sub": "code", "subcount": null, "round": 1}, {"node": "research", "kind": "code", "title": "Busca em código (rede de segurança)", "lines": ["Our automated checks are failing sporadically. Analyst answer: We monitor a hosted … → DAN-197, DAN-147, DAN-035, DAN-029, DAN-191, DAN-002"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.2, "sub": "code", "subcount": null}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 1: busca com outras palavras", "lines": ["“container provisioning rejected unacceptable parameter hosted database”", "“sporadic automated checks failing probe provisioning new container parameter rejection”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 1"}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 2: busca com outras palavras", "lines": ["“API parameter validation rejection container provisioning sporadic failures”", "“unannounced breaking API change container creation parameter required rejected”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 2"}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 3: busca com outras palavras", "lines": ["“database instance provisioning request rejected parameter error cloud provider”", "“container service provisioning API bad request parameter invalid intermittent”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "chamada 3"}, {"node": "research", "kind": "agent", "title": "Modelo, chamada 4: aprofunda os melhores", "lines": ["DAN-197: This incident involves an unannounced provider-side breaking change (Azure) affecting downstream systems without warning, which matches the current …"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.4, "sub": "inside", "subcount": "chamada 4"}, {"node": "research", "kind": "agent", "title": "Achados: 8 incidentes, 1 aprofundados", "lines": ["DAN-197 · How We Found Azure’s Unannounced Breaking Change - Metrist · aprofundado", "DAN-147 · Duo Status - Authentication Latency on DUO1 Deployment", "DAN-035 · Google Cloud Status Dashboard — A bug in configuration roll-out to a …", "DAN-029 · Incident review: API and Dashboard outage on 10 October 2017 | …", "DAN-191 · IT Infrastructure Resiliency Review (23 February 2017)"], "state": ["findings", "seen_ids", "research_rounds"], "edge": null, "seconds": null, "rule": "route_after_research", "table": null, "wait": 1.6, "sub": "build", "subcount": null}, {"node": "diagnosis", "kind": "agent", "title": "O Diagnóstico compara o incidente com os casos passados", "lines": ["rodada 1 de 3", "8 achados, 1 com trechos", "mudanças citadas: nenhuma"], "state": [], "edge": ["research", "diagnosis"], "seconds": 4.1, "rule": null, "table": null, "wait": 1.2, "sub": "text", "subcount": null}, {"node": "diagnosis", "kind": "agent", "title": "O modelo escreve hipóteses e responde 3 perguntas", "lines": ["mesmo tipo de gatilho? mesmo componente? mesmo mecanismo?"], "state": [], "edge": null, "seconds": null, "rule": null, "table": [{"cause": "The hosted database provider made an unannounced breaking API change, making a previously optional …", "based_on": "DAN-197", "t": "yes", "c": "yes", "m": "yes", "model": "high", "code": "high"}], "wait": 2.2, "sub": "llm", "subcount": null}, {"node": "diagnosis", "kind": "code", "title": "Validação da resposta do modelo", "lines": ["o JSON tem o formato do DiagnosisDraft (Pydantic)", "cada hipótese se apoia em incidentes que estão nos achados", "tentativas até ficar válido: 1"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "check", "subcount": null}, {"node": "diagnosis", "kind": "code", "title": "O código decide (schema.py → decide)", "lines": ["evidência suficiente: sim", "próximo passo: relatório"], "state": ["diagnosis", "search_request", "pending_questions"], "edge": null, "seconds": null, "rule": "route_after_diagnosis", "table": null, "wait": 1.8, "sub": "decide", "subcount": null}, {"node": "report", "kind": "agent", "title": "O Relatório escreve a resposta final", "lines": ["no idioma do analista, com causa, correção, prevenção e fonte", "tentativas até ficar válido: 1"], "state": [], "edge": ["diagnosis", "report"], "seconds": 6.9, "rule": null, "table": null, "wait": 1.2, "sub": "llm", "subcount": null}, {"node": "report", "kind": "code", "title": "A conferência em código", "lines": ["tipo de acordo com o Diagnóstico", "cada fonte existe nos achados, com o mesmo link", "causas = hipóteses, na mesma ordem e confiança", "resultado: válido"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.4, "sub": "check", "subcount": null}, {"node": "report", "kind": "agent", "title": "Relatório: diagnosis", "lines": ["The symptoms match a past incident in which a hosted database provider made an unannounced breaking API change, causing sporadic provisioning failures despite no customer-side change. The most likely cause is that the provider made a previously optional parameter mandatory (or changed its accepted …", "[high] The hosted database provider made an unannounced breaking API change, making a previously optional provisioning parameter mandatory (or … (DAN-197)"], "state": ["report", "report_attempts", "report_problems", "errors"], "edge": null, "seconds": null, "rule": "aresta fixa report → END", "table": null, "wait": 2.4, "sub": "out", "subcount": null}, {"node": "end", "kind": "code", "title": "Fim: o relatório vai para o analista", "lines": [], "state": [], "edge": ["report", "end"], "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": null, "subcount": null}]}</script>
+<script>
+(function () {
+  var DATA = JSON.parse(document.getElementById("data").textContent);
+  var F = DATA.frames;
+  var FIELDS = ["incident_id", "description", "analyst_answers", "triage_result", "symptoms", "pending_questions",
+                "findings", "seen_ids", "research_rounds", "search_request", "diagnosis", "report", "report_attempts",
+                "report_problems", "errors"];
+  var NAMES = {triage: "Triagem", research: "Pesquisa", diagnosis: "Diagnóstico", report: "Relatório",
+               ask_analyst: "Pergunta ao analista", related_incident: "Já em investigação", start: "Início", end: "Fim"};
+  var KIND = {agent: "agente (modelo)", code: "código", pause: "pausa"};
+  var i = 0, playing = false, timer = null;
+
+  document.getElementById("sub").textContent = DATA.case + " · gravação real (" + DATA.source + ")";
+  var fieldsEl = document.getElementById("fields");
+  FIELDS.forEach(function (f) { var d = document.createElement("div"); d.className = "field"; d.id = "f-" + f; d.textContent = f; fieldsEl.appendChild(d); });
+  var seek = document.getElementById("seek"); seek.max = F.length - 1;
+
+  function el(tag, text, cls) { var e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
+  function yn(v) { return v === "yes" ? ["sim", "y"] : v === "no" ? ["não", "n"] : ["?", "u"]; }
+
+  function render() {
+    var fr = F[i];
+    // nodes and edges seen so far
+    var seenN = {}, seenE = {}, written = {}, rounds = 0;
+    for (var k = 0; k <= i; k++) {
+      seenN[F[k].node] = true;
+      if (F[k].edge) seenE[F[k].edge.join("-")] = true;
+      (F[k].state || []).forEach(function (s) { written[s] = true; });
+      if (F[k].round) rounds = F[k].round;  // the round of the current search (it restarts after an answer)
+    }
+    document.querySelectorAll(".gmain .node").forEach(function (g) {
+      var id = g.id.slice(2);
+      g.classList.toggle("visited", !!seenN[id]);
+      g.classList.toggle("active", id === fr.node);
+    });
+    document.querySelectorAll(".gmain .edge").forEach(function (p) {
+      var id = p.id.slice(2);
+      p.classList.toggle("visited", !!seenE[id]);
+      p.classList.toggle("flow", !!(fr.edge && fr.edge.join("-") === id));
+    });
+    document.getElementById("rounds").textContent = rounds > 1 ? ("rodada " + rounds) : "";
+    renderSub(fr);
+    // panel
+    var badge = document.getElementById("badge");
+    badge.className = "badge " + fr.kind; badge.textContent = KIND[fr.kind] || fr.kind;
+    document.getElementById("title").textContent = fr.title;
+    document.getElementById("who").textContent = "nó: " + (NAMES[fr.node] || fr.node);
+    document.getElementById("secs").textContent = fr.seconds ? (fr.seconds + " s neste nó") : "";
+    var ul = document.getElementById("lines"); ul.innerHTML = "";
+    (fr.lines || []).forEach(function (l) { ul.appendChild(el("li", l)); });
+    var tw = document.getElementById("table"); tw.innerHTML = "";
+    if (fr.table) {
+      var t = el("table", null, "tbl"), h = el("tr");
+      ["hipótese", "base", "gatilho", "componente", "mecanismo", "modelo → código"].forEach(function (c) { h.appendChild(el("th", c)); });
+      t.appendChild(h);
+      fr.table.forEach(function (r) {
+        var tr = el("tr");
+        tr.appendChild(el("td", r.cause)); tr.appendChild(el("td", r.based_on, "base"));
+        [r.t, r.c, r.m].forEach(function (v) { var a = yn(v); tr.appendChild(el("td", a[0], a[1])); });
+        tr.appendChild(el("td", r.model + " → " + r.code));
+        t.appendChild(tr);
+      });
+      tw.appendChild(t);
+    }
+    var chips = document.getElementById("chips"); chips.innerHTML = "";
+    if (fr.state && fr.state.length) {
+      chips.appendChild(el("span", "escreveu no estado:", "lbl"));
+      fr.state.forEach(function (s) { chips.appendChild(el("span", s, "chip")); });
+    }
+    var rule = document.getElementById("rule");
+    if (fr.rule) { rule.hidden = false; rule.innerHTML = ""; rule.appendChild(document.createTextNode("quem escolhe o próximo nó: ")); rule.appendChild(el("code", fr.rule)); }
+    else { rule.hidden = true; }
+    // state folder
+    FIELDS.forEach(function (f) {
+      var d = document.getElementById("f-" + f);
+      d.classList.toggle("filled", !!written[f] || (f === "incident_id" || f === "description"));
+      d.classList.toggle("fresh", (fr.state || []).indexOf(f) >= 0);
+    });
+    seek.value = i;
+    document.getElementById("pos").textContent = (i + 1) + " / " + F.length;
+  }
+
+  // ---- the inside of the active agent
+  var ENTRY = {triage: "read", research: "code", diagnosis: "text", report: "text"};
+  var ADJ = {};
+  Object.keys(ENTRY).forEach(function (a) {
+    ADJ[a] = {};
+    document.querySelectorAll("#sub-" + a + " .edge").forEach(function (p) {
+      var parts = p.id.split("-");  // es-<agent>-<from>-<to>
+      (ADJ[a][parts[2]] = ADJ[a][parts[2]] || []).push(parts[3]);
+    });
+  });
+  function path(a, from, to) {  // shortest list of edges from -> to (breadth-first)
+    var prev = {}, queue = [from], seen = {}; seen[from] = true;
+    while (queue.length) {
+      var x = queue.shift();
+      if (x === to) break;
+      (ADJ[a][x] || []).forEach(function (y) { if (!seen[y]) { seen[y] = true; prev[y] = x; queue.push(y); } });
+    }
+    if (!seen[to]) return [];
+    var out = [], y = to;
+    while (y !== from) { out.unshift([prev[y], y]); y = prev[y]; }
+    return out;
+  }
+  function renderSub(fr) {
+    var a = ENTRY[fr.node] ? fr.node : null;
+    document.getElementById("graph").classList.toggle("zoom", !!a);
+    document.querySelectorAll(".subsvg").forEach(function (s) { s.classList.toggle("on", !!a && s.id === "sub-" + a); });
+    if (!a) return;
+    document.getElementById("subtitle").textContent = "Dentro do nó: " + NAMES[a];
+    var s = i; while (s > 0 && F[s - 1].node === fr.node) s--;  // first frame of this visit to the node
+    var cur = ENTRY[a], vN = {}, vE = {}, flow = null;
+    vN[cur] = true;
+    for (var k = s; k <= i; k++) {
+      var t = F[k].sub; if (!t) continue;
+      var steps;
+      if (t === cur) {
+        var again = k > s && F[k - 1].sub === t && (ADJ[a][t] || []).indexOf(t) >= 0;
+        steps = again ? [[t, t]] : [];
+      } else { steps = path(a, cur, t); }
+      steps.forEach(function (e) { vE[e.join("-")] = true; vN[e[0]] = true; vN[e[1]] = true; });
+      if (k === i && steps.length) flow = steps[steps.length - 1].join("-");
+      cur = t;
+    }
+    var act = fr.sub || ENTRY[a];
+    document.querySelectorAll("#sub-" + a + " .node").forEach(function (g) {
+      var id = g.id.split("-")[2];
+      g.classList.toggle("visited", !!vN[id]);
+      g.classList.toggle("active", id === act);
+    });
+    document.querySelectorAll("#sub-" + a + " .edge").forEach(function (p) {
+      var id = p.id.split("-").slice(2).join("-");
+      p.classList.toggle("visited", !!vE[id]);
+      p.classList.toggle("flow", id === flow);
+    });
+    var c = document.getElementById("sc-" + a);
+    if (c) c.textContent = fr.subcount || "";
+  }
+
+  function go(n) { i = Math.max(0, Math.min(F.length - 1, n)); render(); }
+  function schedule() {
+    clearTimeout(timer);
+    if (!playing) return;
+    if (i >= F.length - 1) { setPlaying(false); return; }
+    var speed = parseFloat(document.getElementById("speed").value);
+    timer = setTimeout(function () { go(i + 1); schedule(); }, (F[i].wait || 1) * 2600 / speed);
+  }
+  function setPlaying(p) {
+    playing = p;
+    document.getElementById("play").textContent = p ? "❚❚ Pausa" : "▶ Play";
+    if (p && i >= F.length - 1) go(0);
+    schedule();
+  }
+  document.getElementById("play").addEventListener("click", function () { setPlaying(!playing); });
+  document.getElementById("prev").addEventListener("click", function () { setPlaying(false); go(i - 1); });
+  document.getElementById("next").addEventListener("click", function () { setPlaying(false); go(i + 1); });
+  document.getElementById("speed").addEventListener("change", schedule);
+  seek.addEventListener("input", function () { setPlaying(false); go(parseInt(seek.value, 10)); });
+  document.addEventListener("keydown", function (e) {
+    if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+    if (e.code === "Space") { e.preventDefault(); setPlaying(!playing); }
+    else if (e.code === "ArrowRight") { setPlaying(false); go(i + 1); }
+    else if (e.code === "ArrowLeft") { setPlaying(false); go(i - 1); }
+  });
+  render();
+})();
+</script>
+</body>
+</html>
