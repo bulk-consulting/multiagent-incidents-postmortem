@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Incident Copilot · detailed replay</title>
+<style>
+:root {
+  --bg: #F3F2EE; --surface: #FFFDF9; --ink: #18202E; --muted: #5A6476; --line: #D9D4C8;
+  --node: #FFFFFF; --node-stroke: #9AA3B2; --visited: #2F6DB5; --active: #D9691F; --active-bg: #FFF1E6;
+  --pause: #9A6A00; --pause-bg: #FFF4D9; --code-bg: #EEF0F4; --code-ink: #1F2A3C; --ok: #2E7D4F; --no: #B5471B;
+  --mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10151E; --surface: #161D29; --ink: #E6E9EF; --muted: #A2ABBA; --line: #2B3444;
+    --node: #1B2331; --node-stroke: #4A5568; --visited: #7FB0EC; --active: #F39A57; --active-bg: #3A2617;
+    --pause: #F2C36B; --pause-bg: #33290F; --code-bg: #0D1219; --code-ink: #D3D9E4; --ok: #6FCF97; --no: #F28B6B;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10151E; --surface: #161D29; --ink: #E6E9EF; --muted: #A2ABBA; --line: #2B3444;
+  --node: #1B2331; --node-stroke: #4A5568; --visited: #7FB0EC; --active: #F39A57; --active-bg: #3A2617;
+  --pause: #F2C36B; --pause-bg: #33290F; --code-bg: #0D1219; --code-ink: #D3D9E4; --ok: #6FCF97; --no: #F28B6B;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.5; overflow: hidden; }
+/* one screen, no page scroll: header / graph + state / controls + panel */
+.wrap { height: 100vh; max-width: 1600px; margin: 0 auto; box-sizing: border-box;
+  padding: 12px max(16px, env(safe-area-inset-left, 0px)) 12px max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 12px; grid-template-columns: 210px minmax(0, 1fr) 230px;
+  grid-template-rows: auto minmax(0, 1.35fr) minmax(0, 1fr);
+  grid-template-areas: "head head head" "graph graph state" "ctrl panel panel"; }
+header { grid-area: head; }
+.graph { grid-area: graph; min-height: 0; display: flex; }
+.state { grid-area: state; min-height: 0; overflow: auto; }
+.controls { grid-area: ctrl; min-height: 0; }
+.panel { grid-area: panel; min-height: 0; overflow: auto; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; }
+h1 { margin: 0; font-size: 20px; }
+.sub { color: var(--muted); font-size: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+
+/* graph: main graph + the inside of the active agent (zoom) */
+.graph { padding: 6px; gap: 6px; }
+svg { display: block; width: 100%; height: 100%; }
+.gmain { flex: 1 1 100%; min-width: 0; transition: flex-basis 450ms ease; }
+.gsub { flex: 0 0 0%; min-width: 0; overflow: hidden; opacity: 0; display: flex; flex-direction: column;
+  border-left: 1px dashed var(--line); transition: flex-basis 450ms ease, opacity 300ms ease; }
+.graph.zoom .gmain { flex-basis: 57%; }
+.graph.zoom .gsub { flex: 1 1 43%; opacity: 1; padding-left: 8px; }
+.subtitle { margin: 4px 0 0; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--active); }
+.subsvg { display: none; flex: 1; min-height: 0; }
+.subsvg.on { display: block; }
+.subsvg .node text { font-size: 15px; }
+.subsvg .node .tag { font-size: 11.5px; }
+.node rect { fill: var(--node); stroke: var(--node-stroke); stroke-width: 1.5; transition: fill 300ms, stroke 300ms; }
+.node text { fill: var(--muted); font: 600 15px var(--sans); text-anchor: middle; dominant-baseline: middle; transition: fill 300ms; }
+.node .tag { font: 500 11px var(--sans); }
+.node.visited rect { stroke: var(--visited); stroke-width: 2; }
+.node.visited text { fill: var(--ink); }
+.node.active rect { fill: var(--active-bg); stroke: var(--active); stroke-width: 3; }
+.node.active text { fill: var(--ink); }
+.node.active.pause rect { fill: var(--pause-bg); stroke: var(--pause); }
+.node rect.halo, .node.visited rect.halo, .node.active rect.halo, .node.active.pause rect.halo { fill: none; stroke: var(--active); stroke-width: 2; opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .node.active rect.halo { animation: halo 1.4s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes halo { from { opacity: 0.8; transform: scale(1); } to { opacity: 0; transform: scale(1.18); } }
+}
+.edge { fill: none; stroke: var(--line); stroke-width: 2; marker-end: url(#arrow); transition: stroke 300ms; }
+.edge.visited { stroke: var(--visited); stroke-width: 2.5; marker-end: url(#arrow-v); }
+.edge.flow { stroke: var(--active); stroke-width: 3.5; stroke-dasharray: 10 8; marker-end: url(#arrow-a); }
+@media (prefers-reduced-motion: no-preference) {
+  .edge.flow { animation: flow 0.8s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -18; } }
+}
+.elabel { fill: var(--muted); font: 500 12px var(--sans); text-anchor: middle; }
+.count { fill: var(--active); font: 700 13px var(--sans); text-anchor: middle; }
+
+/* bottom: panel + state */
+.panel { padding: 14px 18px; display: grid; gap: 10px; align-content: start; }
+.ptitle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.ptitle h2 { margin: 0; font-size: 18px; }
+.badge { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); }
+.badge.agent { color: var(--active); border-color: var(--active); }
+.badge.pause { color: var(--pause); border-color: var(--pause); background: var(--pause-bg); }
+.who { font-size: 13px; color: var(--muted); }
+.secs { margin-left: auto; font: 13px var(--mono); color: var(--muted); }
+.lines { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.lines li { overflow-wrap: anywhere; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.tbl th, .tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl th { color: var(--muted); font-weight: 600; font-size: 12px; white-space: nowrap; }
+.tbl td.base { white-space: nowrap; font-family: var(--mono); font-size: 12.5px; }
+.y { color: var(--ok); font-weight: 600; } .n { color: var(--no); font-weight: 600; } .u { color: var(--muted); font-weight: 600; }
+.tablewrap { overflow-x: auto; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chips .lbl { font-size: 12px; color: var(--muted); }
+.chip { font: 12px var(--mono); padding: 2px 8px; border-radius: 6px; background: var(--code-bg); color: var(--code-ink); border: 1px solid var(--line); }
+.rule { font-size: 13px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 10px; }
+.rule code { font: 12.5px var(--mono); background: var(--code-bg); color: var(--code-ink); padding: 1px 6px; border-radius: 5px; }
+
+.state { padding: 12px; display: grid; gap: 2px; align-content: start; }
+.state h3 { margin: 0; font-size: 14px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.field { display: flex; align-items: center; gap: 8px; font: 12.5px var(--mono); color: var(--muted); padding: 2px 8px; border-radius: 6px; border: 1px solid transparent; transition: background 300ms, color 300ms; }
+.field::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--node-stroke); flex: none; }
+.field.filled { color: var(--ink); }
+.field.filled::before { background: var(--visited); border-color: var(--visited); }
+.field.fresh { background: var(--active-bg); border-color: var(--active); }
+
+/* controls */
+.controls { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.controls .row { display: flex; gap: 8px; }
+.controls .row button { flex: 1; }
+button, select { font: 600 14px var(--sans); color: var(--ink); background: var(--node); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover { border-color: var(--visited); }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--visited); outline-offset: 2px; }
+button.primary { background: var(--active); color: #FFFFFF; border-color: var(--active); width: 100%; }
+.progress { display: flex; flex-direction: column; gap: 4px; }
+input[type=range] { width: 100%; accent-color: var(--active); }
+.speedrow { display: flex; align-items: center; gap: 8px; }
+.speedrow select { flex: 1; }
+.pos { font: 13px var(--mono); color: var(--muted); white-space: nowrap; }
+.hint { font-size: 12px; color: var(--muted); }
+
+/* ---- slides: one visible at a time, a small bar at the bottom to move between them */
+:root { --navh: 48px; }
+.slide:not(.on) { display: none !important; }
+.wrap { height: calc(100vh - var(--navh)); }
+.pane { height: calc(100vh - var(--navh)); max-width: 1600px; margin: 0 auto; padding: 24px max(24px, env(safe-area-inset-left, 0px));
+  display: flex; flex-direction: column; gap: 18px; overflow: auto; }
+.pane h1 { font-size: 34px; }
+.pane h2 { margin: 0; font-size: 22px; }
+.lead { color: var(--muted); font-size: 18px; margin: 4px 0 0; }
+.steps { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; flex: 1; min-height: 0; }
+.step { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.step .num { font: 700 13px var(--sans); letter-spacing: 0.04em; text-transform: uppercase; color: var(--active); }
+.step p { margin: 0; font-size: 16px; }
+.bubble { padding: 8px 12px; border-radius: 12px; font-size: 14.5px; max-width: 92%; border: 1px solid var(--line); }
+.bubble.user { align-self: flex-end; background: var(--active-bg); border-color: var(--active); }
+.bubble.sys { align-self: flex-start; background: var(--code-bg); color: var(--muted); }
+.composer { margin-top: auto; display: flex; align-items: center; gap: 8px; }
+.composer .field { flex: 1; min-width: 0; padding: 9px 14px; font-size: 14.5px; border: 2px solid var(--active); border-radius: 22px; background: var(--node); }
+.caret { display: inline-block; width: 2px; height: 1.05em; margin-left: 2px; vertical-align: text-bottom; background: var(--active); }
+@media (prefers-reduced-motion: no-preference) { .caret { animation: blink 1s steps(1) infinite; } @keyframes blink { 50% { opacity: 0; } } }
+.composer .send { flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--active); color: #FFFFFF; display: grid; place-items: center; font-size: 16px; }
+.codeblock { font: 13.5px/1.55 var(--mono); background: var(--code-bg); color: var(--code-ink); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-wrap: anywhere; }
+.codeblock .k { color: var(--visited); }
+.codeblock .dim { color: var(--muted); }
+.codeblock .keep { color: var(--ok); font-weight: 600; }
+.flowrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.flowrow .chip { font: 600 14px var(--sans); padding: 5px 12px; }
+.arrow { color: var(--muted); }
+.mem0 { padding: 10px 16px; font-size: 16px; border-style: dashed; }
+.video { flex: 1; min-height: 0; border: 2px dashed var(--node-stroke); border-radius: 16px; display: grid; place-items: center;
+  text-align: center; color: var(--muted); background: var(--surface); }
+.video .big { font-size: 64px; line-height: 1; }
+.video .cap { font-size: 20px; font-weight: 600; margin-top: 8px; }
+.todo { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 14px; max-width: 760px; }
+.todo li { display: flex; align-items: center; gap: 16px; padding: 18px 22px; font-size: 24px; font-weight: 600; }
+.todo .n { flex: none; width: 40px; height: 40px; border-radius: 50%; background: var(--active); color: #FFFFFF; display: grid; place-items: center; font: 700 18px var(--sans); }
+.slidenav { position: fixed; left: 0; right: 0; bottom: 0; height: var(--navh); z-index: 5; display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: var(--surface); border-top: 1px solid var(--line); padding: 0 16px; }
+.slidenav button { padding: 4px 10px; background: transparent; border-color: transparent; color: var(--muted); font-weight: 500; }
+.slidenav .dot { font-size: 13px; }
+.slidenav button:hover { border-color: var(--line); }
+.slidenav .dot.cur { color: var(--ink); background: var(--code-bg); border-color: var(--line); font-weight: 600; }
+.slidenav .hint { margin-left: 8px; }
+
+@media (max-width: 860px) {
+  .wrap { height: auto; }
+  .pane { height: auto; }
+  .steps { grid-template-columns: minmax(0, 1fr); }
+  .slidenav .hint { display: none; }
+  body { overflow: auto; }
+  .wrap { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto;
+    grid-template-areas: "head" "graph" "ctrl" "panel" "state"; }
+  .graph { min-height: 300px; }
+}
+</style>
+</head>
+<body>
+
+<!-- SLIDE 1: Intro / Memory -->
+<section class="pane slide on" id="slide-1">
+  <header style="display:block">
+    <h1>Incident Copilot</h1>
+    <p class="lead">Front/Backend - Four agents working together in one workflow</p>
+  </header>
+  <h2>How does the system remember things?</h2>
+  <div class="steps">
+    <div class="card step">
+      <span class="num">1 · Chat History</span>
+      <div class="bubble user">Requests are failing across an entire region.</div>
+      <div class="bubble sys">To continue the investigation, I need some more information: …</div>
+      <div class="bubble user">It is our cloud object store.</div>
+      <div class="bubble sys">To continue the investigation, I need some more information: …</div>
+      <div class="composer" aria-label="The message being sent now">
+        <div class="field"><span>An engineer removed a handful of machines this morning.</span></div>
+        <span class="send" aria-hidden="true">➤</span>
+      </div>
+    </div>
+    <div class="card step">
+      <span class="num">2 · What the frontend sends</span>
+      <p>The new message, and also the conversation history.</p>
+      <div class="codeblock">{<br>
+        &nbsp;&nbsp;<span class="k">"message"</span>: <span class="keep">"An engineer removed…"</span>,<br>
+        &nbsp;&nbsp;<span class="k">"history"</span>: [<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;{ <span class="k">"role"</span>: "user", … },<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;{ <span class="k">"role"</span>: "assistant", … },<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;{ <span class="k">"role"</span>: "user", … },<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;{ <span class="k">"role"</span>: "assistant", … },<br>
+        &nbsp;&nbsp;]<br>}</div>
+    </div>
+    <div class="card step">
+      <span class="num">3 · What the backend gives the agents</span>
+      <p>The Triage agent gets what the user wrote. The agents always see the whole incident, not only the last message.</p>
+      <div class="codeblock"><span class="keep">Requests are failing across an entire region.</span><br><br>
+        <span class="keep">It is our cloud object store.</span><br><br>
+        <span class="keep">An engineer removed a handful of machines this morning.</span></div>
+      <div class="flowrow"><span class="chip">Triage</span><span class="arrow">→</span><span class="chip">Research</span><span class="arrow">→</span><span class="chip">Diagnosis</span><span class="arrow">→</span><span class="chip">Reporting</span></div>
+    </div>
+  </div>
+  <div class="card mem0"><b>Mem0:</b> We are still studying it, and we want to explore it next week.</div>
+</section>
+
+<!-- SLIDE 2: the diagram (the replay) -->
+<div class="wrap slide" id="slide-2">
+<header>
+  <h1>Incident Copilot · detailed replay</h1>
+  <span class="sub" id="sub"></span>
+</header>
+
+<div class="card graph" id="graph">
+<div class="gmain">
+<svg viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid meet" role="img" aria-label="The investigation graph: Triage, Research, Diagnosis and Reporting, with the question to the user and the new-search loop">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--line)"/></marker>
+    <marker id="arrow-v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--visited)"/></marker>
+    <marker id="arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--active)"/></marker>
+  </defs>
+  <!-- edges -->
+  <path id="e-start-triage" class="edge" d="M112,212 L148,212"/>
+  <path id="e-triage-research" class="edge" d="M302,212 L358,212"/>
+  <path id="e-research-diagnosis" class="edge" d="M512,212 L568,212"/>
+  <path id="e-diagnosis-report" class="edge" d="M722,212 L778,212"/>
+  <path id="e-report-end" class="edge" d="M855,246 L855,328"/>
+  <path id="e-triage-ask_analyst" class="edge" d="M250,178 C250,120 300,74 343,72"/>
+  <path id="e-ask_analyst-triage" class="edge" d="M345,92 C290,104 214,126 206,176"/>
+  <path id="e-diagnosis-ask_analyst" class="edge" d="M640,178 C640,120 590,74 547,72"/>
+  <path id="e-diagnosis-research" class="edge" d="M630,246 C610,312 460,312 442,248"/>
+  <path id="e-triage-end" class="edge" d="M225,246 L225,362 L803,362"/>
+  <text class="elabel" x="514" y="382" style="font-size:11px">already under investigation</text>
+  <text class="elabel" x="536" y="326">new search (up to 3 rounds)</text>
+  <text class="count" id="rounds" x="536" y="346"></text>
+  <!-- nodes -->
+  <g class="node" id="n-start"><rect class="halo" x="20" y="186" width="90" height="52" rx="26"/><rect x="20" y="186" width="90" height="52" rx="26"/><text x="65" y="212">Start</text></g>
+  <g class="node" id="n-triage"><rect class="halo" x="150" y="180" width="150" height="64" rx="12"/><rect x="150" y="180" width="150" height="64" rx="12"/><text x="225" y="204">Triage</text><text class="tag" x="225" y="226">agent</text></g>
+  <g class="node" id="n-research"><rect class="halo" x="360" y="180" width="150" height="64" rx="12"/><rect x="360" y="180" width="150" height="64" rx="12"/><text x="435" y="204">Research</text><text class="tag" x="435" y="226">agent + RAG</text></g>
+  <g class="node" id="n-diagnosis"><rect class="halo" x="570" y="180" width="150" height="64" rx="12"/><rect x="570" y="180" width="150" height="64" rx="12"/><text x="645" y="204">Diagnosis</text><text class="tag" x="645" y="226">agent + rules</text></g>
+  <g class="node" id="n-report"><rect class="halo" x="780" y="180" width="150" height="64" rx="12"/><rect x="780" y="180" width="150" height="64" rx="12"/><text x="855" y="204">Reporting</text><text class="tag" x="855" y="226">agent</text></g>
+  <g class="node pause" id="n-ask_analyst"><rect class="halo" x="345" y="40" width="200" height="60" rx="12"/><rect x="345" y="40" width="200" height="60" rx="12"/><text x="445" y="62">Ask the user</text><text class="tag" x="445" y="84">pause (interrupt)</text></g>
+  <g class="node" id="n-end"><rect class="halo" x="805" y="336" width="100" height="52" rx="26"/><rect x="805" y="336" width="100" height="52" rx="26"/><text x="855" y="362">End</text></g>
+</svg>
+</div>
+<div class="gsub" aria-live="polite">
+<p class="subtitle" id="subtitle"></p>
+<svg class="subsvg" id="sub-triage" viewBox="0 0 380 370" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Inside Triage"><path id="es-triage-read-tool" class="edge" d="M180,82 L180,118"/><path id="es-triage-tool-compare" class="edge" d="M180,172 L180,208"/><path id="es-triage-compare-out" class="edge" d="M180,262 L180,298"/><path id="es-triage-read-out" class="edge" d="M58,55 C14,60 14,320 58,325"/><text class="elabel" x="34" y="196" transform="rotate(-90 34 196)">no service: ask</text><g class="node" id="s-triage-read"><rect class="halo" x="60" y="30" width="240" height="50" rx="10"/><rect x="60" y="30" width="240" height="50" rx="10"/><text x="180" y="49">Model reads the message</text><text class="tag" x="180" y="68">model call</text></g><g class="node" id="s-triage-tool"><rect class="halo" x="60" y="120" width="240" height="50" rx="10"/><rect x="60" y="120" width="240" height="50" rx="10"/><text x="180" y="139">list_investigations</text><text class="tag" x="180" y="158">tool (code)</text></g><g class="node" id="s-triage-compare"><rect class="halo" x="60" y="210" width="240" height="50" rx="10"/><rect x="60" y="210" width="240" height="50" rx="10"/><text x="180" y="229">Model compares</text><text class="tag" x="180" y="248">same problem?</text></g><g class="node" id="s-triage-out"><rect class="halo" x="60" y="300" width="240" height="50" rx="10"/><rect x="60" y="300" width="240" height="50" rx="10"/><text x="180" y="319">Validated result</text><text class="tag" x="180" y="338">JSON (Pydantic) + rules</text></g></svg>
+<svg class="subsvg" id="sub-research" viewBox="0 0 380 370" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Inside Research"><path id="es-research-code-find" class="edge" d="M180,82 L180,118"/><path id="es-research-find-inside" class="edge" d="M180,172 L180,208"/><path id="es-research-inside-build" class="edge" d="M180,262 L180,298"/><path id="es-research-find-find" class="edge" d="M300,132 C352,118 352,166 302,156"/><path id="es-research-code-inside" class="edge" d="M58,55 C16,70 16,220 58,235"/><path id="es-research-find-build" class="edge" d="M300,162 C352,210 352,300 302,325"/><text class="elabel" x="340" y="112">again</text><text class="count" id="sc-research" x="64" y="114" style="text-anchor:start"></text><g class="node" id="s-research-code"><rect class="halo" x="60" y="30" width="240" height="50" rx="10"/><rect x="60" y="30" width="240" height="50" rx="10"/><text x="180" y="49">Code search</text><text class="tag" x="180" y="68">user text (safety net)</text></g><g class="node" id="s-research-find"><rect class="halo" x="60" y="120" width="240" height="50" rx="10"/><rect x="60" y="120" width="240" height="50" rx="10"/><text x="180" y="139">Model searches</text><text class="tag" x="180" y="158">find_similar_incidents</text></g><g class="node" id="s-research-inside"><rect class="halo" x="60" y="210" width="240" height="50" rx="10"/><rect x="60" y="210" width="240" height="50" rx="10"/><text x="180" y="229">Model goes deeper</text><text class="tag" x="180" y="248">search_inside_incidents</text></g><g class="node" id="s-research-build"><rect class="halo" x="60" y="300" width="240" height="50" rx="10"/><rect x="60" y="300" width="240" height="50" rx="10"/><text x="180" y="319">Builds the findings</text><text class="tag" x="180" y="338">code: up to 8 incidents</text></g></svg>
+<svg class="subsvg" id="sub-diagnosis" viewBox="0 0 380 370" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Inside Diagnosis"><path id="es-diagnosis-text-llm" class="edge" d="M180,82 L180,118"/><path id="es-diagnosis-llm-check" class="edge" d="M180,172 L180,208"/><path id="es-diagnosis-check-decide" class="edge" d="M180,262 L180,298"/><path id="es-diagnosis-check-llm" class="edge" d="M300,228 C350,214 350,152 302,142"/><text class="elabel" x="342" y="190">fixes</text><text class="count" id="sc-diagnosis" x="64" y="114" style="text-anchor:start"></text><g class="node" id="s-diagnosis-text"><rect class="halo" x="60" y="30" width="240" height="50" rx="10"/><rect x="60" y="30" width="240" height="50" rx="10"/><text x="180" y="49">Builds the text</text><text class="tag" x="180" y="68">incident + triage + findings</text></g><g class="node" id="s-diagnosis-llm"><rect class="halo" x="60" y="120" width="240" height="50" rx="10"/><rect x="60" y="120" width="240" height="50" rx="10"/><text x="180" y="139">Model writes hypotheses</text><text class="tag" x="180" y="158">+ 3 comparisons per hypothesis</text></g><g class="node" id="s-diagnosis-check"><rect class="halo" x="60" y="210" width="240" height="50" rx="10"/><rect x="60" y="210" width="240" height="50" rx="10"/><text x="180" y="229">Validation</text><text class="tag" x="180" y="248">JSON and finding IDs</text></g><g class="node" id="s-diagnosis-decide"><rect class="halo" x="60" y="300" width="240" height="50" rx="10"/><rect x="60" y="300" width="240" height="50" rx="10"/><text x="180" y="319">decide()</text><text class="tag" x="180" y="338">rules in code: enough? next step</text></g></svg>
+<svg class="subsvg" id="sub-report" viewBox="0 0 380 370" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Inside Reporting"><path id="es-report-text-llm" class="edge" d="M180,82 L180,118"/><path id="es-report-llm-check" class="edge" d="M180,172 L180,208"/><path id="es-report-check-out" class="edge" d="M180,262 L180,298"/><path id="es-report-check-llm" class="edge" d="M300,228 C350,214 350,152 302,142"/><text class="elabel" x="342" y="190">fixes</text><text class="count" id="sc-report" x="64" y="114" style="text-anchor:start"></text><g class="node" id="s-report-text"><rect class="halo" x="60" y="30" width="240" height="50" rx="10"/><rect x="60" y="30" width="240" height="50" rx="10"/><text x="180" y="49">Builds the text</text><text class="tag" x="180" y="68">hypotheses + findings + language</text></g><g class="node" id="s-report-llm"><rect class="halo" x="60" y="120" width="240" height="50" rx="10"/><rect x="60" y="120" width="240" height="50" rx="10"/><text x="180" y="139">Model writes</text><text class="tag" x="180" y="158">report + chat message</text></g><g class="node" id="s-report-check"><rect class="halo" x="60" y="210" width="240" height="50" rx="10"/><rect x="60" y="210" width="240" height="50" rx="10"/><text x="180" y="229">Check in code</text><text class="tag" x="180" y="248">sources, links, causes = hypotheses</text></g><g class="node" id="s-report-out"><rect class="halo" x="60" y="300" width="240" height="50" rx="10"/><rect x="60" y="300" width="240" height="50" rx="10"/><text x="180" y="319">Reporting</text><text class="tag" x="180" y="338">valid: goes to the user</text></g></svg>
+</div>
+</div>
+
+  <section class="card panel" aria-live="polite">
+    <div class="ptitle"><span class="badge" id="badge"></span><h2 id="title"></h2><span class="secs" id="secs"></span></div>
+    <div class="who" id="who"></div>
+    <ul class="lines" id="lines"></ul>
+    <div class="tablewrap" id="table"></div>
+    <div class="chips" id="chips"></div>
+    <div class="rule" id="rule" hidden></div>
+  </section>
+  <aside class="card state">
+    <h3>Shared state</h3>
+    <div id="fields"></div>
+  </aside>
+
+<div class="card controls">
+  <button id="play" class="primary" type="button">▶ Play</button>
+  <div class="row">
+    <button id="prev" type="button" aria-label="Previous step">◀</button>
+    <button id="next" type="button" aria-label="Next step">▶</button>
+  </div>
+  <div class="speedrow"><label class="hint" for="speed">speed</label>
+  <select id="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></div>
+  <div class="progress"><input id="seek" type="range" min="0" value="0" aria-label="Position in the replay"><span class="pos" id="pos"></span></div>
+  <span class="hint">space: play/pause<br>← →: step by step<br>PageUp / PageDown: change slide</span>
+</div>
+</div>
+
+<!-- SLIDE 3: Demo -->
+<section class="pane slide" id="slide-3" style="justify-content:center;align-items:center">
+  <h1 style="font-size:120px;margin:0">Demo</h1>
+</section>
+
+<!-- SLIDE 4: what is next -->
+<section class="pane slide" id="slide-4">
+  <header style="display:block"><h1>What is next?</h1></header>
+  <ul class="todo">
+    <li class="card"><span class="n">1</span>Explore mem0ai</li>
+    <li class="card"><span class="n">2</span>Save the incidents in a database</li>
+    <li class="card"><span class="n">3</span>Improve the UI</li>
+    <li class="card"><span class="n">4</span>Test with more cases</li>
+  </ul>
+</section>
+
+<nav class="slidenav" aria-label="Slides">
+  <button type="button" id="sprev" aria-label="Previous slide">◀</button>
+  <span id="dots"></span>
+  <button type="button" id="snext" aria-label="Next slide">▶</button>
+  
+</nav>
+
+<script id="data" type="application/json">{"case": "DAN-104", "source": "walkthrough_dan104_2026-11-25_1621.json", "frames": [{"node": "start", "kind": "code", "title": "Start: the user writes", "lines": ["“Requests are failing across an entire region.”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": null, "subcount": null}, {"node": "triage", "kind": "agent", "title": "Triage reads what the user wrote", "lines": ["“Requests are failing across an entire region.”", "1 model call, with the prompt from agents/triage/prompts.py"], "state": [], "edge": ["start", "triage"], "seconds": 18.1, "rule": null, "table": null, "wait": 1.2, "sub": "read", "subcount": null}, {"node": "triage", "kind": "agent", "title": "Triage result", "lines": ["enough information: no", "service: —", "symptoms: requests failing across an entire region", "changes mentioned: none", "question: Which service or system is experiencing failures?", "question: Did anything change right before the problem started (e.g., a deploy, a command, a configuration or data change, a migration)?"], "state": ["triage_result", "symptoms", "pending_questions"], "edge": null, "seconds": null, "rule": "route_after_triage", "table": null, "wait": 1.6, "sub": "out", "subcount": null}, {"node": "ask_analyst", "kind": "pause", "title": "Pause: the graph waits for the user", "lines": ["question: Which service or system is experiencing failures?", "question: Did anything change right before the problem started (e.g., a deploy, a command, a configuration or data change, a migration)?", "the state is saved (in run.py, in Postgres)"], "state": ["pending_questions"], "edge": ["triage", "ask_analyst"], "seconds": null, "rule": null, "table": null, "wait": 1.8, "sub": null, "subcount": null}, {"node": "ask_analyst", "kind": "pause", "title": "The user answers", "lines": ["“It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a handful of machines out of infrastructure supporting that process. Failures appeared abruptly this morning in our US East …”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.8, "sub": null, "subcount": null}, {"node": "triage", "kind": "agent", "title": "Triage reads what the user wrote", "lines": ["“Requests are failing across an entire region. Analyst answer: It is our cloud object store, and products relying on it are having trouble too. We were looking into unusually slow billing progress. An engineer followed our usual operating procedure to take a …”", "1 model call, with the prompt from agents/triage/prompts.py"], "state": [], "edge": ["ask_analyst", "triage"], "seconds": 33.4, "rule": null, "table": null, "wait": 1.2, "sub": "read", "subcount": null}, {"node": "triage", "kind": "agent", "title": "Calls the tool list_investigations", "lines": ["arguments: {\"service\":\"object-store\"}", "looks for open investigations of the same service (duplicate?)"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "tool", "subcount": null}, {"node": "triage", "kind": "code", "title": "The tool returns the investigations", "lines": ["INC-041 · payments-api · open", "INC-042 · login · open", "INC-043 · batch-jobs · closed", "INC-044 · search · open"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "compare", "subcount": null}, {"node": "triage", "kind": "agent", "title": "Triage result", "lines": ["enough information: yes", "service: object-store", "symptoms: requests failing across an entire region; cannot read, enumerate, write or erase objects through the APIs", "changes mentioned: an engineer followed usual operating procedure to take a handful of machines out of infrastructure supporting that process"], "state": ["triage_result", "symptoms"], "edge": null, "seconds": null, "rule": "route_after_triage", "table": null, "wait": 1.6, "sub": "out", "subcount": null}, {"node": "research", "kind": "agent", "title": "Research looks for similar post-mortems", "lines": ["round 1 of 3"], "state": [], "edge": ["triage", "research"], "seconds": 34.6, "rule": null, "table": null, "wait": 1.2, "sub": "code", "subcount": null, "round": 1}, {"node": "research", "kind": "code", "title": "Code search (safety net)", "lines": ["Requests are failing across an entire region. Analyst answer: It is our cloud object … → DAN-104, DAN-106, DAN-072, DAN-151, DAN-197, DAN-008"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.2, "sub": "code", "subcount": null}, {"node": "research", "kind": "agent", "title": "Model, call 1: searches with other words", "lines": ["“cloud object store API read write delete region-wide failure”", "“S3 object storage outage region US East maintenance removing machines”"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "find", "subcount": "call 1"}, {"node": "research", "kind": "agent", "title": "Model, call 2: goes deeper into the best ones", "lines": ["DAN-104: Matches current incident: cloud object store, region-wide failure, engineer following procedure to remove machines, APIs cannot read/write/delete …", "DAN-106: Similar: human error during routine procedure causing US East region outage, though different component (EC2/RDS vs object store)"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.4, "sub": "inside", "subcount": "call 2"}, {"node": "research", "kind": "agent", "title": "Findings: 8 incidents, 2 explored in depth", "lines": ["DAN-104 · Summary of the Amazon S3 Service Disruption in the Northern Virginia … · explored in depth", "DAN-106 · Summary of the Amazon EC2 and Amazon RDS Service Disruption in the US … · explored in depth", "DAN-072 · Incident details | Google Cloud Service Health — On Tuesday, 19 July …", "DAN-151 · Elastic Cloud Incident Report: February 4, 2019 | Elastic Blog", "DAN-197 · How We Found Azure’s Unannounced Breaking Change - Metrist", "DAN-008 · Partial Cloudflare outage on October 25, 2022"], "state": ["findings", "seen_ids", "research_rounds"], "edge": null, "seconds": null, "rule": "route_after_research", "table": null, "wait": 1.6, "sub": "build", "subcount": null}, {"node": "diagnosis", "kind": "agent", "title": "Diagnosis compares the incident with past cases", "lines": ["round 1 of 3", "8 findings, 2 with passages", "changes mentioned: an engineer followed usual operating procedure to take a handful of machines out of infrastructure supporting that process"], "state": [], "edge": ["research", "diagnosis"], "seconds": 6.7, "rule": null, "table": null, "wait": 1.2, "sub": "text", "subcount": null}, {"node": "diagnosis", "kind": "agent", "title": "The model writes hypotheses and answers 3 questions", "lines": ["same kind of trigger? same component? same mechanism?"], "state": [], "edge": null, "seconds": null, "rule": null, "table": [{"cause": "The engineer's capacity-removal command removed too many servers from the object store's billing-related …", "based_on": "DAN-104", "t": "yes", "c": "yes", "m": "yes", "model": "high", "code": "high"}, {"cause": "Removing the machines triggered a cascading capacity or control-plane failure in the object store's regional …", "based_on": "DAN-106", "t": "yes", "c": "no", "m": "no", "model": "medium", "code": "medium"}], "wait": 2.2, "sub": "llm", "subcount": null}, {"node": "diagnosis", "kind": "code", "title": "Validation of the model's answer", "lines": ["the JSON has the DiagnosisDraft format (Pydantic)", "each hypothesis is based on incidents that are in the findings", "attempts until valid: 1"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": "check", "subcount": null}, {"node": "diagnosis", "kind": "code", "title": "The code decides (schema.py → decide)", "lines": ["enough evidence: yes", "next step: report"], "state": ["diagnosis", "search_request", "pending_questions"], "edge": null, "seconds": null, "rule": "route_after_diagnosis", "table": null, "wait": 1.8, "sub": "decide", "subcount": null}, {"node": "report", "kind": "agent", "title": "Reporting writes the final answer", "lines": ["in the user's language, with cause, fix, prevention and source", "attempts until valid: 1"], "state": [], "edge": ["diagnosis", "report"], "seconds": 67.9, "rule": null, "table": null, "wait": 1.2, "sub": "llm", "subcount": null}, {"node": "report", "kind": "code", "title": "The check in code", "lines": ["kind matches the Diagnosis", "each source exists in the findings, with the same link", "causes = hypotheses, in the same order and confidence", "result: valid"], "state": [], "edge": null, "seconds": null, "rule": null, "table": null, "wait": 1.4, "sub": "check", "subcount": null}, {"node": "report", "kind": "agent", "title": "Report: diagnosis", "lines": ["The symptoms match a past incident in which an engineer followed an established playbook to remove a small number of servers, but a larger set was removed than intended, causing critical object-store subsystems to require a full restart and making GET, LIST, PUT and DELETE requests fail across US …", "[high] The engineer's capacity-removal command removed too many servers from the object store's billing-related subsystems, forcing the index and … (DAN-104)", "[medium] Removing the machines triggered a cascading capacity or control-plane failure in the object store's regional infrastructure, similar to how … (DAN-106)"], "state": ["report", "report_attempts", "report_problems", "errors"], "edge": null, "seconds": null, "rule": "fixed edge report → END", "table": null, "wait": 2.4, "sub": "out", "subcount": null}, {"node": "end", "kind": "code", "title": "End: the report goes to the user", "lines": [], "state": [], "edge": ["report", "end"], "seconds": null, "rule": null, "table": null, "wait": 1.0, "sub": null, "subcount": null}]}</script>
+<script>
+(function () {
+  var DATA = JSON.parse(document.getElementById("data").textContent);
+  var F = DATA.frames;
+  var FIELDS = ["incident_id", "description", "analyst_answers", "triage_result", "symptoms", "pending_questions",
+                "findings", "seen_ids", "research_rounds", "search_request", "diagnosis", "report", "report_attempts",
+                "report_problems", "errors"];
+  var NAMES = {triage: "Triage", research: "Research", diagnosis: "Diagnosis", report: "Reporting",
+               ask_analyst: "Ask the user", related_incident: "Already under investigation", start: "Start", end: "End"};
+  var KIND = {agent: "agent (model)", code: "code", pause: "pause"};
+  var i = 0, playing = false, timer = null;
+
+  document.getElementById("sub").textContent = DATA.case + " · real recording (" + DATA.source + ")";
+  var fieldsEl = document.getElementById("fields");
+  FIELDS.forEach(function (f) { var d = document.createElement("div"); d.className = "field"; d.id = "f-" + f; d.textContent = f; fieldsEl.appendChild(d); });
+  var seek = document.getElementById("seek"); seek.max = F.length - 1;
+
+  function el(tag, text, cls) { var e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; }
+  function yn(v) { return v === "yes" ? ["yes", "y"] : v === "no" ? ["no", "n"] : ["?", "u"]; }
+
+  function render() {
+    var fr = F[i];
+    // nodes and edges seen so far
+    var seenN = {}, seenE = {}, written = {}, rounds = 0;
+    for (var k = 0; k <= i; k++) {
+      seenN[F[k].node] = true;
+      if (F[k].edge) seenE[F[k].edge.join("-")] = true;
+      (F[k].state || []).forEach(function (s) { written[s] = true; });
+      if (F[k].round) rounds = F[k].round;  // the round of the current search (it restarts after an answer)
+    }
+    document.querySelectorAll(".gmain .node").forEach(function (g) {
+      var id = g.id.slice(2);
+      g.classList.toggle("visited", !!seenN[id]);
+      g.classList.toggle("active", id === fr.node);
+    });
+    document.querySelectorAll(".gmain .edge").forEach(function (p) {
+      var id = p.id.slice(2);
+      p.classList.toggle("visited", !!seenE[id]);
+      p.classList.toggle("flow", !!(fr.edge && fr.edge.join("-") === id));
+    });
+    document.getElementById("rounds").textContent = rounds > 1 ? ("round " + rounds) : "";
+    renderSub(fr);
+    // panel
+    var badge = document.getElementById("badge");
+    badge.className = "badge " + fr.kind; badge.textContent = KIND[fr.kind] || fr.kind;
+    document.getElementById("title").textContent = fr.title;
+    document.getElementById("who").textContent = "node: " + (NAMES[fr.node] || fr.node);
+    document.getElementById("secs").textContent = fr.seconds ? (fr.seconds + " s in this node") : "";
+    var ul = document.getElementById("lines"); ul.innerHTML = "";
+    (fr.lines || []).forEach(function (l) { ul.appendChild(el("li", l)); });
+    var tw = document.getElementById("table"); tw.innerHTML = "";
+    if (fr.table) {
+      var t = el("table", null, "tbl"), h = el("tr");
+      ["hypothesis", "based on", "trigger", "component", "mechanism", "model → code"].forEach(function (c) { h.appendChild(el("th", c)); });
+      t.appendChild(h);
+      fr.table.forEach(function (r) {
+        var tr = el("tr");
+        tr.appendChild(el("td", r.cause)); tr.appendChild(el("td", r.based_on, "base"));
+        [r.t, r.c, r.m].forEach(function (v) { var a = yn(v); tr.appendChild(el("td", a[0], a[1])); });
+        tr.appendChild(el("td", r.model + " → " + r.code));
+        t.appendChild(tr);
+      });
+      tw.appendChild(t);
+    }
+    var chips = document.getElementById("chips"); chips.innerHTML = "";
+    if (fr.state && fr.state.length) {
+      chips.appendChild(el("span", "wrote to the state:", "lbl"));
+      fr.state.forEach(function (s) { chips.appendChild(el("span", s, "chip")); });
+    }
+    var rule = document.getElementById("rule");
+    if (fr.rule) { rule.hidden = false; rule.innerHTML = ""; rule.appendChild(document.createTextNode("who picks the next node: ")); rule.appendChild(el("code", fr.rule)); }
+    else { rule.hidden = true; }
+    // state folder
+    FIELDS.forEach(function (f) {
+      var d = document.getElementById("f-" + f);
+      d.classList.toggle("filled", !!written[f] || (f === "incident_id" || f === "description"));
+      d.classList.toggle("fresh", (fr.state || []).indexOf(f) >= 0);
+    });
+    seek.value = i;
+    document.getElementById("pos").textContent = (i + 1) + " / " + F.length;
+  }
+
+  // ---- the inside of the active agent
+  var ENTRY = {triage: "read", research: "code", diagnosis: "text", report: "text"};
+  var ADJ = {};
+  Object.keys(ENTRY).forEach(function (a) {
+    ADJ[a] = {};
+    document.querySelectorAll("#sub-" + a + " .edge").forEach(function (p) {
+      var parts = p.id.split("-");  // es-<agent>-<from>-<to>
+      (ADJ[a][parts[2]] = ADJ[a][parts[2]] || []).push(parts[3]);
+    });
+  });
+  function path(a, from, to) {  // shortest list of edges from -> to (breadth-first)
+    var prev = {}, queue = [from], seen = {}; seen[from] = true;
+    while (queue.length) {
+      var x = queue.shift();
+      if (x === to) break;
+      (ADJ[a][x] || []).forEach(function (y) { if (!seen[y]) { seen[y] = true; prev[y] = x; queue.push(y); } });
+    }
+    if (!seen[to]) return [];
+    var out = [], y = to;
+    while (y !== from) { out.unshift([prev[y], y]); y = prev[y]; }
+    return out;
+  }
+  function renderSub(fr) {
+    var a = ENTRY[fr.node] ? fr.node : null;
+    document.getElementById("graph").classList.toggle("zoom", !!a);
+    document.querySelectorAll(".subsvg").forEach(function (s) { s.classList.toggle("on", !!a && s.id === "sub-" + a); });
+    if (!a) return;
+    document.getElementById("subtitle").textContent = "Inside node: " + NAMES[a];
+    var s = i; while (s > 0 && F[s - 1].node === fr.node) s--;  // first frame of this visit to the node
+    var cur = ENTRY[a], vN = {}, vE = {}, flow = null;
+    vN[cur] = true;
+    for (var k = s; k <= i; k++) {
+      var t = F[k].sub; if (!t) continue;
+      var steps;
+      if (t === cur) {
+        var again = k > s && F[k - 1].sub === t && (ADJ[a][t] || []).indexOf(t) >= 0;
+        steps = again ? [[t, t]] : [];
+      } else { steps = path(a, cur, t); }
+      steps.forEach(function (e) { vE[e.join("-")] = true; vN[e[0]] = true; vN[e[1]] = true; });
+      if (k === i && steps.length) flow = steps[steps.length - 1].join("-");
+      cur = t;
+    }
+    var act = fr.sub || ENTRY[a];
+    document.querySelectorAll("#sub-" + a + " .node").forEach(function (g) {
+      var id = g.id.split("-")[2];
+      g.classList.toggle("visited", !!vN[id]);
+      g.classList.toggle("active", id === act);
+    });
+    document.querySelectorAll("#sub-" + a + " .edge").forEach(function (p) {
+      var id = p.id.split("-").slice(2).join("-");
+      p.classList.toggle("visited", !!vE[id]);
+      p.classList.toggle("flow", id === flow);
+    });
+    var c = document.getElementById("sc-" + a);
+    if (c) c.textContent = fr.subcount || "";
+  }
+
+  function go(n) { i = Math.max(0, Math.min(F.length - 1, n)); render(); }
+  function schedule() {
+    clearTimeout(timer);
+    if (!playing) return;
+    if (i >= F.length - 1) { setPlaying(false); return; }
+    var speed = parseFloat(document.getElementById("speed").value);
+    timer = setTimeout(function () { go(i + 1); schedule(); }, (F[i].wait || 1) * 2600 / speed);
+  }
+  function setPlaying(p) {
+    playing = p;
+    document.getElementById("play").textContent = p ? "❚❚ Pause" : "▶ Play";
+    if (p && i >= F.length - 1) go(0);
+    schedule();
+  }
+  document.getElementById("play").addEventListener("click", function () { setPlaying(!playing); });
+  document.getElementById("prev").addEventListener("click", function () { setPlaying(false); go(i - 1); });
+  document.getElementById("next").addEventListener("click", function () { setPlaying(false); go(i + 1); });
+  document.getElementById("speed").addEventListener("change", schedule);
+  seek.addEventListener("input", function () { setPlaying(false); go(parseInt(seek.value, 10)); });
+  // ---- slides
+  var SLIDES = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+  var TITLES = ["Intro / Memory", "The diagram", "Demo", "What is next?"];
+  var cur = 0;
+  var dotsEl = document.getElementById("dots");
+  SLIDES.forEach(function (s, n) {
+    var b = el("button", (n + 1) + " · " + TITLES[n], "dot"); b.type = "button";
+    b.addEventListener("click", function () { showSlide(n); });
+    dotsEl.appendChild(b);
+  });
+  function showSlide(n) {
+    cur = Math.max(0, Math.min(SLIDES.length - 1, n));
+    if (cur !== 1) setPlaying(false);  // leaving the diagram stops the replay
+    SLIDES.forEach(function (s, k) { s.classList.toggle("on", k === cur); });
+    Array.prototype.forEach.call(dotsEl.children, function (b, k) { b.classList.toggle("cur", k === cur); });
+    try { history.replaceState(null, "", "#" + (cur + 1)); } catch (err) {}
+  }
+  document.getElementById("sprev").addEventListener("click", function () { showSlide(cur - 1); });
+  document.getElementById("snext").addEventListener("click", function () { showSlide(cur + 1); });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+    // PageUp / PageDown always change slide. On the diagram slide the arrows and space drive the replay;
+    // on the other slides they change slide.
+    if (e.code === "PageDown") { e.preventDefault(); showSlide(cur + 1); return; }
+    if (e.code === "PageUp") { e.preventDefault(); showSlide(cur - 1); return; }
+    if (cur !== 1) {
+      if (e.code === "ArrowRight" || e.code === "Space") { e.preventDefault(); showSlide(cur + 1); }
+      else if (e.code === "ArrowLeft") { showSlide(cur - 1); }
+      return;
+    }
+    if (e.code === "Space") { e.preventDefault(); setPlaying(!playing); }
+    else if (e.code === "ArrowRight") { setPlaying(false); go(i + 1); }
+    else if (e.code === "ArrowLeft") { setPlaying(false); go(i - 1); }
+  });
+  render();
+  var start = parseInt((location.hash || "").slice(1), 10);
+  showSlide(start >= 1 && start <= SLIDES.length ? start - 1 : 0);
+})();
+</script>
+</body>
+</html>
