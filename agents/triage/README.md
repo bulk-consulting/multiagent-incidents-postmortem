@@ -90,7 +90,7 @@ Decisão em código (fora do agente)
 ```
 
 A **Messages history** é a memória de uma execução: a lista de mensagens enviada ao modelo a cada chamada.
-![Fluxo interno do Agente Triagem](fluxo_agente_triagem.svg)
+![Fluxo interno do Agente Triagem](triage_agent_workflow.svg)
 
 Como ler o desenho: a linha tracejada roxa marca o que está **dentro do agente**; a linha tracejada dentro da
 Messages history separa o que é preenchido **no início** do que é adicionado **durante a execução**. Roxo é o

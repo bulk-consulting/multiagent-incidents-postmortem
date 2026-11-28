@@ -137,7 +137,7 @@ def to_report(raw_report) -> Report:
         return raw_report
     return Report.model_validate(raw_report)
 
-
+# API Logic before sending info to Langgraph
 def investigate(request: IncidentRequest) -> IncidentResponse:
     incident_id = f"INC-{uuid.uuid4().hex[:8]}"  # no database yet: only to follow the run in the logs
     description = build_description(request)

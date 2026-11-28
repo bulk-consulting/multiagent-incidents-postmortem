@@ -9,7 +9,7 @@ já encontraram.
 
 ## O fluxo
 
-![Fluxo interno do Reporting agent](fluxo_agente_reporting.svg)
+![Fluxo interno do Reporting agent](reporting_agent_workflow.svg)
 
 A linha tracejada roxa marca o que está **dentro do agente**. A linha tracejada dentro da Messages history
 separa o que é preenchido **no início** do que é adicionado **durante a execução**. Roxo é o LLM e cinza é
