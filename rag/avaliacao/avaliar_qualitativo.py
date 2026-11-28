@@ -47,7 +47,7 @@ def rodar(caso: dict, n_docs: int, n_trechos: int, versao: str) -> dict:
         erro = None
     except Exception as e:  # registra e segue para as outras perguntas
         estado, erro = {}, f"{type(e).__name__}: {e}\n{traceback.format_exc(limit=3)}"
-    rec = [prompts._id_curto(r["doc_id"]) for r in estado.get("recuperados", [])]
+    rec = [prompts._id_curto(r["post_mortem_id"]) for r in estado.get("recuperados", [])]
     alvo = set(caso["esperado"]) | set(caso.get("aceitos", []))
     citados = estado.get("citados", [])
     pos = [rec.index(e) + 1 for e in caso["esperado"] if e in rec]

@@ -113,7 +113,7 @@ def research_node(state: InvestigationState) -> dict:
         # the round counts, so that a broken search does not loop forever
         return {"research_rounds": rounds + 1, **_error("research", start, e)}
     findings = out.get("findings", [])
-    deepened = [r["incident_id"] for r in findings if r.get("deepened")]
+    deepened = [r["post_mortem_id"] for r in findings if r.get("deepened")]
     return {"findings": findings, "seen_ids": out.get("seen_ids", []), "research_rounds": rounds + 1,
             **_step("research", start, f"round {rounds + 1}: {len(findings)} incidents, deepened {deepened}"
                                        + (f"; request: {request[:80]!r}" if request else ""))}
@@ -178,11 +178,11 @@ def code_report_node(state: InvestigationState) -> dict:
     without the LLM. Used when there is no diagnosis (inconclusive), and by the tests as a fake Reporting agent."""
     start = time.time()
     d = state.get("diagnosis")
-    by_id = {r["incident_id"]: r for r in state.get("findings", [])}
+    by_id = {r["post_mortem_id"]: r for r in state.get("findings", [])}
     errors = state.get("errors", [])
     if d is not None and d.evidence_sufficient:
         causes = [{"root_cause": h.cause, "remediation_steps": [], "changes": None, "prevention_checklist": [],
-                   "sources": [{"incident_id": i, "title": by_id[i].get("title", ""), "url": by_id[i].get("url", "")}
+                   "sources": [{"post_mortem_id": i, "title": by_id[i].get("title", ""), "url": by_id[i].get("url", "")}
                                for i in h.based_on if i in by_id],
                    "confidence": h.confidence} for h in d.hypotheses if h.confidence in ("high", "medium")]
         report = {"incident_id": state.get("incident_id"), "kind": "diagnosis",
@@ -210,7 +210,7 @@ def _code_report_message(report: dict) -> str:
     for number, cause in enumerate(report["causes"], start=1):
         lines += ["", f"**Cause {number}** (confidence: {cause['confidence']})", cause["root_cause"]]
         for source in cause["sources"]:
-            lines.append(f"- Source: [{source['incident_id']} - {source['title']}]({source['url']})")
+            lines.append(f"- Source: [{source['post_mortem_id']} - {source['title']}]({source['url']})")
 
     # 2. What is missing.
     if report["gaps"]:
@@ -233,7 +233,7 @@ def validate_report_node(state: InvestigationState) -> dict:
     start = time.time()
     report = state.get("report") or {}
     report = report.model_dump() if hasattr(report, "model_dump") else report
-    urls = {r["incident_id"]: r.get("url", "") for r in state.get("findings", [])}
+    urls = {r["post_mortem_id"]: r.get("url", "") for r in state.get("findings", [])}
     problems = []
     if report.get("kind") == "diagnosis":
         if not report.get("causes"):
@@ -242,10 +242,10 @@ def validate_report_node(state: InvestigationState) -> dict:
             if not c.get("sources"):
                 problems.append(f"cause without a source: {c.get('root_cause', '')[:60]}")
             for s in c.get("sources", []):
-                if s.get("incident_id") not in urls:
-                    problems.append(f"source not in the findings: {s.get('incident_id')}")
-                elif s.get("url") != urls[s["incident_id"]]:
-                    problems.append(f"url of {s['incident_id']} differs from the findings")
+                if s.get("post_mortem_id") not in urls:
+                    problems.append(f"source not in the findings: {s.get('post_mortem_id')}")
+                elif s.get("url") != urls[s["post_mortem_id"]]:
+                    problems.append(f"url of {s['post_mortem_id']} differs from the findings")
     elif report.get("kind") == "inconclusive" and not report.get("gaps"):
         problems.append("an inconclusive report needs at least 1 gap")
     attempts = state.get("report_attempts", 0) + (1 if problems else 0)

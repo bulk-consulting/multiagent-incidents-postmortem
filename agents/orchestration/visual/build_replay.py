@@ -102,7 +102,7 @@ def research_frames(step, inside, edge):
                                  [f"“{short(q, 120)}”" for q in qs], wait=1.0, sub="find", subcount=f"chamada {k}"))
             elif t["name"] == "search_inside_incidents":
                 out.append(frame("research", f"Modelo, chamada {k}: aprofunda os melhores",
-                                 [f"{s.get('incident_id')}: {short(s.get('why'), 150)}" for s in t["args"].get("searches", [])],
+                                 [f"{s.get('post_mortem_id') or s.get('incident_id')}: {short(s.get('why'), 150)}" for s in t["args"].get("searches", [])],
                                  wait=1.4, sub="inside", subcount=f"chamada {k}"))
     deep = [f for f in i["findings"] if f["deepened"]]
     lines = [f"{f['id']} · {short(f['title'], 70)} · aprofundado" for f in deep]
@@ -162,7 +162,8 @@ def report_frames(step, inside, edge):
                  kind="code", wait=1.4, sub="check")]
     lines = [short(rep["summary"], 300)]
     for c in rep.get("causes", []):
-        src = ", ".join(s["incident_id"] for s in c["sources"])
+        # recordings made before the rename use incident_id for the post-mortem
+        src = ", ".join(s.get("post_mortem_id") or s.get("incident_id") for s in c["sources"])
         lines.append(f"[{c['confidence']}] {short(c['root_cause'], 140)} ({src})")
     out.append(frame("report", f"Relatório: {rep['kind']}", lines, state=list(step["update"].keys()),
                      rule=RULES["report"], wait=2.4, sub="out"))

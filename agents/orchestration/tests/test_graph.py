@@ -41,7 +41,7 @@ RELATED_TRIAGE = TriageResult(enough_information=True, symptoms=["login 500"], a
 
 
 def finding(i, deepened=True):
-    return {"incident_id": i, "company": "Acme", "title": f"title {i}", "url": f"https://example.com/{i}", "summary": "s",
+    return {"post_mortem_id": i, "company": "Acme", "title": f"title {i}", "url": f"https://example.com/{i}", "summary": "s",
             "deepened": deepened, "passages": [{"section": "Root cause", "content": "c", "query_source": "cause"}]}
 
 
@@ -81,11 +81,11 @@ class Fakes:
     def run_research(self, description, symptoms, request, previous):
         self.calls["research"].append({"description": description, "request": request, "previous": previous})
         findings = self._next(self.research, len(self.calls["research"]) - 1)
-        seen = sorted({r["incident_id"] for r in findings} | set((previous or {}).get("seen_ids", [])))
+        seen = sorted({r["post_mortem_id"] for r in findings} | set((previous or {}).get("seen_ids", [])))
         return {"findings": findings, "seen_ids": seen}
 
     def run_diagnosis(self, description, triage, findings, research_round, max_rounds, previous_requests):
-        self.calls["diagnosis"].append({"round": research_round, "ids": [r["incident_id"] for r in findings],
+        self.calls["diagnosis"].append({"round": research_round, "ids": [r["post_mortem_id"] for r in findings],
                                         "previous": previous_requests, "triage": triage})
         return self._next(self.diagnosis, len(self.calls["diagnosis"]) - 1)
 
@@ -140,7 +140,7 @@ out, _ = run(new_graph(), "INC-4", "Something new.")
 checker.check(f"the Research agent runs {MAX_RESEARCH_ROUNDS} times", len(f.calls["research"]) == MAX_RESEARCH_ROUNDS)
 checker.check("the refinement passes the request and the earlier findings",
               f.calls["research"][1]["request"] == "other kind of incident"
-              and [r["incident_id"] for r in f.calls["research"][1]["previous"]["findings"]] == ["DAN-001"])
+              and [r["post_mortem_id"] for r in f.calls["research"][1]["previous"]["findings"]] == ["DAN-001"])
 checker.check("the 1st round is not a refinement", f.calls["research"][0]["previous"] is None
               and f.calls["research"][0]["request"] == "")
 checker.check("the Diagnosis agent knows the round", [c["round"] for c in f.calls["diagnosis"]] == [1, 2, 3])
@@ -165,7 +165,7 @@ f = Fakes([GOOD_TRIAGE], [[finding("DAN-001")], [finding("DAN-104"), finding("DA
           [REFINE, SUFFICIENT("DAN-104")])
 out, _ = run(new_graph(), "INC-5", "Our object store is down.")
 checker.check("diagnosis in the 2nd round", len(f.calls["research"]) == 2 and out["report"]["kind"] == "diagnosis"
-              and out["report"]["causes"][0]["sources"][0]["incident_id"] == "DAN-104")
+              and out["report"]["causes"][0]["sources"][0]["post_mortem_id"] == "DAN-104")
 
 print("\n6. Resume in another run (same checkpointer, new graph)")
 saver = InMemorySaver(serde=make_serializer())
@@ -200,7 +200,7 @@ def report_with_bad_link_once(state):
     url = "https://invented.example" if len(calls) == 1 else "https://example.com/DAN-104"
     return {"report": {"kind": "diagnosis", "summary": "s", "gaps": [], "suggested_checks": [],
                        "causes": [{"root_cause": "c", "confidence": "high",
-                                   "sources": [{"incident_id": "DAN-104", "title": "t", "url": url}]}]}}
+                                   "sources": [{"post_mortem_id": "DAN-104", "title": "t", "url": url}]}]}}
 
 
 f = Fakes([GOOD_TRIAGE], [[finding("DAN-104")]], [SUFFICIENT("DAN-104")])
@@ -255,7 +255,7 @@ VALID_REPORT = json.dumps({
     "kind": "diagnosis", "summary": "Too much capacity was removed.",
     "message": "Most likely cause: too much capacity removed. Source: https://example.com/DAN-104",
     "causes": [{"root_cause": "cause from DAN-104", "remediation_steps": [], "prevention_checklist": [],
-                "sources": [{"incident_id": "DAN-104", "title": "title DAN-104", "url": "https://example.com/DAN-104"}],
+                "sources": [{"post_mortem_id": "DAN-104", "title": "title DAN-104", "url": "https://example.com/DAN-104"}],
                 "confidence": "high"}],
     "gaps": [], "suggested_checks": []})
 

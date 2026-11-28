@@ -10,12 +10,12 @@ python ./datasets/danluu-ingestion/scripts/validate_rag.py
 
 O script faz quatro verificações:
 
-1. **Contagem:** incidentes e chunks no banco, e quantos chunks do arquivo de chunking ficaram fora do banco.
+1. **Contagem:** post-mortems e chunks no banco, e quantos chunks do arquivo de chunking ficaram fora do banco.
 2. **Integridade:** cada linha deve mostrar `OK` (zero problemas):
    - vetores com dimensão diferente de 1024;
    - vetores sem norma 1 (não normalizados);
    - chunks com texto vazio;
-   - incidentes sem nenhum chunk ou sem o chunk de summary;
+   - post-mortems sem nenhum chunk ou sem o chunk de summary;
    - tipos de chunk desconhecidos;
    - chunks com o mesmo vetor de outro chunk.
 3. **Amostra de embedding:** o primeiro chunk, com o número de dimensões e o início do vetor.
@@ -34,17 +34,17 @@ O script faz quatro verificações:
 
 ```text
 1. Contagem
-   incidentes: 212
+   post-mortems: 212
    chunks summary: 212
-   chunks text: 2282
-   chunks do arquivo de chunking: 2494 | fora do banco: 0
+   chunks text: 2175
+   chunks do arquivo de chunking: 2387 | fora do banco: 0
 
 2. Integridade
    OK   vetores com outra dimensão: 0
    OK   vetores sem norma 1 (não normalizados): 0
    OK   chunks com texto vazio: 0
-   OK   incidentes sem nenhum chunk: 0
-   OK   incidentes sem chunk de summary: 0
+   OK   post-mortems sem nenhum chunk: 0
+   OK   post-mortems sem chunk de summary: 0
    OK   tipos de chunk desconhecidos: 0
    OK   chunks com o mesmo vetor de outro chunk: 0
    tudo certo
@@ -52,7 +52,7 @@ O script faz quatro verificações:
 
 **Busca: 6 de 6, todas em 1º lugar.**
 
-A checagem de vetores repetidos achou, na primeira carga, 6 pares de chunks idênticos: texto repetido no corpus, não um erro da carga. Eram 5 pares no DAN-031 (a página de status do Google traz o relatório duas vezes) e 1 par entre DAN-031 e DAN-036 (o aviso padrão das páginas de status do Google, com o mesmo título genérico). As regras de chunks repetidos (E2.3), de plantilla do site e de títulos repetidos (E2.2) resolveram os dois casos.
+Chunks com o mesmo vetor indicam texto repetido no corpus, como uma página de status que traz o mesmo relatório duas vezes ou o aviso padrão que aparece em várias páginas do mesmo site. As regras de chunks repetidos (E2.3), de texto padrão do site e de títulos repetidos (E2.2) evitam esses casos.
 
 ## 2. Busca no pgvector
 
@@ -87,16 +87,16 @@ O script ordena os incidentes pela maior similaridade entre a pergunta e os seus
 
 | Perguntas | Quantidade | 1º lugar | Top 5 | MRR |
 |---|---|---|---|---|
-| **Todas** | 290 | **80%** | **94%** | 0,86 |
-| Sintoma | 137 | 74% | 91% | 0,81 |
+| **Todas** | 290 | **79%** | **94%** | 0,86 |
+| Sintoma | 137 | 73% | 91% | 0,81 |
 | Causa | 137 | 83% | 96% | 0,89 |
 | Geral | 16 | 94% | 100% | 0,96 |
 | Português | 126 | 79% | 95% | 0,86 |
-| Inglês | 164 | 80% | 93% | 0,86 |
+| Inglês | 164 | 79% | 93% | 0,85 |
 
 - **1º lugar:** o incidente esperado veio em primeiro. **Top 5:** ele ficou entre os 5 primeiros, que são os que o agente recebe. **MRR:** média de 1/posição.
 - Em 8 de cada 10 perguntas o incidente certo vem em primeiro, e em mais de 9 de cada 10 ele está entre os 5 primeiros.
 - As perguntas de sintoma são as mais difíceis, e as perguntas em português funcionam tão bem quanto as em inglês, embora os documentos estejam em inglês.
-- **"Não achei":** nas 5 perguntas sem incidente parecido, a maior similaridade ficou entre 0,456 e 0,652; nas perguntas com resposta, a mediana é 0,739 e 10% ficam abaixo de 0,638. Os valores se misturam, então a similaridade sozinha não serve para o sistema dizer "não encontrei um incidente parecido".
+- **"Não achei":** nas 5 perguntas sem incidente parecido, a maior similaridade ficou entre 0,478 e 0,652; nas perguntas com resposta, a mediana é 0,739 e 10% ficam abaixo de 0,639. Os valores se misturam, então a similaridade sozinha não serve para o sistema dizer "não encontrei um incidente parecido".
 
 Para medir uma mudança no chunking, na limpeza ou no modelo: rodar o script antes e depois e comparar os números. Com 290 perguntas, diferenças de 2 a 4 pontos estão dentro do ruído.

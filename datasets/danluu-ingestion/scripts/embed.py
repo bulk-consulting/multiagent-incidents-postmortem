@@ -10,8 +10,8 @@ se o texto de um chunk muda (mesmo com o mesmo id), o vetor é gerado de novo.
 Os vetores são guardados a cada bloco de SAVE_EVERY chunks: se a execução for
 interrompida, basta rodar de novo que ela continua de onde parou.
 
-Depois apaga e recria as tabelas (db/schema.sql) e carrega os incidentes e os
-chunks que têm vetor.
+Depois apaga e recria as tabelas (datasets/db/schema.sql) e carrega os post-mortems e os
+chunks que têm vetor. No banco, o catalog_id do catálogo vira post_mortem_id.
 
 Uso:
     python embed.py              # gera os vetores que faltam e carrega o banco
@@ -32,7 +32,7 @@ from pgvector.psycopg import register_vector
 
 from search import DATABASE_URL, DIMENSIONS, MODEL, ROOT, load_model
 
-SCHEMA = ROOT / "db" / "schema.sql"
+SCHEMA = ROOT / "datasets" / "db" / "schema.sql"
 DATA = Path(__file__).resolve().parent.parent / "data"
 INPUT = DATA / "chunks" / "danluu_chunks.jsonl"
 CACHE = DATA / "embeddings" / "qwen3"
@@ -113,27 +113,28 @@ def main() -> None:
         print(f"AVISO: {len(chunks) - len(ready)} chunks sem vetor ficam fora do banco "
               f"(rode sem --limit para gerar todos)")
 
-    incidents = {c["catalog_id"]: (c["catalog_id"], c["company"], c["title"], c["source_url"], c["category"])
-                 for c in chunks}
+    # Um registro por post-mortem: o catalog_id do catálogo (DAN-011) vira o post_mortem_id do banco
+    post_mortems = {c["catalog_id"]: (c["catalog_id"], c["company"], c["title"], c["source_url"], c["category"])
+                    for c in chunks}
     with psycopg.connect(DATABASE_URL) as conn:
         # O tamanho do vetor depende do modelo: as tabelas são recriadas a cada carga
-        conn.execute("DROP TABLE IF EXISTS chunk, incident")
+        conn.execute("DROP TABLE IF EXISTS chunk, post_mortems")
         conn.execute(SCHEMA.read_text(encoding="utf-8"))
         register_vector(conn)
         with conn.cursor() as cur:
             cur.executemany(
-                "INSERT INTO incident (catalog_id, company, title, source_url, category) VALUES (%s, %s, %s, %s, %s)",
-                list(incidents.values()),
+                "INSERT INTO post_mortems (post_mortem_id, company, title, source_url, category) VALUES (%s, %s, %s, %s, %s)",
+                list(post_mortems.values()),
             )
             cur.executemany(
-                "INSERT INTO chunk (chunk_id, catalog_id, chunk_type, content, embedding) VALUES (%s, %s, %s, %s, %s)",
+                "INSERT INTO chunk (chunk_id, post_mortem_id, chunk_type, content, embedding) VALUES (%s, %s, %s, %s, %s)",
                 [(c["chunk_id"], c["catalog_id"], c["chunk_type"], c["text"],
                   vectors[(c["chunk_id"], c["hash"])].astype(np.float32)) for c in ready],
             )
-        total_incidents = conn.execute("SELECT count(*) FROM incident").fetchone()[0]
+        total_post_mortems = conn.execute("SELECT count(*) FROM post_mortems").fetchone()[0]
         total_chunks = conn.execute("SELECT count(*) FROM chunk").fetchone()[0]
 
-    print(f"Banco: incidentes {total_incidents} | chunks {total_chunks}")
+    print(f"Banco: post-mortems {total_post_mortems} | chunks {total_chunks}")
 
 
 if __name__ == "__main__":

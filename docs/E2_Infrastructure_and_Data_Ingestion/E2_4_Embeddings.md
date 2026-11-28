@@ -11,13 +11,13 @@ O script `datasets/danluu-ingestion/scripts/embed.py` gera um embedding para cad
 | Chunks | codificados sem prefixo |
 | Perguntas | codificadas com a instrução `Instruct: Given a description of a production incident, retrieve post-mortem passages about similar incidents` + `Query: <pergunta>` |
 
-*Por quê:* os documentos estão em inglês e as perguntas podem vir em português. Nos testes de busca com perguntas nos dois idiomas, o Qwen3 encontrou o incidente certo com mais frequência que o `multilingual-e5-base` e o `bge-m3`, com a maior diferença nas perguntas em português.
+*Por quê:* roda localmente e, nos testes de busca, foi o que mais encontrou o incidente certo, inclusive com perguntas em português (os documentos estão em inglês). O mesmo modelo também conta os tokens no chunking (E2.3).
 
 No processador, o modelo é carregado em float32: o padrão dele (bfloat16) foi duas vezes mais lento neste notebook (10,3 s contra 5,3 s por chunk), com vetores praticamente iguais (similaridade de cosseno ≥ 0,998).
 
 ## Vetores guardados no git
 
-Gerar os 2.494 vetores no processador levou **cerca de 2 horas** num notebook sem GPU (~3 s por chunk). Por isso os vetores ficam versionados em `data/embeddings/qwen3/`:
+Gerar os 2.387 vetores no processador leva **cerca de 2 horas** num notebook sem GPU (~3 s por chunk). Por isso os vetores ficam versionados em `data/embeddings/qwen3/`:
 
 | Arquivo | Conteúdo |
 |---|---|
@@ -32,13 +32,13 @@ Regra: quando os chunks mudarem, gerar os vetores e fazer o commit dos dois junt
 
 ## Tabelas
 
-Definidas em `db/schema.sql`:
+Definidas em `datasets/db/schema.sql`:
 
-**`incident`**: um registro por post-mortem.
+**`post_mortems`**: um registro por post-mortem.
 
 | Coluna | Conteúdo |
 |---|---|
-| `catalog_id` | Identificador (`DAN-011`), chave primária |
+| `post_mortem_id` | Identificador (`DAN-011`, o `catalog_id` do catálogo da danluu), chave primária |
 | `dataset` | De onde veio o incidente (`danluu`), para receber outras bases sem mudar o banco |
 | `company` | Empresa |
 | `title` | Título do post-mortem |
@@ -51,7 +51,7 @@ Definidas em `db/schema.sql`:
 | Coluna | Conteúdo |
 |---|---|
 | `chunk_id` | Identificador (`DAN-011-001`), chave primária |
-| `catalog_id` | Incidente de origem |
+| `post_mortem_id` | Post-mortem de origem (chave de `post_mortems`) |
 | `chunk_type` | `summary` ou `text` |
 | `content` | Texto do chunk (os de texto, com o cabeçalho) |
 | `embedding` | Vetor de 1024 dimensões |
@@ -60,10 +60,10 @@ Definidas em `db/schema.sql`:
 
 | Metadado | Onde fica |
 |---|---|
-| Fonte | `incident.source_url`, `incident.company` e `incident.dataset` |
+| Fonte | `post_mortems.source_url`, `post_mortems.company` e `post_mortems.dataset` |
 | Tipo | `chunk.chunk_type` |
-| Tags | `incident.category` |
-| Data | `incident.incident_date` |
+| Tags | `post_mortems.category` |
+| Data | `post_mortems.incident_date` |
 
 A data fica vazia: a danluu não tem um campo de data. Às vezes ela aparece no título ou no primeiro parágrafo, mas em formatos diferentes e difíceis de extrair automaticamente.
 
@@ -86,4 +86,4 @@ python ./datasets/danluu-ingestion/scripts/embed.py --limit 1
 1. Calcula o hash do texto de cada chunk e reaproveita os vetores guardados que batem.
 2. Gera os vetores que faltam com o `Qwen3-Embedding-0.6B` (normalizados) e atualiza `data/embeddings/qwen3/`.
 3. Apaga e recria as tabelas, porque o tamanho do vetor depende do modelo. Cada carga substitui a anterior, sem duplicados.
-4. Grava os 212 incidentes e os chunks que têm vetor (2.494 com todos os vetores gerados).
+4. Grava os 212 post-mortems e os chunks que têm vetor (2.387 com todos os vetores gerados).

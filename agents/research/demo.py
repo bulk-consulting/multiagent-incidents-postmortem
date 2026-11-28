@@ -63,7 +63,7 @@ def show_agent(delta: dict, call: int, pause_s: float) -> None:
                 step(3, "The LLM chooses which incidents to investigate",
                      f"LLM call {call} ({secs}s) → tool [bold]search_inside_incidents[/]")
                 for s in c["args"].get("searches", []):
-                    console.print(f"   ✅  [bold green]{s.get('incident_id')}[/]  query: [yellow]{s.get('query')}[/]")
+                    console.print(f"   ✅  [bold green]{s.get('post_mortem_id')}[/]  query: [yellow]{s.get('query')}[/]")
                     if s.get("why"):
                         console.print(f"       [italic]why: {s.get('why')}[/]")
         if not m.tool_calls:
@@ -85,16 +85,16 @@ def show_tools(delta: dict, pause_s: float) -> None:
             t.add_column("Company / title")
             t.add_column("Found by")
             t.add_column("Similarity", justify="right")
-            for k, r in enumerate(art.get("incidents", []), 1):
+            for k, r in enumerate(art.get("post_mortems", []), 1):
                 found_by = "[magenta]LLM query (new)[/]" if r.get("found_by") == "llm_query" else "analyst's text"
-                t.add_row(str(k), r["incident_id"], f"{r['company']} — {r['title']}"[:52], found_by,
+                t.add_row(str(k), r["post_mortem_id"], f"{r['company']} — {r['title']}"[:52], found_by,
                           f"{r['similarity']:.3f}")
             console.print(t)
         elif m.name == "search_inside_incidents":
             step(4, "Search inside the chosen incidents (code, < 1 s)",
                  "LLM query + fixed 'root cause' query + fixed 'fix / prevention' query, inside each incident")
-            for incident_id, passages in art.get("passages_by_incident", {}).items():
-                console.print(f"   [bold green]{incident_id}[/]")
+            for post_mortem_id, passages in art.get("passages_by_post_mortem", {}).items():
+                console.print(f"   [bold green]{post_mortem_id}[/]")
                 for d in passages:
                     section = d.get("section") or "(no section title)"
                     text = d["content"].replace("\n", " ")
@@ -113,7 +113,7 @@ def show_findings(delta: dict) -> None:
     t.add_column("Deepened", justify="center")
     t.add_column("Passages", justify="right")
     for r in delta["findings"]:
-        t.add_row(r["incident_id"], f"{r['company']} — {r['title']}"[:58], "✅" if r["deepened"] else "",
+        t.add_row(r["post_mortem_id"], f"{r['company']} — {r['title']}"[:58], "✅" if r["deepened"] else "",
                   str(len(r["passages"])))
     console.print(t)
 

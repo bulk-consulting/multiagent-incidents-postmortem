@@ -37,7 +37,7 @@ EXAMPLE_ANSWER = json.dumps(
                 "changes": None,
                 "prevention_checklist": ["Add an alert 30 days before the certificate expires."],
                 "sources": [
-                    {"incident_id": "XYZ-001", "title": "Outage caused by an expired certificate",
+                    {"post_mortem_id": "XYZ-001", "title": "Outage caused by an expired certificate",
                      "url": "https://example.com/xyz-001"}
                 ],
                 "confidence": "high",
@@ -48,7 +48,7 @@ EXAMPLE_ANSWER = json.dumps(
                 "changes": None,
                 "prevention_checklist": [],
                 "sources": [
-                    {"incident_id": "XYZ-002", "title": "DNS change breaks the service",
+                    {"post_mortem_id": "XYZ-002", "title": "DNS change breaks the service",
                      "url": "https://example.com/xyz-002"}
                 ],
                 "confidence": "low",
@@ -120,7 +120,7 @@ Answer with ONLY a JSON object, with no text before or after it. Fields:
 - summary: 2 or 3 sentences.
 - message: the Markdown answer for the chat.
 - causes: a list. Each item has root_cause, remediation_steps (list), changes (text or null),
-  prevention_checklist (list), sources (list of {incident_id, title, url}), confidence ("high",
+  prevention_checklist (list), sources (list of {post_mortem_id, title, url}), confidence ("high",
   "medium" or "low").
 - gaps: a list of what is missing (required when the kind is "inconclusive").
 - suggested_checks: a list of what the analyst can check now.
@@ -190,7 +190,7 @@ def build_user_message(state):
     for finding in state.get("findings") or []:
         lines += [
             "",
-            f"### {finding.get('incident_id', '?')} - {finding.get('company', '')} - {finding.get('title', '')}",
+            f"### {finding.get('post_mortem_id', '?')} - {finding.get('company', '')} - {finding.get('title', '')}",
             f"Link: {finding.get('url', '')}",
             f"Summary: {finding.get('summary', '')}",
         ]

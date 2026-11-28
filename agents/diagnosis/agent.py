@@ -61,8 +61,8 @@ def run_agent(description, triage, findings, research_round=1, max_rounds=3, pre
         {"role": "user", "content": user_message(description, triage, findings, research_round, max_rounds,
                                                  previous_requests)},
     ]
-    finding_ids = [r["incident_id"] for r in findings]
-    deepened_ids = [r["incident_id"] for r in findings if r.get("deepened")]
+    finding_ids = [r["post_mortem_id"] for r in findings]
+    deepened_ids = [r["post_mortem_id"] for r in findings if r.get("deepened")]
     for turn in range(MAX_TURNS):
         reply = _chat(messages)
         text = reply.get("content") or ""

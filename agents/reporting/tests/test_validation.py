@@ -33,12 +33,12 @@ checker.check("inconclusive when the evidence is enough is flagged",
               any("kind must be" in p for p in problems_of(wrong_kind, gitlab)))
 
 # 2) the sources
-invented = good.causes[0].model_copy(update={"sources": [Source(incident_id="DAN-999", title="Made up", url="https://made.up")]})
+invented = good.causes[0].model_copy(update={"sources": [Source(post_mortem_id="DAN-999", title="Made up", url="https://made.up")]})
 checker.check("an invented source is flagged",
               any("DAN-999" in p for p in problems_of(changed(good, causes=[invented, good.causes[1]]), gitlab)))
 
 real_id_wrong_url = good.causes[0].model_copy(
-    update={"sources": [Source(incident_id="DAN-164", title="x", url="https://wrong.example")]})
+    update={"sources": [Source(post_mortem_id="DAN-164", title="x", url="https://wrong.example")]})
 checker.check("a real incident with a wrong url is flagged",
               any("url of DAN-164" in p for p in problems_of(changed(good, causes=[real_id_wrong_url, good.causes[1]]), gitlab)))
 

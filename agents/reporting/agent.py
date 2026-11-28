@@ -39,7 +39,7 @@ def fallback_report(state, problems):
     lines += ["**What is missing**"] + [f"- {gap}" for gap in gaps]
     if findings:
         lines += ["", "**Past incidents that may help (not confirmed as the cause)**"]
-        lines += [f"- [{f.get('title', f.get('incident_id', ''))}]({f.get('url', '')})" for f in findings[:3]]
+        lines += [f"- [{f.get('title', f.get('post_mortem_id', ''))}]({f.get('url', '')})" for f in findings[:3]]
 
     return Report(
         incident_id=state.get("incident_id", ""),

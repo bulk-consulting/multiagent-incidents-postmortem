@@ -1,15 +1,15 @@
 """
-Busca em duas etapas no banco da ingestão (tabelas incident e chunk, ver db/schema.sql).
+Busca em duas etapas no banco da ingestão (tabelas post_mortems e chunk, ver datasets/db/schema.sql).
 
-Etapa 1: compara a pergunta com todos os chunks (summary e text) e ranqueia os incidentes pelo
-         melhor chunk de cada um. Devolve n_docs incidentes distintos, cada um com o seu resumo
+Etapa 1: compara a pergunta com todos os chunks (summary e text) e ranqueia os post-mortems pelo
+         melhor chunk de cada um. Devolve n_docs post-mortems distintos, cada um com o seu resumo
          (o chunk summary, que é o resumo do catálogo do danluu).
-Etapa 2: nesses incidentes, compara a pergunta só com os chunks text e devolve os n_trechos mais
+Etapa 2: nesses post-mortems, compara a pergunta só com os chunks text e devolve os n_trechos mais
          parecidos de cada um (detalhes e evidência literal para o prompt).
 
 A pergunta vira vetor com o mesmo modelo e a mesma instrução do datasets/danluu-ingestion/scripts/
 search.py (Qwen3-Embedding-0.6B). A busca de uma etapa daquele script devolve chunks soltos, que
-podem ser todos do mesmo incidente; o prompt do RAG precisa de incidentes distintos.
+podem ser todos do mesmo post-mortem; o prompt do RAG precisa de post-mortems distintos.
 
 Conexão: DATABASE_URL no .env da raiz do repositório.
 
@@ -37,33 +37,33 @@ PREFIXO_PERGUNTA = ("Instruct: Given a description of a production incident, ret
                     "about similar incidents\nQuery: ")
 
 ETAPA1 = """
-SELECT DISTINCT ON (c.catalog_id) c.catalog_id, i.company, i.title, i.source_url, s.content AS resumo,
+SELECT DISTINCT ON (c.post_mortem_id) c.post_mortem_id, p.company, p.title, p.source_url, s.content AS resumo,
        c.chunk_type, c.content, 1 - (c.embedding <=> %(q)s) AS similaridade
 FROM chunk c
-JOIN incident i USING (catalog_id)
-LEFT JOIN chunk s ON s.catalog_id = c.catalog_id AND s.chunk_type = 'summary'
-WHERE NOT (c.catalog_id = ANY(%(excluir)s))
-ORDER BY c.catalog_id, c.embedding <=> %(q)s
+JOIN post_mortems p USING (post_mortem_id)
+LEFT JOIN chunk s ON s.post_mortem_id = c.post_mortem_id AND s.chunk_type = 'summary'
+WHERE NOT (c.post_mortem_id = ANY(%(excluir)s))
+ORDER BY c.post_mortem_id, c.embedding <=> %(q)s
 """
 
-# Trechos text de um incidente só, do mais ao menos parecido com a consulta (usado pelo Agente
-# Pesquisa RAG para buscar causa e correção dentro de um incidente já encontrado).
-NO_INCIDENTE = """
+# Trechos text de um post-mortem só, do mais ao menos parecido com a consulta (usado pelo Agente
+# Pesquisa RAG para buscar causa e correção dentro de um post-mortem já encontrado).
+NO_POST_MORTEM = """
 SELECT content, 1 - (embedding <=> %(q)s) AS similaridade
 FROM chunk
-WHERE chunk_type = 'text' AND catalog_id = %(doc)s
+WHERE chunk_type = 'text' AND post_mortem_id = %(doc)s
 ORDER BY embedding <=> %(q)s
 LIMIT %(n)s
 """
 
 ETAPA2 = """
-SELECT catalog_id, content, similaridade FROM (
-    SELECT c.catalog_id, c.content, 1 - (c.embedding <=> %(q)s) AS similaridade,
-           row_number() OVER (PARTITION BY c.catalog_id ORDER BY c.embedding <=> %(q)s) AS pos
+SELECT post_mortem_id, content, similaridade FROM (
+    SELECT c.post_mortem_id, c.content, 1 - (c.embedding <=> %(q)s) AS similaridade,
+           row_number() OVER (PARTITION BY c.post_mortem_id ORDER BY c.embedding <=> %(q)s) AS pos
     FROM chunk c
-    WHERE c.chunk_type = 'text' AND c.catalog_id = ANY(%(docs)s)
+    WHERE c.chunk_type = 'text' AND c.post_mortem_id = ANY(%(docs)s)
 ) t WHERE pos <= %(n)s
-ORDER BY catalog_id, similaridade DESC
+ORDER BY post_mortem_id, similaridade DESC
 """
 
 # Os chunks text começam com "Company: ... | Title: ... | Category: ...". No prompt, o bloco do
@@ -101,7 +101,7 @@ def _secao_e_texto(content: str) -> tuple[str, str]:
 
 
 def buscar(pergunta: str, n_docs: int = 5, n_trechos: int = 2, excluir: list[str] | None = None) -> list[dict]:
-    """Busca em duas etapas. `excluir`: IDs de incidentes que não devem voltar (ex.: já vistos)."""
+    """Busca em duas etapas. `excluir`: IDs de post-mortems que não devem voltar (ex.: já vistos)."""
     q = vetorizar(pergunta)
     with psycopg.connect(os.environ["DATABASE_URL"]) as con:
         register_vector(con)
@@ -111,25 +111,25 @@ def buscar(pergunta: str, n_docs: int = 5, n_trechos: int = 2, excluir: list[str
             docs = [r[0] for r in etapa1]
             cur.execute(ETAPA2, {"q": q, "docs": docs, "n": n_trechos})
             detalhes: dict[str, list] = {}
-            for catalog_id, content, sim in cur.fetchall():
+            for post_mortem_id, content, sim in cur.fetchall():
                 secao, texto = _secao_e_texto(content)
-                detalhes.setdefault(catalog_id, []).append({"secao": secao, "content": texto, "similaridade": float(sim)})
+                detalhes.setdefault(post_mortem_id, []).append({"secao": secao, "content": texto, "similaridade": float(sim)})
     saida = []
     for cid, company, title, url, resumo, tipo, content, sim in etapa1:
         secao, texto = _secao_e_texto(content)
-        saida.append({"doc_id": cid, "company": company, "title": title, "url": url, "resumo": resumo,
+        saida.append({"post_mortem_id": cid, "company": company, "title": title, "url": url, "resumo": resumo,
                       "melhor_chunk": {"tipo": "resumo" if tipo == "summary" else "texto", "secao": secao, "content": texto},
                       "similaridade": float(sim), "detalhes": detalhes.get(cid, [])})
     return saida
 
 
-def buscar_no_incidente(doc_id: str, consulta: str, n: int = 2) -> list[dict]:
-    """Os n trechos do incidente doc_id mais parecidos com a consulta (mesmo formato de 'detalhes')."""
+def buscar_no_post_mortem(post_mortem_id: str, consulta: str, n: int = 2) -> list[dict]:
+    """Os n trechos do post-mortem post_mortem_id mais parecidos com a consulta (mesmo formato de 'detalhes')."""
     q = vetorizar(consulta)
     with psycopg.connect(os.environ["DATABASE_URL"]) as con:
         register_vector(con)
         with con.cursor() as cur:
-            cur.execute(NO_INCIDENTE, {"q": q, "doc": doc_id, "n": n})
+            cur.execute(NO_POST_MORTEM, {"q": q, "doc": post_mortem_id, "n": n})
             linhas = cur.fetchall()
     saida = []
     for content, sim in linhas:
@@ -145,7 +145,7 @@ def main() -> None:
     ap.add_argument("--trechos", type=int, default=2)
     a = ap.parse_args()
     for k, r in enumerate(buscar(" ".join(a.pergunta), a.docs, a.trechos), 1):
-        print(f"{k}. {r['doc_id']}  {r['similaridade']:.3f}  {r['company']} — {r['title']}")
+        print(f"{k}. {r['post_mortem_id']}  {r['similaridade']:.3f}  {r['company']} — {r['title']}")
         if r["resumo"]:
             print(f"   resumo: {r['resumo'][:160]}")
         m = r["melhor_chunk"]

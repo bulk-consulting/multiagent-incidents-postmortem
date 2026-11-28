@@ -18,13 +18,13 @@ EXPECTED_KINDS = {
     "thin_passages_edge": "diagnosis",
     "no_hypotheses_edge": "inconclusive",
 }
-FINDING_KEYS = {"incident_id", "company", "title", "url", "summary", "similarity", "deepened", "why", "passages"}
+FINDING_KEYS = {"post_mortem_id", "company", "title", "url", "summary", "similarity", "deepened", "why", "passages"}
 
 checker = Checker()
 for name in NAMES:
     data = load_fixture(name)
     findings = data["findings"]
-    finding_ids = {f["incident_id"] for f in findings}
+    finding_ids = {f["post_mortem_id"] for f in findings}
 
     checker.check(f"{name}: has the keys of the shared state",
                   {"incident_id", "description", "triage_result", "findings", "diagnosis"} <= set(data))

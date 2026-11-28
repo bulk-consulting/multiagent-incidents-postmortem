@@ -18,7 +18,7 @@ def is_accepted(data):
     return True
 
 
-SOURCE = {"incident_id": "DAN-164", "title": "Postmortem of database outage", "url": "https://example.com/dan-164"}
+SOURCE = {"post_mortem_id": "DAN-164", "title": "Postmortem of database outage", "url": "https://example.com/dan-164"}
 CAUSE = {
     "root_cause": "An admin deleted the wrong directory and the backups were not working.",
     "remediation_steps": ["Restore from the staging database copy."],

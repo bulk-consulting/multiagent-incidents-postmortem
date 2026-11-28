@@ -1,6 +1,6 @@
 """Gera um HTML que mostra, em cores, como um post-mortem foi dividido em chunks.
 
-Uso: python visualize_chunks.py [catalog_id]   (padrão: DAN-004, que tem overlap)
+Uso: python visualize_chunks.py [catalog_id]   (padrão: DAN-038, que tem overlap)
 
 Lê data/chunks/danluu_chunks.jsonl e grava data/exports/chunks_<catalog_id>.html.
 Serve para explicar a estratégia de chunking (docs/E2_3_Estrategia_Chunking.md).
@@ -14,9 +14,9 @@ from pathlib import Path
 DATA = Path(__file__).resolve().parent.parent / "data"
 CHUNKS = DATA / "chunks" / "danluu_chunks.jsonl"
 
-# Mesmos valores de chunk.py
+# MAX_TOKENS: o mesmo de chunk.py. MODEL_LIMIT: quantos tokens o Qwen3 lê por chunk (max_seq_length em search.py)
 MAX_TOKENS = 450
-MODEL_LIMIT = 512
+MODEL_LIMIT = 1024
 
 COLORS = ["#dbeafe", "#dcfce7", "#fef9c3", "#fce7f3", "#ede9fe", "#ffedd5", "#ccfbf1"]
 BORDERS = ["#3b82f6", "#22c55e", "#eab308", "#ec4899", "#8b5cf6", "#f97316", "#14b8a6"]
@@ -131,7 +131,7 @@ def render_chunk(chunk: dict, color_index: int, head: int, tail: str, part: str)
 
 
 def main() -> None:
-    catalog_id = sys.argv[1] if len(sys.argv) > 1 else "DAN-004"
+    catalog_id = sys.argv[1] if len(sys.argv) > 1 else "DAN-038"
     chunks = [c for c in map(json.loads, CHUNKS.open(encoding="utf-8")) if c["catalog_id"] == catalog_id]
     if not chunks:
         sys.exit(f"Nenhum chunk encontrado para {catalog_id}")

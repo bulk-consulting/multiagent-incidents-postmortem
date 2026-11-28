@@ -45,15 +45,15 @@ def validate_report(report, findings, diagnosis):
                         f'but the report says "{report.kind}".')
 
     # 2) Every source must be a real finding, with exactly its url.
-    url_of = {f["incident_id"]: f.get("url", "") for f in findings or []}
+    url_of = {f["post_mortem_id"]: f.get("url", "") for f in findings or []}
     for number, cause in enumerate(report.causes, 1):
         for source in cause.sources:
-            if source.incident_id not in url_of:
-                problems.append(f"cause {number}: source {source.incident_id} is not in the findings. "
+            if source.post_mortem_id not in url_of:
+                problems.append(f"cause {number}: source {source.post_mortem_id} is not in the findings. "
                                 f"Use only: {sorted(url_of)}.")
-            elif source.url != url_of[source.incident_id]:
-                problems.append(f"cause {number}: the url of {source.incident_id} must be exactly "
-                                f"{url_of[source.incident_id]}.")
+            elif source.url != url_of[source.post_mortem_id]:
+                problems.append(f"cause {number}: the url of {source.post_mortem_id} must be exactly "
+                                f"{url_of[source.post_mortem_id]}.")
 
     # 3) In a diagnosis, the causes are the diagnosis hypotheses: same number, same order, same confidence,
     #    and each cause cites the incidents its hypothesis is based on. The report presents; it does not decide.
@@ -67,7 +67,7 @@ def validate_report(report, findings, diagnosis):
                 if cause.confidence != hypothesis["confidence"]:
                     problems.append(f'cause {number}: confidence must be "{hypothesis["confidence"]}", '
                                     f'as in the diagnosis, not "{cause.confidence}".')
-                cited = {s.incident_id for s in cause.sources}
+                cited = {s.post_mortem_id for s in cause.sources}
                 missing = [i for i in hypothesis["based_on"] if i not in cited]
                 if missing:
                     problems.append(f"cause {number}: it must cite the incident(s) {missing}, "
@@ -81,6 +81,6 @@ def validate_report(report, findings, diagnosis):
     for number, cause in enumerate(report.causes, 1):
         for source in cause.sources:
             if source.url in valid_urls and source.url not in report.message:
-                problems.append(f"message: it must show the link of {source.incident_id} ({source.url}).")
+                problems.append(f"message: it must show the link of {source.post_mortem_id} ({source.url}).")
 
     return problems

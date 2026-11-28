@@ -28,7 +28,7 @@ class Hypothesis(BaseModel):
     # The likely cause of the CURRENT incident, in 1 or 2 sentences.
     cause: str = Field(min_length=1)
 
-    # incident_ids of the findings that support this hypothesis (at least one), e.g. ["DAN-197"].
+    # post_mortem_ids of the findings that support this hypothesis (at least one), e.g. ["DAN-197"].
     based_on: list[str] = Field(min_length=1)
 
     # What matches between the current incident and the past ones, and what does not.

@@ -31,7 +31,7 @@ def resumir(chave: str, valor) -> str:
     """Versão curta de cada campo do estado, para caber no terminal."""
     if chave == "recuperados":
         return f"{len(valor)} incidentes: " + ", ".join(
-            f"{prompts._id_curto(r['doc_id'])} ({r['similaridade']:.3f})" for r in valor)
+            f"{prompts._id_curto(r['post_mortem_id'])} ({r['similaridade']:.3f})" for r in valor)
     if chave == "contexto":
         return f"{len(valor)} caracteres, começa com {valor.splitlines()[0][:50]!r}"
     if chave == "mensagens":
@@ -87,7 +87,7 @@ def ver(pergunta: str, espera_inicial: float, mostrar_prompt: bool = False) -> N
 
     print(f"\n{LINHA}\nFIM. Resposta final:\n{estado['resposta']['resposta']}")
     print(f"\nevidência: {estado['resposta']['evidencia']}   citados: {estado['citados']}")
-    fontes = [(prompts._id_curto(r["doc_id"]), r.get("url")) for r in estado["recuperados"]]
+    fontes = [(prompts._id_curto(r["post_mortem_id"]), r.get("url")) for r in estado["recuperados"]]
     fontes = [(i, u) for i, u in fontes if i in estado["citados"]]
     if fontes:
         print("fontes:\n" + "\n".join(f"   [{i}] {u}" for i, u in fontes))
@@ -101,7 +101,7 @@ def simular(citacao_errada: bool, falha_nim: bool) -> None:
 
     def recuperar_falso(estado):
         time.sleep(0.5)
-        return {"recuperados": [{"doc_id": f"danluu:{i}", "company": c, "title": t, "url": "https://exemplo",
+        return {"recuperados": [{"post_mortem_id": f"danluu:{i}", "company": c, "title": t, "url": "https://exemplo",
                                  "resumo": "resumo de teste", "similaridade": s,
                                  "detalhes": [{"secao": "Root cause", "content": "trecho de teste", "similaridade": s}]}
                                 for i, c, t, s in falsos],

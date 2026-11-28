@@ -86,7 +86,7 @@ def montar_prompt(estado: Estado) -> dict:
 def gerar(estado: Estado) -> dict:
     msgs = list(estado["mensagens"])
     if estado.get("invalidos"):  # nova tentativa: mostra a resposta anterior e pede a correção
-        validos = [prompts._id_curto(r["doc_id"]) for r in estado["recuperados"]]
+        validos = [prompts._id_curto(r["post_mortem_id"]) for r in estado["recuperados"]]
         msgs += [{"role": "assistant", "content": estado["resposta"]["resposta"]},
                  {"role": "user", "content": prompts.correcao_citacoes(estado["invalidos"], validos)}]
     try:
@@ -120,7 +120,7 @@ def normalizar(resp: dict) -> dict:
 
 
 def verificar_citacoes(estado: Estado) -> dict:
-    validos = {prompts._id_curto(r["doc_id"]) for r in estado["recuperados"]}
+    validos = {prompts._id_curto(r["post_mortem_id"]) for r in estado["recuperados"]}
     resp = normalizar(estado["resposta"])
     citados = sorted(set(resp["incidentes_citados"]) | set(ID_RE.findall(resp["resposta"])))
     return {"resposta": resp, "citados": citados, "invalidos": [c for c in citados if c not in validos]}
@@ -150,7 +150,7 @@ def _progresso(no: str, delta: dict) -> None:
     if no == "recuperar":
         print(f"[recuperar] {len(delta['recuperados'])} incidentes em {delta['tempos']['recuperar']}s")
         for k, r in enumerate(delta["recuperados"], 1):
-            print(f"   {k}. {prompts._id_curto(r['doc_id'])}  {r['similaridade']:.3f}  {r['company']} — {r['title'][:70]}")
+            print(f"   {k}. {prompts._id_curto(r['post_mortem_id'])}  {r['similaridade']:.3f}  {r['company']} — {r['title'][:70]}")
     elif no == "montar_prompt":
         print(f"[montar_prompt] contexto com {len(delta['contexto'])} caracteres")
         print("[gerar] chamando o GPT-OSS-20B no NIM (pode levar uns 2 minutos)...", flush=True)
@@ -220,8 +220,8 @@ def main() -> None:
         print(f"ATENÇÃO: a resposta ainda cita IDs fora do contexto: {estado['invalidos']}")
     print("fontes:")
     for r in estado["recuperados"]:
-        if prompts._id_curto(r["doc_id"]) in estado["citados"]:
-            print(f"   [{prompts._id_curto(r['doc_id'])}] {r['url']}")
+        if prompts._id_curto(r["post_mortem_id"]) in estado["citados"]:
+            print(f"   [{prompts._id_curto(r['post_mortem_id'])}] {r['url']}")
     if a.json:
         saida = {k: estado[k] for k in ("pergunta", "recuperados", "resposta", "citados", "invalidos", "tentativas", "uso", "tempos")}
         saida["prompt_versao"] = estado.get("prompt_versao", prompts.VERSAO)
