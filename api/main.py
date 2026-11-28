@@ -1,6 +1,6 @@
 """Creates the FastAPI application. Run from the repository root:
 
-    uvicorn app.main:app --reload
+    uvicorn api.main:app --reload
 
 Swagger (automatic documentation): http://localhost:8000/docs
 """
@@ -11,7 +11,7 @@ from fastapi import FastAPI
 
 load_dotenv()  # .env at the repository root (NIM and database settings, used by the real agents)
 
-from app.api import incidents  # noqa: E402  (after load_dotenv, so the settings are already read)
+from api.endpoints import incidents  # noqa: E402  (after load_dotenv, so the settings are already read)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 

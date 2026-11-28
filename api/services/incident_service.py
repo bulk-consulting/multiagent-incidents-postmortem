@@ -1,6 +1,6 @@
 """Application logic: turns the analyst's conversation into the graph input, runs the graph, returns the report.
 
-The API (app/api) only calls this file. The graph is the main graph of the 4 agents
+The API endpoints (api/endpoints) only call this file. The graph is the main graph of the 4 agents
 (agents/orchestration/graph.py: Triage -> Research -> Diagnosis -> Report).
 
 Every message of the chat is a new, independent run of the graph:
@@ -21,7 +21,7 @@ from agents.orchestration.graph import build_graph
 from agents.orchestration.state import make_serializer
 from agents.reporting.related import analyst_language
 from agents.reporting.schema import Report
-from app.schemas.incident import IncidentRequest, IncidentResponse
+from api.schemas.incident import IncidentRequest, IncidentResponse
 
 log = logging.getLogger(__name__)
 

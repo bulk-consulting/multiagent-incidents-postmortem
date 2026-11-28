@@ -3,14 +3,14 @@
 It checks that every way the graph can end becomes the same answer shape (a Report) in the API.
 
 Run from the repository root:
-    python -m app.tests.test_api
+    python -m api.tests.test_api
 """
 from fastapi.testclient import TestClient
 
 from agents.diagnosis.schema import DiagnosisResult, Hypothesis
 from agents.orchestration import graph
 from agents.triage.schema import RelatedIncident, TriageResult
-from app.main import app
+from api.main import app
 
 client = TestClient(app)
 results = []

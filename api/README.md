@@ -4,7 +4,7 @@ Versão simples para a semana de 24/11: o analista escreve no chat, a interface 
 roda o grafo do começo ao fim e devolve o relatório.
 
 ```
-Streamlit (frontend/)  ──HTTP──►  FastAPI (app/)  ──►  grafo dos 4 agentes (agents/orchestration/graph.py)
+Streamlit (frontend/)  ──HTTP──►  FastAPI (api/)  ──►  grafo dos 4 agentes (agents/orchestration/graph.py)
                                                        Triagem → Pesquisa → Diagnóstico → Relatório
 ```
 
@@ -14,7 +14,7 @@ Na raiz do repositório, com o `.venv` ativo e `pip install -r requirements.txt`
 (o Agente Pesquisa busca no PostgreSQL + pgvector) e conferir a chave do NIM no `.env`:
 
 ```powershell
-uvicorn app.main:app --reload
+uvicorn api.main:app --reload
 ```
 
 ```powershell
@@ -63,10 +63,10 @@ O campo `report.kind` diz que tipo de resposta é. Todas têm `summary` e `messa
 
 | Pasta | O que faz |
 |---|---|
-| `app/main.py` | cria a aplicação FastAPI e registra as rotas |
-| `app/api/` | rotas HTTP (só entrada e saída) |
-| `app/schemas/` | classes Pydantic de entrada e saída |
-| `app/services/` | lógica: monta a entrada do grafo, roda o grafo, devolve o relatório |
+| `api/main.py` | cria a aplicação FastAPI e registra as rotas |
+| `api/endpoints/` | rotas HTTP (só entrada e saída) |
+| `api/schemas/` | classes Pydantic de entrada e saída |
+| `api/services/` | lógica: monta a entrada do grafo, roda o grafo, devolve o relatório |
 | `frontend/` | tela de chat em Streamlit; só conversa com a API |
 
 ## Diferenças em relação à E1.4 (decididas para esta semana)
@@ -88,7 +88,7 @@ O campo `report.kind` diz que tipo de resposta é. Todas têm `summary` e `messa
 ## Testes
 
 ```powershell
-python -m app.tests.test_api
+python -m api.tests.test_api
 ```
 
 Roda a API com o grafo real, mas com agentes falsos (sem LLM e sem banco, em segundos), e confere que

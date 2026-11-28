@@ -1,10 +1,10 @@
-"""HTTP routes for incidents. Only input/output: the work is done in app/services."""
+"""HTTP routes for incidents. Only input/output: the work is done in api/services."""
 import logging
 
 from fastapi import APIRouter, HTTPException
 
-from app.schemas.incident import IncidentRequest, IncidentResponse
-from app.services import incident_service
+from api.schemas.incident import IncidentRequest, IncidentResponse
+from api.services import incident_service
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/incidents", tags=["incidents"])

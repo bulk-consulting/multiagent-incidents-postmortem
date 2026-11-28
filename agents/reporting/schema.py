@@ -17,7 +17,7 @@ Confidence = Literal["high", "medium", "low"]
 # The kinds of answer the analyst can get. The Reporting agent (the LLM) writes only "diagnosis" and "inconclusive".
 # The other two are built in code, in the same shape, so every answer of the graph looks the same:
 #   "related_incident"  the problem is already being investigated (agents/reporting/related.py)
-#   "questions"         information is missing: the message asks the analyst (app/services/incident_service.py)
+#   "questions"         information is missing: the message asks the analyst (api/services/incident_service.py)
 ReportKind = Literal["diagnosis", "inconclusive", "related_incident", "questions"]
 
 
