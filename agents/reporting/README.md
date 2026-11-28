@@ -53,7 +53,7 @@ vazios. Teste: caso 4 de `tests/test_node.py`.
 ## Entrada e saída
 
 **Entrada:** o estado compartilhado, com as chaves `incident_id`, `description`, `triage_result`, `findings`
-e `diagnosis` (nomes do `docs/E5_Estado_e_Formatos.md`).
+e `diagnosis` (nomes do `docs/E5_Orchestrated_Multi_Agent_System/E5_Estado_e_Formatos.md`).
 
 **Saída:** um `Report` (`schema.py`):
 
@@ -160,7 +160,7 @@ Keepthescore, Spotify); as similaridades e os campos `why` foram inventados.
   tokens "pensando" e respondia vazio ou com o JSON cortado: nos 12 casos reais pelo grafo, 3 relatórios caíram no
   inconclusivo de reserva. Agora o agente chama o modelo com o raciocínio desligado e temperatura 0 (como o
   Diagnóstico): nos mesmos casos, 6 de 6 válidos na 1ª tentativa, com a mesma qualidade.
-- **Dados simulados.** O formato dos `findings` e do `diagnosis` segue o `docs/E5_Estado_e_Formatos.md`.
+- **Dados simulados.** O formato dos `findings` e do `diagnosis` segue o `docs/E5_Orchestrated_Multi_Agent_System/E5_Estado_e_Formatos.md`.
   Falta confirmar com os dados reais quando os agentes estiverem conectados no grafo.
 - **A regra "causas = hipóteses" é estrita.** Se atrapalhar a integração, pode ser relaxada em `validation.py`.
 - **Pedido de dados ao analista** não passa por este agente; vai direto a `ask_analyst`.

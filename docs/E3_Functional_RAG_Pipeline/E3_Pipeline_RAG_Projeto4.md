@@ -1,7 +1,7 @@
 # E3 — Pipeline RAG Funcional
 
 Este documento mostra o que foi entregue na E3, onde está a evidência de cada entrega e por que cada
-decisão foi tomada. Os comandos e o detalhe de cada nó estão em [`rag/README.md`](../rag/README.md).
+decisão foi tomada. Os comandos e o detalhe de cada nó estão em [`rag/README.md`](../../rag/README.md).
 
 **Resumo:** uma pergunta em português ou inglês vira vetor, a busca em duas etapas da E2 traz os 5
 incidentes mais parecidos com os trechos do postmortem, e o GPT-OSS-20B no NVIDIA NIM responde só com base

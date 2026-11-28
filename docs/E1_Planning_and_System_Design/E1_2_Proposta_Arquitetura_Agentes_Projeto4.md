@@ -14,11 +14,11 @@ O desenho prioriza **orquestração definida (defined orchestration)**: os camin
 
 Arquitetura do Incident Copilot
 
-![Arquitetura do Incident Copilot](/docs/desenhoV2.png)
+![Arquitetura do Incident Copilot](desenhoV2.png)
 
 Diagrama detalhado, com as tarefas internas de cada agente e as etapas em código Python:
 
-![Diagrama detalhado do Incident Copilot](/docs/diagrama_detalhado.png)
+![Diagrama detalhado do Incident Copilot](diagrama_detalhado.png)
 
 ## 3. Quantos agentes o sistema terá
 

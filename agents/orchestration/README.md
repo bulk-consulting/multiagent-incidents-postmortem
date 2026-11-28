@@ -2,9 +2,9 @@
 
 O grafo principal que liga os agentes: **Triagem → Pesquisa → Diagnóstico → Relatório**, com o laço de nova busca,
 a pausa para perguntar ao analista e a validação do relatório. O contrato (o que cada agente recebe e entrega) está
-em [`docs/E5_Estado_e_Formatos.md`](../../docs/E5_Estado_e_Formatos.md).
+em [`docs/E5_Orchestrated_Multi_Agent_System/E5_Estado_e_Formatos.md`](../../docs/E5_Orchestrated_Multi_Agent_System/E5_Estado_e_Formatos.md).
 
-![Grafo principal](../../docs/e5_grafo_principal.svg)
+![Grafo principal](../../docs/E5_Orchestrated_Multi_Agent_System/e5_grafo_principal.svg)
 
 ## Arquivos
 

@@ -36,7 +36,7 @@ rígido), `_1254.json` e `_1305.json` (decisão em código).
   ponto a ponto: o campo `differs` dizia corretamente que o caso passado era outro tipo de falha.
 - Por isso a decisão foi para o código (`decide()` em `agents/diagnosis/schema.py`): o modelo escreve um rascunho
   (`DiagnosisDraft`) com as comparações por hipótese, e o código aplica o teto da confiança, decide se basta e o
-  próximo passo. Contrato atualizado (`docs/E5_Estado_e_Formatos.md`, seção 5).
+  próximo passo. Contrato atualizado (`docs/E5_Orchestrated_Multi_Agent_System/E5_Estado_e_Formatos.md`, seção 5).
 
 ## 4. Certo escondido (problema novo)
 
@@ -236,7 +236,7 @@ analista, 6/12 deram "basta" com resposta aceitável, 1/12 (DAN-004) deu "basta"
 | `agents/triage/llm.py` (arquivo da Mari) | `chat()` aceita `temperature` e opções extras para o NIM; sem elas, igual a antes (testes do Triagem passando) |
 | `experiments/run_diagnosis_cases.py` | `--hide-right`, `--loop`, log de buscas e avisos por rodada, respostas rejeitadas quando há erro |
 | `experiments/run_diagnosis_config.py` | novo: teste de configurações do modelo sobre achados fixos |
-| `docs/E5_Estado_e_Formatos.md` | seção 5 (regras, modelo, refinamento) e seção 11 (pontos 3 e 4 para a Mari) |
+| `docs/E5_Orchestrated_Multi_Agent_System/E5_Estado_e_Formatos.md` | seção 5 (regras, modelo, refinamento) e seção 11 (pontos 3 e 4 para a Mari) |
 
 Os resultados avulsos das conferências (duas execuções isoladas do DAN-104 e uma da opção `--hide-right`) foram
 apagados em 25/11.

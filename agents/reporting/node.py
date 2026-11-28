@@ -5,7 +5,7 @@ end without an answer: if the model fails, it writes the simple inconclusive rep
 
 State keys it reads:    incident_id, description, triage_result, findings, diagnosis
 State keys it writes:   report, report_attempts, report_problems, errors
-(The names follow docs/E5_Estado_e_Formatos.md, section 3.)
+(The names follow docs/E5_Orchestrated_Multi_Agent_System/E5_Estado_e_Formatos.md, section 3.)
 
 How to plug it into the main graph:
     graph.add_node("reporting", reporting_node)

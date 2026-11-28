@@ -17,7 +17,7 @@ How to plug it into a graph (the graph itself is built by whoever owns the main 
         GO_TO_RESEARCH: "research",     # continue with the Research agent
     })
 
-Shared state keys (the names of docs/E5_Estado_e_Formatos.md, section 3):
+Shared state keys (the names of docs/E5_Orchestrated_Multi_Agent_System/E5_Estado_e_Formatos.md, section 3):
 
     description      in   the analyst message (and their answers, when the graph asked for more information)
     triage_result    out  the full TriageResult (symptoms, service, triggers, category, questions, related incident)

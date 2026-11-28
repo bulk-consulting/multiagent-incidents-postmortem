@@ -1,6 +1,6 @@
 # RAG: pergunta → busca no pgvector → GPT-OSS-20B → resposta com fontes
 
-Entregas da semana 3. Os comandos rodam a partir da raiz do repositório, com o banco da ingestão no ar (`docker compose up -d` na raiz; ver [docs/E2_1_Ambiente_Desenvolvimento.md](../docs/E2_1_Ambiente_Desenvolvimento.md)) e o `DATABASE_URL` no `.env`.
+Entregas da semana 3. Os comandos rodam a partir da raiz do repositório, com o banco da ingestão no ar (`docker compose up -d` na raiz; ver [docs/E2_Infrastructure_and_Data_Ingestion/E2_1_Ambiente_Desenvolvimento.md](../docs/E2_Infrastructure_and_Data_Ingestion/E2_1_Ambiente_Desenvolvimento.md)) e o `DATABASE_URL` no `.env`.
 
 | Entrega | Onde | Comando |
 |---|---|---|

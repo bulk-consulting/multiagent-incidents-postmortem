@@ -1,6 +1,6 @@
 """The answer when the problem is already being investigated (the Triage agent found a related open incident).
 
-No LLM (as in docs/E5_Estado_e_Formatos.md): the answer is built in code from the Triage result, in the same shape
+No LLM (as in docs/E5_Orchestrated_Multi_Agent_System/E5_Estado_e_Formatos.md): the answer is built in code from the Triage result, in the same shape
 as the other reports (summary + message in Markdown for the chat), in the analyst's language (Portuguese or
 English, guessed from the words of the message).
 

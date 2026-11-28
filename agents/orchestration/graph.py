@@ -11,7 +11,7 @@
                     └─ error ─────────────────► report (inconclusive)
     report ──► END        (Mari's Reporting agent validates its own report and fixes it, up to 3 attempts)
 
-The contract (state keys, formats, who owns each node) is docs/E5_Estado_e_Formatos.md; the state is
+The contract (state keys, formats, who owns each node) is docs/E5_Orchestrated_Multi_Agent_System/E5_Estado_e_Formatos.md; the state is
 agents/orchestration/state.py.
 
 The agents are not rewritten: each node calls an agent and writes its result into the state. The agents are reached

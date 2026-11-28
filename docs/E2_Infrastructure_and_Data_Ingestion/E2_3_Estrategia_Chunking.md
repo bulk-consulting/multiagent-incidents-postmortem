@@ -35,7 +35,7 @@ Company: Cloudflare | Title: Cloudflare outage on November 18, 2025 | Cloudflare
 
 Os tokens são contados com o tokenizer do `multilingual-e5-base`. O Qwen3 tem outro tokenizer; a contagem do e5 serve como aproximação do tamanho.
 
-Exemplo: incidente DAN-004 — [chunks_DAN-004.html](../datasets/danluu-ingestion/data/exports/chunks_DAN-004.html)
+Exemplo: incidente DAN-004 — [chunks_DAN-004.html](../../datasets/danluu-ingestion/data/exports/chunks_DAN-004.html)
 
 ## Como executar
 

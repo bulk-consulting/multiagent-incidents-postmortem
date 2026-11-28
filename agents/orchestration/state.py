@@ -5,7 +5,7 @@ does its work and writes its result back. Code (the routing) reads the state and
 runs next. The state is saved by the LangGraph checkpointer after every step, with
 thread_id = incident_id, so an investigation can pause (interrupt) and continue later.
 
-This is the "contract" of docs/E5_Estado_e_Formatos.md (section 3). Changing a key here means
+This is the "contract" of docs/E5_Orchestrated_Multi_Agent_System/E5_Estado_e_Formatos.md (section 3). Changing a key here means
 changing that document too, and telling whoever owns the nodes that read or write it.
 
 Who writes what:

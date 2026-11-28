@@ -4,7 +4,7 @@ The fakes replace graph.run_triage, graph.run_research and graph.run_diagnosis. 
 with the same serializer as the demo (state.make_serializer) and LANGGRAPH_STRICT_MSGPACK on, so a Pydantic class
 missing from STATE_CLASSES would break the test.
 
-Scenarios (docs/E5_Estado_e_Formatos.md, section 10):
+Scenarios (docs/E5_Orchestrated_Multi_Agent_System/E5_Estado_e_Formatos.md, section 10):
     1. new problem with a similar case → diagnosis report with valid sources
     2. vague message → pause with questions; resume with the answer → report
     3. duplicate → related incident, the Research agent is not called

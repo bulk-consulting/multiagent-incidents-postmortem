@@ -7,7 +7,7 @@ The Reporting agent receives the diagnosis and the evidence, and writes the fina
   - kind "diagnosis":    the most likely causes, each with the fix, a prevention checklist and the source;
   - kind "inconclusive": what we could not find out, and what the analyst can check now.
 
-The shape follows the contract in docs/E5_Estado_e_Formatos.md (section 6).
+The shape follows the contract in docs/E5_Orchestrated_Multi_Agent_System/E5_Estado_e_Formatos.md (section 6).
 """
 from typing import Literal, Optional
 
