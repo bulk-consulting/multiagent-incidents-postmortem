@@ -24,7 +24,7 @@ ReportKind = Literal["diagnosis", "inconclusive", "related_incident", "questions
 class Source(BaseModel):
     """A past incident that the report is based on."""
 
-    incident_id: str  # the PAST incident, for example "DAN-164"
+    post_mortem_id: str  # the PAST incident (post-mortem), for example "DAN-164"
     title: str
     url: str          # must be exactly the url of that incident in the findings
 

@@ -123,11 +123,13 @@ volta os tipos registrados (sem a lista, o LangGraph avisa que vai bloquear numa
 
 ## 4. Saída do Agente Pesquisa (já existe)
 
+Dois identificadores diferentes: `incident_id` é a investigação atual (`INC-...`); `post_mortem_id` é um post-mortem da base do RAG (`DAN-...`).
+
 Cada item de `findings` (até 8, os aprofundados primeiro):
 
 ```python
 {
-    "incident_id": "DAN-197", "company": "Metrist", "title": "...", "url": "https://...",
+    "post_mortem_id": "DAN-197", "company": "Metrist", "title": "...", "url": "https://...",
     "summary": "...", "similarity": 0.66,
     "deepened": True,                    # o LLM buscou causa e correção dentro dele
     "why": "...",                        # por que o LLM o escolheu (o que bate e o que não bate)
@@ -147,7 +149,7 @@ trechos, os demais só com título e resumo (a lista completa pode passar de 60 
 ```python
 class Hypothesis(BaseModel):
     cause: str                           # causa provável do incidente atual, em 1 ou 2 frases
-    based_on: list[str]                  # incident_ids dos achados que sustentam a hipótese (pelo menos 1)
+    based_on: list[str]                  # post_mortem_ids dos achados que sustentam a hipótese (pelo menos 1)
     matches: str                         # o que bate entre o incidente atual e os passados
     differs: str                         # o que não bate
     same_trigger: Literal["yes", "no", "unknown"]  # o gatilho do caso passado é do mesmo TIPO? (unknown: gatilho atual desconhecido)
@@ -205,7 +207,7 @@ recebia os achados antigos como lista principal e o refinamento trazia os mesmos
 - `evidence_sufficient` verdadeiro → `next_step == "report"` e pelo menos 1 hipótese;
 - `refine_search` → `search_request` não vazio; `ask_analyst` → `questions_for_analyst` não vazio.
 
-**Regras em código** (no agente, como no `agents/triage/agent.py`): todo `incident_id` de `based_on` tem de estar
+**Regras em código** (no agente, como no `agents/triage/agent.py`): todo `post_mortem_id` de `based_on` tem de estar
 nos `findings`; se não estiver, o erro volta ao modelo e ele corrige.
 
 Sem confiança numérica (0–1): o livro do Dibia recomenda categorias com justificativa, porque o número
@@ -218,7 +220,7 @@ ferramenta `check_incident`:
 
 - **O que faz:** lê mais trechos de **um incidente que já está nos `findings`**, procurando por uma pergunta.
   Exemplo: `check_incident("DAN-197", "how did they detect that Azure changed the API?")`.
-- **Como:** reaproveita a busca dentro de um incidente do Pesquisa (`search_in_incident` em
+- **Como:** reaproveita a busca dentro de um incidente do Pesquisa (`search_in_post_mortem` em
   `agents/research/tools.py`): compara a pergunta com os chunks daquele post-mortem e devolve os 2 ou 3 mais
   parecidos, sem repetir os que o Diagnóstico já recebeu. Não chama o LLM; é uma consulta ao banco.
 - **Limites:** só aceita incidentes dos `findings` e até 2 chamadas por diagnóstico.
@@ -250,7 +252,7 @@ alterados, checklist de prevenção, link para o post-mortem e nível de confian
 
 ```python
 class Source(BaseModel):
-    incident_id: str
+    post_mortem_id: str
     title: str
     url: str
 
@@ -274,7 +276,7 @@ class Report(BaseModel):
 O relatório sai no idioma do analista, como as perguntas do Triagem.
 
 **Validação em código (`validate_report`):**
-- todo `incident_id` das fontes existe nos `findings`, e o `url` é o mesmo dos `findings` (o modelo não
+- todo `post_mortem_id` das fontes existe nos `findings`, e o `url` é o mesmo dos `findings` (o modelo não
   inventa link);
 - `diagnosis` tem pelo menos 1 causa, e cada causa tem pelo menos 1 fonte;
 - `inconclusive` tem pelo menos 1 lacuna.

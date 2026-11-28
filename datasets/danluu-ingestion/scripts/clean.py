@@ -10,7 +10,7 @@ texto de data/extracted/: a extração original tinha pegado menus, rodapés,
 comentários ou outra página no lugar do post-mortem.
 
 Depois saem as traduções, os comentários de leitores, os parágrafos em outra
-escrita, os parágrafos longos repetidos e os parágrafos de plantilla do site
+escrita, os parágrafos longos repetidos e os parágrafos de boilerplate do site
 (idênticos em 3 ou mais documentos). Por fim, um título que se repete em
 vários documentos recebe a primeira frase do resumo, para identificar o incidente. Só saem trechos inteiros: nenhuma
 frase é alterada.
@@ -90,24 +90,24 @@ def remover_paragrafos(texto: str) -> tuple[str, int, int]:
     return "\n\n".join(unicos), outra_escrita, len(paragrafos) - len(unicos)
 
 
-# Parágrafos de plantilla do site (publicidade, avisos, "posts relacionados"): o mesmo
-# parágrafo, idêntico, em PLANTILLA_DOCS ou mais documentos. Títulos e parágrafos curtos
+# Parágrafos de boilerplate do site, o texto padrão que se repete (publicidade, avisos, "posts relacionados"): o mesmo
+# parágrafo, idêntico, em BOILERPLATE_DOCS ou mais documentos. Títulos e parágrafos curtos
 # ("## Root cause", "Thanks") ficam, porque se repetem legitimamente.
-PLANTILLA_DOCS = 3
-PLANTILLA_MIN = 100   # caracteres
+BOILERPLATE_DOCS = 3
+BOILERPLATE_MIN = 100   # caracteres
 
 
-def remover_plantillas(documentos: list[dict]) -> int:
-    """Remove dos documentos os parágrafos de plantilla; devolve quantos foram removidos."""
+def remover_boilerplate(documentos: list[dict]) -> int:
+    """Remove dos documentos os parágrafos de boilerplate; devolve quantos foram removidos."""
     def candidatos(texto: str) -> set[str]:
-        return {p.strip() for p in texto.split("\n\n") if len(p.strip()) >= PLANTILLA_MIN and not p.strip().startswith("#")}
+        return {p.strip() for p in texto.split("\n\n") if len(p.strip()) >= BOILERPLATE_MIN and not p.strip().startswith("#")}
 
     contagem = Counter(p for doc in documentos for p in candidatos(doc["extracted_text"]))
-    plantillas = {p for p, n in contagem.items() if n >= PLANTILLA_DOCS}
+    boilerplate = {p for p, n in contagem.items() if n >= BOILERPLATE_DOCS}
     removidos = 0
     for doc in documentos:
         paragrafos = doc["extracted_text"].split("\n\n")
-        mantidos = [p for p in paragrafos if p.strip() not in plantillas]
+        mantidos = [p for p in paragrafos if p.strip() not in boilerplate]
         removidos += len(paragrafos) - len(mantidos)
         doc["extracted_text"] = "\n\n".join(mantidos)
     return removidos
@@ -192,7 +192,7 @@ def main() -> None:
             "text_source": "reextracted" if reextraido.exists() else "extracted",
         })
 
-    plantillas = remover_plantillas(documentos)
+    boilerplate = remover_boilerplate(documentos)
     titulos = distinguir_titulos(documentos)
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
@@ -205,7 +205,7 @@ def main() -> None:
     print(f"Descartados < {MIN_PALAVRAS} palavras: {curtos}")
     print(f"Descartados manualmente: {excluidos}")
     print(f"Parágrafos removidos: {outra_escrita} em outra escrita, {repetidos} repetidos, "
-          f"{plantillas} de plantilla do site (em {PLANTILLA_DOCS}+ documentos)")
+          f"{boilerplate} de boilerplate do site (em {BOILERPLATE_DOCS}+ documentos)")
     print(f"Títulos repetidos completados com o resumo: {titulos}")
     print(f"Gravados: {len(documentos)} em {OUTPUT}")
 

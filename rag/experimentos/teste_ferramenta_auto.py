@@ -162,7 +162,7 @@ def criar_grafo(modelo: str, chave: str, base_url: str, espera_inicial: float = 
                 else:
                     t = time.time()
                     rec = grafo.busca().buscar(consulta, 5, 2)
-                    ids = [prompts._id_curto(r["doc_id"]) for r in rec]
+                    ids = [prompts._id_curto(r["post_mortem_id"]) for r in rec]
                     buscas.append({"consulta": consulta, "ids": ids, "segundos": round(time.time() - t, 1)})
                     print(f"[busca] {consulta!r} -> {ids}", flush=True)
                     texto = prompts.montar_contexto(rec)

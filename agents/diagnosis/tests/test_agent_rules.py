@@ -13,13 +13,13 @@ from agents.triage.tests.checks import Checker
 checker = Checker()
 
 FINDINGS = [
-    {"incident_id": "DAN-104", "company": "Amazon", "title": "S3 disruption", "summary": "A command removed too "
+    {"post_mortem_id": "DAN-104", "company": "Amazon", "title": "S3 disruption", "summary": "A command removed too "
      "many servers.", "deepened": True, "why": "same trigger",
      "passages": [{"section": "Summary", "content": "One of the commands was entered incorrectly.",
                    "query_source": "cause"},
                   {"section": "Changes", "content": "We modified the tool to remove capacity more slowly.",
                    "query_source": "fix"}]},
-    {"incident_id": "DAN-189", "company": "Joyent", "title": "us-east-1 outage", "summary": "An operator "
+    {"post_mortem_id": "DAN-189", "company": "Joyent", "title": "us-east-1 outage", "summary": "An operator "
      "rebooted all servers.", "deepened": False, "passages": []},
 ]
 TRIAGE = {"affected_service": "object store", "trigger": "an engineer took machines out", "symptoms": ["reads fail"],
@@ -55,7 +55,7 @@ text = findings_text(FINDINGS)
 checker.check("deepened incident shows its passages", "One of the commands was entered incorrectly" in text)
 checker.check("passages say what they are about", "about the cause" in text and "about the fix" in text)
 checker.check("non-deepened incident has no passages", "(not deepened: no passages)" in text)
-long = [{**FINDINGS[0], "incident_id": f"DAN-{k:03d}", "passages": [{"section": "x", "content": "word " * 2000,
+long = [{**FINDINGS[0], "post_mortem_id": f"DAN-{k:03d}", "passages": [{"section": "x", "content": "word " * 2000,
                                                                        "query_source": "cause"}] * 7}
         for k in range(20)]
 checker.check("the text is cut before the length limit", len(findings_text(long)) < 33000)

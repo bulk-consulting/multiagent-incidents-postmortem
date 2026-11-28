@@ -105,16 +105,16 @@ NOME_FERRAMENTA = "registrar_resposta"
 DESCRICAO_FERRAMENTA = "Registra a resposta final à pergunta, com os IDs dos incidentes citados e o nível de evidência."
 
 
-def _id_curto(doc_id: str) -> str:
+def _id_curto(post_mortem_id: str) -> str:
     """'danluu:DAN-137' -> 'DAN-137'."""
-    return doc_id.split(":", 1)[-1]
+    return post_mortem_id.split(":", 1)[-1]
 
 
 def montar_contexto(recuperados: list[dict], max_chars_trecho: int = 1500) -> str:
     """Formata a saída de busca.buscar() como blocos, um por incidente, na ordem de relevância."""
     blocos = []
     for r in recuperados:
-        linhas = [f"### [{_id_curto(r['doc_id'])}] {r['company']} — {r['title']}",
+        linhas = [f"### [{_id_curto(r['post_mortem_id'])}] {r['company']} — {r['title']}",
                   f"Fonte: {r['url']}"]
         if r.get("resumo"):
             linhas.append(f"Resumo: {r['resumo']}")

@@ -29,10 +29,10 @@ def load_fixture(name):
 def good_report_for(data):
     """A correct diagnosis for a fixture, written by hand: one cause per hypothesis, same order,
     same confidence, real sources, and a message that shows every link. Used to test the rules and the loop."""
-    findings = {f["incident_id"]: f for f in data["findings"]}
+    findings = {f["post_mortem_id"]: f for f in data["findings"]}
     causes = []
     for hypothesis in data["diagnosis"]["hypotheses"]:
-        sources = [Source(incident_id=i, title=findings[i]["title"], url=findings[i]["url"]) for i in hypothesis["based_on"]]
+        sources = [Source(post_mortem_id=i, title=findings[i]["title"], url=findings[i]["url"]) for i in hypothesis["based_on"]]
         causes.append(ReportCause(root_cause=hypothesis["cause"], sources=sources, confidence=hypothesis["confidence"]))
     message = "Most likely causes:\n" + "\n".join(f"- {s.title}: {s.url}" for c in causes for s in c.sources)
     return Report(kind="diagnosis", summary="A short summary.", message=message, causes=causes)

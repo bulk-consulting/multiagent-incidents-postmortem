@@ -56,7 +56,7 @@ No desenho da E1.2, o Agente Pesquisa RAG fica entre o Agente Triagem e o Agente
 
 | Campo | O que é |
 |---|---|
-| `findings` | até 8 incidentes, os aprofundados primeiro. Cada um com `incident_id`, `company`, `title`, `url`, `summary`, `similarity`, `deepened`, `why` (por que o LLM o escolheu) e até 7 trechos (`passages`) |
+| `findings` | até 8 incidentes, os aprofundados primeiro. Cada um com `post_mortem_id`, `company`, `title`, `url`, `summary`, `similarity`, `deepened`, `why` (por que o LLM o escolheu) e até 7 trechos (`passages`) |
 | `search_log` | registro de cada busca: etapa, consulta, filtro e IDs encontrados |
 | `llm_calls` | tempo, tokens, ferramentas chamadas e correções aplicadas em cada chamada ao LLM |
 
@@ -105,7 +105,7 @@ Busca, dentro de incidentes já encontrados, os trechos que explicam a causa e a
 
 | Argumento | O que é |
 |---|---|
-| `searches` | lista de até 3 itens `{incident_id, query, why}`: o incidente, uma consulta curta em inglês e uma frase dizendo por que foi escolhido |
+| `searches` | lista de até 3 itens `{post_mortem_id, query, why}`: o incidente, uma consulta curta em inglês e uma frase dizendo por que foi escolhido |
 
 Para cada incidente, o código traz:
 - até 2 trechos pela consulta do LLM;

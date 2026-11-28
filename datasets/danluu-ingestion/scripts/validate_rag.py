@@ -1,7 +1,7 @@
 """Validação da ingestão no PostgreSQL + pgvector.
 
-1. Conta incidentes e chunks e compara com data/chunks/danluu_chunks.jsonl.
-2. Checagens de integridade (dimensões, norma dos vetores, incidentes sem chunks...).
+1. Conta post-mortems e chunks e compara com data/chunks/danluu_chunks.jsonl.
+2. Checagens de integridade (dimensões, norma dos vetores, post-mortems sem chunks...).
 3. Mostra uma amostra de embedding.
 4. Faz buscas com descrições simples de incidentes conhecidos e confere se o
    incidente esperado aparece entre os 5 primeiros resultados.
@@ -32,11 +32,11 @@ CHECAGENS = [
     ("vetores com outra dimensão", f"SELECT count(*) FROM chunk WHERE vector_dims(embedding) <> {DIMENSIONS}"),
     ("vetores sem norma 1 (não normalizados)", "SELECT count(*) FROM chunk WHERE abs(vector_norm(embedding) - 1) > 0.01"),
     ("chunks com texto vazio", "SELECT count(*) FROM chunk WHERE trim(content) = ''"),
-    ("incidentes sem nenhum chunk",
-     "SELECT count(*) FROM incident i WHERE NOT EXISTS (SELECT 1 FROM chunk c WHERE c.catalog_id = i.catalog_id)"),
-    ("incidentes sem chunk de summary",
-     "SELECT count(*) FROM incident i WHERE NOT EXISTS "
-     "(SELECT 1 FROM chunk c WHERE c.catalog_id = i.catalog_id AND c.chunk_type = 'summary')"),
+    ("post-mortems sem nenhum chunk",
+     "SELECT count(*) FROM post_mortems p WHERE NOT EXISTS (SELECT 1 FROM chunk c WHERE c.post_mortem_id = p.post_mortem_id)"),
+    ("post-mortems sem chunk de summary",
+     "SELECT count(*) FROM post_mortems p WHERE NOT EXISTS "
+     "(SELECT 1 FROM chunk c WHERE c.post_mortem_id = p.post_mortem_id AND c.chunk_type = 'summary')"),
     ("tipos de chunk desconhecidos", "SELECT count(*) FROM chunk WHERE chunk_type NOT IN ('summary', 'text')"),
     ("chunks com o mesmo vetor de outro chunk",
      "SELECT count(*) FROM (SELECT embedding FROM chunk GROUP BY embedding HAVING count(*) > 1) d"),
@@ -49,7 +49,7 @@ def main() -> None:
         register_vector(conn)
 
         print("1. Contagem")
-        print(f"   incidentes: {conn.execute('SELECT count(*) FROM incident').fetchone()[0]}")
+        print(f"   post-mortems: {conn.execute('SELECT count(*) FROM post_mortems').fetchone()[0]}")
         for chunk_type, total in conn.execute("SELECT chunk_type, count(*) FROM chunk GROUP BY 1 ORDER BY 1"):
             print(f"   chunks {chunk_type}: {total}")
         no_banco = {row[0] for row in conn.execute("SELECT chunk_id FROM chunk")}

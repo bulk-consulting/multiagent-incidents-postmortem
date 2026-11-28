@@ -105,7 +105,7 @@ def findings_text(findings):
     summary. Stops before MAX_TOTAL_CHARS."""
     blocks, total = [], 0
     for k, r in enumerate(findings, 1):
-        head = f"### {k}. [{r['incident_id']}] {r.get('company', '')} — {r.get('title', '')}"
+        head = f"### {k}. [{r['post_mortem_id']}] {r.get('company', '')} — {r.get('title', '')}"
         lines = [head, f"Summary: {_cut(r.get('summary'), 600) or '(no summary)'}"]
         if r.get("deepened"):
             if r.get("why"):

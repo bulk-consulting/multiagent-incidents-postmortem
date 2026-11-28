@@ -32,7 +32,7 @@ START → recuperar → montar_prompt → gerar → verificar_citacoes → END
                                       └── cita ID fora do contexto (no máximo 1 nova tentativa)
 ```
 
-- **recuperar:** busca em duas etapas ([busca.py](busca.py)) sobre as tabelas `incident` e `chunk` da ingestão (`db/schema.sql`).
+- **recuperar:** busca em duas etapas ([busca.py](busca.py)) sobre as tabelas `post_mortems` e `chunk` da ingestão (`datasets/db/schema.sql`).
   - A pergunta vira vetor com o Qwen3-Embedding.
   - Primeiro vêm os 5 incidentes mais parecidos, comparando com o resumo e com o texto de cada um.
   - Depois, os 2 trechos mais parecidos de cada um desses incidentes.
@@ -60,7 +60,7 @@ A versão atual é a **v2**. A v1 continua em [prompts.py](prompts.py) para comp
 
 A comparação entre v1 e v2 (3 rodadas de cada, com os erros e as evidências) está em [avaliacao/resultados/conferencia_prompt_v1_v2_2026-11-11.md](avaliacao/resultados/conferencia_prompt_v1_v2_2026-11-11.md). Resumo: a v2 reduziu as invenções (4 → 2) e a formatação estranha; as leituras erradas (o modelo troca um fato que está no texto) ficaram iguais e parecem limite do modelo.
 
-Essas 6 rodadas foram feitas sobre o banco da ingestão anterior do André (branch `e2-fichas-andre`). Sobre a ingestão atual (`incident`/`chunk`), mais 3 rodadas com a v2 estão em [avaliacao/resultados/conferencia_banco_mari_2026-11-12.md](avaliacao/resultados/conferencia_banco_mari_2026-11-12.md): 1 invenção, 4 leituras erradas, e a q10 passou a vir com o incidente certo em 1º, respondida corretamente nas 3.
+Essas 6 rodadas foram feitas sobre o banco da ingestão anterior do André (branch `e2-fichas-andre`). Sobre a ingestão atual (`post_mortems`/`chunk`), mais 3 rodadas com a v2 estão em [avaliacao/resultados/conferencia_banco_mari_2026-11-12.md](avaliacao/resultados/conferencia_banco_mari_2026-11-12.md): 1 invenção, 4 leituras erradas, e a q10 passou a vir com o incidente certo em 1º, respondida corretamente nas 3.
 
 ## Limitações conhecidas
 

@@ -43,7 +43,7 @@ def show_details(report: dict, incident_id: str, seconds: float) -> None:
         if sources:
             st.markdown("**Post-mortems usados**")
             for s in sources.values():
-                st.markdown(f"- [{s['incident_id']} — {s['title']}]({s['url']})")
+                st.markdown(f"- [{s['post_mortem_id']} — {s['title']}]({s['url']})")
         for i, cause in enumerate(report["causes"], start=1):
             st.markdown(f"**Causa {i}** — confiança {CONFIDENCE.get(cause['confidence'], cause['confidence'])}")
         if report["suggested_checks"]:

@@ -28,7 +28,7 @@ VAGUE_TRIAGE = TriageResult(enough_information=False, missing_information=["Qual
 RELATED_TRIAGE = TriageResult(enough_information=True, symptoms=["uploads fail"], affected_service="storage",
                               related_incident=RelatedIncident(incident_id="INC-042", title="Uploads return 401"))
 
-FINDING = {"incident_id": "DAN-015", "company": "Cloudflare", "title": "Cloudflare incident on March 21, 2025",
+FINDING = {"post_mortem_id": "DAN-015", "company": "Cloudflare", "title": "Cloudflare incident on March 21, 2025",
            "url": "https://blog.cloudflare.com/cloudflare-incident-march-21-2025/", "summary": "s",
            "deepened": True, "passages": []}
 
@@ -74,7 +74,7 @@ use_fake_agents(GOOD_TRIAGE)
 status, data = ask("Desde as 21h40 os uploads falham com 401 Unauthorized.")
 check("200 and kind diagnosis", status == 200 and data["report"]["kind"] == "diagnosis")
 check("the source is the post-mortem found",
-      data["report"]["causes"][0]["sources"][0]["incident_id"] == "DAN-015")
+      data["report"]["causes"][0]["sources"][0]["post_mortem_id"] == "DAN-015")
 check("there is a message for the chat", "DAN-015" in data["report"]["message"])
 
 print("\n2. Vague message: the Triage agent asks")

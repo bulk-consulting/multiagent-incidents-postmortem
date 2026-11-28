@@ -82,8 +82,8 @@ class ResearchState(TypedDict, total=False):
     # produced by the agent
     messages: Annotated[list[AnyMessage], add_messages]
     findings: list[dict]                              # the output for the Diagnosis agent
-    deepened: dict                                    # incident_id -> passages from search_inside_incidents
-    new_incidents: list[dict]                         # incidents from find_similar_incidents
+    deepened: dict                                    # post_mortem_id -> passages from search_inside_incidents
+    new_post_mortems: list[dict]                         # incidents from find_similar_incidents
     plan: dict                                        # summary of the LLM's decisions (for reports)
     search_log: Annotated[list[dict], operator.add]   # every search made (traceability)
     llm_calls: Annotated[list[dict], operator.add]
@@ -100,14 +100,14 @@ def _tag_origin(incidents: list[dict], query: str) -> list[dict]:
     return incidents
 
 
-def _merge_by_incident(lists: list[list[dict]]) -> list[dict]:
+def _merge_by_post_mortem(lists: list[list[dict]]) -> list[dict]:
     """One record per incident, with the highest similarity and the passages of all searches (no repeats)."""
     by_id: dict[str, dict] = {}
     for found in lists:
         for r in found:
-            current = by_id.get(r["incident_id"])
+            current = by_id.get(r["post_mortem_id"])
             if current is None:
-                by_id[r["incident_id"]] = {**r, "passages": list(r["passages"])}
+                by_id[r["post_mortem_id"]] = {**r, "passages": list(r["passages"])}
                 continue
             texts = {d["content"] for d in current["passages"]}
             current["passages"] += [d for d in r["passages"] if d["content"] not in texts]
@@ -127,11 +127,11 @@ def initial_search(state: ResearchState) -> dict:
     else:  # the description and one search per symptom
         queries = [state["description"], *state.get("symptoms", [])]
     for query in queries:
-        found = _tag_origin(tools.search_incidents(query, N_DOCS, N_SIMILAR_PASSAGES, exclude), query)
+        found = _tag_origin(tools.search_post_mortems(query, N_DOCS, N_SIMILAR_PASSAGES, exclude), query)
         lists.append(found)
         log.append({"step": "initial_search", "query": query, "filter": {"exclude": exclude} if exclude else None,
-                    "ids": [r["incident_id"] for r in found]})
-    return {"candidates": _merge_by_incident(lists)[:N_DOCS], "search_log": log,
+                    "ids": [r["post_mortem_id"] for r in found]})
+    return {"candidates": _merge_by_post_mortem(lists)[:N_DOCS], "search_log": log,
             "timings": {"initial_search": round(time.time() - start, 1)}}
 
 
@@ -236,7 +236,7 @@ def build_summary_list(candidates: list[dict]) -> str:
     blocks = []
     for k, r in enumerate(candidates, 1):
         summary = (r.get("summary") or "").strip()
-        lines = [f"### {k}. [{r['incident_id']}] {r['company']} — {r['title']}", f"Summary: {summary or '(no summary)'}"]
+        lines = [f"### {k}. [{r['post_mortem_id']}] {r['company']} — {r['title']}", f"Summary: {summary or '(no summary)'}"]
         if len(summary) < MIN_SUMMARY_CHARS:
             best = r.get("best_chunk") or {}
             if best.get("type") == "summary" or not best.get("content"):  # the best chunk was the summary itself
@@ -255,7 +255,7 @@ def fill_missing_arguments(msg: AIMessage) -> int:
     n = 0
     for c in msg.tool_calls:
         # List sent as text with JSON inside (seen with Nemotron 3.5 on 2026-11-18:
-        # {"searches": "[{\"incident_id\": ...}]"}): convert it to a list before the tool validates it.
+        # {"searches": "[{\"post_mortem_id\": ...}]"}): convert it to a list before the tool validates it.
         for field in ("searches", "queries"):
             value = c["args"].get(field)
             if isinstance(value, str) and value.strip().startswith("["):
@@ -280,8 +280,8 @@ def fill_missing_arguments(msg: AIMessage) -> int:
 
 def _fixed_call(state: ResearchState) -> AIMessage:
     """--no-llm mode: looks inside the first 3 candidates with only the fixed cause and fix queries."""
-    searches = [{"incident_id": r["incident_id"], "query": "", "why": ""}
-                for r in state.get("candidates", [])[:tools.MAX_INCIDENTS_PER_CALL]]
+    searches = [{"post_mortem_id": r["post_mortem_id"], "query": "", "why": ""}
+                for r in state.get("candidates", [])[:tools.MAX_POST_MORTEMS_PER_CALL]]
     return AIMessage("", tool_calls=[{"name": "search_inside_incidents", "args": {"searches": searches},
                                       "id": "no-llm-1", "type": "tool_call"}])
 
@@ -404,13 +404,13 @@ def after_tools(state: ResearchState) -> Literal["agent", "build_findings"]:
 # ---------------------------------------------------------------- output (code)
 
 def build_findings(state: ResearchState) -> dict:
-    deepened, new_incidents, reasons, log, warnings = {}, [], {}, [], []
+    deepened, new_post_mortems, reasons, log, warnings = {}, [], {}, [], []
     plan = {"deepen": [], "new_queries": [], "final_note": "", "warnings": warnings}
     for m in state.get("messages", []):
         if isinstance(m, AIMessage):
             for c in m.tool_calls:
                 if c["name"] == "search_inside_incidents":
-                    plan["deepen"] += [{"id": tools.short_id(str(s.get("incident_id", ""))), "query": s.get("query", ""),
+                    plan["deepen"] += [{"id": tools.short_id(str(s.get("post_mortem_id", ""))), "query": s.get("query", ""),
                                         "why": s.get("why")}
                                        for s in c["args"].get("searches", []) if isinstance(s, dict)]
                 elif c["name"] == "find_similar_incidents":
@@ -423,40 +423,40 @@ def build_findings(state: ResearchState) -> dict:
             if m.status == "error":
                 warnings.append(f"{m.name}: {str(m.content)[:200]}")
             art = m.artifact or {}
-            for i, passages in art.get("passages_by_incident", {}).items():
+            for i, passages in art.get("passages_by_post_mortem", {}).items():
                 deepened.setdefault(i, []).extend(passages)
-            new_incidents += art.get("incidents", [])
+            new_post_mortems += art.get("post_mortems", [])
             reasons.update(art.get("reasons", {}))
             log += art.get("search_log", [])
             warnings += art.get("warnings", [])
     findings, done = [], set()
-    for r in [*state.get("candidates", []), *new_incidents]:
-        if r["incident_id"] in done:
+    for r in [*state.get("candidates", []), *new_post_mortems]:
+        if r["post_mortem_id"] in done:
             continue
-        done.add(r["incident_id"])
+        done.add(r["post_mortem_id"])
         passages = list(r.get("passages", []))
         texts = {d["content"] for d in passages}
-        extra = [d for d in deepened.get(r["incident_id"], []) if d["content"] not in texts]
-        is_deepened = r["incident_id"] in deepened or bool(r.get("deepened"))  # refinement: keeps the earlier one
-        findings.append({**r, "deepened": is_deepened, "why": reasons.get(r["incident_id"], r.get("why")),
+        extra = [d for d in deepened.get(r["post_mortem_id"], []) if d["content"] not in texts]
+        is_deepened = r["post_mortem_id"] in deepened or bool(r.get("deepened"))  # refinement: keeps the earlier one
+        findings.append({**r, "deepened": is_deepened, "why": reasons.get(r["post_mortem_id"], r.get("why")),
                          "passages": (extra + passages)[:MAX_PASSAGES]})  # deep search passages first
     # Order: the ones the LLM looked inside, in the order it listed them (the first is the one it finds most
     # similar); then the ones deepened in earlier rounds (refinement); then the others, by similarity.
     llm_order = {}
     for item in plan["deepen"]:
         llm_order.setdefault(item["id"], len(llm_order))
-    findings.sort(key=lambda r: (0, llm_order[r["incident_id"]])
-                  if r["incident_id"] in llm_order and r["incident_id"] in deepened
+    findings.sort(key=lambda r: (0, llm_order[r["post_mortem_id"]])
+                  if r["post_mortem_id"] in llm_order and r["post_mortem_id"] in deepened
                   else ((1, 0) if r["deepened"] else (2, 0)))
     # Refinement: the incidents deepened in earlier rounds come back after the new deepened ones, as evidence
     # (the others from earlier rounds do not: they would take the places of the new ones).
-    old = [r for r in state.get("previous_findings", []) if r.get("deepened") and r["incident_id"] not in done]
-    findings = [r for r in findings if r["incident_id"] in llm_order and r["incident_id"] in deepened] + old + \
-               [r for r in findings if not (r["incident_id"] in llm_order and r["incident_id"] in deepened)]
+    old = [r for r in state.get("previous_findings", []) if r.get("deepened") and r["post_mortem_id"] not in done]
+    findings = [r for r in findings if r["post_mortem_id"] in llm_order and r["post_mortem_id"] in deepened] + old + \
+               [r for r in findings if not (r["post_mortem_id"] in llm_order and r["post_mortem_id"] in deepened)]
     findings = findings[:MAX_FINDINGS]  # the rest stay in seen_ids (they do not come back in a new search)
-    done |= {r["incident_id"] for r in state.get("previous_findings", [])}
+    done |= {r["post_mortem_id"] for r in state.get("previous_findings", [])}
     seen = sorted(set(state.get("seen_ids", [])) | done)
-    return {"findings": findings, "deepened": deepened, "new_incidents": new_incidents, "plan": plan,
+    return {"findings": findings, "deepened": deepened, "new_post_mortems": new_post_mortems, "plan": plan,
             "seen_ids": seen, "search_log": log}
 
 
@@ -499,7 +499,7 @@ def _show(node: str, delta: dict) -> None:
     elif node == "build_findings":
         for r in delta["findings"]:
             n_deep = sum(d.get("origin") == "deep_search" for d in r["passages"])
-            print(f"   {r['incident_id']} {r['similarity']:.3f} {r['company']} — {r['title'][:50]}  "
+            print(f"   {r['post_mortem_id']} {r['similarity']:.3f} {r['company']} — {r['title'][:50]}  "
                   f"{'DEEPENED ' if r['deepened'] else ''}passages: {len(r['passages'])} ({n_deep} from deep search)")
             if r.get("why"):
                 print(f"      why: {r['why'][:150]}")
@@ -514,7 +514,7 @@ def research(description: str, symptoms: list[str] | None = None, request: str =
     if triage:
         entry["triage"] = triage
     if previous:
-        seen = set(previous.get("seen_ids", [])) | {r["incident_id"] for r in previous["findings"]}
+        seen = set(previous.get("seen_ids", [])) | {r["post_mortem_id"] for r in previous["findings"]}
         entry.update({"previous_findings": previous["findings"], "seen_ids": sorted(seen)})
     state: dict = {}
     for part in build_graph().stream(entry, {"recursion_limit": 20}, stream_mode=["updates", "values"], version="v2"):

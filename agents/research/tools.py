@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field
 from rag import busca
 from rag.prompts import _id_curto as short_id  # "danluu-017" -> "DAN-017"
 
-MAX_INCIDENTS_PER_CALL = 3
+MAX_POST_MORTEMS_PER_CALL = 3
 MAX_QUERIES_PER_CALL = 2
 N_PASSAGES = 2             # passages per query inside an incident
 N_DOCS = 5                 # incidents per query in find_similar_incidents
@@ -61,25 +61,25 @@ def _passage(d: dict) -> dict:
     return {"section": d.get("secao", ""), "content": d["content"], "similarity": d["similaridade"]}
 
 
-def search_incidents(query: str, n_docs: int, n_passages: int, exclude: list[str] | None = None) -> list[dict]:
+def search_post_mortems(query: str, n_docs: int, n_passages: int, exclude: list[str] | None = None) -> list[dict]:
     """Incidents similar to the query (two-step search in pgvector), with English keys."""
-    incidents = []
+    post_mortems = []
     exclude = sorted(set(exclude or []) | HIDDEN_IDS)
     for r in busca.buscar(query, n_docs, n_passages, excluir=exclude):
         best = r.get("melhor_chunk") or {}
-        incidents.append({
-            "incident_id": short_id(r["doc_id"]), "company": r["company"], "title": r["title"], "url": r.get("url"),
+        post_mortems.append({
+            "post_mortem_id": short_id(r["post_mortem_id"]), "company": r["company"], "title": r["title"], "url": r.get("url"),
             "summary": r.get("resumo") or "", "similarity": r["similaridade"],
             "best_chunk": {"type": "summary" if best.get("tipo") == "resumo" else "text",
                            "section": best.get("secao", ""), "content": best.get("content", "")},
             "passages": [_passage(d) for d in r.get("detalhes", [])],
         })
-    return incidents
+    return post_mortems
 
 
-def search_in_incident(incident_id: str, query: str, n: int) -> list[dict]:
+def search_in_post_mortem(post_mortem_id: str, query: str, n: int) -> list[dict]:
     """The n passages of one incident most similar to the query, with English keys."""
-    return [_passage(d) for d in busca.buscar_no_incidente(incident_id, query, n)]
+    return [_passage(d) for d in busca.buscar_no_post_mortem(post_mortem_id, query, n)]
 
 
 def description_query(state: dict) -> str:
@@ -93,8 +93,8 @@ def description_query(state: dict) -> str:
 
 # ---------------------------------------------------------------- search_inside_incidents
 
-class SearchInIncident(BaseModel):
-    incident_id: str = Field(description="ID of an incident already found, e.g. DAN-017")
+class SearchInPostMortem(BaseModel):
+    post_mortem_id: str = Field(description="ID of a past incident (post-mortem) already found, e.g. DAN-017")
     query: str = Field(description="short query in English, as keywords, about the cause and the fix of this incident")
     why: str = Field(description="one short sentence saying why you chose this incident: "
                                  "what matches the current incident and what does not")
@@ -105,7 +105,7 @@ def is_fix_passage(d: dict) -> bool:
     return bool(FIX_TITLE.search(d.get("section") or "")) or bool(FIX_LABEL.search(d["content"]))
 
 
-def passages_for_incident(incident_id: str, llm_query: str | None, seen: set[str]) -> tuple[list[dict], list[dict]]:
+def passages_for_post_mortem(post_mortem_id: str, llm_query: str | None, seen: set[str]) -> tuple[list[dict], list[dict]]:
     """The passages of one incident for the Diagnosis agent: up to 2 from the LLM's query, 1 from the fixed
     cause query and 2 about the fix. For the fix, passages whose section title says fix ("How was the problem
     corrected", "Remediation", "Action Items"...) come before the others. `seen` avoids repeated passages.
@@ -126,57 +126,57 @@ def passages_for_incident(incident_id: str, llm_query: str | None, seen: set[str
         if not query:
             continue
         k = 0
-        for d in search_in_incident(incident_id, query, n + 3):
+        for d in search_in_post_mortem(post_mortem_id, query, n + 3):
             if k < n and accept(d, query, source):
                 k += 1
-        log.append({"step": "search_inside_incidents", "query": query, "filter": {"incident": incident_id},
-                    "ids": [incident_id]})
-    whole = search_in_incident(incident_id, FIX_QUERY, 40)  # the whole incident, ordered by the fix query
+        log.append({"step": "search_inside_incidents", "query": query, "filter": {"post_mortem": post_mortem_id},
+                    "ids": [post_mortem_id]})
+    whole = search_in_post_mortem(post_mortem_id, FIX_QUERY, 40)  # the whole incident, ordered by the fix query
     k = 0
     for d in sorted(whole, key=lambda d: not is_fix_passage(d)):  # sorted is stable: keeps the similarity order
         if k < N_FIX and accept(d, FIX_QUERY, "fix"):
             k += 1
-    log.append({"step": "search_inside_incidents", "query": FIX_QUERY, "filter": {"incident": incident_id},
-                "ids": [incident_id]})
+    log.append({"step": "search_inside_incidents", "query": FIX_QUERY, "filter": {"post_mortem": post_mortem_id},
+                "ids": [post_mortem_id]})
     return passages, log
 
 
 def known_ids(state: dict) -> set[str]:
     """Incidents the agent has already seen: candidates, seen in earlier rounds and found by find_similar_incidents."""
-    ids = {r["incident_id"] for r in state.get("candidates", [])} | set(state.get("seen_ids", []))
+    ids = {r["post_mortem_id"] for r in state.get("candidates", [])} | set(state.get("seen_ids", []))
     for m in state.get("messages", []):
         if isinstance(m, ToolMessage) and m.name == "find_similar_incidents" and m.artifact:
-            ids |= {r["incident_id"] for r in m.artifact.get("incidents", [])}
+            ids |= {r["post_mortem_id"] for r in m.artifact.get("post_mortems", [])}
     return ids
 
 
 @tool(response_format="content_and_artifact")
-def search_inside_incidents(searches: list[SearchInIncident],
+def search_inside_incidents(searches: list[SearchInPostMortem],
                             state: Annotated[dict, InjectedState]) -> tuple[str, dict]:
     """Searches INSIDE incidents already found for the passages that explain the root cause and the fix.
     Use it for the incidents that really look like the current one (up to 3 in one call), saying for
     each one why you chose it (why)."""
     known = known_ids(state)
-    passages_by_incident, log, lines, warnings = {}, [], [], []
+    passages_by_post_mortem, log, lines, warnings = {}, [], [], []
     reasons: dict[str, str] = {}
     seen_by_id: dict[str, set] = {}  # the LLM sometimes asks for 2 searches in the same incident: no repeats
-    for s in searches[:MAX_INCIDENTS_PER_CALL]:
-        i = short_id(s.incident_id.strip().upper())
+    for s in searches[:MAX_POST_MORTEMS_PER_CALL]:
+        i = short_id(s.post_mortem_id.strip().upper())
         if i not in known:
             warnings.append(f"{i} is not among the incidents found; ignored.")
             continue
         reasons[i] = s.why.strip()
-        new, entries = passages_for_incident(i, s.query.strip(), seen_by_id.setdefault(i, set()))
-        passages_by_incident.setdefault(i, []).extend(new)
+        new, entries = passages_for_post_mortem(i, s.query.strip(), seen_by_id.setdefault(i, set()))
+        passages_by_post_mortem.setdefault(i, []).extend(new)
         log += entries
         lines.append(f"### [{i}] query: {s.query.strip()}")
         lines += [f"Passage ({d['section'] or 'no section'}): {d['content'][:PASSAGE_CHARS_FOR_LLM]}" for d in new]
-    if len(searches) > MAX_INCIDENTS_PER_CALL:
-        warnings.append(f"Only the first {MAX_INCIDENTS_PER_CALL} incidents were searched.")
+    if len(searches) > MAX_POST_MORTEMS_PER_CALL:
+        warnings.append(f"Only the first {MAX_POST_MORTEMS_PER_CALL} incidents were searched.")
     text = "\n\n".join(lines) or "No passage found."
     if warnings:
         text += "\n\nWarnings: " + " ".join(warnings)
-    return text, {"passages_by_incident": passages_by_incident, "reasons": reasons, "search_log": log,
+    return text, {"passages_by_post_mortem": passages_by_post_mortem, "reasons": reasons, "search_log": log,
                   "warnings": warnings}
 
 
@@ -194,34 +194,34 @@ def find_similar_incidents(queries: list[str], state: Annotated[dict, InjectedSt
     if INCLUDE_DESCRIPTION_IN_FIRST_SEARCH and first and state.get("description"):
         # Hybrid mode: the LLM's first search also searches with the original description (done in code).
         # Its N_DOCS incidents always come in; the LLM queries add up to EXTRA_FROM_LLM new ones.
-        guaranteed = search_incidents(description_query(state), N_DOCS, N_PASSAGES, exclude)
+        guaranteed = search_post_mortems(description_query(state), N_DOCS, N_PASSAGES, exclude)
         for r in guaranteed:
             r["found_by"] = "description"
             for d in r["passages"]:
                 d.update({"origin": "similar", "query": description_query(state)})
         log.append({"step": "find_similar_incidents (description)", "query": description_query(state),
-                    "filter": {"exclude": exclude}, "ids": [r["incident_id"] for r in guaranteed]})
+                    "filter": {"exclude": exclude}, "ids": [r["post_mortem_id"] for r in guaranteed]})
     for query in [q.strip() for q in queries if q.strip()][:MAX_QUERIES_PER_CALL]:
-        found = search_incidents(query, N_DOCS, N_PASSAGES, exclude)
+        found = search_post_mortems(query, N_DOCS, N_PASSAGES, exclude)
         for r in found:
             r.setdefault("found_by", "llm_query")
             for d in r["passages"]:
                 d.update({"origin": "similar", "query": query})
-            if r["incident_id"] not in by_id or r["similarity"] > by_id[r["incident_id"]]["similarity"]:
-                by_id[r["incident_id"]] = r
+            if r["post_mortem_id"] not in by_id or r["similarity"] > by_id[r["post_mortem_id"]]["similarity"]:
+                by_id[r["post_mortem_id"]] = r
         log.append({"step": "find_similar_incidents", "query": query, "filter": {"exclude": exclude},
-                    "ids": [r["incident_id"] for r in found]})
+                    "ids": [r["post_mortem_id"] for r in found]})
     if guaranteed:
-        guaranteed_ids = {r["incident_id"] for r in guaranteed}
-        extra = [r for r in sorted(by_id.values(), key=lambda r: -r["similarity"]) if r["incident_id"] not in guaranteed_ids]
-        incidents = guaranteed + extra[:EXTRA_FROM_LLM]
+        guaranteed_ids = {r["post_mortem_id"] for r in guaranteed}
+        extra = [r for r in sorted(by_id.values(), key=lambda r: -r["similarity"]) if r["post_mortem_id"] not in guaranteed_ids]
+        post_mortems = guaranteed + extra[:EXTRA_FROM_LLM]
     else:
-        incidents = sorted(by_id.values(), key=lambda r: -r["similarity"])[:N_DOCS]
-    lines = [f"### [{r['incident_id']}] {r['company']} — {r['title']}\nSummary: {r['summary'] or '(no summary)'}"
-             for r in incidents]
+        post_mortems = sorted(by_id.values(), key=lambda r: -r["similarity"])[:N_DOCS]
+    lines = [f"### [{r['post_mortem_id']}] {r['company']} — {r['title']}\nSummary: {r['summary'] or '(no summary)'}"
+             for r in post_mortems]
     text = ("\n\n".join(lines) + "\n\nTo see the cause and the fix of one of them, use search_inside_incidents."
             if lines else "No new incident found.")
-    return text, {"incidents": incidents, "search_log": log}
+    return text, {"post_mortems": post_mortems, "search_log": log}
 
 
 TOOLS = [search_inside_incidents, find_similar_incidents]

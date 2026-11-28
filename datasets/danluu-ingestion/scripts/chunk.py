@@ -10,9 +10,9 @@ Para cada documento:
 - quando uma seção longa é dividida em vários chunks, cada chunk que continua a
   seção começa repetindo o título dela ("## Root cause"), para não ficar sem
   contexto.
-Os tokens são contados com o tokenizer do multilingual-e5-base (limite de 512).
-O modelo de embeddings (Qwen3-Embedding-0.6B) tem outro tokenizer e lê bem mais
-que isso; a contagem do e5 serve como aproximação do tamanho.
+Os tokens são contados com o tokenizer do próprio modelo de embeddings
+(Qwen3-Embedding-0.6B). A busca lê até 1024 tokens por chunk (search.py), então
+um chunk de até MAX_TOKENS cabe inteiro, com folga.
 """
 
 import json
@@ -27,7 +27,7 @@ DATA = Path(__file__).resolve().parent.parent / "data"
 INPUT = DATA / "processed" / "danluu_clean.jsonl"
 OUTPUT = DATA / "chunks" / "danluu_chunks.jsonl"
 
-TOKENIZER = "intfloat/multilingual-e5-base"
+TOKENIZER = "Qwen/Qwen3-Embedding-0.6B"  # o mesmo modelo de search.py
 # Tamanho máximo do chunk inteiro, com o cabeçalho
 MAX_TOKENS = 450
 OVERLAP_TOKENS = 60

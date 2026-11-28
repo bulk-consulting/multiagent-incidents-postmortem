@@ -23,7 +23,7 @@ GOOD = good_report_for(state).model_dump_json()
 
 # A bad report: it cites an incident that is not in the findings.
 bad = json.loads(GOOD)
-bad["causes"][0]["sources"] = [{"incident_id": "DAN-999", "title": "Made up", "url": "https://made.up"}]
+bad["causes"][0]["sources"] = [{"post_mortem_id": "DAN-999", "title": "Made up", "url": "https://made.up"}]
 BAD = json.dumps(bad)
 
 

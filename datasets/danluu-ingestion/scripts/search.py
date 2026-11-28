@@ -24,8 +24,8 @@ QUERY_PREFIX = ("Instruct: Given a description of a production incident, retriev
                 "about similar incidents\nQuery: ")
 
 SQL = """
-SELECT c.chunk_id, i.company, i.title, i.source_url, 1 - (c.embedding <=> %s) AS similarity, c.content
-FROM chunk c JOIN incident i USING (catalog_id)
+SELECT c.chunk_id, p.company, p.title, p.source_url, 1 - (c.embedding <=> %s) AS similarity, c.content
+FROM chunk c JOIN post_mortems p USING (post_mortem_id)
 ORDER BY c.embedding <=> %s
 LIMIT %s
 """
